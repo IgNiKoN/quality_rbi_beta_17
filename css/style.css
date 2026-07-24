@@ -1292,7 +1292,9 @@ body.modal-open {
     position: relative;
     display: inline-block;
     width: 40px;
+    min-width: 40px;
     height: 24px;
+    flex-shrink: 0; /* иначе длинный текст в flex-ряду сжимает тумблер в «точку» на узких экранах */
 }
 
 .toggle-switch input {

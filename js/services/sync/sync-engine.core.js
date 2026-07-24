@@ -1030,11 +1030,11 @@ if (window.RbiStorageManager) {
         // 4. PULL: задачи и эталоны
         // =====================================================
         try {
+            // auto + manual: единый план инженера на телефоне/ПК/у админа
             let taskQuery = window.supabaseClient
                 .from('rbi_tasks')
                 .select('*')
-                .eq('project_code', pCode)
-                .eq('task_data->>type', 'manual');
+                .eq('project_code', pCode);
 
             const role = window.RBI.services.permissions ? window.RBI.services.permissions.getCurrentRole() : 'guest';
             const taskDataScope = window.RBI.services.permissions ? window.RBI.services.permissions.getDataScope(role) : 'none';
@@ -2099,21 +2099,27 @@ if (window.RbiStorageManager) {
 
                 // ИСПРАВЛЕНИЕ: Отправляем ручные локальные / несинхронизированные задачи,
                 // даже если они старше последней синхронизации
+                const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+                const nowPush = Date.now();
                 tasks = tasks.filter(t => {
                     if (!t) return false;
-                    if (t.type !== 'manual') return false;
+                    // manual + auto (системный план); прочие типы не трогаем
+                    if (t.type && t.type !== 'manual' && t.type !== 'auto') return false;
 
-                    const status = t.syncStatus || t.sync_status || '';
-                    const source = t.source || '';
+                    const syncSt = t.syncStatus || t.sync_status || '';
+                    const taskStatus = t.status || '';
 
-                    // Уже синхронизированное облачное эхо не отправляем обратно
-                    if (source === 'cloud' || status === 'synced') {
-                        return false;
+                    // Окно: открытые всегда; done/blocked — только за 2 недели
+                    if (taskStatus === 'done' || taskStatus === 'blocked') {
+                        const u = new Date(t.updatedAt || t.updated_at || t.date || t.createdAt || 0).getTime();
+                        if (u > 0 && (nowPush - u) > twoWeeksMs) return false;
                     }
 
-                    // Старые несинхронизированные задачи отправляем всегда
-                    if (status !== 'synced') return true;
-                    if (source === 'local') return true;
+                    // Уже в облаке без локальных правок — не пушим
+                    if (syncSt === 'synced') return false;
+
+                    // pending / not_synced / пусто / ai — в облако
+                    if (syncSt !== 'synced') return true;
 
                     const tTime = new Date(t.updatedAt || t.updated_at || t.date || t.createdAt || 0).getTime();
                     return tTime === 0 || Number.isNaN(tTime) || tTime >= lastPushTimeTasks;

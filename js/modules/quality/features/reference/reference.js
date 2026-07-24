@@ -193,51 +193,64 @@ function renderReferenceMarkup() {
                     <div id="twi-filters-block"
                         class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md border border-[var(--card-border)] rounded-xl p-3 shadow-sm mb-4 mt-2">
 
-                        <!-- НОВЫЙ БЛОК: Фильтр Мои/Все и Офлайн-загрузка -->
-                        <div class="flex justify-between items-center mb-3">
-                            <label class="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400"
-                                    id="twi-toggle-label">Только мои</span>
-                                <div class="relative">
-                                    <input type="checkbox" id="twi-owner-toggle" class="sr-only peer"
-                                        onchange="window.twiOwnerFilter = this.checked ? 'MY' : 'ALL'; document.getElementById('twi-toggle-label').className = this.checked ? 'text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400' : 'text-[10px] font-black uppercase tracking-widest text-slate-400';"
-                                        data-knowledge-action="renderTwiList" data-action-event="change">
-                                    <div
-                                        class="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500">
+                        <div class="flex flex-col gap-2">
+                            <div id="twi-type-filters" class="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-2 flex-wrap">
+                                <button type="button" id="twi-show-inspector" role="switch" aria-pressed="true"
+                                    onclick="window.kbShowTwiInspector=!window.kbShowTwiInspector; renderTwiList()"
+                                    class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all bg-indigo-600 text-white shadow-sm active:scale-95">Технадзор</button>
+                                <button type="button" id="twi-show-worker" role="switch" aria-pressed="true"
+                                    onclick="window.kbShowTwiWorker=!window.kbShowTwiWorker; renderTwiList()"
+                                    class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all bg-indigo-600 text-white shadow-sm active:scale-95">Инструкция</button>
+                                <button type="button" id="twi-show-pdf" role="switch" aria-pressed="true"
+                                    onclick="window.kbShowTwiPdf=!window.kbShowTwiPdf; renderTwiList()"
+                                    class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all bg-indigo-600 text-white shadow-sm active:scale-95">Регламент</button>
+                            </div>
+
+                            <div class="flex justify-between items-center gap-2">
+                                <label class="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400"
+                                        id="twi-toggle-label">Только мои</span>
+                                    <div class="relative">
+                                        <input type="checkbox" id="twi-owner-toggle" class="sr-only peer"
+                                            onchange="window.twiOwnerFilter = this.checked ? 'MY' : 'ALL'; document.getElementById('twi-toggle-label').className = this.checked ? 'text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400' : 'text-[10px] font-black uppercase tracking-widest text-slate-400';"
+                                            data-knowledge-action="renderTwiList" data-action-event="change">
+                                        <div
+                                            class="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500">
+                                        </div>
                                     </div>
+                                </label>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <div id="twi-view-mode-toggle" class="shrink-0"></div>
+                                    <button type="button" onclick="downloadMissingCloudFiles()"
+                                        class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-500 active:scale-95 shadow-sm"
+                                        title="Скачать всё для офлайна" aria-label="Скачать всё для офлайна">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            stroke-width="2" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                        </svg>
+                                    </button>
                                 </div>
-                            </label>
-                            <div class="flex items-center gap-2">
-                                <div id="twi-view-mode-toggle" class="shrink-0"></div>
-                                <button type="button" onclick="downloadMissingCloudFiles()"
-                                    class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-500 active:scale-95 shadow-sm"
-                                    title="Скачать всё для офлайна" aria-label="Скачать всё для офлайна">
+                            </div>
+
+                            <div class="flex justify-between items-center gap-2">
+                                <div class="relative flex-1">
+                                    <span class="absolute left-3 top-2.5 text-slate-400"><svg class="w-5 h-5" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg></span>
+                                    <input type="text" id="twi-search-input" class="input-base pl-9 text-[12px] !py-2.5"
+                                        placeholder="Поиск инструкций..." oninput="renderTwiList()">
+                                </div>
+                                <button data-knowledge-action="openTwiConstructor"
+                                    class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm active:scale-95 text-[11px] font-bold uppercase flex items-center gap-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                        stroke-width="2" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                    </svg>
+                                        stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                                    </svg> Создать
                                 </button>
                             </div>
-                        </div>
-
-                        <div class="flex justify-between items-center gap-2 mb-2">
-                            <div class="relative flex-1">
-                                <span class="absolute left-3 top-2.5 text-slate-400"><svg class="w-5 h-5" fill="none"
-                                        stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg></span>
-                                <input type="text" id="twi-search-input" class="input-base pl-9 text-[12px] !py-2.5"
-                                    placeholder="Поиск инструкций..." oninput="renderTwiList()">
-                            </div>
-                            <button data-knowledge-action="openTwiConstructor"
-                                class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm active:scale-95 text-[11px] font-bold uppercase flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                                </svg> Создать
-                            </button>
                         </div>
                         <div data-knowledge-action="toggleTwiManagePanel"
                             class="text-[10px] font-bold text-[var(--text-muted)] uppercase pt-2 border-t border-[var(--card-border)] flex justify-between items-center cursor-pointer active:opacity-70 transition-opacity">

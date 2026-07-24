@@ -84,11 +84,16 @@
                         <div class="text-[9px] font-bold text-[var(--text-muted)]" id="rbi-week-dates">-- апр — -- мая
                             2026</div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <div class="text-[9px] font-black uppercase text-[var(--text-muted)] mb-1">Прогресс: <span
+                    <div class="flex flex-col items-end gap-0.5">
+                        <div class="text-[9px] font-black uppercase text-[var(--text-muted)]">Прогресс: <span
                                 id="rbi-tasks-progress-text" class="text-indigo-600 dark:text-indigo-400">0/0</span>
                         </div>
-                        <div class="w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="text-[8px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+                            Откр. <span id="rbi-tasks-open" class="text-slate-800 dark:text-white">0</span>
+                            · <span class="text-red-500">Проср. <span id="rbi-tasks-overdue">0</span></span>
+                            · Закр. <span id="rbi-tasks-closed-week" class="text-emerald-600 dark:text-emerald-400">0</span>
+                        </div>
+                        <div class="w-28 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div id="rbi-tasks-progress-bar" class="h-full bg-indigo-500 transition-all"
                                 style="width: 0%"></div>
                         </div>

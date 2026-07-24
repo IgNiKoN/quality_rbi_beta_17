@@ -793,13 +793,13 @@ window.rbi_renderPracticesTab = async function () {
             </div>
             
             <div class="flex flex-col gap-2">
-                <div class="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest active:scale-95">
-                        <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded" ${window.kbShowPractices ? 'checked' : ''} onchange="window.kbShowPractices=this.checked; rbi_renderPracticesTab()"> Практики
-                    </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest active:scale-95">
-                        <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded" ${window.kbShowEtalons ? 'checked' : ''} onchange="window.kbShowEtalons=this.checked; rbi_renderPracticesTab()"> Эталоны
-                    </label>
+                <div class="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-2 flex-wrap">
+                    <button type="button" role="switch" aria-pressed="${window.kbShowPractices ? 'true' : 'false'}"
+                        onclick="window.kbShowPractices=!window.kbShowPractices; rbi_renderPracticesTab()"
+                        class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowPractices ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}">Практики</button>
+                    <button type="button" role="switch" aria-pressed="${window.kbShowEtalons ? 'true' : 'false'}"
+                        onclick="window.kbShowEtalons=!window.kbShowEtalons; rbi_renderPracticesTab()"
+                        class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowEtalons ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}">Эталоны</button>
                 </div>
                 <div class="flex justify-between items-center gap-2">
                     <label class="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform">
@@ -1773,6 +1773,12 @@ window.openUniversalActionSheet = function (id, type, title, isOwner, extraData)
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
             </div>
             <span class="text-[12px] font-bold">Скачать PDF</span>
+        </button>
+        <button onclick="handleUasAction('${id}', '${type}', 'word')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+            <div class="w-8 h-8 bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
+            </div>
+            <span class="text-[12px] font-bold">Скачать Word</span>
         </button>`;
 
         if (isOwner) {
@@ -1905,6 +1911,7 @@ window.handleUasAction = function (id, type, action) {
         if (type === 'etalon') {
             if (action === 'view') openEtalonViewer(id);
             if (action === 'pdf') printEtalonAct(id, 'script');
+            if (action === 'word' && typeof window.rbi_exportEtalonDocx === 'function') window.rbi_exportEtalonDocx(id);
             if (action === 'edit') editEtalonAct(id);
             if (action === 'delete') deleteEtalonAct(id);
         }

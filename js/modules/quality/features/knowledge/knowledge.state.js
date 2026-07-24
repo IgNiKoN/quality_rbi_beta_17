@@ -36,6 +36,9 @@ export const KnowledgeState = {
         } else {
             this.filters.twiOwner = window.twiOwnerFilter;
         }
+        if (window.kbShowTwiInspector === undefined) window.kbShowTwiInspector = true;
+        if (window.kbShowTwiWorker === undefined) window.kbShowTwiWorker = true;
+        if (window.kbShowTwiPdf === undefined) window.kbShowTwiPdf = true;
     },
 
     setDocs(arr) {
@@ -73,12 +76,16 @@ export const KnowledgeState = {
     getFilteredTwiCards(searchTerm) {
         var search = (searchTerm || '').toLowerCase();
         var ownerFilter = window.twiOwnerFilter || this.filters.twiOwner;
+        var showInspector = window.kbShowTwiInspector !== false;
+        var showWorker = window.kbShowTwiWorker !== false;
+        var showPdf = window.kbShowTwiPdf !== false;
         var currentEngineer = _getSetting('engineerName') || 'Инженер';
 
         return this.twiCards.filter(function (card) {
             var title = String(card.title || card.name || (card.data && card.data.title) || '').toLowerCase();
             var checklistName = String(card.checklistName || card.category || (card.data && card.data.checklistName) || '').toLowerCase();
             var type = String(card.type || (card.data && card.data.type) || '').toLowerCase();
+            var typeKey = String(card.type || (card.data && card.data.type) || '').toUpperCase();
             var owner = card.owner || (card.data && card.data.owner) || '';
 
             var matchSearch = !search
@@ -87,8 +94,11 @@ export const KnowledgeState = {
                 || type.includes(search);
 
             var matchOwner = ownerFilter === 'ALL' || owner === currentEngineer;
+            var matchType = (typeKey === 'INSPECTOR' && showInspector)
+                || (typeKey === 'WORKER' && showWorker)
+                || (typeKey === 'PDF' && showPdf);
 
-            return matchSearch && matchOwner;
+            return matchSearch && matchOwner && matchType;
         });
     },
 

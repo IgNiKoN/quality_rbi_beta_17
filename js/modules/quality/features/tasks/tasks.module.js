@@ -158,6 +158,198 @@ function _templates() {
 }
 
 // =========================================================================
+// ИНЖЕНЕР REF + ОТБОР ЗАДАЧ (dual-id: engineerId + имя)
+// =========================================================================
+
+function _normalizeEngName(name) {
+    return String(name || '').trim().replace(/\s+/g, ' ');
+}
+
+function _buildEngineerId(name) {
+    var pCode = (window.syncConfig && window.syncConfig.projectCode) || _getSetting('projectCode') || 'proj';
+    var n = _normalizeEngName(name) || 'Инженер';
+    return String(pCode + '_' + n).replace(/\s+/g, '_');
+}
+
+function _getCurrentEngineerRef() {
+    var perm = (_ctx && _ctx.permissions) || (window.RBI && window.RBI.services && window.RBI.services.permissions);
+    var name = '';
+    if (perm && typeof perm.getCurrentEngineerName === 'function') {
+        name = perm.getCurrentEngineerName();
+    } else if (window.syncConfig && window.syncConfig.engineerName) {
+        name = window.syncConfig.engineerName;
+    } else {
+        name = _getSetting('engineerName') || 'Инженер';
+    }
+    name = _normalizeEngName(name) || 'Инженер';
+    return { id: _buildEngineerId(name), name: name };
+}
+
+function _engineerRefFromName(name) {
+    var n = _normalizeEngName(name) || 'Инженер';
+    return { id: _buildEngineerId(n), name: n };
+}
+
+function _taskBelongsTo(task, ref) {
+    if (!task || !ref) return false;
+    if (task._deleted || task.is_deleted) return false;
+    var taskId = task.engineerId || task.engineer_id || '';
+    if (taskId && ref.id && String(taskId) === String(ref.id)) return true;
+    var taskName = _normalizeEngName(
+        task.engineerName || task.inspectorName || task.engineer_name || task.inspector_name || ''
+    );
+    return !!taskName && taskName === _normalizeEngName(ref.name);
+}
+
+function _getTasksForEngineer(ref, opts) {
+    opts = opts || {};
+    var list = window.rbi_tasksData || [];
+    return list.filter(function (t) {
+        if (!t || t._deleted || t.is_deleted) return false;
+        if (opts.openOnly && (t.status === 'done' || t.status === 'blocked')) return false;
+        return _taskBelongsTo(t, ref);
+    });
+}
+
+function _countOpenTasksFor(ref) {
+    return _getTasksForEngineer(ref, { openOnly: true }).length;
+}
+
+/** Стабильный id задачи — одинаковый на телефоне/ПК/у админа (ensure, не random). */
+function _hashStr64(raw) {
+    var h1 = 5381;
+    var h2 = 52711;
+    var s = String(raw || '');
+    for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i);
+        h1 = ((h1 << 5) + h1) ^ c;
+        h2 = ((h2 << 5) + h2) + c;
+    }
+    return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+}
+
+function _stableTaskId(parts) {
+    var norm = (parts || []).map(function (p) {
+        return String(p == null ? '' : p).trim().toLowerCase().replace(/\s+/g, ' ');
+    }).join('|');
+    return 't_' + _hashStr64(norm);
+}
+
+function _projectCodeForTasks() {
+    return (window.syncConfig && window.syncConfig.projectCode) || _getSetting('projectCode') || 'proj';
+}
+
+/** Локальное изменение задачи → снова в очередь push (не оставлять syncStatus=synced). */
+function _touchTaskForSync(task) {
+    if (!task) return;
+    task.syncStatus = 'pending';
+    task.sync_status = 'pending';
+    if (task.source === 'cloud') task.source = 'local';
+    task.updatedAt = new Date().toISOString();
+}
+
+function _taskSourceLabel(t) {
+    if (!t) return 'система';
+    if (t.type === 'manual' || t.taskType === 'Поручение') {
+        var creator = _normalizeEngName(t.createdBy || t.created_by || '');
+        var owner = _normalizeEngName(t.engineerName || t.inspectorName || '');
+        if (creator && owner && creator !== owner) return 'руководитель';
+        return 'я';
+    }
+    if (t.type === 'auto' || t.source === 'ai' || t.contractor === 'Системная') return 'система';
+    return 'система';
+}
+
+/** Воркшоп: один дефект в fail на этой и прошлой неделе у подрядчика (уровень = подрядчик). */
+function _findWorkshopCandidates(targetEngineer, allInspections, startOfThisWeek) {
+    var startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+    var map = {};
+
+    function resolveItemName(c, itemId) {
+        var tType = c.templateKey ? c.templateKey.split('_')[0] : '';
+        var tKey = c.templateKey ? c.templateKey.replace(tType + '_', '') : '';
+        var groups = [];
+        if (tType === 'sys' && _templates().getSystemTemplates()[tKey]) {
+            groups = _templates().getSystemTemplates()[tKey].groups || [];
+        } else if (_templates().getUserTemplates()[tKey]) {
+            groups = _templates().getUserTemplates()[tKey].groups || [];
+        }
+        var flat = [];
+        (function walk(nodes) {
+            (nodes || []).forEach(function (n) {
+                if (n.items) walk(n.items);
+                else flat.push(n);
+            });
+        })(groups);
+        var item = flat.find(function (x) { return String(x.id) === String(itemId); });
+        return item && item.n ? item.n : String(itemId);
+    }
+
+    (allInspections || []).forEach(function (c) {
+        if (!c || c.inspectorName !== targetEngineer || !c.state || !c.contractorName) return;
+        var d = new Date(c.date);
+        if (isNaN(d.getTime())) return;
+        var inThis = d >= startOfThisWeek;
+        var inLast = d >= startOfLastWeek && d < startOfThisWeek;
+        if (!inThis && !inLast) return;
+        Object.keys(c.state).forEach(function (id) {
+            var st = c.state[id];
+            if (st !== 'fail' && st !== 'fail_escalated') return;
+            var defectName = resolveItemName(c, id);
+            var dKey = c.contractorName + '::' + defectName;
+            if (!map[dKey]) {
+                map[dKey] = {
+                    contractor: c.contractorName,
+                    defectName: defectName,
+                    templateKey: c.templateKey || '',
+                    templateTitle: c.templateTitle || '',
+                    thisWeek: false,
+                    lastWeek: false
+                };
+            }
+            if (inThis) map[dKey].thisWeek = true;
+            if (inLast) map[dKey].lastWeek = true;
+        });
+    });
+
+    var byContractor = {};
+    Object.keys(map).forEach(function (k) {
+        var row = map[k];
+        if (!(row.thisWeek && row.lastWeek)) return;
+        if (!byContractor[row.contractor]) byContractor[row.contractor] = row;
+    });
+    return Object.keys(byContractor).map(function (k) { return byContractor[k]; });
+}
+
+function _softDeleteStaffMeetingTasks() {
+    var changed = false;
+    (window.rbi_tasksData || []).forEach(function (t) {
+        if (!t || t._deleted || t.is_deleted) return;
+        if (t.status !== 'pending' && t.status !== 'paused') return;
+        var isStaff = t.title === 'Разбор критического брака' ||
+            (t.prompt && String(t.prompt).indexOf('Срочно соберите штаб') !== -1);
+        if (!isStaff) return;
+        t._deleted = true;
+        t.is_deleted = true;
+        t.updatedAt = new Date().toISOString();
+        _storage().put(_storage().stores().TASKS, t);
+        changed = true;
+    });
+    if (changed) {
+        window.rbi_tasksData = window.rbi_tasksData.filter(function (t) { return !t._deleted && !t.is_deleted; });
+    }
+    return changed;
+}
+
+/** Категория для чипов хаба (Аудиты / Эталоны / …) — как data-category на карточке. */
+function _taskHubCategory(t) {
+    if (!t) return 'other';
+    if (t.taskType === 'Эталон') return 'etalon';
+    return t.category || 'other';
+}
+
+// =========================================================================
 // ИКОНКИ ЗАДАЧ (константа)
 // =========================================================================
 var RBI_TASK_ICONS = {
@@ -242,6 +434,8 @@ async function _saveManualTask() {
     var tDate = dateStr ? new Date(dateStr) : null;
     if (tDate) tDate.setHours(12, 0, 0, 0);
 
+    var assigneeRef = _engineerRefFromName(assignee);
+    var creatorRef = _getCurrentEngineerRef();
     var newTask = {
         id: 'task_man_' + Date.now().toString(36),
         type: 'manual',
@@ -252,8 +446,10 @@ async function _saveManualTask() {
         title: title,
         prompt: promptText || 'Без описания',
         urgency: urgencyVal,
-        engineerName: assignee,
-        inspectorName: assignee,
+        engineerName: assigneeRef.name,
+        inspectorName: assigneeRef.name,
+        engineerId: assigneeRef.id,
+        createdBy: creatorRef.name,
         status: 'pending',
         priorityLvl: 2,
         date: tDate ? tDate.toISOString() : null,
@@ -284,6 +480,10 @@ async function _saveManualTask() {
 async function _gameForceUpdatePlan(silent) {
     if (typeof silent === 'undefined') silent = false;
     if (!silent) showToast("🧠 ИИ зачищает дубликаты и перестраивает план...");
+
+    if (_softDeleteStaffMeetingTasks()) {
+        // штаб-спам убран; дальше обычный дедуп
+    }
 
     var uniqueKeys = new Set();
     var hadRealChanges = false; // остаётся false, если ни одна задача не была помечена как дубликат
@@ -378,61 +578,104 @@ async function _gameGenerateWeeklyPlan(force) {
         }
 
         var newTasksCount = 0;
+        _softDeleteStaffMeetingTasks();
 
+        // Админ/РП: полный план на всех — только при явном force (кнопка «Синхронизировать»/force plan).
+        // Обычный generate — только текущий инженер, иначе плодятся чужие локальные миры.
         var engineersToProcess = [myName];
-        if (_permSvc2 && _permSvc2.isAdmin()) {
+        if (force && _permSvc2 && _permSvc2.isAdmin()) {
             var allEngs = Array.from(new Set(_allInspections.map(function(c){ return c.inspectorName; }).filter(Boolean)));
             if (allEngs.length > 0) engineersToProcess = allEngs;
             if (!engineersToProcess.includes(myName)) engineersToProcess.push(myName);
-        } else if (currentRole === 'project_manager') {
+        } else if (force && currentRole === 'project_manager') {
             var allEngs2 = Array.from(new Set(_allInspections.map(function(c){ return c.inspectorName; }).filter(Boolean)));
-            engineersToProcess = allEngs2;
+            if (allEngs2.length > 0) engineersToProcess = allEngs2;
         }
+
+        var pCodeTasks = _projectCodeForTasks();
 
         for (var ei = 0; ei < engineersToProcess.length; ei++) {
             var targetEngineer = engineersToProcess[ei];
             if (!targetEngineer || targetEngineer === 'Неизвестный инспектор') continue;
+            var targetEngRef = _engineerRefFromName(targetEngineer);
+            var b3AgendaNotes = [];
 
             var addTask = function(idSuffix, cat, icon, title, workTitle, contractor, prompt, lvl, tDate, tmplKey, taskType, targetCount) {
                 if (typeof tmplKey === 'undefined') tmplKey = '';
                 if (typeof taskType === 'undefined') taskType = '';
                 if (typeof targetCount === 'undefined') targetCount = 1;
-                var eng = targetEngineer;
+                var eng = targetEngRef.name;
+                var engId = targetEngRef.id;
+                var typeKey = taskType || title || idSuffix || 'task';
+                var periodKey = (contractor === 'Системная') ? ('w:' + currentWeekId) : 'active';
+                var taskId = _stableTaskId([pCodeTasks, engId || eng, typeKey, contractor, tmplKey || '-', periodKey]);
 
-                var existingTask = window.rbi_tasksData.find(function(t) {
-                    if (t._deleted) return false;
-                    var taskEng = t.engineerName || t.inspectorName || '';
-                    if (contractor !== 'Системная' && taskEng !== eng) return false;
-                    if (contractor === 'Системная' && taskEng !== eng) return false;
-
+                var matchSemantic = function(t) {
+                    if (!t || t._deleted || t.is_deleted) return false;
+                    if (!_taskBelongsTo(t, targetEngRef)) return false;
                     if (t.status === 'pending' || t.status === 'paused') {
                         if (contractor === 'Системная') return t.title === title;
                         return t.contractor === contractor && t.templateKey === tmplKey && t.taskType === taskType;
                     }
-
-                    var taskWeek = _gameSvc2.getWeekId(new Date(t.createdAt || t.date || Date.now()));
+                    var taskWeek = _gameSvc2.getWeekId(new Date(t.updatedAt || t.createdAt || t.date || Date.now()));
                     if (taskWeek === currentWeekId) {
                         if (contractor === 'Системная') return t.title === title;
                         return t.contractor === contractor && t.templateKey === tmplKey && t.taskType === taskType;
                     }
                     return false;
+                };
+
+                var existingTask = window.rbi_tasksData.find(function(t) {
+                    return t && !t._deleted && !t.is_deleted && String(t.id) === String(taskId);
                 });
+                if (!existingTask) {
+                    existingTask = window.rbi_tasksData.find(matchSemantic);
+                }
+
+                // Контроль: «active» id занят done прошлой недели → новый id на эту неделю
+                if (existingTask && contractor !== 'Системная' &&
+                    (existingTask.status === 'done' || existingTask.status === 'blocked')) {
+                    var doneWeek = _gameSvc2.getWeekId(new Date(existingTask.updatedAt || existingTask.date || Date.now()));
+                    if (doneWeek !== currentWeekId) {
+                        periodKey = 'w:' + currentWeekId;
+                        taskId = _stableTaskId([pCodeTasks, engId || eng, typeKey, contractor, tmplKey || '-', periodKey]);
+                        existingTask = window.rbi_tasksData.find(function(t) {
+                            return t && !t._deleted && !t.is_deleted && String(t.id) === String(taskId);
+                        }) || null;
+                    }
+                }
 
                 if (existingTask) {
+                    var oldId = existingTask.id;
+                    if (String(oldId) !== String(taskId)) {
+                        var ghost = Object.assign({}, existingTask, {
+                            id: oldId, _deleted: true, is_deleted: true,
+                            updatedAt: new Date().toISOString()
+                        });
+                        _storage().put(_storage().stores().TASKS, ghost);
+                        existingTask.id = taskId;
+                        window.rbi_tasksData = window.rbi_tasksData.filter(function(t) {
+                            return String(t.id) !== String(oldId);
+                        });
+                        if (!window.rbi_tasksData.some(function(t){ return String(t.id) === String(taskId); })) {
+                            window.rbi_tasksData.push(existingTask);
+                        }
+                    }
+                    if (!existingTask.engineerId) existingTask.engineerId = engId;
                     if (force && existingTask.status === 'pending') {
                         if (taskType === 'Аудит') {
                             var deficit = existingTask.target - (existingTask.done || 0);
                             if (deficit > 0) {
                                 existingTask.target = deficit + targetCount;
                                 existingTask.date = tDate.toISOString();
-                                _storage().put(_storage().stores().TASKS, existingTask);
                             }
                         } else {
                             existingTask.date = tDate.toISOString();
-                            _storage().put(_storage().stores().TASKS, existingTask);
                         }
                     }
-                    return;
+                    _touchTaskForSync(existingTask);
+                    _storage().put(_storage().stores().TASKS, existingTask);
+                    return existingTask;
                 }
 
                 var projName = "Все";
@@ -442,12 +685,12 @@ async function _gameGenerateWeeklyPlan(force) {
                 }
 
                 var task = {
-                    id: 'tsk_' + Date.now().toString(36) + idSuffix + Math.floor(Math.random() * 1000),
+                    id: taskId,
                     source: 'ai', type: 'auto', category: cat, icon: icon, taskType: taskType,
                     contractor: contractor, project: projName,
                     project_canonical_key: projName === 'Все' ? '' : projName,
                     project_display_name: projName,
-                    engineerName: eng, inspectorName: eng,
+                    engineerName: eng, inspectorName: eng, engineerId: engId,
                     templateKey: tmplKey, workTitle: workTitle,
                     title: title, prompt: prompt,
                     status: 'pending', priorityLvl: lvl, date: tDate.toISOString(),
@@ -455,11 +698,14 @@ async function _gameGenerateWeeklyPlan(force) {
                     history: ['[' + new Date().toLocaleDateString('ru-RU') + '] Задача создана системой.'],
                     updatedAt: new Date().toISOString(),
                     createdAt: new Date().toISOString(),
+                    syncStatus: 'pending',
+                    sync_status: 'pending',
                     _deleted: false
                 };
                 window.rbi_tasksData.push(task);
                 _storage().put(_storage().stores().TASKS, task);
                 newTasksCount++;
+                return task;
             };
 
             var allMyChecks = _allInspections.filter(function(c){ return c.inspectorName === targetEngineer; });
@@ -555,6 +801,7 @@ async function _gameGenerateWeeklyPlan(force) {
                 } else if (deficit > 0 && activeAuditTask && activeAuditTask.target !== targetCount) {
                     activeAuditTask.target = targetCount;
                     activeAuditTask.done = validChecksDone;
+                    _touchTaskForSync(activeAuditTask);
                     _storage().put(_storage().stores().TASKS, activeAuditTask);
                 } else if (deficit <= 0 && activeAuditTask) {
                     // Проверки за неделю/накопленная база уже закрывают дефицит —
@@ -563,23 +810,49 @@ async function _gameGenerateWeeklyPlan(force) {
                     activeAuditTask.target = targetCount;
                     activeAuditTask.status = 'done';
                     activeAuditTask.resultComment = 'Выполнено (' + validChecksDone + '/' + targetCount + ')';
-                    activeAuditTask.updatedAt = new Date().toISOString();
+                    _touchTaskForSync(activeAuditTask);
                     _storage().put(_storage().stores().TASKS, activeAuditTask);
                 }
 
-                if (m) {
-                    if (m.n_изделий_с_B3 > 2) addTask('def_meet', 'meeting', 'Совещание', 'Разбор критического брака', pair.templateTitle, pair.contractor, 'Зафиксировано ' + m.n_изделий_с_B3 + ' дефектов B3. Срочно соберите штаб.', 4, now, pair.templateKey, 'Совещание');
-                    if (m.maxFailRate >= 40 && pair.allTimeCount >= 10) {
-                        addTask('workshop', 'dev', 'Развитие', 'Воркшоп с бригадой', pair.templateTitle, pair.contractor, 'Системный брак B2 повторяется часто. Проведите обучение на объекте.', 3, now, pair.templateKey, 'Воркшоп');
-                    }
+                // Штаб-задачу больше не создаём: критичное B3 уходит в повестку еженедельного совещания.
+                if (m && m.n_изделий_с_B3 > 2) {
+                    b3AgendaNotes.push(pair.contractor + ': ' + m.n_изделий_с_B3 + '× B3 (' + (pair.templateTitle || pair.templateKey || '') + ')');
                 }
             }
+
+            // Воркшоп: повтор одного дефекта на этой и прошлой неделе; max 1 pending на подрядчика.
+            var workshopCandidates = _findWorkshopCandidates(targetEngineer, _allInspections, startOfThisWeek);
+            workshopCandidates.forEach(function (wc) {
+                var hasOpenWorkshop = window.rbi_tasksData.some(function (t) {
+                    return !t._deleted && !t.is_deleted &&
+                        _taskBelongsTo(t, targetEngRef) &&
+                        t.taskType === 'Воркшоп' &&
+                        t.contractor === wc.contractor &&
+                        (t.status === 'pending' || t.status === 'paused');
+                });
+                if (hasOpenWorkshop) return;
+                addTask(
+                    'workshop',
+                    'dev',
+                    'Развитие',
+                    'Воркшоп с бригадой',
+                    wc.templateTitle || wc.defectName,
+                    wc.contractor,
+                    'Дефект «' + wc.defectName + '» повторяется 2 недели подряд. Проведите обучение на объекте.',
+                    3,
+                    now,
+                    wc.templateKey || '',
+                    'Воркшоп'
+                );
+            });
 
             var _knowSvc1 = (_ctx && _ctx.knowledge) || window.RBI.services.knowledge;
             if (targetEngineer === myName && typeof _knowSvc1.getMagicTwiCandidates === 'function') {
                 var magicCandidates = _knowSvc1.getMagicTwiCandidates();
                 if (magicCandidates.length > 0) {
-                    var existingMagicTask = window.rbi_tasksData.find(function(t){ return t.engineerName === myName && t.taskType === 'Магия TWI' && t.status === 'pending'; });
+                    var existingMagicTask = window.rbi_tasksData.find(function(t){
+                        return !t._deleted && _taskBelongsTo(t, targetEngRef) && t.taskType === 'Магия TWI' && t.status === 'pending';
+                    });
                     if (existingMagicTask) {
                         existingMagicTask.target = existingMagicTask.done + magicCandidates.length;
                         _storage().put(_storage().stores().TASKS, existingMagicTask);
@@ -635,17 +908,28 @@ async function _gameGenerateWeeklyPlan(force) {
             addTask('post_w', 'report', 'Отчет', 'Распечатать Плакат качества', 'Отчетность', 'Системная', 'Сформируйте плакат А3 и повесьте в штабе подрядчиков.', 2, posterDate, '', 'Отчет');
 
             var meetingDate = getNextTargetDate(_getSetting('taskMeetingDay') || '1');
-            addTask('meet_w', 'meeting', 'Совещание', 'Еженедельный разбор качества', 'Коммуникация', 'Системная', 'Откройте вкладку Совещания. Система уже собрала повестку.', 4, meetingDate, '', 'Совещание');
+            var meetPrompt = 'Откройте вкладку Совещания. Система уже собрала повестку.';
+            if (b3AgendaNotes.length > 0) {
+                meetPrompt += '\n\n⚠️ Критичное B3 к разбору:\n• ' + b3AgendaNotes.slice(0, 8).join('\n• ');
+                if (b3AgendaNotes.length > 8) meetPrompt += '\n• …ещё ' + (b3AgendaNotes.length - 8);
+            }
+            var meetTask = addTask('meet_w', 'meeting', 'Совещание', 'Еженедельный разбор качества', 'Коммуникация', 'Системная', meetPrompt, 3, meetingDate, '', 'Совещание');
+            if (meetTask && b3AgendaNotes.length > 0 && meetTask.status === 'pending') {
+                meetTask.prompt = meetPrompt;
+                meetTask.priorityLvl = Math.max(meetTask.priorityLvl || 0, 3);
+                meetTask.updatedAt = new Date().toISOString();
+                _storage().put(_storage().stores().TASKS, meetTask);
+            }
 
             var reportDay = parseInt(_getSetting('taskMonthReportDay') || '1');
             var monthlyReportDate = new Date(now.getFullYear(), now.getMonth(), reportDay, 12, 0, 0, 0);
             if (now > monthlyReportDate) monthlyReportDate.setMonth(monthlyReportDate.getMonth() + 1);
-            addTask('op_m', 'report', 'Отчет', 'Ежемесячный One-Pager', 'Отчетность', 'Системная', 'Отправьте руководителю выгрузку Сводного статуса.', 3, monthlyReportDate, '', 'Отчет');
+            addTask('op_m', 'report', 'Отчет', 'Ежемесячный One-Pager', 'Отчетность', 'Системная', 'Отправьте руководителю выгрузку Сводного статуса.', 2, monthlyReportDate, '', 'Отчет');
 
             var skDay1 = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0, 0);
             var skDay2 = new Date(now.getFullYear(), now.getMonth(), 15, 12, 0, 0, 0);
             var nextSkDate = now < skDay1 ? skDay1 : (now < skDay2 ? skDay2 : new Date(now.getFullYear(), now.getMonth() + 1, 1, 12, 0, 0, 0));
-            addTask('sk_imp', 'method', 'ППР', 'Загрузить выгрузку ПК СК', 'Аналитика СК', 'Системная', 'Регулярная сверка: скачайте свежий Excel из Стройконтроля и загрузите в систему.', 3, nextSkDate, '', 'Отчет');
+            addTask('sk_imp', 'method', 'ППР', 'Загрузить выгрузку ПК СК', 'Аналитика СК', 'Системная', 'Регулярная сверка: скачайте свежий Excel из Стройконтроля и загрузите в систему.', 2, nextSkDate, '', 'Отчет');
 
             var daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
             var qDayDate = new Date(now.getFullYear(), now.getMonth(), daysInMonth - 2, 12, 0, 0, 0);
@@ -653,14 +937,25 @@ async function _gameGenerateWeeklyPlan(force) {
                 var daysInNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate();
                 qDayDate = new Date(now.getFullYear(), now.getMonth() + 1, daysInNextMonth - 2, 12, 0, 0, 0);
             }
-            addTask('qd_m', 'report', 'Отчет', 'Отчет: День Качества', 'Аналитика', 'Системная', 'Приближается дата Дня Качества. Система сгенерирует мега-отчет за месяц.', 4, qDayDate, '', 'Отчет');
+            addTask('qd_m', 'report', 'Отчет', 'Отчет: День Качества', 'Аналитика', 'Системная', 'Приближается дата Дня Качества. Система сгенерирует мега-отчет за месяц.', 3, qDayDate, '', 'Отчет');
         }
 
         _setWeeklyPlan({ weekId: currentWeekId, tasks: window.rbi_tasksData, completed: false });
         _gameSvc2.saveWeeklyPlan();
         _gameSvc2.updatePlanProgress();
 
-        if (newTasksCount > 0) _renderTasksList();
+        if (newTasksCount > 0) {
+            localStorage.setItem('rbi_cloud_dirty', '1');
+            if (_isTasksViewActive()) {
+                _patchTasksListDom();
+                // новый id в списке — нужен полный render, но со сохранением свёрток
+                var uiState = _captureTasksUiState();
+                _renderTasksList(true);
+                _restoreTasksUiState(uiState);
+            } else {
+                _renderTasksList();
+            }
+        }
 
     } catch (err) {
         console.error("Ошибка при генерации плана:", err);
@@ -724,19 +1019,155 @@ async function _renderTasksList(forceRender) {
     if (window.taskProjectFilter !== 'ALL') activeTasks = activeTasks.filter(function(t){ return (t.project_canonical_key || t.project || t.projectName || '') === window.taskProjectFilter; });
     if (window.taskContractorFilter !== 'ALL') activeTasks = activeTasks.filter(function(t){ return (t.contractor || t.contractorName || '') === window.taskContractorFilter; });
 
-    if (window.taskStatusFilter !== 'ALL') {
-        var todayStart = new Date(); todayStart.setHours(0,0,0,0);
-        if (window.taskStatusFilter === 'DONE') activeTasks = activeTasks.filter(function(t){ return t.status === 'done'; });
-        else if (window.taskStatusFilter === 'PENDING') activeTasks = activeTasks.filter(function(t){ return t.status === 'pending'; });
-        else if (window.taskStatusFilter === 'OVERDUE') activeTasks = activeTasks.filter(function(t){ return t.status !== 'done' && t.date && new Date(t.date) < todayStart; });
+    // Чипы хаба — до статуса, чтобы Архив тоже учитывал тип
+    window._rbiTaskHubCategory = window._rbiTaskHubCategory || 'all';
+    if (window._rbiTaskHubCategory !== 'all') {
+        activeTasks = activeTasks.filter(function(t) {
+            return _taskHubCategory(t) === window._rbiTaskHubCategory;
+        });
     }
 
-    activeTasks = activeTasks.slice().sort(function(a, b) {
-        if (b.priorityLvl !== a.priorityLvl) return b.priorityLvl - a.priorityLvl;
-        return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+    // Архив всегда из done/blocked (не режется фильтром «Открытые»)
+    var archivePool = activeTasks.filter(function(t) {
+        return t && (t.status === 'done' || t.status === 'blocked');
+    });
+    var openPool = activeTasks.filter(function(t) {
+        return t && t.status !== 'done' && t.status !== 'blocked';
     });
 
-    var managerFilterHtml = '\n        <div class="mb-4 bg-[var(--card-bg)] border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col gap-2">\n            <div class="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest flex items-center gap-1.5">\n                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg> \n                ' + (_permSvc3 && _permSvc3.isLeadership() ? 'Панель Руководителя (Фильтры)' : 'Мои Фильтры Задач') + '\n            </div>\n            <div class="grid grid-cols-2 gap-2">\n                ' + (_permSvc3 && _permSvc3.isLeadership() ? '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskEngineerFilter = this.value; rbi_renderTasksList()"><option value="ALL" ' + (window.taskEngineerFilter === 'ALL' ? 'selected' : '') + '>👤 Все инженеры</option>' + allEngsInTasks.map(function(e){ return '<option value="' + e.replace(/"/g, '&quot;') + '" ' + (window.taskEngineerFilter === e ? 'selected' : '') + '>' + e + '</option>'; }).join('') + '</select>' : '') + '\n                <select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskTypeFilter = this.value; rbi_renderTasksList()"><option value="ALL" ' + (window.taskTypeFilter === 'ALL' ? 'selected' : '') + '>📋 Все типы</option>' + allTypes.map(function(t){ return '<option value="' + t.replace(/"/g, '&quot;') + '" ' + (window.taskTypeFilter === t ? 'selected' : '') + '>' + t + '</option>'; }).join('') + '</select>\n                <select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskStatusFilter = this.value; rbi_renderTasksList()"><option value="ALL" ' + (window.taskStatusFilter === 'ALL' ? 'selected' : '') + '>📌 Все статусы</option><option value="ACTIVE" ' + (window.taskStatusFilter === 'ACTIVE' ? 'selected' : '') + '>🕒 В работе</option><option value="OVERDUE" ' + (window.taskStatusFilter === 'OVERDUE' ? 'selected' : '') + '>🚨 Просрочка</option><option value="DONE" ' + (window.taskStatusFilter === 'DONE' ? 'selected' : '') + '>✅ Выполнено</option></select>\n                <select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskProjectFilter = this.value; rbi_renderTasksList()"><option value="ALL" ' + (window.taskProjectFilter === 'ALL' ? 'selected' : '') + '>🏢 Все объекты</option>' + allProjs.map(function(p){ return '<option value="' + p.replace(/"/g, '&quot;') + '" ' + (window.taskProjectFilter === p ? 'selected' : '') + '>' + p + '</option>'; }).join('') + '</select>\n                <select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskContractorFilter = this.value; rbi_renderTasksList()"><option value="ALL" ' + (window.taskContractorFilter === 'ALL' ? 'selected' : '') + '>👷 Все подрядчики</option>' + allContrs.map(function(c){ return '<option value="' + c.replace(/"/g, '&quot;') + '" ' + (window.taskContractorFilter === c ? 'selected' : '') + '>' + c + '</option>'; }).join('') + '</select>\n            </div>\n        </div>\n    ';
+    var todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    if (window.taskStatusFilter === 'DONE') {
+        openPool = [];
+        archivePool = archivePool.filter(function(t){ return t.status === 'done'; });
+    } else if (window.taskStatusFilter === 'PENDING') {
+        openPool = openPool.filter(function(t){ return t.status === 'pending'; });
+        archivePool = [];
+    } else if (window.taskStatusFilter === 'OVERDUE') {
+        openPool = openPool.filter(function(t){ return t.date && new Date(t.date) < todayStart; });
+        archivePool = [];
+    } else if (window.taskStatusFilter === 'ACTIVE' || !window.taskStatusFilter) {
+        // openPool как есть; archivePool остаётся для секции «Архив»
+    }
+    // ALL — оба пула без доп. среза
+
+    if (window._rbiTaskCriticalOnly) {
+        openPool = openPool.filter(function(t) {
+            if (t.priorityLvl === 4) return true;
+            return !!(t.date && new Date(t.date) < todayStart);
+        });
+        archivePool = [];
+    }
+
+    var sortTasks = function(list) {
+        return list.slice().sort(function(a, b) {
+            if (b.priorityLvl !== a.priorityLvl) return b.priorityLvl - a.priorityLvl;
+            return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+        });
+    };
+    openPool = sortTasks(openPool);
+    archivePool = archivePool.slice().sort(function(a, b) {
+        return new Date(b.updatedAt || b.date || 0).getTime() - new Date(a.updatedAt || a.date || 0).getTime();
+    });
+    activeTasks = openPool; // Сегодня / Неделя / Месяц
+
+    var isLeadership = !!(!_permSvc3 ? false : _permSvc3.isLeadership());
+    window._rbiTasksFiltersOpen = !!window._rbiTasksFiltersOpen;
+
+    var hubCatActive = window._rbiTaskHubCategory || 'all';
+    var chipOn = 'bg-indigo-600 text-white shadow-sm';
+    var chipOff = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+    var hubChip = function(cat, label) {
+        var on = hubCatActive === cat;
+        return '<button type="button" onclick="rbi_filterTaskHub(\'' + cat + '\', this)" class="hub-filter-btn px-3 py-1.5 rounded-full text-[10px] font-bold active:scale-95 whitespace-nowrap transition-colors shrink-0 ' +
+            (on ? chipOn : chipOff) + '">' + label + '</button>';
+    };
+    var hubRow =
+        '<div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="hub-filters">' +
+            hubChip('all', 'Все') +
+            hubChip('control', 'Аудиты') +
+            hubChip('etalon', 'Эталоны') +
+            hubChip('meeting', 'Планерки') +
+            hubChip('report', 'Отчёты') +
+            hubChip('method', 'ППР') +
+            hubChip('dev', 'Обучение') +
+            hubChip('other', 'Ручные') +
+            '<button type="button" id="rbi-critical-only-btn" onclick="rbi_toggleCriticalOnlyFilter(this)" class="px-3 py-1.5 rounded-full text-[10px] font-bold active:scale-95 whitespace-nowrap transition-colors shrink-0 ' +
+                (window._rbiTaskCriticalOnly ? 'bg-red-600 text-white shadow-sm' : chipOff + ' text-red-600 dark:text-red-400') +
+            '">🔴 Критичные</button>' +
+        '</div>';
+
+    var selectsHtml =
+        '<div class="grid grid-cols-2 gap-2">' +
+            (isLeadership
+                ?             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskEngineerFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
+                    '<option value="ALL"' + (window.taskEngineerFilter === 'ALL' ? ' selected' : '') + '>Все инженеры</option>' +
+                    allEngsInTasks.map(function(e){
+                        return '<option value="' + e.replace(/"/g, '&quot;') + '"' + (window.taskEngineerFilter === e ? ' selected' : '') + '>' + e + '</option>';
+                    }).join('') +
+                  '</select>'
+                : '') +
+            '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskStatusFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
+                '<option value="ACTIVE"' + (window.taskStatusFilter === 'ACTIVE' ? ' selected' : '') + '>Открытые</option>' +
+                '<option value="OVERDUE"' + (window.taskStatusFilter === 'OVERDUE' ? ' selected' : '') + '>Просрочка</option>' +
+                '<option value="DONE"' + (window.taskStatusFilter === 'DONE' ? ' selected' : '') + '>Готово</option>' +
+                '<option value="ALL"' + (window.taskStatusFilter === 'ALL' ? ' selected' : '') + '>Все статусы</option>' +
+            '</select>' +
+            '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskTypeFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
+                '<option value="ALL"' + (window.taskTypeFilter === 'ALL' ? ' selected' : '') + '>Все типы</option>' +
+                allTypes.map(function(t){
+                    return '<option value="' + String(t).replace(/"/g, '&quot;') + '"' + (window.taskTypeFilter === t ? ' selected' : '') + '>' + t + '</option>';
+                }).join('') +
+            '</select>' +
+            '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskProjectFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
+                '<option value="ALL"' + (window.taskProjectFilter === 'ALL' ? ' selected' : '') + '>Все объекты</option>' +
+                allProjs.map(function(p){
+                    return '<option value="' + String(p).replace(/"/g, '&quot;') + '"' + (window.taskProjectFilter === p ? ' selected' : '') + '>' + p + '</option>';
+                }).join('') +
+            '</select>' +
+            '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)] col-span-2" onchange="window.taskContractorFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
+                '<option value="ALL"' + (window.taskContractorFilter === 'ALL' ? ' selected' : '') + '>Все подрядчики</option>' +
+                allContrs.map(function(c){
+                    return '<option value="' + String(c).replace(/"/g, '&quot;') + '"' + (window.taskContractorFilter === c ? ' selected' : '') + '>' + c + '</option>';
+                }).join('') +
+            '</select>' +
+        '</div>';
+
+    var filtersActive = !!(hubCatActive !== 'all' || window._rbiTaskCriticalOnly ||
+        window.taskEngineerFilter !== 'ALL' || window.taskTypeFilter !== 'ALL' ||
+        window.taskProjectFilter !== 'ALL' || window.taskContractorFilter !== 'ALL' ||
+        window.taskStatusFilter !== 'ACTIVE');
+    var filterHint = [];
+    if (hubCatActive !== 'all') filterHint.push(hubCatActive === 'control' ? 'Аудиты' : hubCatActive === 'etalon' ? 'Эталоны' : hubCatActive === 'meeting' ? 'Планерки' : hubCatActive === 'report' ? 'Отчёты' : hubCatActive === 'method' ? 'ППР' : hubCatActive === 'dev' ? 'Обучение' : hubCatActive === 'other' ? 'Ручные' : 'Фильтр');
+    if (window._rbiTaskCriticalOnly) filterHint.push('Критичные');
+    if (window.taskStatusFilter !== 'ACTIVE') filterHint.push(window.taskStatusFilter === 'OVERDUE' ? 'Просрочка' : window.taskStatusFilter === 'DONE' ? 'Готово' : 'Все статусы');
+    if (window.taskEngineerFilter !== 'ALL') filterHint.push(window.taskEngineerFilter);
+    if (window.taskContractorFilter !== 'ALL') filterHint.push(window.taskContractorFilter);
+    var filterSummary = filtersActive
+        ? (filterHint.slice(0, 2).join(' · ') + (filterHint.length > 2 ? ' +' + (filterHint.length - 2) : ''))
+        : 'Тип, статус, объект, подрядчик';
+
+    var filtersHtml =
+        '<details class="mb-3 group/filters bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden [&_summary::-webkit-details-marker]:hidden"' +
+            (window._rbiTasksFiltersOpen ? ' open' : '') +
+            ' ontoggle="if(document.contains(this)) window._rbiTasksFiltersOpen=this.open">' +
+            '<summary class="cursor-pointer select-none flex items-center gap-2 px-3 py-2.5 active:bg-[var(--hover-bg)] transition-colors">' +
+                '<div class="w-8 h-8 rounded-lg bg-[var(--hover-bg)] border border-[var(--card-border)] flex items-center justify-center shrink-0 text-slate-500">' +
+                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M6 12h12M10 20h4"/></svg>' +
+                '</div>' +
+                '<div class="min-w-0 flex-1">' +
+                    '<div class="text-[11px] font-black uppercase tracking-wide text-slate-800 dark:text-white flex items-center gap-1.5">' +
+                        'Фильтры' +
+                        (filtersActive ? '<span class="inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-black">' + filterHint.length + '</span>' : '') +
+                    '</div>' +
+                    '<div class="text-[9px] font-bold text-[var(--text-muted)] truncate">' + filterSummary + '</div>' +
+                '</div>' +
+                '<span class="text-slate-400 text-[12px] transition-transform group-open/filters:rotate-180 shrink-0">▾</span>' +
+            '</summary>' +
+            '<div class="border-t border-[var(--card-border)] px-3 py-3 space-y-3 bg-[var(--hover-bg)]/30">' +
+                hubRow +
+                selectsHtml +
+            '</div>' +
+        '</details>';
 
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var _gameSvc3 = (_ctx && _ctx.game) || window.RBI.services.game;
@@ -748,148 +1179,266 @@ async function _renderTasksList(forceRender) {
     if (weekNumEl) weekNumEl.innerText = getWeekNumber(today);
     if (weekDatesEl) weekDatesEl.innerText = startW.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' — ' + endW.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    var globalActionsHtml = '\n        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">\n            <button onclick="gameForceUpdatePlan()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 py-3 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Синхронизировать</button>\n            <button onclick="rbi_openTaskModal()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 py-3 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"></path></svg> Новое поручение</button>\n            <button onclick="rbi_openCalendarModal()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 py-3 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Календарь</button>\n            <button onclick="window.RBI.services.game.toggleAbsence()" class="bg-slate-50 text-slate-700 border border-slate-200 py-3 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Статус / Отпуск</button>\n        </div>\n    ';
+    var globalActionsHtml =
+        '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">' +
+            '<button onclick="gameForceUpdatePlan()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Синхронизировать</button>' +
+            '<button onclick="rbi_openTaskModal()" class="bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Поручение</button>' +
+            '<button onclick="rbi_openCalendarModal()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Календарь</button>' +
+            '<button onclick="window.RBI.services.game.toggleAbsence()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Отпуск</button>' +
+        '</div>';
 
     var _engineerAbsence = _getEngineerAbsence();
     if (_engineerAbsence.isActive) {
-        container.innerHTML = globalActionsHtml + '<div class="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-600 shadow-sm"><div class="font-black uppercase mb-1 text-lg flex items-center justify-center gap-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"></path></svg> Режим: ' + _engineerAbsence.reason + '</div>Инспекции приостановлены.</div>';
+        container.innerHTML = globalActionsHtml + '<div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-6 text-center text-slate-600 shadow-sm"><div class="font-black uppercase mb-1">Режим: ' + _engineerAbsence.reason + '</div>Инспекции приостановлены.</div>';
         return;
     }
 
-    var overdue = [], todayTasks = [], weekTasks = [], monthTasks = [], archiveTasks = [];
+    var overdue = [], todayTasks = [], weekTasks = [], monthTasks = [];
+    var archiveTasks = archivePool;
     var weekTotal = 0, weekDone = 0;
     window.rbiCalendarDates = {};
 
-    activeTasks.forEach(function(t) {
-        if (t.status === 'done' || t.status === 'blocked') {
-            archiveTasks.push(t);
-            var tDt = t.date ? new Date(t.date) : new Date(); tDt.setHours(0,0,0,0);
-            if (t.status === 'done' && tDt.getTime() >= startW.getTime() && tDt.getTime() <= endW.getTime()) { weekTotal++; weekDone++; }
-            return;
+    archiveTasks.forEach(function(t) {
+        var tDt = t.date ? new Date(t.date) : new Date(); tDt.setHours(0, 0, 0, 0);
+        if (t.status === 'done' && tDt.getTime() >= startW.getTime() && tDt.getTime() <= endW.getTime()) {
+            weekTotal++;
+            weekDone++;
         }
-        if (t.status === 'paused') { monthTasks.push(t); weekTotal++; return; }
-        if (t.type === 'manual' && t.urgency) {
-            if (t.urgency === 'planned') { weekTasks.push(t); weekTotal++; return; }
-            else if (t.urgency === 'future') { monthTasks.push(t); weekTotal++; return; }
-        }
-        if (!t.date) { weekTasks.push(t); weekTotal++; return; }
-        var tDt2 = new Date(t.date); tDt2.setHours(0,0,0,0);
-        if (tDt2.getTime() < today.getTime()) { overdue.push(t); weekTotal++; }
-        else if (tDt2.getTime() === today.getTime()) { todayTasks.push(t); weekTotal++; }
-        else if (tDt2.getTime() > today.getTime() && tDt2.getTime() <= endW.getTime()) { weekTasks.push(t); weekTotal++; }
-        else if (tDt2.getTime() > endW.getTime()) { monthTasks.push(t); weekTotal++; }
     });
 
+    activeTasks.forEach(function(t) {
+        weekTotal++;
+        if (t.status === 'paused') { monthTasks.push(t); return; }
+        if (t.type === 'manual' && t.urgency) {
+            if (t.urgency === 'planned') { weekTasks.push(t); return; }
+            if (t.urgency === 'future') { monthTasks.push(t); return; }
+        }
+        if (!t.date) { weekTasks.push(t); return; }
+        var tDt2 = new Date(t.date); tDt2.setHours(0,0,0,0);
+        if (tDt2.getTime() < today.getTime()) { overdue.push(t); }
+        else if (tDt2.getTime() === today.getTime()) { todayTasks.push(t); }
+        else if (tDt2.getTime() <= endW.getTime()) { weekTasks.push(t); }
+        else { monthTasks.push(t); }
+    });
+
+    var openNow = overdue.length + todayTasks.length + weekTasks.length + monthTasks.length;
     var progText = document.getElementById('rbi-tasks-progress-text');
     var progBar = document.getElementById('rbi-tasks-progress-bar');
     if (progText) progText.innerText = weekDone + '/' + weekTotal;
     if (progBar) progBar.style.width = weekTotal > 0 ? ((weekDone / weekTotal) * 100) + '%' : '0%';
+    var openEl = document.getElementById('rbi-tasks-open');
+    var overdueEl = document.getElementById('rbi-tasks-overdue');
+    var closedEl = document.getElementById('rbi-tasks-closed-week');
+    if (openEl) openEl.textContent = String(openNow);
+    if (overdueEl) overdueEl.textContent = String(overdue.length);
+    if (closedEl) closedEl.textContent = String(weekDone);
 
-    var renderCard = function(t, isOverdue, isArchive) {
+    var typeBadgeClass = function(typeKey) {
+        var k = String(typeKey || '').toLowerCase();
+        if (k.indexOf('эталон') !== -1) return 'text-blue-600 bg-blue-50 border-blue-100 dark:bg-blue-950/40 dark:border-blue-900 dark:text-blue-300';
+        if (k.indexOf('аудит') !== -1 || k.indexOf('контроль') !== -1) return 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-900 dark:text-indigo-300';
+        if (k.indexOf('воркшоп') !== -1 || k.indexOf('обуч') !== -1) return 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300';
+        if (k.indexOf('совещ') !== -1 || k.indexOf('планер') !== -1) return 'text-orange-600 bg-orange-50 border-orange-100 dark:bg-orange-950/40 dark:border-orange-900 dark:text-orange-300';
+        if (k.indexOf('отчёт') !== -1 || k.indexOf('отчет') !== -1) return 'text-violet-600 bg-violet-50 border-violet-100 dark:bg-violet-950/40 dark:border-violet-900 dark:text-violet-300';
+        return 'text-slate-600 bg-slate-50 border-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300';
+    };
+
+    var renderCard = function(t, isOverdue, isArchive, nested) {
         if (typeof isArchive === 'undefined') isArchive = false;
+        if (typeof nested === 'undefined') nested = false;
         var itemCategory = t.taskType === 'Эталон' ? 'etalon' : (t.category || 'other');
         var icon = t.icon ? (RBI_TASK_ICONS[t.icon] || RBI_TASK_ICONS['Контроль']) : RBI_TASK_ICONS['Контроль'];
         var dateStr = t.date ? new Date(t.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Без даты';
         var borderClass = isOverdue ? 'border-red-300 dark:border-red-800' : 'border-[var(--card-border)]';
-        var bgClass = isOverdue && !isArchive ? 'bg-red-50/30 dark:bg-red-900/10' : 'bg-[var(--card-bg)]';
-        var opacityClass = isArchive ? 'opacity-60 grayscale' : '';
-        var priorityColor = 'text-green-600 bg-green-50 border-green-200', priorityText = 'Низкий';
-        if (t.priorityLvl === 4) { priorityColor = 'text-red-600 bg-red-50 border-red-200'; priorityText = 'Крит.'; }
-        if (t.priorityLvl === 3) { priorityColor = 'text-orange-600 bg-orange-50 border-orange-200'; priorityText = 'Средн.'; }
-        var progressHtml = '';
-        if (t.target > 1) {
-            var isDone = t.done >= t.target;
-            progressHtml = '<div class="text-[9px] font-black ' + (isDone ? 'text-green-600' : 'text-indigo-600') + ' bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 dark:border-slate-700">' + t.done + ' / ' + t.target + '</div>';
-        }
-        var assigneeBadge = '';
-        if (t.engineerName && t.engineerName !== currentEng && t.engineerName !== 'Система' && t.contractor !== 'Системная') {
-            assigneeBadge = '<div class="text-[8px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 uppercase font-black tracking-widest mt-1 w-fit flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> ' + t.engineerName.split(' ')[0] + '</div>';
-        }
-        var debtBadge = '';
-        if (t.carryOverCount && t.carryOverCount > 0 && !isArchive) {
-            debtBadge = '<div class="absolute -top-2 -right-2 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-md uppercase tracking-widest animate-pulse border border-white dark:border-slate-800">Долг: ' + t.carryOverCount + ' нед.</div>';
-        }
+        var bgClass = isOverdue && !isArchive ? 'bg-red-50/50 dark:bg-red-950/20' : 'bg-[var(--hover-bg)]';
+        var opacityClass = isArchive ? 'opacity-60' : '';
+        var titleMain = nested
+            ? (t.taskType || t.title || 'Задача')
+            : (t.contractor || t.title || 'Задача');
+        var titleSub = nested
+            ? (t.workTitle || t.templateTitle || t.title || '')
+            : (t.workTitle || t.templateTitle || t.taskType || '');
+        var progressHtml = (t.target > 1)
+            ? '<span data-task-progress="1" class="text-[8px] sm:text-[9px] font-black text-indigo-600 tabular-nums">' + (t.done || 0) + '/' + t.target + '</span>'
+            : '';
         var isCriticalCard = (isOverdue && !isArchive) || t.priorityLvl === 4;
-        return '\n        <div data-category="' + itemCategory + '"' + (isCriticalCard ? ' data-critical="1"' : '') + ' onclick="rbi_openTaskAction(\'' + t.id + '\')" class="task-card-item cursor-pointer w-full ' + bgClass + ' border ' + borderClass + ' rounded-2xl p-3 flex flex-col justify-between relative shadow-sm transition-transform active:scale-[0.98] hover:border-indigo-300 dark:hover:border-indigo-600 ' + opacityClass + '">\n            ' + debtBadge + '\n            <div>\n                <div class="flex items-start justify-between gap-3 mb-2">\n                    <div class="w-8 h-8 rounded-lg bg-[var(--hover-bg)] text-slate-500 flex items-center justify-center border border-[var(--card-border)] shrink-0">' + icon + '</div>\n                    <div class="flex-1 min-w-0">\n                        <div class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-0.5">' + (t.taskType || t.title) + '</div>\n                        <div class="text-[13px] font-black text-slate-800 dark:text-white leading-tight truncate">' + t.contractor + '</div>\n                        <div class="text-[10px] font-bold text-[var(--text-muted)] truncate">' + (t.workTitle || t.templateTitle || '') + '</div>\n                    </div>\n                </div>\n                <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-3 font-medium mb-1">' + t.prompt + '</div>\n                ' + assigneeBadge + '\n            </div>\n            <div class="mt-3 pt-2 border-t border-[var(--card-border)] flex justify-between items-center">\n                <div class="flex items-center gap-1.5">\n                    <span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ' + priorityColor + '">' + priorityText + '</span>\n                    ' + progressHtml + '\n                </div>\n                <div class="text-[9px] font-bold ' + (isOverdue && !isArchive ? 'text-red-500' : 'text-slate-400') + '">' + (isOverdue && !isArchive ? 'Просрочено: ' : 'До: ') + dateStr + '</div>\n            </div>\n        </div>';
+        var safeTaskIdAttr = String(t.id).replace(/"/g, '');
+        return '<div data-task-id="' + safeTaskIdAttr + '" data-category="' + itemCategory + '"' + (isCriticalCard ? ' data-critical="1"' : '') +
+            ' onclick="event.stopPropagation();rbi_openTaskAction(\'' + String(t.id).replace(/'/g, "\\'") + '\')" class="task-card-item cursor-pointer ' + bgClass +
+            ' border ' + borderClass + ' rounded-xl p-2.5 relative shadow-sm active:scale-[0.98] transition-transform ' + opacityClass + '">' +
+            '<div class="flex gap-2 items-start">' +
+                '<div class="w-8 h-8 rounded-lg bg-[var(--card-bg)] text-slate-500 flex items-center justify-center border border-[var(--card-border)] shrink-0">' + icon + '</div>' +
+                '<div class="min-w-0 flex-1">' +
+                    '<div class="text-[11px] font-black text-slate-800 dark:text-white leading-snug truncate">' + titleMain + '</div>' +
+                    (titleSub ? '<div class="text-[8px] sm:text-[9px] font-bold text-[var(--text-muted)] truncate">' + titleSub + '</div>' : '') +
+                    (t.prompt ? '<div class="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-snug">' + t.prompt + '</div>' : '') +
+                    '<div class="mt-1.5 flex items-center justify-between gap-2">' +
+                        '<span class="text-[8px] sm:text-[9px] font-black uppercase ' + (isOverdue && !isArchive ? 'text-red-500' : 'text-slate-400') + '">' +
+                            (isOverdue && !isArchive ? 'Просрочено · ' : '') + dateStr +
+                        '</span>' + progressHtml +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
     };
 
-    /**
-     * Группирует переданные задачи по подрядчику и рендерит их как свёрнутые
-     * по умолчанию под-аккордеоны `<details data-task-group="...">`.
-     * isOverdueFn(t) — функция, определяющая признак просрочки для конкретной задачи
-     * (используется тем же способом, что и в плоском рендере секции).
-     */
     var _renderContractorGroups = function(tasks, isOverdueFn, sectionKey) {
         if (!tasks || tasks.length === 0) return '';
+
         var groups = {};
         var order = [];
         tasks.forEach(function(t) {
             var name = t.contractor || 'Без подрядчика';
             if (!groups[name]) {
-                groups[name] = { name: name, entries: [], hasCritical: false, maxPriority: 0 };
+                groups[name] = { name: name, entries: [], hasCritical: false, overdueCount: 0, criticalCount: 0 };
                 order.push(name);
             }
             var isOverdueTask = !!(isOverdueFn && isOverdueFn(t));
             var g = groups[name];
             if (t.priorityLvl === 4 || isOverdueTask) g.hasCritical = true;
-            if ((t.priorityLvl || 0) > g.maxPriority) g.maxPriority = t.priorityLvl || 0;
+            if (isOverdueTask) g.overdueCount++;
+            if (t.priorityLvl === 4) g.criticalCount++;
             g.entries.push({ task: t, isOverdue: isOverdueTask });
         });
-        var groupList = order.map(function(name){ return groups[name]; });
-        groupList.sort(function(a, b) {
+
+        var workGroups = [];
+        var weeklyGroups = [];
+        order.forEach(function(name) {
+            var g = groups[name];
+            if (name === 'Системная') weeklyGroups.push(g);
+            else workGroups.push(g);
+        });
+        var sortFn = function(a, b) {
             if (a.hasCritical !== b.hasCritical) return a.hasCritical ? -1 : 1;
-            if (a.hasCritical && b.hasCritical && b.maxPriority !== a.maxPriority) return b.maxPriority - a.maxPriority;
             if (b.entries.length !== a.entries.length) return b.entries.length - a.entries.length;
             return a.name.localeCompare(b.name, 'ru');
-        });
-        return groupList.map(function(g) {
+        };
+        workGroups.sort(sortFn);
+        weeklyGroups.sort(sortFn);
+
+        var renderGroup = function(g, weekly) {
             var slug = g.name.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '_').replace(/^_+|_+$/g, '') || 'contractor';
             var groupKey = sectionKey + '__' + slug;
-            var criticalMarker = g.hasCritical ? '<span class="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse shrink-0"></span>' : '';
-            var cardsHtml = g.entries.map(function(e){ return renderCard(e.task, e.isOverdue); }).join('');
-            return '<details data-task-group="' + groupKey + '" class="mb-2 group [&_summary::-webkit-details-marker]:hidden bg-[var(--hover-bg)] rounded-xl border border-[var(--card-border)] px-2.5 pt-1.5 pb-1">' +
-                '<summary class="cursor-pointer flex justify-between items-center py-1 select-none">' +
-                    '<span class="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1.5">' + criticalMarker + g.name + ' (' + g.entries.length + ')</span>' +
-                    '<span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>' +
+            var title = weekly ? 'Еженедельные' : (g.name === 'Поручение' ? 'Поручения' : g.name);
+            var typeCounts = {};
+            var workTitles = {};
+            g.entries.forEach(function(e) {
+                var k = e.task.taskType || e.task.title || 'Задача';
+                typeCounts[k] = (typeCounts[k] || 0) + 1;
+                var wt = e.task.workTitle || e.task.templateTitle || '';
+                if (wt) workTitles[wt] = true;
+            });
+            var typeKeys = Object.keys(typeCounts);
+            var workBrief = Object.keys(workTitles).slice(0, 2).join(' · ') || typeKeys.slice(0, 2).join(' · ');
+            var badgesHtml = typeKeys.slice(0, 4).map(function(k) {
+                return '<span class="text-[7px] sm:text-[8px] font-black border px-1 rounded tabular-nums ' + typeBadgeClass(k) + '">' +
+                    k + (typeCounts[k] > 1 ? ':' + typeCounts[k] : '') + '</span>';
+            }).join('');
+            var borderClass = g.hasCritical ? 'border-red-300 dark:border-red-800' : 'border-[var(--card-border)]';
+            var countColor = g.hasCritical ? 'text-red-600 dark:text-red-400' : (weekly ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-white');
+            var cardsHtml = g.entries.map(function(e){ return renderCard(e.task, e.isOverdue, false, true); }).join('');
+            return '<details data-task-group="' + groupKey + '" class="group/contractor relative bg-[var(--card-bg)] border ' + borderClass +
+                ' rounded-xl shadow-sm overflow-hidden [&_summary::-webkit-details-marker]:hidden">' +
+                '<summary class="relative p-2.5 sm:p-3 cursor-pointer select-none active:scale-[0.98] transition-transform list-none">' +
+                    (weekly
+                        ? '<div class="absolute top-0 right-0 z-[1] bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">Регламент</div>'
+                        : (g.hasCritical
+                            ? '<div class="absolute top-0 right-0 z-[1] bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">Крит.</div>'
+                            : '')) +
+                    '<div class="min-w-0">' +
+                        '<div class="text-[10px] sm:text-[11px] font-black leading-snug mb-0.5 pr-10 line-clamp-2 break-words ' +
+                            (weekly ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-white') + '">' + title + '</div>' +
+                        '<div class="text-[8px] sm:text-[9px] font-bold text-[var(--text-muted)] truncate mb-2">' + workBrief + '</div>' +
+                        '<div class="flex items-end justify-between gap-2 mb-2">' +
+                            '<div class="min-w-0">' +
+                                '<div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold">Задач</div>' +
+                                '<div data-group-count="1" class="text-xl sm:text-2xl font-black leading-none tabular-nums ' + countColor + '">' + g.entries.length + '</div>' +
+                            '</div>' +
+                            '<div class="text-right shrink-0">' +
+                                (g.overdueCount
+                                    ? '<div class="text-[8px] font-black text-red-500 tabular-nums">Проср. ' + g.overdueCount + '</div>'
+                                    : '<div class="text-[8px] font-bold text-slate-400">В срок</div>') +
+                                '<div class="text-[8px] text-slate-400 font-bold mt-0.5 transition-transform group-open/contractor:rotate-180">▾</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="flex flex-wrap justify-between items-center gap-1 bg-[var(--hover-bg)] rounded-md px-1.5 py-1.5 border border-[var(--card-border)]">' +
+                            '<div class="text-[7px] sm:text-[8px] font-black text-slate-500 uppercase shrink-0">Типы</div>' +
+                            '<div class="flex flex-wrap justify-end gap-0.5 min-w-0">' + badgesHtml + '</div>' +
+                        '</div>' +
+                    '</div>' +
                 '</summary>' +
-                '<div class="' + gridClass + ' pt-1.5">' + cardsHtml + '</div>' +
+                '<div class="border-t border-[var(--card-border)] p-2 space-y-2 bg-[var(--hover-bg)]/40">' + cardsHtml + '</div>' +
             '</details>';
-        }).join('');
+        };
+
+        var html = '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">';
+        workGroups.forEach(function(g) { html += renderGroup(g, false); });
+        html += '</div>';
+        if (weeklyGroups.length) {
+            html += '<div class="mt-3">' +
+                '<div class="text-[10px] font-black uppercase tracking-wide text-indigo-500/90 mb-2 px-0.5">Регламент</div>' +
+                '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">';
+            weeklyGroups.forEach(function(g) { html += renderGroup(g, true); });
+            html += '</div></div>';
+        }
+        return html;
     };
 
-    var filterHtml = '\n        <div class="flex gap-1.5 mb-4 pb-1 overflow-x-auto no-scrollbar" id="hub-filters">\n            <button onclick="rbi_filterTaskHub(\'all\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white shadow-sm transition-colors shrink-0">Все</button>\n            <button onclick="rbi_filterTaskHub(\'control\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Аудиты</button>\n            <button onclick="rbi_filterTaskHub(\'etalon\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Эталоны</button>\n            <button onclick="rbi_filterTaskHub(\'meeting\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Планерки</button>\n            <button onclick="rbi_filterTaskHub(\'report\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Отчеты / FMEA</button>\n            <button onclick="rbi_filterTaskHub(\'method\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">ППР / TWI</button>\n            <button onclick="rbi_filterTaskHub(\'dev\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Обучение</button>\n            <button onclick="rbi_filterTaskHub(\'other\', this)" class="hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0">Ручные</button>\n            <button id="rbi-critical-only-btn" onclick="rbi_toggleCriticalOnlyFilter(this)" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 text-red-600 border-2 border-red-300 dark:border-red-700 transition-colors shrink-0 flex items-center gap-1">⚠️ Только критичные</button>\n        </div>\n    ';
+    var sectionBlock = function(key, title, tasks, openDefault, isOverdueFn, bodyHtml, countOverride) {
+        if (!tasks.length && !bodyHtml) return '';
+        var count = (typeof countOverride === 'number') ? countOverride : tasks.length;
+        var body = bodyHtml || _renderContractorGroups(tasks, isOverdueFn, key);
+        return '<details data-task-section="' + key + '" class="group/section mb-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden [&_summary::-webkit-details-marker]:hidden"' +
+            (openDefault ? ' open' : '') + '>' +
+            '<summary class="cursor-pointer select-none flex items-center justify-between gap-2 px-3 py-2.5 active:bg-[var(--hover-bg)] transition-colors">' +
+                '<span class="text-[11px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">' + title +
+                    ' <span class="text-slate-400 font-bold normal-case tabular-nums">' + count + '</span></span>' +
+                '<span class="text-slate-400 text-[12px] transition-transform group-open/section:rotate-180 shrink-0">▾</span>' +
+            '</summary>' +
+            '<div class="border-t border-[var(--card-border)] px-2.5 py-2.5 bg-[var(--hover-bg)]/20">' + body + '</div>' +
+        '</details>';
+    };
 
     var accordionsHtml = '';
-    var gridClass = "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 pb-2";
+    var focusTasks = overdue.concat(todayTasks);
+    // Без фильтра — открыто «Сегодня». С фильтром — все непустые секции, иначе результат «прячется» в свёртке.
+    var openToday = filtersActive ? focusTasks.length > 0 : true;
+    var openWeek = filtersActive && weekTasks.length > 0;
+    var openMonth = filtersActive && monthTasks.length > 0;
+    var openArchive = filtersActive && archiveTasks.length > 0;
 
-    var activeTodayCount = overdue.length + todayTasks.length;
-
-    // data-task-section — стабильный ключ для restore open-state после sync
-    // (см. _captureTasksUiState / _restoreTasksUiState). Внутри секции карточки
-    // группируются по подрядчику через _renderContractorGroups (data-task-group).
-    if (activeTodayCount > 0) accordionsHtml += '<details data-task-section="today" class="mb-4 group [&_summary::-webkit-details-marker]:hidden" open><summary class="cursor-pointer flex justify-between items-center mb-3 select-none border-b border-[var(--card-border)] pb-2"><span class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Сегодня (' + activeTodayCount + ')</span><span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span></summary>' + _renderContractorGroups(overdue.concat(todayTasks), function(t){ return overdue.indexOf(t) !== -1; }, 'today') + '</details>';
-
-    if (weekTasks.length > 0) accordionsHtml += '<details data-task-section="week" class="mb-4 group [&_summary::-webkit-details-marker]:hidden" open><summary class="cursor-pointer flex justify-between items-center mb-3 select-none border-b border-[var(--card-border)] pb-2"><span class="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Плановые задачи (' + weekTasks.length + ')</span><span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span></summary>' + _renderContractorGroups(weekTasks, function(){ return false; }, 'week') + '</details>';
-
-    if (monthTasks.length > 0) accordionsHtml += '<details data-task-section="month" class="mb-4 group [&_summary::-webkit-details-marker]:hidden"><summary class="cursor-pointer flex justify-between items-center mb-3 select-none border-b border-[var(--card-border)] pb-2"><span class="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"></path></svg> Будущие задачи (' + monthTasks.length + ')</span><span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span></summary>' + _renderContractorGroups(monthTasks, function(){ return false; }, 'month') + '</details>';
-
-    if (archiveTasks.length > 0) {
-        var recentArchive = archiveTasks.slice().sort(function(a, b){ return new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date); }).slice(0, 15);
-        accordionsHtml += '<details data-task-section="archive" class="mb-4 group [&_summary::-webkit-details-marker]:hidden"><summary class="cursor-pointer flex justify-between items-center mb-3 select-none border-b border-[var(--card-border)] pb-2"><span class="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Архив: Недавно завершенные (' + archiveTasks.length + ')</span><span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span></summary><div class="' + gridClass + '">' + recentArchive.map(function(t){ return renderCard(t, false, true); }).join('') + '</div></details>';
+    if (focusTasks.length) {
+        accordionsHtml += sectionBlock('today', 'Сегодня', focusTasks, openToday, function(t){ return overdue.indexOf(t) !== -1; });
+    } else if (!filtersActive) {
+        accordionsHtml += sectionBlock('today', 'Сегодня', [], true, null,
+            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">На сегодня задач нет</div>');
+    }
+    if (weekTasks.length) {
+        accordionsHtml += sectionBlock('week', 'На этой неделе', weekTasks, openWeek, function(){ return false; });
+    }
+    if (monthTasks.length) {
+        accordionsHtml += sectionBlock('month', 'В этом месяце', monthTasks, openMonth, function(){ return false; });
+    }
+    // Архив — всегда внизу (свёрнут), даже при фильтре «Открытые»
+    if (archiveTasks.length) {
+        var recentArchive = archiveTasks.slice(0, 30);
+        accordionsHtml += sectionBlock('archive', 'Архив', recentArchive, openArchive, null,
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+                recentArchive.map(function(t){ return renderCard(t, false, true, false); }).join('') +
+            '</div>', archiveTasks.length);
+    } else if (!filtersActive || window.taskStatusFilter === 'DONE') {
+        accordionsHtml += sectionBlock('archive', 'Архив', [], false, null,
+            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">Выполненных задач пока нет</div>', 0);
     }
 
-    if (activeTodayCount === 0 && weekTasks.length === 0 && monthTasks.length === 0 && archiveTasks.length === 0) {
-        container.innerHTML = globalActionsHtml + managerFilterHtml + filterHtml + '<div class="bg-[var(--card-bg)] border border-dashed border-[var(--card-border)] rounded-2xl p-8 text-center shadow-sm mt-4"><div class="text-[14px] font-black text-slate-400 uppercase tracking-wider mb-2">План чист</div><div class="text-[11px] text-slate-500 font-medium">Нет задач по выбранным фильтрам.</div></div>';
+    if (!focusTasks.length && !weekTasks.length && !monthTasks.length && !archiveTasks.length) {
+        container.innerHTML = globalActionsHtml + filtersHtml +
+            '<div class="text-center py-6 text-slate-400 font-bold text-[11px] uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">' +
+            'Нет задач в этой категории</div>';
         return;
     }
 
-    container.innerHTML = globalActionsHtml + managerFilterHtml + filterHtml + accordionsHtml;
-
-    if (window._rbiTaskCriticalOnly) {
-        var critBtn = document.getElementById('rbi-critical-only-btn');
-        if (critBtn) critBtn.className = "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white border-2 border-red-600 transition-colors shrink-0 flex items-center gap-1";
-        _applyCriticalOnlyFilter();
-    }
+    container.innerHTML = globalActionsHtml + filtersHtml + accordionsHtml;
 }
 
 // =========================================================================
@@ -941,11 +1490,8 @@ function _restoreTasksUiState(state) {
             }
         });
     }
-    if (state.hubCategory && state.hubCategory !== 'all') {
-        var btn = document.querySelector('#hub-filters .hub-filter-btn[onclick*="\'' + state.hubCategory + '\'"]');
-        if (btn) _filterTaskHub(state.hubCategory, btn);
-    } else {
-        window._rbiTaskHubCategory = state.hubCategory || 'all';
+    if (state.hubCategory) {
+        window._rbiTaskHubCategory = state.hubCategory;
     }
     if (typeof state.scrollY === 'number') {
         var htmlEl = document.documentElement;
@@ -981,60 +1527,81 @@ function _tasksListSignature() {
         .join('|');
 }
 
+/** Состав списка (без цифр прогресса) — если тот же, после sync только patch DOM. */
+function _tasksStructureSignature() {
+    return (window.rbi_tasksData || [])
+        .filter(function (t) { return t && !t._deleted && !t.is_deleted; })
+        .map(function (t) { return String(t.id) + ':' + (t.status || ''); })
+        .sort()
+        .join('|');
+}
+
+/** Точечно обновить цифры на карточках и в шапке — без innerHTML и сброса свёрток. */
+function _patchTasksListDom() {
+    var container = document.getElementById('rbi-tasks-container');
+    if (!container) return false;
+    var patched = 0;
+    (window.rbi_tasksData || []).forEach(function (t) {
+        if (!t || t._deleted || t.is_deleted) return;
+        var id = String(t.id || '');
+        if (!id) return;
+        var card = null;
+        try {
+            card = container.querySelector('[data-task-id="' + id.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+        } catch (e) {
+            card = null;
+        }
+        if (!card) return;
+        var prog = card.querySelector('[data-task-progress]');
+        if (prog && t.target > 1) {
+            prog.textContent = (t.done || 0) + '/' + t.target;
+            patched++;
+        }
+    });
+    // Шапка: лёгкий пересчёт по текущим данным (без пересборки списка)
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var _gameSvc = (_ctx && _ctx.game) || (window.RBI && window.RBI.services && window.RBI.services.game);
+    var startW = _gameSvc && _gameSvc.getStartOfWeek ? _gameSvc.getStartOfWeek(today) : today;
+    var endW = new Date(startW); endW.setDate(startW.getDate() + 6); endW.setHours(23, 59, 59, 999);
+    var openN = 0, overdueN = 0, closedN = 0, weekTotal = 0;
+    (window.rbi_tasksData || []).forEach(function (t) {
+        if (!t || t._deleted || t.is_deleted) return;
+        if (t.status === 'done' || t.status === 'blocked') {
+            var d = t.date ? new Date(t.date) : new Date(t.updatedAt || 0);
+            d.setHours(0, 0, 0, 0);
+            if (t.status === 'done' && d >= startW && d <= endW) { closedN++; weekTotal++; }
+            return;
+        }
+        openN++;
+        weekTotal++;
+        if (t.date) {
+            var td = new Date(t.date); td.setHours(0, 0, 0, 0);
+            if (td < today) overdueN++;
+        }
+    });
+    var progText = document.getElementById('rbi-tasks-progress-text');
+    var progBar = document.getElementById('rbi-tasks-progress-bar');
+    if (progText) progText.innerText = closedN + '/' + weekTotal;
+    if (progBar) progBar.style.width = weekTotal > 0 ? ((closedN / weekTotal) * 100) + '%' : '0%';
+    var openEl = document.getElementById('rbi-tasks-open');
+    var overdueEl = document.getElementById('rbi-tasks-overdue');
+    var closedEl = document.getElementById('rbi-tasks-closed-week');
+    if (openEl) openEl.textContent = String(openN);
+    if (overdueEl) overdueEl.textContent = String(overdueN);
+    if (closedEl) closedEl.textContent = String(closedN);
+    return patched >= 0;
+}
+
 function _filterTaskHub(category, btnElement) {
     window._rbiTaskHubCategory = category || 'all';
-    var container = document.getElementById('hub-filters');
-    if (container) {
-        container.querySelectorAll('.hub-filter-btn').forEach(function(btn) {
-            btn.className = "hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 transition-colors shrink-0";
-        });
-    }
-    if (btnElement) {
-        btnElement.className = "hub-filter-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white shadow-sm transition-colors shrink-0";
-    }
-    var cards = document.querySelectorAll('.task-card-item');
-    cards.forEach(function(card) {
-        if (category === 'all' || card.dataset.category === category) card.style.display = 'flex';
-        else card.style.display = 'none';
-    });
-    if (window._rbiTaskCriticalOnly) _applyCriticalOnlyFilter();
-    _syncGroupVisibility();
-}
-
-/**
- * Скрывает `<details data-task-group>`, внутри которых нет ни одной видимой
- * карточки (после применения хаб-фильтра категории и/или фильтра "Только критичные").
- */
-function _syncGroupVisibility() {
-    document.querySelectorAll('details[data-task-group]').forEach(function(groupEl) {
-        var hasVisible = false;
-        groupEl.querySelectorAll('.task-card-item').forEach(function(card) {
-            if (card.style.display !== 'none') hasVisible = true;
-        });
-        groupEl.style.display = hasVisible ? '' : 'none';
-    });
-}
-
-/** Применяет визуальное скрытие карточек без `data-critical="1"` (используется фильтром "Только критичные"). */
-function _applyCriticalOnlyFilter() {
-    var hubCategory = window._rbiTaskHubCategory || 'all';
-    document.querySelectorAll('.task-card-item').forEach(function(card) {
-        var matchesHub = hubCategory === 'all' || card.dataset.category === hubCategory;
-        if (!matchesHub) { card.style.display = 'none'; return; }
-        card.style.display = card.dataset.critical === '1' ? 'flex' : 'none';
-    });
-    _syncGroupVisibility();
+    window._rbiTasksFiltersOpen = true;
+    _renderTasksList(true);
 }
 
 function _toggleCriticalOnlyFilter(btnElement) {
     window._rbiTaskCriticalOnly = !window._rbiTaskCriticalOnly;
-    if (window._rbiTaskCriticalOnly) {
-        if (btnElement) btnElement.className = "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white border-2 border-red-600 transition-colors shrink-0 flex items-center gap-1";
-        _applyCriticalOnlyFilter();
-    } else {
-        if (btnElement) btnElement.className = "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 text-red-600 border-2 border-red-300 dark:border-red-700 transition-colors shrink-0 flex items-center gap-1";
-        _filterTaskHub(window._rbiTaskHubCategory || 'all', document.querySelector('#hub-filters .hub-filter-btn[onclick*="\'' + (window._rbiTaskHubCategory || 'all') + '\'"]'));
-    }
+    window._rbiTasksFiltersOpen = true;
+    _renderTasksList(true);
 }
 
 // =========================================================================
@@ -1153,7 +1720,7 @@ async function _markTaskDone(taskId, silent) {
         var wasPending = task.status === 'pending' || task.status === 'paused';
         task.status = 'done';
         task.resultComment = 'Выполнено инженером вручную';
-        task.updatedAt = new Date().toISOString();
+        _touchTaskForSync(task);
         await _storage().put(_storage().stores().TASKS, task);
         if (!_isDemoMode()) {
             _syncEnqueue('UPDATE_TASK_STATUS', { taskId: task.id, status: 'done' });
@@ -1187,8 +1754,9 @@ async function _resumeTask(taskId) {
     task.status = 'pending'; task.resultComment = '';
     if (!task.history) task.history = [];
     task.history.unshift('[' + new Date().toLocaleDateString('ru-RU') + '] Возобновлена инженером.');
-    task.updatedAt = new Date().toISOString();
+    _touchTaskForSync(task);
     await _storage().put(_storage().stores().TASKS, task);
+    localStorage.setItem('rbi_cloud_dirty', '1');
     showToast("🔄 Задача снова активна");
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
@@ -1204,7 +1772,7 @@ async function _pauseTask(taskId) {
     task.status = 'paused'; task.resultComment = 'На паузе: ' + reason;
     if (!task.history) task.history = [];
     task.history.unshift('[' + new Date().toLocaleDateString('ru-RU') + '] Пауза: ' + reason);
-    task.updatedAt = new Date().toISOString();
+    _touchTaskForSync(task);
     await _storage().put(_storage().stores().TASKS, task);
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
@@ -1227,7 +1795,7 @@ async function _cancelTask(taskId) {
     task.status = 'blocked'; task.resultComment = 'Отменена: ' + reason;
     if (!task.history) task.history = [];
     task.history.unshift('[' + new Date().toLocaleDateString('ru-RU') + '] Отменена: ' + reason);
-    task.updatedAt = new Date().toISOString();
+    _touchTaskForSync(task);
     await _storage().put(_storage().stores().TASKS, task);
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
@@ -1932,6 +2500,7 @@ export const TasksModule = {
             // допускаем точечный refresh только если сигнатура списка изменилась.
             var handler = async function () {
                 var tasksOnScreen = _isTasksViewActive();
+                var beforeStruct = tasksOnScreen ? _tasksStructureSignature() : null;
                 var beforeSig = tasksOnScreen ? _tasksListSignature() : null;
                 await _loadData();
                 window._rbiSuppressTasksRefresh = true;
@@ -1953,11 +2522,18 @@ export const TasksModule = {
                     }
                     return;
                 }
-                // Активный экран + sync-defer: не трогаем DOM, даже если данные чуть изменились
-                // (цифры/прогресс уже обновлены выше без пересборки списка).
+                var afterStruct = _tasksStructureSignature();
+                var afterSig = _tasksListSignature();
+                // Тот же набор задач (id+status) — только цифры в DOM, свёртки не трогаем
+                if (beforeStruct && beforeStruct === afterStruct) {
+                    _patchTasksListDom();
+                    if (window.syncDirtyFlags) window.syncDirtyFlags.tasks = false;
+                    return;
+                }
+                // Активный экран + sync-defer: не full-render; пометим dirty если состав изменился
                 if (typeof window.shouldDeferFullRender === 'function' && window.shouldDeferFullRender('tasks')) {
-                    var afterSigQuiet = _tasksListSignature();
-                    if (beforeSig !== afterSigQuiet) {
+                    _patchTasksListDom();
+                    if (beforeSig !== afterSig) {
                         if (window.RBI && window.RBI.utils && window.RBI.utils.syncUi && window.RBI.utils.syncUi.markDirty) {
                             window.RBI.utils.syncUi.markDirty('tasks');
                         } else if (window.syncDirtyFlags) {
@@ -1968,8 +2544,8 @@ export const TasksModule = {
                     }
                     return;
                 }
-                var afterSig = _tasksListSignature();
                 if (beforeSig === afterSig) {
+                    _patchTasksListDom();
                     if (window.syncDirtyFlags) window.syncDirtyFlags.tasks = false;
                     return;
                 }
@@ -2031,6 +2607,9 @@ window.gameForceUpdatePlan      = function() { return _gameForceUpdatePlan.apply
 window.gameGenerateWeeklyPlan   = function() { return _gameGenerateWeeklyPlan.apply(this, arguments); };
 
 window.rbi_renderTasksList      = function() { return _renderTasksList.apply(this, arguments); };
+window.rbi_getCurrentEngineerRef = function() { return _getCurrentEngineerRef.apply(this, arguments); };
+window.rbi_taskBelongsTo        = function() { return _taskBelongsTo.apply(this, arguments); };
+window.rbi_countOpenTasksFor    = function() { return _countOpenTasksFor.apply(this, arguments); };
 window.rbi_filterTaskHub        = function() { return _filterTaskHub.apply(this, arguments); };
 window.rbi_toggleCriticalOnlyFilter = function() { return _toggleCriticalOnlyFilter.apply(this, arguments); };
 window.rbi_openTaskAction       = function() { return _openTaskAction.apply(this, arguments); };

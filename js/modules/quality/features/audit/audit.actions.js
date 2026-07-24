@@ -506,13 +506,6 @@
       var isFullCheck = checkedStageNames.length === AuditState.currentChecklist.length;
       var stageNameLabel = isFullCheck ? 'Полная проверка' : 'Частичная проверка';
 
-      if (finalMetrics.escalated_found) {
-        _gameLogAction('escalation_bonus', 'esc');
-      }
-      if (AuditState.currentTemplateKey === 'sys_etalon_act' && Object.keys(mergedPhotos).length > 0) {
-        _gameLogAction('etalon_accepted', 'etalon');
-      }
-
       var selectEl = document.getElementById('checklist-selector');
       var tTitle = selectEl.options[selectEl.selectedIndex].text.replace('▼', '').trim();
 
@@ -631,6 +624,14 @@
       if (!_isDemoMode()) {
         await _storage().put(_storage().stores().HISTORY, newItem);
         _syncEnqueue('SAVE_INSPECTION', newItem);
+      }
+
+      // XP: уникальный target = id проверки (раньше 'esc'/'etalon' дублировали начисления)
+      if (finalMetrics.escalated_found) {
+        _gameLogAction('escalation_bonus', newItem.id);
+      }
+      if (AuditState.currentTemplateKey === 'sys_etalon_act' && Object.keys(mergedPhotos).length > 0) {
+        _gameLogAction('etalon_accepted', newItem.id);
       }
 
       if (isConstructionMode) {

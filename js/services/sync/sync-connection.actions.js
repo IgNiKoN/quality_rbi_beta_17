@@ -410,6 +410,16 @@ window.initCloudConnection = async function () {
                 }
             }
 
+            // Инженер с 1 объектом: закрепить в глобальном мультифильтре (не «Все объекты»).
+            try {
+                if (typeof window.ensureSingleAssignedProjectFilter === 'function') {
+                    window.ensureSingleAssignedProjectFilter();
+                }
+                if (typeof window.updateFilterButtonLabels === 'function') {
+                    window.updateFilterButtonLabels();
+                }
+            } catch (_) { /* ignore */ }
+
             if (typeof dbPut === 'function') {
                 await dbPut('app_settings', { key: 'user_prefs', ...appSettings });
             }

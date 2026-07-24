@@ -39,12 +39,12 @@
             return window.currentProfileData || null;
         },
 
-        logAction: function (actionType, targetId) {
+        logAction: function (actionType, targetId, inspectorOverride) {
             if (typeof window.gameLogAction !== 'function') {
                 console.warn('[RBI Game Service] window.gameLogAction недоступен');
                 return;
             }
-            return window.gameLogAction(actionType, targetId);
+            return window.gameLogAction(actionType, targetId, inspectorOverride);
         },
         calculateImpact: function (inspector, contractor, template) {
             if (typeof window.calculateImpactScore !== 'function') {

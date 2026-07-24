@@ -16,6 +16,7 @@ import './etalon-v18.render.js';
 import './etalon-v18.actions.js';
 import './etalon-v18b.render.js';
 import './etalon-v18b.actions.js';
+import './etalon.docx-export.js'; // side-effect: exportEtalonDocx / rbi_exportEtalonDocx
 
 // Паттерн делегирования событий для инициативы «Разбор inline onclick/onchange»
 // (см. _ai/INDEX_HTML_HANDLERS_MAP.md), namespace-per-module (data-etalon-action).

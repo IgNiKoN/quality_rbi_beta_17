@@ -808,9 +808,10 @@
       const footerDiv = document.getElementById('etalon-view-body').nextElementSibling;
       if (footerDiv) {
         footerDiv.innerHTML = `
-            <div class="flex gap-2 w-full">
-                <button onclick="editEtalonAct('${id}')" class="flex-1 bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-sm active:scale-95">✏️ Изменить</button>
-                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); printEtalonAct('${id}');" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95">🖨️ PDF</button>
+            <div class="flex gap-2 w-full flex-wrap">
+                <button onclick="editEtalonAct('${id}')" class="flex-1 min-w-[100px] bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95">✏️ Изменить</button>
+                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); printEtalonAct('${id}');" class="flex-1 min-w-[90px] bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">🖨️ PDF</button>
+                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); if(window.rbi_exportEtalonDocx) rbi_exportEtalonDocx('${id}');" class="flex-1 min-w-[90px] bg-sky-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">Word</button>
                 <button onclick="deleteEtalonAct('${id}')" class="bg-red-50 text-red-600 border border-red-200 px-4 py-3.5 rounded-xl font-black text-lg active:scale-95 shadow-sm">🗑️</button>
             </div>
         `;

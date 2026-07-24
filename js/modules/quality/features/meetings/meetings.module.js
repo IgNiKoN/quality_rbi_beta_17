@@ -42,6 +42,43 @@ function _escTa(s) {
         .replace(/>/g, '&gt;');
 }
 
+/** HTML-мемо → читаемый текст для превью карточки (без сырых &lt;b&gt; и т.п.). */
+function _meetingPlainPreview(html, maxLen) {
+    let s = String(html == null ? '' : html);
+    s = s
+        .replace(/<\s*br\s*\/?>/gi, ' ')
+        .replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, ' ')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!s) return 'Без текста мемо';
+    if (maxLen && s.length > maxLen) s = s.slice(0, maxLen - 1) + '…';
+    return _escTa(s);
+}
+
+function _meetingPhotoPlaceholder(size) {
+    const isThumb = size === 'thumb';
+    const iconCls = isThumb ? 'w-5 h-5' : 'w-6 h-6';
+    const boxCls = isThumb
+        ? 'w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/50 dark:to-slate-900'
+        : 'w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100/80 dark:from-orange-950/40 dark:via-slate-900 dark:to-slate-950';
+    const badge = isThumb
+        ? ''
+        : '<span class="text-[9px] font-black uppercase tracking-widest text-orange-500/80 dark:text-orange-400/70">Без фото</span>';
+    return `<div class="${boxCls}">
+        <div class="${isThumb ? 'w-8 h-8' : 'w-11 h-11'} rounded-xl bg-white/80 dark:bg-slate-800/80 text-orange-500 dark:text-orange-400 flex items-center justify-center shadow-sm border border-orange-100 dark:border-orange-900/50">
+            <svg class="${iconCls}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </div>
+        ${badge}
+    </div>`;
+}
+
 function _ensureMeetingProtocolEditorView() {
     if (document.getElementById('meeting-protocol-editor-view')) return;
     const root = (window.RBI && window.RBI.services && window.RBI.services.shell
@@ -443,14 +480,16 @@ function _contrTypeSummaryHtml(items) {
 
 /* ── renderMeetingTab ────────────────────────────────────────────────────────── */
 
-export function renderMeetingTab() {
+/** @param {{ listOnly?: boolean }} [options] listOnly — только список (как KB), шапка и аккордеоны не сбрасываются */
+export function renderMeetingTab(options) {
+    const listOnly = !!(options && options.listOnly);
     const FD = window.RBIFormDraft;
     const notesEl = document.getElementById('rbi-meeting-notes');
-    if (FD && notesEl && !_meetingDraftSkipSave) {
+    if (!listOnly && FD && notesEl && !_meetingDraftSkipSave) {
         FD.saveNow(FD.KEYS.MEETING_WS, _rbiCollectMeetingWsDraft);
         FD.unbindAutoSave(FD.KEYS.MEETING_WS);
     }
-    _meetingDraftSkipSave = false;
+    if (!listOnly) _meetingDraftSkipSave = false;
 
     const container = document.getElementById('rbi-meeting-container');
     if (!container) return;
@@ -460,7 +499,7 @@ export function renderMeetingTab() {
         : '';
 
     const titleContainer = container.previousElementSibling;
-    if (titleContainer) {
+    if (!listOnly && titleContainer) {
         titleContainer.className = "sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40";
         titleContainer.innerHTML = `
             <div class="flex flex-wrap justify-between items-center gap-2">
@@ -476,7 +515,14 @@ export function renderMeetingTab() {
                 </div>
             </div>
         `;
+    } else if (listOnly) {
+        const toggleHost = document.getElementById('meetings-view-mode-toggle');
+        if (toggleHost && toggleHtml) toggleHost.innerHTML = toggleHtml;
     }
+
+    const expanded = (typeof window._kbCaptureExpandedGroups === 'function')
+        ? window._kbCaptureExpandedGroups(container)
+        : null;
 
     if (!window.rbi_meetingsData || window.rbi_meetingsData.length === 0) {
         container.innerHTML = `<div class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">Активных протоколов нет</div>`;
@@ -521,9 +567,10 @@ export function renderMeetingTab() {
         const resolvedCount = m.agenda ? m.agenda.filter(a => a.isDone).length : 0;
         const totalCount = m.agenda ? m.agenda.length : 0;
         const dateStr = new Date(m.date).toLocaleDateString('ru-RU');
+        const memoPreview = _meetingPlainPreview(m.memoText, 160);
         const thumb = m.qDayPhoto
             ? `<img src="${window.getPhotoSrc(m.qDayPhoto)}" class="w-full h-full object-cover">`
-            : `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg></div>`;
+            : _meetingPhotoPlaceholder('thumb');
 
         if (isListView) {
             return `
@@ -541,7 +588,7 @@ export function renderMeetingTab() {
 
         const previewHtml = m.qDayPhoto
             ? `<img src="${window.getPhotoSrc(m.qDayPhoto)}" class="w-full h-full object-cover">`
-            : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-8 h-8 opacity-40 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg></div>`;
+            : _meetingPhotoPlaceholder('card');
 
         return `
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col active:scale-[0.98] transition-transform relative cursor-pointer" onclick="rbi_openSavedMeeting('${m.id}')">
@@ -554,8 +601,8 @@ export function renderMeetingTab() {
             <div class="p-3 flex flex-col flex-1 min-w-0">
                 <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 truncate">${m.title}</div>
                 <div class="text-[9px] font-bold text-[var(--text-muted)] mb-2">Вопросов: ${resolvedCount}/${totalCount}</div>
-                <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 italic mb-2 flex-1">
-                    ${(m.memoText || '').replace(/<br>/g, ' ').replace(/</g, '&lt;')}
+                <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 mb-2 flex-1">
+                    ${memoPreview}
                 </div>
                 <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center gap-2">
                     <div class="text-[9px] font-bold text-[var(--text-muted)] truncate min-w-0">
@@ -620,6 +667,10 @@ export function renderMeetingTab() {
                 </div>
             </div>`;
     }).join('');
+
+    if (typeof window._kbRestoreExpandedGroups === 'function') {
+        window._kbRestoreExpandedGroups(container, expanded);
+    }
 }
 
 /* ── openSavedMeeting ────────────────────────────────────────────────────────── */

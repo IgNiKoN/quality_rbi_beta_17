@@ -19,6 +19,7 @@ import {
     rbiAssistantOfflineAnswer, rbiAssistantRenderMessage, askAppAssistant,
     bindCtx as bindFaqCtx
 } from './features/faq.js';
+import './twi.docx-export.js'; // side-effect: exportTwiDocx / rbi_exportTwiDocx
 
 window.openFaqModal = openFaqModal;
 window.closeFaqModal = closeFaqModal;
@@ -46,7 +47,7 @@ window.askAppAssistant = askAppAssistant;
 
 // Preserve open accordions across list re-render (same idea as History).
 // Keys = group titles (without "(N)" counters). Supports <details> and
-// practices-style bodies (#practices-group-*).
+// practices/meetings/fmea-style bodies (#*-group-*).
 window._kbDetailsGroupKey = function (detailsEl) {
     if (!detailsEl) return '';
     var label = detailsEl.querySelector('summary .truncate')
@@ -57,6 +58,7 @@ window._kbDetailsGroupKey = function (detailsEl) {
     clone.querySelectorAll('span').forEach(function (s) { s.remove(); });
     return String(clone.textContent || '').replace(/\s+/g, ' ').trim();
 };
+window._kbCustomGroupBodySelector = '[id^="practices-group-"], [id^="meetings-group-"], [id^="fmea-group-"]';
 window._kbCaptureExpandedGroups = function (container) {
     var keys = new Set();
     if (!container) return keys;
@@ -64,10 +66,10 @@ window._kbCaptureExpandedGroups = function (container) {
         var key = window._kbDetailsGroupKey(d);
         if (key) keys.add(key);
     });
-    container.querySelectorAll('[id^="practices-group-"]').forEach(function (body) {
+    container.querySelectorAll(window._kbCustomGroupBodySelector).forEach(function (body) {
         if (body.classList.contains('hidden')) return;
         var pName = body.previousElementSibling
-            && body.previousElementSibling.querySelector('.font-black.truncate, .truncate');
+            && body.previousElementSibling.querySelector('.font-black.truncate, .truncate, .font-black');
         pName = pName && pName.textContent ? pName.textContent.trim() : '';
         if (pName) keys.add(pName);
     });
@@ -79,9 +81,9 @@ window._kbRestoreExpandedGroups = function (container, keys) {
         var key = window._kbDetailsGroupKey(d);
         if (key && keys.has(key)) d.setAttribute('open', '');
     });
-    container.querySelectorAll('[id^="practices-group-"]').forEach(function (body) {
+    container.querySelectorAll(window._kbCustomGroupBodySelector).forEach(function (body) {
         var labelEl = body.previousElementSibling
-            && body.previousElementSibling.querySelector('.font-black.truncate, .truncate');
+            && body.previousElementSibling.querySelector('.font-black.truncate, .truncate, .font-black');
         var pName = labelEl && labelEl.textContent ? labelEl.textContent.trim() : '';
         if (!pName || !keys.has(pName)) return;
         body.classList.remove('hidden');
@@ -1086,6 +1088,81 @@ function processNodeImport(event) {
 
 // === 2. ОТКРЫТИЕ УНИВЕРСАЛЬНОЙ ЧИТАЛКИ ИНСТРУКЦИЙ (БЕЗ ЭМОДЗИ) ===
 // Перенесено из js/app.js (строки 776-1232).
+async function _twiViewerLoadPhotoMeta(ref) {
+    if (!ref) return null;
+    const url = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref);
+    if (!url) return null;
+    const dims = await new Promise(function (resolve) {
+        try {
+            const img = new Image();
+            img.onload = function () {
+                resolve({
+                    w: img.naturalWidth || img.width || 1,
+                    h: img.naturalHeight || img.height || 1
+                });
+            };
+            img.onerror = function () { resolve({ w: 1, h: 1 }); };
+            img.src = url;
+        } catch (_) {
+            resolve({ w: 1, h: 1 });
+        }
+    });
+    const orientation = dims.h > dims.w * 1.08
+        ? 'portrait'
+        : (dims.w > dims.h * 1.08 ? 'landscape' : 'square');
+    return { ref: ref, url: url, orientation: orientation, w: dims.w, h: dims.h };
+}
+
+async function _twiViewerResolveStepPhotos(photoField) {
+    const refs = typeof window.normalizeItemPhotos === 'function'
+        ? window.normalizeItemPhotos(photoField)
+        : (photoField ? [photoField] : []);
+    const items = [];
+    for (let i = 0; i < refs.length; i++) {
+        const meta = await _twiViewerLoadPhotoMeta(refs[i]);
+        if (meta) items.push(meta);
+    }
+    return items;
+}
+
+function _twiViewerPhotoFigHtml(item) {
+    const isPortrait = item.orientation === 'portrait';
+    const maxH = isPortrait ? 'max-h-80' : 'max-h-56';
+    const minBox = isPortrait ? 'min-h-[14rem]' : 'min-h-[9rem]';
+    const escRef = String(item.ref || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `
+        <div class="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-slate-50 dark:bg-slate-900 relative cursor-pointer active:scale-[0.99] transition-transform"
+             onclick="openPhotoViewer('${escRef}')">
+            <div class="w-full ${minBox} flex items-center justify-center p-1.5 box-border">
+                <img src="${item.url}" alt="Фото шага"
+                     class="${maxH} max-w-full w-auto h-auto object-contain block">
+            </div>
+            <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold uppercase px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1 pointer-events-none">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                Увеличить
+            </div>
+        </div>`;
+}
+
+function _twiViewerPhotosHtml(items) {
+    if (!items || !items.length) return '';
+    let html = '<div class="mt-3 space-y-2">';
+    let i = 0;
+    while (i < items.length) {
+        const a = items[i];
+        const b = items[i + 1];
+        if (a && b && a.orientation === 'portrait' && b.orientation === 'portrait') {
+            html += `<div class="grid grid-cols-2 gap-2">${_twiViewerPhotoFigHtml(a)}${_twiViewerPhotoFigHtml(b)}</div>`;
+            i += 2;
+        } else {
+            html += _twiViewerPhotoFigHtml(a);
+            i += 1;
+        }
+    }
+    html += '</div>';
+    return html;
+}
+
 window.openTwiViewer = async function (twiId) {
     const card = customTwiCards.find(c => c.id === twiId);
     if (!card) return showToast('Ошибка: Инструкция не найдена');
@@ -1102,6 +1179,19 @@ window.openTwiViewer = async function (twiId) {
     const infoPanel = document.getElementById('viewer-twi-info-panel');
     const footer = document.getElementById('viewer-twi-footer');
     const content = document.getElementById('viewer-twi-content');
+    let wordBtn = document.getElementById('viewer-twi-word-btn');
+    // Старый markup overlay мог остаться без Word-кнопки — докидываем в футер.
+    if (!wordBtn && footer) {
+        const printBtn = footer.querySelector('[data-knowledge-action="showTwiPrintOptions"]');
+        const wordHtml = `<button id="viewer-twi-word-btn" type="button" data-knowledge-action="rbi_exportTwiDocx" class="hidden w-12 h-12 bg-sky-600 text-white rounded-xl flex items-center justify-center active:scale-95 shadow-md shrink-0" title="Скачать Word"><span class="text-[10px] font-black uppercase tracking-wider">Word</span></button>`;
+        if (printBtn && printBtn.insertAdjacentHTML) printBtn.insertAdjacentHTML('afterend', wordHtml);
+        else footer.insertAdjacentHTML('afterbegin', wordHtml);
+        wordBtn = document.getElementById('viewer-twi-word-btn');
+    }
+    if (wordBtn) {
+        if (card.type === 'WORKER' || card.type === 'INSPECTOR') wordBtn.classList.remove('hidden');
+        else wordBtn.classList.add('hidden');
+    }
 
     content.innerHTML = '';
     content.classList.remove('p-0');
@@ -1177,14 +1267,8 @@ window.openTwiViewer = async function (twiId) {
         let stepsHtml = '<div class="p-4 space-y-4">';
         if (card.steps && card.steps.length > 0) {
             for (let step of card.steps) {
-                let resolvedStepPhoto = step.photo ? await PhotoManager.getAsyncUrl(step.photo) || window.getPhotoSrc(step.photo) : null;
-
-                const photoHtml = resolvedStepPhoto ? `
-                    <div class="mt-3 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm relative group" onclick="openPhotoViewer('${step.photo}')">
-                        <img src="${resolvedStepPhoto}" class="w-full h-40 object-cover active:scale-95 transition-transform origin-center cursor-pointer">
-                        <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold uppercase px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg> Увеличить</div>
-                    </div>
-                ` : '';
+                const stepPhotos = await _twiViewerResolveStepPhotos(step.photo);
+                const photoHtml = _twiViewerPhotosHtml(stepPhotos);
 
                 stepsHtml += `
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 relative overflow-hidden">
@@ -1566,6 +1650,12 @@ window.showTwiPrintOptions = function () {
     const twiId = document.getElementById('twi-viewer-overlay').dataset.currentTwiId;
     if (!twiId) return;
 
+    const cards = window.customTwiCards || customTwiCards || window.rbi_twiCards || [];
+    const card = cards.find(function (c) {
+        return c && String(c.id) === String(twiId);
+    });
+    const canWord = !!(card && (card.type === 'WORKER' || card.type === 'INSPECTOR'));
+
     const modal = document.getElementById('modal-overlay');
     document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-[14px] flex items-center justify-center border border-slate-200 dark:border-slate-700 mx-auto"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg></div>`;
     document.getElementById('modal-title').innerText = "Печать Инструкции";
@@ -1578,6 +1668,14 @@ window.showTwiPrintOptions = function () {
                     <div class="text-[10px] text-slate-500 font-bold mt-0.5">Сохранить в память устройства</div>
                 </div>
             </button>
+            ${canWord ? `
+            <button onclick="closeModal(); setTimeout(()=>{ if(window.rbi_exportTwiDocx) rbi_exportTwiDocx('${twiId}'); }, 300)" class="w-full text-left p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform">
+                <div class="w-10 h-10 bg-sky-50 text-sky-700 rounded-lg flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+                <div>
+                    <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-wide">Скачать Word</div>
+                    <div class="text-[10px] text-slate-500 font-bold mt-0.5">Документ .docx для редактирования</div>
+                </div>
+            </button>` : ''}
             <button onclick="closeModal(); setTimeout(()=>window.RBI.services.reports.printTwi('browser'), 300)" class="w-full text-left p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform">
                 <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg></div>
                 <div>
@@ -2221,7 +2319,9 @@ window.setKnowledgeViewMode = function (scope, mode) {
     else if (scope === 'nodes' && typeof window.renderNodesList === 'function') window.renderNodesList();
     else if (scope === 'practices' && typeof window.rbi_renderPracticesTab === 'function') window.rbi_renderPracticesTab();
     else if (scope === 'reports' && typeof window.renderReportsList === 'function') window.renderReportsList();
-    else if (scope === 'meetings' && typeof window.rbi_renderMeetingTab === 'function') window.rbi_renderMeetingTab();
+    else if (scope === 'meetings' && typeof window.rbi_renderMeetingTab === 'function') {
+        window.rbi_renderMeetingTab({ listOnly: true });
+    }
     else if (scope === 'fmea' && typeof window.rbi_renderFmeaRegistry === 'function') window.rbi_renderFmeaRegistry();
 };
 
@@ -2245,6 +2345,22 @@ window.renderTwiList = function () {
     var searchInput = (document.getElementById('twi-search-input') && document.getElementById('twi-search-input').value.toLowerCase()) || '';
     if (!container) return;
     var expanded = window._kbCaptureExpandedGroups(container);
+
+    if (window.kbShowTwiInspector === undefined) window.kbShowTwiInspector = true;
+    if (window.kbShowTwiWorker === undefined) window.kbShowTwiWorker = true;
+    if (window.kbShowTwiPdf === undefined) window.kbShowTwiPdf = true;
+
+    var chipOn = 'kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all bg-indigo-600 text-white shadow-sm active:scale-95';
+    var chipOff = 'kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 active:scale-95';
+    var syncTypeChip = function (id, on) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.setAttribute('aria-pressed', on ? 'true' : 'false');
+        el.className = on ? chipOn : chipOff;
+    };
+    syncTypeChip('twi-show-inspector', !!window.kbShowTwiInspector);
+    syncTypeChip('twi-show-worker', !!window.kbShowTwiWorker);
+    syncTypeChip('twi-show-pdf', !!window.kbShowTwiPdf);
 
     var twiToggleHost = document.getElementById('twi-view-mode-toggle');
     if (twiToggleHost && typeof window.kbViewModeToggleHtml === 'function') {
@@ -2297,10 +2413,14 @@ window.renderTwiList = function () {
     // --- 2. СПИСОК КАРТОЧЕК ---
     var currentEngineer = _getSetting('engineerName') || 'Инженер';
 
+    var showInspector = window.kbShowTwiInspector !== false;
+    var showWorker = window.kbShowTwiWorker !== false;
+    var showPdf = window.kbShowTwiPdf !== false;
     var filtered = window.customTwiCards.filter(function (card) {
         var title = String(card.title || card.name || (card.data && card.data.title) || '').toLowerCase();
         var checklistName = String(card.checklistName || card.category || (card.data && card.data.checklistName) || 'Без привязки').toLowerCase();
         var type = String(card.type || (card.data && card.data.type) || '').toLowerCase();
+        var typeKey = String(card.type || (card.data && card.data.type) || '').toUpperCase();
         var owner = card.owner || (card.data && card.data.owner) || '';
 
         var matchSearch =
@@ -2312,13 +2432,17 @@ window.renderTwiList = function () {
             window.twiOwnerFilter === 'ALL' ||
             owner === currentEngineer;
 
-        return matchSearch && matchOwner;
+        var matchType = (typeKey === 'INSPECTOR' && showInspector)
+            || (typeKey === 'WORKER' && showWorker)
+            || (typeKey === 'PDF' && showPdf);
+
+        return matchSearch && matchOwner && matchType;
     });
 
     var html = '';
 
     if (filtered.length === 0) {
-        html = `<div class="text-center py-10 text-slate-500 text-xs font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">Инструкций пока нет</div>`;
+        html = `<div class="text-center py-10 text-slate-500 text-xs font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">В библиотеке пока пусто</div>`;
     } else {
         var grouped = {};
         filtered.forEach(function (c) {
@@ -3875,12 +3999,18 @@ function renderTwiViewerOverlayMarkup() {
             <div id="viewer-twi-footer"
                 class="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shrink-0 flex gap-2">
                 <button data-knowledge-action="showTwiPrintOptions"
-                    class="w-12 h-12 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center active:scale-95 border border-slate-200 dark:border-slate-600 shrink-0 shadow-sm">
+                    class="w-12 h-12 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center active:scale-95 border border-slate-200 dark:border-slate-600 shrink-0 shadow-sm"
+                    title="Печать / PDF">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
                         </path>
                     </svg>
+                </button>
+                <button id="viewer-twi-word-btn" type="button" data-knowledge-action="rbi_exportTwiDocx"
+                    class="hidden w-12 h-12 bg-sky-600 text-white rounded-xl flex items-center justify-center active:scale-95 shadow-md shrink-0"
+                    title="Скачать Word">
+                    <span class="text-[10px] font-black uppercase tracking-wider">Word</span>
                 </button>
                 <button data-knowledge-action="closeTwiViewer"
                     class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-black text-[12px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">

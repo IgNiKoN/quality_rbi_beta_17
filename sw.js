@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.283';
+const SW_VERSION = '18.57.319';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -136,6 +136,7 @@ const urlsToCache = [
   './js/modules/quality/features/knowledge/knowledge.state.js',
   './js/modules/quality/features/knowledge/knowledge.actions.js',
   './js/modules/quality/features/knowledge/knowledge.render.js',
+  './js/modules/quality/features/knowledge/twi.docx-export.js',
   './js/modules/quality/features/knowledge/features/faq.js',
   './js/modules/quality/features/knowledge/index.js',
 
@@ -209,6 +210,7 @@ const urlsToCache = [
   './js/modules/quality/features/etalon/etalon-v18b.render.js',
   './js/modules/quality/features/etalon/etalon-v18b.actions.js',
   './js/modules/quality/features/etalon/etalon-v18b.frame.html',
+  './js/modules/quality/features/etalon/etalon.docx-export.js',
 
   // Фаза 19 — AI Module
   './js/modules/quality/features/ai/ai.module.js',

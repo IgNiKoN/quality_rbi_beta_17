@@ -98,6 +98,65 @@ window.activeMultiFilters = getActiveMultiFilters();
 let currentFilterContext = ''; // 'history' или 'analytics'
 let currentFilterType = '';    // 'project', 'contractor' и т.д.
 
+function _permSvc() {
+    return (_ctx && _ctx.permissions)
+        || (window.RBI && window.RBI.services && window.RBI.services.permissions)
+        || null;
+}
+
+function _objectDirectory() {
+    return (window.RBI && window.RBI.services && window.RBI.services.objectDirectory)
+        || window.ObjectDirectory
+        || null;
+}
+
+/** Display name единственного закреплённого объекта инженера (или ''). */
+function _singleAssignedProjectDisplayName() {
+    const permSvc = _permSvc();
+    if (!permSvc) return '';
+    const role = permSvc.getCurrentRole ? permSvc.getCurrentRole() : 'guest';
+    const isManager = permSvc.canManageHierarchy
+        ? permSvc.canManageHierarchy()
+        : ['director', 'deputy_manager', 'manager'].includes(role);
+    if (isManager || role === 'guest') return '';
+
+    const assigned = typeof permSvc.getAssignedProjects === 'function'
+        ? (permSvc.getAssignedProjects() || [])
+        : [];
+    if (!Array.isArray(assigned) || assigned.length !== 1) return '';
+
+    const od = _objectDirectory();
+    if (od && typeof od.getAssignedProjectObjects === 'function') {
+        const objs = od.getAssignedProjectObjects() || [];
+        if (objs.length === 1) {
+            return String(objs[0].display_name || objs[0].canonical_key || assigned[0] || '').trim();
+        }
+    }
+    return String(assigned[0] || '').trim();
+}
+
+/**
+ * Инженер с ровно одним закреплённым объектом: если фильтр project пуст —
+ * закрепить этот объект (иначе UI/PDF пишут «Все объекты»).
+ */
+function ensureSingleAssignedProjectFilter() {
+    const displayName = _singleAssignedProjectDisplayName();
+    if (!displayName) return false;
+
+    const af = getActiveMultiFilters();
+    let changed = false;
+    ['history', 'analytics'].forEach(function (ctx) {
+        if (!af[ctx]) return;
+        if (!Array.isArray(af[ctx].project) || af[ctx].project.length === 0) {
+            af[ctx].project = [displayName];
+            changed = true;
+        }
+    });
+    return changed;
+}
+window.ensureSingleAssignedProjectFilter = ensureSingleAssignedProjectFilter;
+window.getSingleAssignedProjectDisplayName = _singleAssignedProjectDisplayName;
+
 const MULTI_FILTER_BTN_IDS = {
     history: { project: 'btn-hist-project', contractor: 'btn-hist-contractor', inspector: 'btn-hist-inspector' },
     analytics: {
@@ -247,7 +306,22 @@ function openMultiFilterModal(type, title, context) {
     if (type === 'project') {
         const rbiProjs = filteredRbi.map(i => i.project_display_name || i.projectName || i.project_canonical_key);
         const skProjs = filteredSk.map(r => r.project_display_name || r.display_name || r.canonical_key);
-        uniqueValues = [...new Set([...rbiProjs, ...skProjs].filter(Boolean))].sort();
+        uniqueValues = [...new Set([...rbiProjs, ...skProjs].filter(Boolean))];
+        // Не-менеджер: всегда показывать закреплённые объекты из справочника,
+        // даже если локальных проверок/СК по ним ещё нет.
+        if (!isManager && role !== 'guest') {
+            const od = _objectDirectory();
+            if (od && typeof od.getAssignedProjectObjects === 'function') {
+                const assignedNames = (od.getAssignedProjectObjects() || [])
+                    .map(function (o) { return String(o.display_name || o.canonical_key || '').trim(); })
+                    .filter(Boolean);
+                uniqueValues = [...new Set([...uniqueValues, ...assignedNames])];
+            } else if (assignedProjects.length) {
+                uniqueValues = [...new Set([...uniqueValues, ...assignedProjects.map(String).filter(Boolean)])];
+            }
+            if (uniqueValues.length > 0) emptyBecauseNoAssignments = false;
+        }
+        uniqueValues.sort();
     }
     else if (type === 'contractor') {
         const rbiContrs = filteredRbi.map(i => i.contractorName);
@@ -363,8 +437,12 @@ function applyMultiFilter() {
     const activeMultiFilters = getActiveMultiFilters();
     if (!activeMultiFilters[currentFilterContext]) return;
 
-    // Если выбраны все или не выбран ни один -> сбрасываем фильтр (означает "Все")
-    if (checkedValues.length === total || checkedValues.length === 0) {
+    // Один пункт в списке: «все выбранные» ≠ сброс — иначе инженер с 1 объектом
+    // никогда не закрепит фильтр (length === total → []).
+    if (total === 1 && checkedValues.length === 1) {
+        activeMultiFilters[currentFilterContext][currentFilterType] = checkedValues;
+    } else if (checkedValues.length === total || checkedValues.length === 0) {
+        // Несколько опций: все/ничего → сброс (означает «Все»)
         activeMultiFilters[currentFilterContext][currentFilterType] = [];
     } else {
         activeMultiFilters[currentFilterContext][currentFilterType] = checkedValues;
@@ -405,10 +483,13 @@ function applyMultiFilterSingle(val) {
 window.applyMultiFilterSingle = applyMultiFilterSingle;
 
 function updateFilterButtonLabels() {
+    ensureSingleAssignedProjectFilter();
+
     const updateBtn = (btnId, arr, defaultText) => {
         const btn = document.getElementById(btnId);
         if (!btn) return;
         const textEl = btn.querySelector('.truncate');
+        if (!textEl) return;
         if (arr.length === 0) {
             textEl.innerText = defaultText;
             textEl.classList.remove('text-indigo-600', 'font-black');
@@ -438,6 +519,9 @@ function updateFilterButtonLabels() {
     updateBtn('btn-ana-inspector', activeMultiFilters.analytics.inspector, 'Все инспекторы');
     updateBtn('btn-ana-template', activeMultiFilters.analytics.template, 'Все виды работ');
 }
+
+// После загрузки модуля — закрепить единственный объект, если уже есть профиль.
+try { ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
 
 // =========================================================================
 // РАЗМЕТКА DROPDOWN «multi-filter-modal-overlay» — панель у кнопки фильтра

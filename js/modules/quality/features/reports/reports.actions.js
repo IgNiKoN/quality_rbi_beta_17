@@ -519,6 +519,23 @@ function _analyticsFilters() {
     return { project: [], contractor: [], inspector: [], template: [] };
 }
 
+/** Подпись объекта для шапки PDF: фильтр или единственный закреплённый объект инженера. */
+function _resolveAnalyticsProjectLabel(fallbackAll) {
+    const allLabel = fallbackAll != null ? fallbackAll : 'Все объекты';
+    const projects = (_analyticsFilters().project || []).filter(Boolean);
+    if (projects.length > 0) return projects.join(', ');
+    if (typeof window.ensureSingleAssignedProjectFilter === 'function') {
+        try { window.ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
+    }
+    const again = (_analyticsFilters().project || []).filter(Boolean);
+    if (again.length > 0) return again.join(', ');
+    if (typeof window.getSingleAssignedProjectDisplayName === 'function') {
+        const one = String(window.getSingleAssignedProjectDisplayName() || '').trim();
+        if (one) return one;
+    }
+    return allLabel;
+}
+
 // internal: главный обработчик всплывающего меню выгрузки FAB. Перенесена
 // из export.js (версия 2, `window.handleFabExportAction`, группа G6,
 // физический перенос). Версия 1 (обычная `async function` без `window.`,
@@ -1242,7 +1259,7 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
     let inspName = document.getElementById('inp-inspector')?.value || 'Не указан';
 
     if (document.getElementById('tab-analytics')?.classList.contains('active')) {
-        projName = _analyticsFilters().project.length > 0 ? _analyticsFilters().project.join(', ') : 'Все объекты';
+        projName = _resolveAnalyticsProjectLabel('Все объекты');
         inspName = _analyticsFilters().inspector.length > 0 ? _analyticsFilters().inspector.join(', ') : 'Все инспекторы';
     }
 
@@ -1365,6 +1382,28 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
                     overflow: ${allowFlowPages ? 'visible' : 'hidden'};
                     box-sizing: border-box;
                 }
+                ${allowFlowPages ? `
+                #print-wrapper .no-break,
+                #print-wrapper .etalon-photo-fig,
+                #print-wrapper .etalon-photo-row {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                }
+                #print-wrapper .etalon-photo-fig { max-height: 100mm !important; }
+                #print-wrapper .etalon-photo-fig .etalon-photo-frame {
+                    height: 78mm !important; max-height: 78mm !important;
+                    display: flex !important; align-items: center !important; justify-content: center !important;
+                    overflow: hidden !important; background: #fff !important;
+                }
+                #print-wrapper .etalon-photo-fig.etalon-photo-fig--wide .etalon-photo-frame {
+                    height: 95mm !important; max-height: 95mm !important;
+                }
+                #print-wrapper .etalon-photo-fig img {
+                    max-width: 100% !important; max-height: 100% !important;
+                    width: auto !important; height: auto !important;
+                    object-fit: contain !important; display: block !important;
+                }
+                ` : ''}
             </style>
             <div id="print-wrapper">
                 ${printHtml
@@ -1637,6 +1676,47 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
         page-break-inside: auto !important;
         break-inside: auto !important;
     }
+    /* Многостраничный поток (эталон, акты): таблицы/строки можно рвать; .no-break — только мелкие блоки */
+    .pdf-print-root.pdf-flow-pages table,
+    .pdf-print-root.pdf-flow-pages tr,
+    .pdf-print-root.pdf-flow-pages td {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+    .pdf-print-root.pdf-flow-pages .no-break,
+    .pdf-print-root.pdf-flow-pages .etalon-photo-fig,
+    .pdf-print-root.pdf-flow-pages .etalon-photo-row {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    /* Фото-фигура целиком на листе: жёсткий потолок высоты < остатка A4 */
+    .pdf-print-root.pdf-flow-pages .etalon-photo-fig {
+        max-height: 100mm !important;
+        overflow: visible !important;
+    }
+    .pdf-print-root.pdf-flow-pages .etalon-photo-fig .etalon-photo-frame {
+        height: 78mm !important;
+        max-height: 78mm !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        background: #fff !important;
+    }
+    .pdf-print-root.pdf-flow-pages .etalon-photo-fig.etalon-photo-fig--wide .etalon-photo-frame {
+        height: 95mm !important;
+        max-height: 95mm !important;
+    }
+    .pdf-print-root.pdf-flow-pages .etalon-photo-fig img {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain !important;
+        display: block !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
 `;
     hiddenDiv.appendChild(styleElem);
 
@@ -1691,10 +1771,35 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
             .map((html) => String(html || '').trim())
             .filter((html) => html.length > 0);
         const isWeakDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory && navigator.deviceMemory <= 2);
+        const allowFlowPages = !!(exportMeta && exportMeta.allowFlowPages);
 
         let pdfBlob;
 
-        if ((isWeakDevice || pagesHtml.length > 1) && pagesHtml.length > 0) {
+        if (allowFlowPages && pagesHtml.length === 1) {
+            // Длинный документ без ручных pdf-page-break (эталон v1, акт осмотра ×1):
+            // НЕ _elementToSinglePagePdf — он удаляет страницы 2+ и обрезает мультифото.
+            Array.from(hiddenDiv.children).forEach((c) => {
+                if (c.className === 'pdf-print-root' || (c.classList && c.classList.contains('pdf-print-root'))) {
+                    hiddenDiv.removeChild(c);
+                }
+            });
+            const rootDiv = document.createElement('div');
+            rootDiv.className = 'pdf-print-root pdf-flow-pages';
+            rootDiv.style.cssText = `width:${widthPx}px;max-width:${widthPx}px;box-sizing:border-box;`;
+            rootDiv.innerHTML = resolvedHtml;
+            hiddenDiv.appendChild(rootDiv);
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+            const flowOpt = { ...opt, pagebreak: { mode: ['css', 'legacy'] } };
+            const worker = html2pdf().set(flowOpt).from(rootDiv);
+            await worker.toPdf();
+            const pdfDoc = await worker.get('pdf');
+            if (!pdfDoc || !pdfDoc.internal) throw new Error('jsPDF missing after flow toPdf()');
+            pdfBlob = pdfDoc.output('blob');
+            if (mode !== 'background' && !exportMeta?.skipDownload) {
+                pdfDoc.save(filename);
+            }
+        } else if ((isWeakDevice || pagesHtml.length > 1) && pagesHtml.length > 0) {
             // Листы уже разрезаны вручную: css/legacy pagebreak даёт лишнюю пустую страницу в хвосте.
             const multiOpt = { ...opt, pagebreak: { mode: ['avoid-all'] } };
             let worker = html2pdf().set(multiOpt);
@@ -1949,6 +2054,12 @@ async function getBrandedHeader(title, mode, qrCodeDataUrl = null, author = null
 
     const fontSizeTitle = mode === 'browser' ? '18pt' : (headerOpts.titlePx ? `${headerOpts.titlePx}px` : '22px');
     const fontSizeSub = mode === 'browser' ? '9pt' : (dense ? '10px' : '12px');
+    // hideTitle: документ уже несёт свой заголовок в теле (TWI PDF ≈ Word).
+    const hideTitle = !!headerOpts.hideTitle;
+    const titleHtml = hideTitle
+        ? ''
+        : `<h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size:${fontSizeTitle}; font-weight:normal; text-transform:uppercase; margin:0; line-height:1.1; color:${brandColor};${titleClamp}" title="${String(headerOpts.titleTooltip || title || '').replace(/"/g, '&quot;')}">${title}</h1>`;
+    const metaMt = hideTitle ? 0 : subMt1;
 
     return `
         <style>
@@ -1959,8 +2070,8 @@ async function getBrandedHeader(title, mode, qrCodeDataUrl = null, author = null
                 <tr>
                     <td style="width: 22%; vertical-align: middle;">${logoHtml}</td>
                     <td style="width: 56%; vertical-align: middle; text-align: center;">
-                        <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size:${fontSizeTitle}; font-weight:normal; text-transform:uppercase; margin:0; line-height:1.1; color:${brandColor};${titleClamp}" title="${String(headerOpts.titleTooltip || title || '').replace(/"/g, '&quot;')}">${title}</h1>
-                        <div style="font-family: 'Bricolage Grotesque', 'Verdana', sans-serif; font-size:${fontSizeSub}; margin-top:${subMt1}px; color:#4c7288;">Сформировано: ${new Date().toLocaleString('ru-RU')}</div>
+                        ${titleHtml}
+                        <div style="font-family: 'Bricolage Grotesque', 'Verdana', sans-serif; font-size:${fontSizeSub}; margin-top:${metaMt}px; color:#4c7288;">Сформировано: ${new Date().toLocaleString('ru-RU')}</div>
                         <div style="font-family: 'Bricolage Grotesque', 'Verdana', sans-serif; font-size:${fontSizeSub}; margin-top:${subMt2}px; color:#1c2b39; font-weight:700;">АВТОР: ${author || 'Инженер'} &nbsp;|&nbsp; ПЕРИОД: ${period || 'Всё время'}</div>
                     </td>
                     <td style="width: 22%; vertical-align: middle; text-align: right;">${qrHtml}</td>
@@ -2362,9 +2473,9 @@ async function exportPdfOnePager(data, mode = 'script') {
     if (data.length === 0) return showToast('Нет данных для выгрузки');
     const _allInspections = _getAllInspections();
 
-    let projName = document.getElementById('inp-project')?.value || 'Не указан';
-    if (_analyticsFilters().project && _analyticsFilters().project.length > 0) {
-        projName = _analyticsFilters().project.join(', ');
+    let projName = _resolveAnalyticsProjectLabel('');
+    if (!projName) {
+        projName = document.getElementById('inp-project')?.value || 'Не указан';
     }
 
     let sumB3 = 0;
@@ -3821,7 +3932,14 @@ async function buildOnePagerV2Html(data, opts = {}) {
     if (opts.forceProjectName) {
         op2Head = fitOp2Title([opts.forceProjectName], false);
     } else {
-        const filterProjs = [...new Set((_analyticsFilters().project || []).filter(Boolean))];
+        if (typeof window.ensureSingleAssignedProjectFilter === 'function') {
+            try { window.ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
+        }
+        let filterProjs = [...new Set((_analyticsFilters().project || []).filter(Boolean))];
+        if (!filterProjs.length && typeof window.getSingleAssignedProjectDisplayName === 'function') {
+            const one = String(window.getSingleAssignedProjectDisplayName() || '').trim();
+            if (one) filterProjs = [one];
+        }
         const allKnownProjects = [...new Set(
             (_getAllInspections() || []).map(i => i.project_display_name || i.projectName || i.project_name).filter(Boolean)
         )];
@@ -9070,6 +9188,30 @@ export const ReportsActions = {
         if (!record || !record.details || !record.details.elements) return showToast("Ошибка чтения Акта");
 
         const d = record.details;
+        const esc = (s) => escapeHtml(String(s == null ? '' : s));
+        const dateRu = record.date ? new Date(record.date).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
+        const hasDev = d.deviations && d.deviations !== 'Отклонений не выявлено';
+        const totalPhotos = (d.elements || []).reduce((n, el) => {
+            const refs = (Array.isArray(el.photos) && el.photos.length) ? el.photos.filter(Boolean) : (el.photo ? [el.photo] : []);
+            return n + refs.length;
+        }, 0);
+
+        const renderPhotoFig = async (ref, caption, wide) => {
+            const src = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref) || ref;
+            if (!src) {
+                return `<td class="etalon-photo-fig no-break${wide ? ' etalon-photo-fig--wide' : ''}" style="width:${wide ? '100%' : '50%'};vertical-align:top;padding:4px;">
+                    <div style="border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;padding:16px;text-align:center;color:#94a3b8;font-size:11px;font-weight:700;">Нет фото</div>
+                </td>`;
+            }
+            return `<td class="etalon-photo-fig no-break${wide ? ' etalon-photo-fig--wide' : ''}" style="width:${wide ? '100%' : '50%'};vertical-align:top;padding:4px;box-sizing:border-box;">
+                <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fafafa;padding:8px 8px 6px;box-sizing:border-box;">
+                    <div class="etalon-photo-frame" style="border:1px solid #e2e8f0;border-radius:6px;">
+                        <img src="${src}" alt="${esc(caption)}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
+                    </div>
+                    <div style="margin-top:6px;font-size:9px;font-weight:700;color:#475569;letter-spacing:0.02em;line-height:1.3;">${esc(caption)}</div>
+                </div>
+            </td>`;
+        };
 
         let elementsHtml = '';
         for (let i = 0; i < d.elements.length; i++) {
@@ -9077,87 +9219,114 @@ export const ReportsActions = {
             const photoRefs = (Array.isArray(el.photos) && el.photos.length)
                 ? el.photos.filter(Boolean)
                 : (el.photo ? [el.photo] : []);
-            let photosCell = '';
-            if (photoRefs.length) {
-                const imgs = [];
-                for (let p = 0; p < photoRefs.length; p++) {
-                    const ref = photoRefs[p];
-                    const realPhotoSrc = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref) || ref;
-                    if (!realPhotoSrc) continue;
-                    imgs.push(`
-                        <div style="width:100%;height:${photoRefs.length > 1 ? '180px' : '300px'};background:#f8fafc;border-radius:8px;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:${p < photoRefs.length - 1 ? '8px' : '0'};">
-                            <img src="${realPhotoSrc}" style="width:100%;height:100%;object-fit:contain;display:block;margin:0 auto;">
-                        </div>`);
-                }
-                photosCell = `<td style="padding:15px;vertical-align:top;width:60%;text-align:center;">${imgs.join('')}</td>`;
-            }
+            const nodeName = el.name || 'Без названия';
+            const nodeNo = i + 1;
 
             elementsHtml += `
-                <table class="no-break" style="width: 100%; border: 2px solid #e2e8f0; border-left: 6px solid #4f46e5; border-radius: 10px; background: white; margin-bottom: 20px; border-collapse: collapse; table-layout: fixed;">
-                    <tr>
-                        <td style="padding: 15px; vertical-align: top; width: 40%;">
-                            <h3 style="color: #312e81; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">${i + 1}. ${el.name}</h3>
-                            <p style="font-size: 12px; color: #334155; white-space: pre-wrap; margin: 0; line-height: 1.5;">${el.desc || 'Описание отсутствует'}</p>
-                        </td>
-                        ${photosCell}
-                    </tr>
-                </table>
-            `;
+            <div style="margin:0 0 22px 0;">
+                <div class="no-break" style="border-bottom:2px solid #1e293b;padding:0 0 10px 0;margin:0 0 12px 0;">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+                        <div style="min-width:0;flex:1;">
+                            <div style="font-size:9px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;color:#4f46e5;margin-bottom:4px;">Узел ${nodeNo}</div>
+                            <div style="font-size:14px;font-weight:900;color:#0f172a;text-transform:uppercase;line-height:1.25;">${esc(nodeName)}</div>
+                        </div>
+                        <div style="font-size:9px;font-weight:800;color:#64748b;white-space:nowrap;flex-shrink:0;">${photoRefs.length ? (photoRefs.length + ' фото') : 'без фото'}</div>
+                    </div>
+                    <div style="margin-top:8px;font-size:11px;color:#334155;line-height:1.55;white-space:pre-wrap;">${esc(el.desc || 'Описание отсутствует')}</div>
+                </div>`;
+
+            if (!photoRefs.length) {
+                elementsHtml += `<div class="no-break" style="border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;padding:14px;text-align:center;color:#94a3b8;font-size:11px;font-weight:700;margin-bottom:4px;">Фотофиксация не приложена</div>`;
+            } else if (photoRefs.length === 1) {
+                elementsHtml += `<table class="etalon-photo-row" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 4px 0;"><tr>${await renderPhotoFig(photoRefs[0], `Рис. ${nodeNo}.1 — ${nodeName}`, true)}</tr></table>`;
+            } else {
+                // Пары фото в строке: строка целиком no-break → лист не режет снимок пополам
+                for (let p = 0; p < photoRefs.length; p += 2) {
+                    if (p + 1 >= photoRefs.length) {
+                        elementsHtml += `<table class="etalon-photo-row" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 8px 0;"><tr>${await renderPhotoFig(photoRefs[p], `Рис. ${nodeNo}.${p + 1} — ${nodeName}`, true)}</tr></table>`;
+                    } else {
+                        const left = await renderPhotoFig(photoRefs[p], `Рис. ${nodeNo}.${p + 1} — ${nodeName}`, false);
+                        const right = await renderPhotoFig(photoRefs[p + 1], `Рис. ${nodeNo}.${p + 2} — ${nodeName}`, false);
+                        elementsHtml += `<table class="etalon-photo-row" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 8px 0;"><tr>${left}${right}</tr></table>`;
+                    }
+                }
+            }
+            elementsHtml += `</div>`;
         }
 
         const content = `
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="font-size: 24px; text-transform: uppercase; color: #0f172a; margin: 0; font-weight:900;">АКТ ПРИЕМКИ ЭТАЛОННОГО ОБРАЗЦА</h1>
-                <div style="font-size: 14px; color: #4f46e5; font-weight: bold; margin-top: 5px; text-transform:uppercase;">От ${new Date(record.date).toLocaleDateString('ru-RU')}</div>
+            <div class="no-break" style="margin:0 0 18px 0;padding:0 0 14px 0;border-bottom:3px solid #1e293b;">
+                <div style="font-size:9px;font-weight:900;letter-spacing:0.16em;text-transform:uppercase;color:#4f46e5;margin-bottom:6px;">Документ строительного контроля</div>
+                <div style="font-size:20px;font-weight:900;color:#0f172a;text-transform:uppercase;line-height:1.2;margin:0;">Акт приёмки эталонного образца</div>
+                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:#475569;font-weight:700;">
+                    <span>Дата: <span style="color:#0f172a;">${esc(dateRu)}</span></span>
+                    <span>·</span>
+                    <span>Узлов: <span style="color:#0f172a;">${(d.elements || []).length}</span></span>
+                    <span>·</span>
+                    <span>Фото: <span style="color:#0f172a;">${totalPhotos}</span></span>
+                </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; color: #0f172a;">
+            <table class="no-break" style="width:100%;border-collapse:collapse;margin:0 0 14px 0;font-size:11px;color:#0f172a;">
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; width: 30%;">Подрядная организация:</td>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1;">${record.contractorName}</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;width:32%;color:#475569;">Объект</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:700;">${esc(record.projectName || '—')}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold;">Вид работ:</td>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1;">${record.templateTitle}</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;">Подрядная организация</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:700;">${esc(record.contractorName || '—')}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold;">Участок (Локация):</td>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1;">${record.location}</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;">Вид работ</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:700;">${esc(record.templateTitle || '—')}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold;">Участники приемки:</td>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; white-space: pre-wrap;">${d.participants}</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;">Участок (локация)</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:700;">${esc(record.location || '—')}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;vertical-align:top;">Участники приёмки</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:600;white-space:pre-wrap;line-height:1.45;">${esc(d.participants || '—')}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;">Инженер СК</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:700;">${esc(record.inspectorName || record.author || _getSetting('engineerName') || '—')}</td>
                 </tr>
             </table>
 
-            <div style="background: ${d.deviations !== 'Отклонений не выявлено' ? '#fffbeb' : '#f0fdf4'}; border: 2px solid ${d.deviations !== 'Отклонений не выявлено' ? '#fde68a' : '#bbf7d0'}; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 5px 0; font-size: 12px; color: ${d.deviations !== 'Отклонений не выявлено' ? '#b45309' : '#166534'}; text-transform: uppercase;">Отклонения и допущения:</h3>
-                <p style="font-size: 12px; color: #1e293b; margin: 0; font-weight: bold; white-space: pre-wrap;">${d.deviations}</p>
+            <div class="no-break" style="background:${hasDev ? '#fffbeb' : '#f0fdf4'};border:1px solid ${hasDev ? '#fde68a' : '#bbf7d0'};border-left:4px solid ${hasDev ? '#d97706' : '#16a34a'};border-radius:8px;padding:12px 14px;margin:0 0 20px 0;">
+                <div style="font-size:9px;font-weight:900;letter-spacing:0.12em;text-transform:uppercase;color:${hasDev ? '#b45309' : '#166534'};margin-bottom:4px;">Отклонения и допущения</div>
+                <div style="font-size:11px;font-weight:700;color:#1e293b;white-space:pre-wrap;line-height:1.45;">${esc(d.deviations || 'Отклонений не выявлено')}</div>
             </div>
 
-            <h2 style="font-size: 16px; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 15px;">Зафиксированные узлы и элементы</h2>
+            <div class="no-break" style="margin:0 0 14px 0;padding:0 0 6px 0;border-bottom:2px solid #e2e8f0;">
+                <div style="font-size:12px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:#0f172a;">Зафиксированные узлы и элементы</div>
+            </div>
 
             ${elementsHtml}
 
-            <div style="margin-top: 40px; page-break-inside: avoid;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <div class="no-break" style="margin-top:28px;padding-top:8px;">
+                <table style="width:100%;border-collapse:collapse;font-size:11px;color:#0f172a;">
                     <tr>
-                        <td style="width: 33%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Представитель Подрядчика</td>
-                        <td style="width: 33%;"></td>
-                        <td style="width: 33%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Инженер строительного контроля</td>
+                        <td style="width:42%;text-align:center;padding:0 8px;">
+                            <div style="border-top:1px solid #0f172a;padding-top:6px;font-weight:700;">Представитель подрядчика</div>
+                            <div style="margin-top:4px;font-size:9px;color:#94a3b8;">подпись / Ф.И.О. / дата</div>
+                        </td>
+                        <td style="width:16%;"></td>
+                        <td style="width:42%;text-align:center;padding:0 8px;">
+                            <div style="border-top:1px solid #0f172a;padding-top:6px;font-weight:700;">Инженер строительного контроля</div>
+                            <div style="margin-top:4px;font-size:9px;color:#94a3b8;">подпись / Ф.И.О. / дата</div>
+                        </td>
                     </tr>
                 </table>
             </div>
         `;
 
-        {
-            const d = record.date ? new Date(record.date).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
-            printPdfShell(`Акт-Эталон: ${record.contractorName}`, content, "A4", "portrait", mode, {
-                author: record.inspectorName || record.author || _getSetting('engineerName') || 'Инженер',
-                period: `с ${d} по ${d}`,
-                allowFlowPages: true
-            });
-        }
+        printPdfShell(`Акт-Эталон: ${record.contractorName}`, content, "A4", "portrait", mode, {
+            author: record.inspectorName || record.author || _getSetting('engineerName') || 'Инженер',
+            period: `с ${dateRu} по ${dateRu}`,
+            allowFlowPages: true
+        });
     },
 
     /**
@@ -9704,8 +9873,8 @@ export const ReportsActions = {
     },
 
     /**
-     * Печать TWI-карты (инструктаж по рабочему месту) — INSPECTOR/WORKER.
-     * INSPECTOR: одностраничная A4 landscape «карта для подрядчика».
+     * Печать TWI-карты — INSPECTOR/WORKER.
+     * Оба типа: строгий портрет A4; у INSPECTOR акцент на фото правильно/брак сверху.
      */
     async printTwi(mode = 'browser') {
         const twiId = document.getElementById('twi-viewer-overlay')?.dataset?.currentTwiId;
@@ -9727,6 +9896,7 @@ export const ReportsActions = {
         let content = '';
 
         if (card.type === 'INSPECTOR') {
+            // Строгий портрет A4 (как Worker): meta + крупные хорошо/плохо сверху + блоки текста.
             const resolvedGood = card.photoGood
                 ? (await PhotoManager.getAsyncUrl(card.photoGood) || window.getPhotoSrc(card.photoGood))
                 : null;
@@ -9734,7 +9904,6 @@ export const ReportsActions = {
                 ? (await PhotoManager.getAsyncUrl(card.photoBad) || window.getPhotoSrc(card.photoBad))
                 : null;
 
-            // Норматив и название пункта — как в viewer / autoFillTwiNorm
             let itemName = '';
             let normText = 'Норматив не указан';
             try {
@@ -9758,107 +9927,100 @@ export const ReportsActions = {
             const howToCheck = stripHtml(card.howToCheck) || 'Методика не заполнена';
             const whyImportant = stripHtml(card.whyImportant) || 'Обоснование не заполнено';
             const checklistName = card.checklistName || card.category || 'Чек-лист';
-            const metaParts = [
-                checklistName,
-                itemName || (card.itemId != null && card.itemId !== '' && card.itemId !== 'ALL' ? `п. ${card.itemId}` : ''),
-                author
-            ].filter(Boolean);
+            const itemLabel = itemName
+                || (card.itemId != null && card.itemId !== '' && card.itemId !== 'ALL' ? `п. ${card.itemId}` : '—');
+            const fs = (pt, px) => (mode === 'browser' ? pt : px);
+            const photoH = mode === 'browser' ? '78mm' : '280px';
 
-            // Один лист A4 landscape: жёсткий бюджет тела (шапка shell с wrapTitle чуть выше)
-            const PHOTO_H = mode === 'browser' ? '88mm' : '260px';
-            const TEXT_H = mode === 'browser' ? '40mm' : '120px';
-            const BODY_MAX = mode === 'browser' ? '162mm' : '500px';
-
-            const photoCell = (src, label, border, accent, bg, fg) => `
-                <td style="width:50%;padding:0 4px;vertical-align:top;">
-                    <div style="border:2px solid ${border};border-radius:8px;overflow:hidden;background:${bg};box-sizing:border-box;">
-                        <div style="background:${accent};color:#fff;font-size:${mode === 'browser' ? '9pt' : '12px'};font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:5px 10px;line-height:1.2;">${label}</div>
+            const photoCell = (src, label, border, bg, fg) => `
+                <td class="no-break" style="width:50%;padding:4px;vertical-align:top;box-sizing:border-box;">
+                    <div style="border:2px solid ${border};background:${bg};padding:10px 10px 8px;box-sizing:border-box;">
+                        <div style="font-size:${fs('9pt', '11px')};font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${fg};text-align:center;margin-bottom:8px;">${label}</div>
                         ${src
-                            ? `<div style="height:${PHOTO_H};background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:6px;box-sizing:border-box;">
-                                    <img src="${src}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
+                            ? `<div style="height:${photoH};background:#fff;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;padding:6px;box-sizing:border-box;">
+                                    <img src="${src}" alt="${label}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
                                </div>`
-                            : `<div style="height:${PHOTO_H};display:flex;align-items:center;justify-content:center;border-top:1px dashed ${border};color:${fg};font-size:${mode === 'browser' ? '9pt' : '12px'};font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Нет фото</div>`}
+                            : `<div style="height:${photoH};display:flex;align-items:center;justify-content:center;border:1px dashed ${border};color:${fg};font-size:${fs('9pt', '11px')};font-weight:700;text-transform:uppercase;background:#fff;">Нет фото</div>`}
                     </div>
                 </td>`;
 
-            const textCol = (title, accent, body) => `
-                <td style="width:33.33%;padding:0 3px;vertical-align:top;">
-                    <div style="background:#fff;border:1px solid #e2e8f0;border-top:3px solid ${accent};border-radius:6px;padding:8px 10px;height:${TEXT_H};max-height:${TEXT_H};overflow:hidden;box-sizing:border-box;">
-                        <div style="font-size:${mode === 'browser' ? '8pt' : '10px'};font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;line-height:1.15;">${title}</div>
-                        <div style="font-size:${mode === 'browser' ? '9pt' : '11px'};line-height:1.35;color:#334155;white-space:pre-wrap;margin:0;">${esc(body)}</div>
-                    </div>
-                </td>`;
+            const textBlock = (title, body) => `
+                <div class="no-break" style="border:1px solid #9ca3af;background:#fff;margin:0 0 10px 0;padding:12px 14px;box-sizing:border-box;">
+                    <div style="font-size:${fs('9pt', '11px')};font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">${title}</div>
+                    <div style="font-size:${fs('10pt', '12px')};font-weight:600;color:#1e293b;white-space:pre-wrap;margin:0;line-height:1.45;">${esc(body)}</div>
+                </div>`;
 
             content = `
-            <div class="no-break" style="font-family:'Bricolage Grotesque',Verdana,sans-serif;max-height:${BODY_MAX};overflow:hidden;box-sizing:border-box;">
-                <div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;">
-                    <div style="margin-bottom:3px;">
-                        <span style="display:inline-block;background:#1e40af;color:#fff;font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;line-height:1.2;">TWI · Технадзор</span>
-                    </div>
-                    <div style="font-size:${mode === 'browser' ? '8pt' : '11px'};font-weight:600;color:#64748b;line-height:1.3;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;">${esc(metaParts.join(' · '))}</div>
-                </div>
-
-                <table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin-bottom:8px;">
+            <div style="font-family:'Times New Roman',Georgia,serif;box-sizing:border-box;color:#111827;">
+                <table class="no-break" style="width:100%;border-collapse:collapse;margin:0 0 14px 0;font-size:${fs('9pt', '11px')};color:#0f172a;">
                     <tr>
-                        ${photoCell(resolvedGood, 'Эталон · правильно', '#16a34a', '#16a34a', '#f0fdf4', '#166534')}
-                        ${photoCell(resolvedBad, 'Брак · нарушение', '#dc2626', '#dc2626', '#fef2f2', '#991b1b')}
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;width:32%;color:#4b5563;">Чек-лист / контекст</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(checklistName)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Пункт контроля</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(itemLabel)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Назначение</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">Передача подрядчику / визуальный стандарт</td>
                     </tr>
                 </table>
 
-                <table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin-bottom:6px;">
+                <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:0 0 10px 0;">1. Визуальный стандарт (правильно / брак)</div>
+                <table class="no-break" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 16px 0;">
                     <tr>
-                        ${textCol('Почему это важно · риски', '#dc2626', whyImportant)}
-                        ${textCol('Как проверять · методика', '#4f46e5', howToCheck)}
-                        ${textCol('Норматив · СНиП / ГОСТ', '#0f766e', normText)}
+                        ${photoCell(resolvedGood, 'Эталон · правильно', '#16a34a', '#f0fdf4', '#166534')}
+                        ${photoCell(resolvedBad, 'Брак · нарушение', '#dc2626', '#fef2f2', '#991b1b')}
                     </tr>
                 </table>
 
-                <div style="font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:600;color:#94a3b8;text-align:center;letter-spacing:0.02em;border-top:1px solid #e2e8f0;padding-top:4px;">
-                    Карта качества · к пункту чек-листа · для передачи подрядчику · ${esc(cardDate)}
+                <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:0 0 10px 0;">2. Пояснения к контролю</div>
+                ${textBlock('Почему это важно · риски', whyImportant)}
+                ${textBlock('Как проверять · методика', howToCheck)}
+                ${textBlock('Норматив · СНиП / ГОСТ', normText)}
+
+                <div style="font-size:${fs('8pt', '10px')};font-weight:600;color:#6b7280;text-align:center;border-top:1px solid #9ca3af;padding-top:8px;margin-top:4px;">
+                    TWI · технадзор · ${esc(author)} · ${esc(cardDate)}
                 </div>
             </div>`;
         } else if (card.type === 'WORKER') {
-            // Несколько страниц допустимы: шаги с page-break-inside:avoid, без общего max-height.
+            // Строгий стиль (как Word/эталон): серые рамки, без оранжевого chrome.
+            // Несколько страниц: allowFlowPages + шаги/фото no-break.
             const steps = card.steps || [];
             const stepCount = steps.length;
             const checklistName = card.checklistName || card.category || '';
+            const fs = (pt, px) => (mode === 'browser' ? pt : px);
 
             content = `
-            <div style="font-family:'Bricolage Grotesque',Verdana,sans-serif;box-sizing:border-box;">
-                <div class="no-break" style="margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1e293b;">
-                    <div style="margin-bottom:4px;">
-                        <span style="display:inline-block;background:#c2410c;color:#fff;font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;">TWI · Инструкция</span>
-                    </div>
-                    <div style="font-family:'Playfair Display',Georgia,serif;font-size:${mode === 'browser' ? '14pt' : '20px'};font-weight:700;color:#0f172a;line-height:1.2;text-transform:uppercase;margin-bottom:6px;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;">${esc(card.title || 'Пошаговая инструкция')}</div>
-                    <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                        <tr>
-                            <td style="width:33%;padding:0 4px 0 0;vertical-align:top;">
-                                <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;">
-                                    <div style="font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:800;color:#9a3412;text-transform:uppercase;letter-spacing:0.04em;">Время</div>
-                                    <div style="font-size:${mode === 'browser' ? '14pt' : '20px'};font-weight:900;color:#0f172a;line-height:1.1;margin-top:2px;">~${esc(card.totalTime || 0)} мин</div>
-                                </div>
-                            </td>
-                            <td style="width:33%;padding:0 4px;vertical-align:top;">
-                                <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;">
-                                    <div style="font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Шагов</div>
-                                    <div style="font-size:${mode === 'browser' ? '14pt' : '20px'};font-weight:900;color:#0f172a;line-height:1.1;margin-top:2px;">${stepCount}</div>
-                                </div>
-                            </td>
-                            <td style="width:34%;padding:0 0 0 4px;vertical-align:top;">
-                                <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;">
-                                    <div style="font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Контекст</div>
-                                    <div style="font-size:${mode === 'browser' ? '8pt' : '11px'};font-weight:700;color:#334155;line-height:1.3;margin-top:2px;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;">${esc(checklistName || '—')}</div>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
+            <div style="font-family:'Times New Roman',Georgia,serif;box-sizing:border-box;color:#111827;">
+                <table class="no-break" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;font-size:${fs('9pt', '11px')};color:#0f172a;">
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;width:32%;color:#4b5563;">Чек-лист / контекст</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(checklistName || '—')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Автор</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(author)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Количество шагов</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${stepCount}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Нормативное время</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">~${esc(card.totalTime || 0)} мин</td>
+                    </tr>
+                </table>
+
+                <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:0 0 12px 0;">1. Последовательность выполнения</div>
             `;
 
-            const photoH = mode === 'browser' ? '55mm' : '200px';
-            const photoW = mode === 'browser' ? '62mm' : '230px';
+            const photoH = mode === 'browser' ? '52mm' : '190px';
 
-            for (const step of steps) {
+            for (let si = 0; si < steps.length; si++) {
+                const step = steps[si] || {};
+                const stepNo = step.order != null ? step.order : (si + 1);
                 const stepPhotos = typeof window.normalizeItemPhotos === 'function'
                     ? window.normalizeItemPhotos(step.photo)
                     : (step.photo ? [step.photo] : []);
@@ -9867,30 +10029,42 @@ export const ReportsActions = {
                     const resolved = p ? (await PhotoManager.getAsyncUrl(p) || window.getPhotoSrc(p)) : null;
                     if (resolved) stepPhotoUrls.push(resolved);
                 }
-                const photoCellHtml = stepPhotoUrls.length
-                    ? stepPhotoUrls.map((url) => `
-                        <div style="width:100%;height:${photoH};background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;padding:4px;box-sizing:border-box;">
-                            <img src="${url}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
-                        </div>`).join('')
-                    : '';
+
+                let photosHtml = '';
+                if (stepPhotoUrls.length) {
+                    photosHtml = `<div style="margin-top:10px;font-size:${fs('8pt', '10px')};font-weight:700;color:#4b5563;margin-bottom:6px;">Фотофиксация: ${stepPhotoUrls.length} шт.</div>`;
+                    for (let p = 0; p < stepPhotoUrls.length; p += 2) {
+                        const left = stepPhotoUrls[p];
+                        const right = stepPhotoUrls[p + 1];
+                        const fig = (url, idx) => `
+                            <td class="no-break" style="width:${right ? '50%' : '100%'};vertical-align:top;padding:4px;box-sizing:border-box;">
+                                <div style="border:1px solid #9ca3af;background:#fafafa;padding:8px 8px 6px;box-sizing:border-box;">
+                                    <div style="height:${photoH};display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;background:#fff;padding:4px;box-sizing:border-box;">
+                                        <img src="${url}" alt="Рис. ${esc(stepNo)}.${idx}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
+                                    </div>
+                                    <div style="margin-top:6px;font-size:${fs('8pt', '9px')};font-weight:700;color:#4b5563;text-align:center;">Рис. ${esc(stepNo)}.${idx}</div>
+                                </div>
+                            </td>`;
+                        if (right) {
+                            photosHtml += `<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 6px 0;"><tr>${fig(left, p + 1)}${fig(right, p + 2)}</tr></table>`;
+                        } else {
+                            photosHtml += `<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 6px 0;"><tr>${fig(left, p + 1)}</tr></table>`;
+                        }
+                    }
+                }
 
                 content += `
-                    <table class="no-break" style="width:100%;border:1px solid #e2e8f0;border-left:5px solid #ea580c;border-radius:8px;background:#fff;margin-bottom:12px;border-collapse:collapse;table-layout:fixed;">
-                        <tr>
-                            <td style="padding:12px 14px;vertical-align:top;">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                                    <span style="display:inline-block;background:#fff7ed;color:#c2410c;font-size:${mode === 'browser' ? '8pt' : '10px'};font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;">Шаг ${esc(step.order)}</span>
-                                    ${step.time ? `<span style="font-size:${mode === 'browser' ? '8pt' : '10px'};font-weight:700;color:#64748b;">${esc(step.time)} мин</span>` : ''}
-                                </div>
-                                <p style="font-size:${mode === 'browser' ? '10pt' : '13px'};font-weight:700;color:#1e293b;white-space:pre-wrap;margin:0;line-height:1.4;">${esc(step.text || '')}</p>
-                            </td>
-                            ${photoCellHtml ? `<td style="width:${photoW};padding:12px;vertical-align:middle;text-align:center;">${photoCellHtml}</td>` : ''}
-                        </tr>
-                    </table>`;
+                    <div class="no-break" style="border:1px solid #9ca3af;background:#fff;margin:0 0 12px 0;padding:12px 14px;box-sizing:border-box;">
+                        <div style="font-size:${fs('10pt', '12px')};font-weight:700;color:#111827;margin-bottom:6px;">
+                            Шаг ${esc(stepNo)}${step.time ? `  |  ${esc(step.time)} мин` : ''}
+                        </div>
+                        <div style="font-size:${fs('10pt', '12px')};font-weight:600;color:#1e293b;white-space:pre-wrap;margin:0;line-height:1.45;">${esc(step.text || '—')}</div>
+                        ${photosHtml}
+                    </div>`;
             }
 
             content += `
-                <div style="font-size:${mode === 'browser' ? '7pt' : '9px'};font-weight:600;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:6px;margin-top:4px;">
+                <div style="font-size:${fs('8pt', '10px')};font-weight:600;color:#6b7280;text-align:center;border-top:1px solid #9ca3af;padding-top:8px;margin-top:4px;">
                     TWI-инструкция · ${esc(author)} · ${esc(cardDate)}
                 </div>
             </div>`;
@@ -9898,18 +10072,18 @@ export const ReportsActions = {
             return showToast('Печать PDF-файлов осуществляется внешними средствами.');
         }
 
-        const orientation = card.type === 'INSPECTOR' ? 'landscape' : 'portrait';
         const shellTitle = `TWI: ${card.title || 'Карта качества'}`;
-        printPdfShell(shellTitle, content, 'A4', orientation, mode, {
+        printPdfShell(shellTitle, content, 'A4', 'portrait', mode, {
             author,
             period: `с ${cardDate} по ${cardDate}`,
+            allowFlowPages: card.type === 'WORKER' || card.type === 'INSPECTOR',
             headerOpts: {
-                qrPx: card.type === 'INSPECTOR' ? 48 : 52,
-                logoH: card.type === 'INSPECTOR' ? 40 : 44,
-                logoMaxW: card.type === 'INSPECTOR' ? 140 : 150,
-                marginBottom: card.type === 'INSPECTOR' ? 4 : 8,
-                paddingBottom: card.type === 'INSPECTOR' ? 4 : 6,
-                titlePx: card.type === 'INSPECTOR' ? 13 : 14,
+                qrPx: 52,
+                logoH: 44,
+                logoMaxW: 150,
+                marginBottom: 8,
+                paddingBottom: 6,
+                titlePx: 14,
                 dense: true,
                 wrapTitle: true,
                 titleTooltip: shellTitle

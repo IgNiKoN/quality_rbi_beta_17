@@ -61,12 +61,17 @@ let gameChartInstance = null;
 
   // Перенесено из js/game.js (строка 66).
   function getBadgeTier(badge, progress) {
-    if (progress >= badge.maxProgress) return 5;
-    if (progress >= badge.tiers[2]) return 4;
-    if (progress >= badge.tiers[1]) return 3;
-    if (progress >= badge.tiers[0]) return 2;
-    if (progress > 0) return 1;
-    return 0;
+    const p = Number(progress) || 0;
+    if (p <= 0) return 0;
+    const t = badge.tiers || [];
+    const maxP = Number(badge.maxProgress) || (t[4] != null ? Number(t[4]) : Infinity);
+    // 5 визуальных тиров; tiers[3] раньше не участвовал — из‑за этого «застревали» на 4-м
+    if (p >= maxP) return 5;
+    if (t[3] != null && p >= t[3]) return 4;
+    if (t[2] != null && p >= t[2]) return 4;
+    if (t[1] != null && p >= t[1]) return 3;
+    if (t[0] != null && p >= t[0]) return 2;
+    return 1;
   }
 
   // Перенесено из js/game.js (строка 77).
@@ -527,7 +532,8 @@ let gameChartInstance = null;
       bg = "bg-indigo-500";
     }
     else if (tier === 4) {
-      target = badge.maxProgress;
+      // следующий шаг после legendary — мифический max (или промежуточный tiers[3], если ещё не добран)
+      target = (badge.tiers[3] != null && progress < badge.tiers[3]) ? badge.tiers[3] : badge.maxProgress;
       levelName = "Легендарная";
       color = "text-yellow-600";
       bg = "bg-yellow-500";
@@ -929,7 +935,7 @@ let gameChartInstance = null;
                             <th class="p-3 text-center border-l border-slate-200" title="Влияние на качество подрядчиков">Impact Score</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Подрядчиков: Улучшил / Ухудшил">Динамика</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Оценочные долги по задачам">Заброшенные П-ки</th>
-                            <th class="p-3 text-center border-l border-slate-200 text-indigo-600" title="Задачи: Выполнено / В ожидании">Задачи (✅/🕒)</th>
+                            <th class="p-3 text-center border-l border-slate-200 text-indigo-600" title="Задачи за неделю: закрыто / открыто (в т.ч. просрочено)">Задачи нед. (✅/🕒)</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Профессиональный Индекс (XP)">PI (Опыт)</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Количество инспекций">Объем</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Фото+Причина при дефекте">Доказательность</th>
@@ -978,8 +984,8 @@ let gameChartInstance = null;
                 <td class="p-3 text-center border-l border-slate-100 font-bold ${debtClass}">
                     ${s.totalDebt}
                 </td>
-                <td class="p-3 text-center border-l border-slate-100 font-bold">
-                    <span class="text-green-600">${s.tasksDone}</span> / <span class="text-slate-500">${s.tasksPending}</span>
+                <td class="p-3 text-center border-l border-slate-100 font-bold" title="Закрыто за неделю / Открыто${s.tasksOverdue ? ' · просрочено: ' + s.tasksOverdue : ''}">
+                    <span class="text-green-600">${s.tasksDone}</span> / <span class="text-slate-500">${s.tasksPending}</span>${s.tasksOverdue ? ` <span class="text-red-500 text-[9px]">(${s.tasksOverdue}⚠)</span>` : ''}
                 </td>
                 <td class="p-3 text-center border-l border-slate-100 font-black text-indigo-600">${s.pi}</td>
                 <td class="p-3 text-center border-l border-slate-100 font-bold text-slate-600">${s.checks}</td>
@@ -1434,6 +1440,10 @@ let gameChartInstance = null;
       return collator.compare(a, b);
     });
 
+    const expanded = (typeof window._kbCaptureExpandedGroups === 'function')
+      ? window._kbCaptureExpandedGroups(listContainer)
+      : null;
+
     let groupIndex = 0;
     listContainer.innerHTML = groupKeys.map((pName) => {
       const items = grouped[pName];
@@ -1470,6 +1480,10 @@ let gameChartInstance = null;
                 </div>
             </div>`;
     }).join('');
+
+    if (typeof window._kbRestoreExpandedGroups === 'function') {
+      window._kbRestoreExpandedGroups(listContainer, expanded);
+    }
   };
 
   function _setFmeaViewModalLayout(on) {

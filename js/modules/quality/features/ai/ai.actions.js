@@ -3174,7 +3174,7 @@ async function rbi_fillFmeaWithAi() {
             }
         });
 
-        _gameLogAction('fmea_master', 'ai_table');
+        _gameLogAction('fmea_master', 'fmea_' + Date.now().toString(36));
         showToast("✅ Мега-таблица FMEA заполнена нейросетью!");
     } catch (e) {
         showToast("❌ Ошибка ИИ (попробуйте еще раз): " + e.message);

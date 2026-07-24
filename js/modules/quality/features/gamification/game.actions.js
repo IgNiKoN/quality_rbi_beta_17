@@ -8,7 +8,10 @@
 // Module-scope declarations, экспортируются через ES export; публикацию в
 // window.* для legacy-кода делает game.module.js (entry).
 
-import { getStartOfWeek, gameSaveLogs, GameState } from './game.state.js';
+import {
+  getStartOfWeek, gameSaveLogs, GameState,
+  gameResolveLogInspector, gameIsDuplicateActionLog
+} from './game.state.js';
 import { gameRenderDashboard, rbi_renderFmeaRegistry, rbi_addManualFmeaRow, gameRenderAssignedProjectChips } from './game.render.js';
 
 function emit(eventName, detail) {
@@ -193,28 +196,21 @@ function emit(eventName, detail) {
   }
 
   // Перенесено из js/game.js (строка 138).
-  function gameLogAction(actionType, targetId = null) {
-    const fromInput = document.getElementById('inp-inspector')?.value.trim() || '';
-    const fromPerms = (window.RBI && window.RBI.services && window.RBI.services.permissions &&
-      typeof window.RBI.services.permissions.getCurrentEngineerName === 'function')
-      ? (window.RBI.services.permissions.getCurrentEngineerName() || '')
-      : '';
-    const fromSettings = (window.RBI && window.RBI.services && window.RBI.services.settings &&
-      typeof window.RBI.services.settings.get === 'function')
-      ? (window.RBI.services.settings.get('engineerName') || '')
-      : '';
-    const currentInspector = (fromInput || fromPerms || fromSettings || 'Неизвестный инспектор').trim();
+  function gameLogAction(actionType, targetId = null, inspectorOverride = null) {
+    const currentInspector = gameResolveLogInspector(inspectorOverride);
     if (!currentInspector) return;
 
-    const gameActionLogs = window.gameActionLogs;
+    const gameActionLogs = window.gameActionLogs || (window.gameActionLogs = []);
+    const nowIso = new Date().toISOString();
+    if (gameIsDuplicateActionLog(gameActionLogs, actionType, currentInspector, targetId, nowIso)) return;
 
-    if (actionType === 'ai_generate') {
-      const today = new Date().toDateString();
-      const hasToday = gameActionLogs.some(l => l.action === 'ai_generate' && l.inspector === currentInspector && new Date(l.date).toDateString() === today);
-      if (hasToday) return;
-    }
-
-    gameActionLogs.push({ id: Date.now().toString(36), date: new Date().toISOString(), inspector: currentInspector, action: actionType, target: targetId });
+    gameActionLogs.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      date: nowIso,
+      inspector: currentInspector,
+      action: actionType,
+      target: targetId
+    });
     gameSaveLogs();
 
     if (document.getElementById('sub-engineer-rating') && !document.getElementById('sub-engineer-rating').classList.contains('hidden')) {
@@ -369,8 +365,8 @@ function emit(eventName, detail) {
 
         if (task.priorityLvl === 4 && task.done > task.target) {
           const overCheck = matchedWeekChecks[validChecksCount - 1];
-          if (overCheck && !window.gameActionLogs.find(l => l.action === 'overfulfill_bonus' && l.target === overCheck.id)) {
-            window.gameActionLogs.push({ id: Date.now().toString(36), date: new Date().toISOString(), inspector: taskEngineer || fallbackInspector, action: 'overfulfill_bonus', target: overCheck.id });
+          if (overCheck) {
+            gameLogAction('overfulfill_bonus', overCheck.id, taskEngineer || fallbackInspector);
           }
         }
 
@@ -487,7 +483,7 @@ function emit(eventName, detail) {
 
     if (allTasksDone && weeklyPlanData.tasks.length > 0 && !weeklyPlanData.completed) {
       weeklyPlanData.completed = true;
-      window.gameActionLogs.push({ id: Date.now().toString(36), date: new Date().toISOString(), inspector: fallbackInspector, action: 'plan_completed', target: weeklyPlanData.weekId });
+      gameLogAction('plan_completed', weeklyPlanData.weekId, fallbackInspector);
     }
 
     saveWeeklyPlan();
@@ -2816,9 +2812,9 @@ function emit(eventName, detail) {
 
     _ctx: null,
     bindCtx(ctx) { this._ctx = ctx; },
-    logAction(actionType, targetId) {
+    logAction(actionType, targetId, inspectorOverride) {
       if (typeof gameLogAction === 'function') {
-        gameLogAction(actionType, targetId);
+        gameLogAction(actionType, targetId, inspectorOverride);
         emit('game:action:logged', { actionType, targetId });
       } else {
         console.warn('[GameActions] gameLogAction not found');

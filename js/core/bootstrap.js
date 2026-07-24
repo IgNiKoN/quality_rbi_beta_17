@@ -21,6 +21,9 @@ window.activeTaskId = null; // Глобальная переменная для 
 // (AnalyticsState), подтверждено Волной 1 «части 2». Дублирующее объявление
 // убрано (Реальная изоляция модулей, часть 3, Группа A).
 window.twiOwnerFilter = 'ALL'; // Глобальный фильтр для TWI карт
+window.kbShowTwiInspector = true; // TWI: технадзор
+window.kbShowTwiWorker = true;    // TWI: инструкция
+window.kbShowTwiPdf = true;       // TWI: регламент
 window.nodeOwnerFilter = 'ALL'; // Глобальный фильтр для Узлов
 window.docOwnerFilter = 'ALL';
 window.practiceOwnerFilter = 'ALL';

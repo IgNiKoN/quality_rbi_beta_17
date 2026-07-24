@@ -129,11 +129,123 @@ async function gameSaveLogs() {
   catch (e) { console.error("Ошибка сохранения логов", e); }
 }
 
+/** Политика дедупа XP-логов: day | day+target | ever+target */
+const GAME_XP_LOG_POLICY = {
+  ai_generate: 'day',
+  ai_copy: 'day',
+  open_twi: 'day+target',
+  sk_message_sent: 'day+target',
+  sk_red_isd_found: 'day+target',
+  sk_isd_improved: 'day+target',
+  fmea_master: 'day',
+  sk_import_done: 'ever+target',
+  etalon_accepted: 'ever+target',
+  task_completed_on_time: 'ever+target',
+  overfulfill_bonus: 'ever+target',
+  create_twi: 'ever+target',
+  magic_creator: 'ever+target',
+  practice_created: 'ever+target',
+  practice_published: 'ever+target',
+  meeting_memo_created: 'ever+target',
+  intervention_logged: 'ever+target',
+  sk_zone_yellow: 'ever+target',
+  sk_zone_green: 'ever+target',
+  impact_bonus_10: 'ever+target',
+  escalation_bonus: 'ever+target',
+  plan_completed: 'ever+target'
+};
+
+function _gameIsPlaceholderInspector(name) {
+  const s = String(name || '').trim().toLowerCase();
+  return !s || s === 'админ' || s === 'admin' || s === 'неизвестный инспектор' || s === 'инженер';
+}
+
+/** Имя инженера для XP: override → ФИО в форме → sync/settings (не «Админ»/заглушка). */
+function gameResolveLogInspector(override) {
+  if (override && String(override).trim() && !_gameIsPlaceholderInspector(override)) {
+    return String(override).trim();
+  }
+  const fromInput = document.getElementById('inp-inspector')?.value?.trim() || '';
+  const fromPerms = (window.RBI && window.RBI.services && window.RBI.services.permissions &&
+    typeof window.RBI.services.permissions.getCurrentEngineerName === 'function')
+    ? (window.RBI.services.permissions.getCurrentEngineerName() || '')
+    : '';
+  const fromSettings = (window.RBI && window.RBI.services && window.RBI.services.settings &&
+    typeof window.RBI.services.settings.get === 'function')
+    ? (window.RBI.services.settings.get('engineerName') || '')
+    : '';
+  const fromSync = (window.syncConfig && window.syncConfig.engineerName) || '';
+  // Явное ФИО в форме важнее «Админ» из sync при просмотре чужого профиля
+  if (fromInput && !_gameIsPlaceholderInspector(fromInput)) return fromInput;
+  const candidates = [fromPerms, fromSettings, fromSync, override, fromInput];
+  for (let i = 0; i < candidates.length; i++) {
+    const n = String(candidates[i] || '').trim();
+    if (n && !_gameIsPlaceholderInspector(n)) return n;
+  }
+  return String(fromInput || fromPerms || fromSettings || fromSync || override || 'Неизвестный инспектор').trim();
+}
+
+function _gameXpLogDedupeKey(action, inspector, target, dateIso, policy) {
+  const day = new Date(dateIso || Date.now()).toDateString();
+  const t = target == null ? '' : String(target);
+  if (policy === 'day') return `${action}|${inspector}|${day}`;
+  if (policy === 'day+target') return `${action}|${inspector}|${t}|${day}`;
+  if (policy === 'ever+target') return `${action}|${inspector}|${t}`;
+  return null;
+}
+
+/** true = лог уже есть и новый писать нельзя. */
+function gameIsDuplicateActionLog(logs, action, inspector, target, dateIso) {
+  const policy = GAME_XP_LOG_POLICY[action];
+  if (!policy) return false;
+  const key = _gameXpLogDedupeKey(action, inspector, target, dateIso, policy);
+  if (!key) return false;
+  return (logs || []).some(l => {
+    if (!l || l.action !== action || l.inspector !== inspector) return false;
+    return _gameXpLogDedupeKey(l.action, l.inspector, l.target, l.date, policy) === key;
+  });
+}
+
+/** Сжимает исторические дубли XP-логов (эталон 'etalon', open_twi spam и т.п.). */
+function gameNormalizeActionLogs(logs) {
+  const src = Array.isArray(logs) ? logs.slice() : [];
+  src.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+  const seen = new Set();
+  const out = [];
+  let changed = false;
+  src.forEach(l => {
+    if (!l || !l.action) { changed = true; return; }
+    const policy = GAME_XP_LOG_POLICY[l.action];
+    if (!policy) { out.push(l); return; }
+    const insp = String(l.inspector || '').trim() || 'Неизвестный инспектор';
+    const key = _gameXpLogDedupeKey(l.action, insp, l.target, l.date, policy);
+    if (key && seen.has(key)) { changed = true; return; }
+    if (key) seen.add(key);
+    if (insp !== l.inspector) {
+      out.push(Object.assign({}, l, { inspector: insp }));
+      changed = true;
+    } else {
+      out.push(l);
+    }
+  });
+  if (out.length !== src.length) changed = true;
+  return { logs: out, changed };
+}
+
 // === ВЫЧИСЛИТЕЛЬНОЕ ЯДРО ===
 // Перенесено из js/game.js (строка 157).
 function gameCalculateAllProfiles() {
   const _allInspections = _getAllInspections();
   let profiles = {};
+
+  // Сначала сжимаем дубли логов — иначе старый фарм эталона/TWI раздувает PI
+  try {
+    const norm = gameNormalizeActionLogs(window.gameActionLogs || []);
+    if (norm.changed) {
+      window.gameActionLogs = norm.logs;
+      try { gameSaveLogs(); } catch (e) { /* silent */ }
+    }
+  } catch (e) { /* silent */ }
 
   _allInspections.forEach(check => {
     const name = check.inspectorName || 'Не указан';
@@ -200,8 +312,13 @@ function gameCalculateAllProfiles() {
       if (hasFails && allFailsDocumented) { earnedPI += 15; p.badgesData['detective']++; }
 
       const hasAnyPhoto = check.photos && Object.keys(check.photos).length > 0;
-      if (m && m.final === 100 && hasAnyPhoto) { earnedPI += 25; p.badgesData['chron_ideal']++; }
-      if (m && m.final === 100 && m.n_B1_fail > 0) { p.badgesData['perfection'] = 1; }
+      // Летописец: 100% OK с фото; при честном B1 — только Педантичность, без +25 XP
+      if (m && m.final === 100 && hasAnyPhoto && !(m.n_B1_fail > 0)) {
+        earnedPI += 25;
+        p.badgesData['chron_ideal']++;
+      }
+      // Педантичность: копим случаи, не затираем единицей
+      if (m && m.final === 100 && m.n_B1_fail > 0) { p.badgesData['perfection']++; }
 
       p.badgesData['universal'] = p.templates.size;
       p.badgesData['pathfinder'] = p.locations.size;
@@ -210,8 +327,8 @@ function gameCalculateAllProfiles() {
       p.monthlyPI[dStr] += earnedPI;
     });
 
-    if (continuous100 >= 30) p.badgesData['meticulous'] = 30;
-    else p.badgesData['meticulous'] = continuous100;
+    // Скрупулёзность: серия 100% заполнения, без искусственного потолка 30
+    p.badgesData['meticulous'] = Math.min(continuous100, 150);
 
     p.currentStreak = 0;
     const sortedWeeks = Array.from(p.weeksActive).sort();
@@ -224,8 +341,9 @@ function gameCalculateAllProfiles() {
         else break;
       }
     }
-    if (p.currentStreak >= 8) p.badgesData['reliable'] = 8;
-    if (p.currentStreak >= 16) p.badgesData['iron_will'] = 16;
+    // Стрик = реальная длина; раньше резали на 8/16 и ломали старшие тиры
+    p.badgesData['reliable'] = Math.min(p.currentStreak, 20);
+    p.badgesData['iron_will'] = Math.min(p.currentStreak, 80);
 
     // Объективность: независимость (адекватный УрК проверки) и стабильность (низкий разброс)
     const urkValues = [];
@@ -529,10 +647,47 @@ function gameCalculateManagerMetrics() {
 
     const avgImpact = impactCount > 0 ? (totalImpact / impactCount) : 0;
 
-    // НОВОЕ: Подсчет задач инженера из глобального массива
-    let engTasks = _getTasks().filter(t => t.engineerName === p.name || t.inspectorName === p.name || t.contractor === p.name /* legacy fallback */);
-    let tasksDone = engTasks.filter(t => t.status === 'done').length;
-    let tasksPending = engTasks.filter(t => t.status === 'pending').length;
+    // Задачи: как вкладка «Задачи» — закрыто за неделю / открыто / просрочено.
+    // dual-id через rbi_taskBelongsTo; без legacy contractor===имя.
+    const engNameNorm = String(p.name || '').trim().replace(/\s+/g, ' ');
+    const startOfWeek = getStartOfWeek(now);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    const today0 = new Date(now);
+    today0.setHours(0, 0, 0, 0);
+    const pCode = (window.syncConfig && window.syncConfig.projectCode) || _getSetting('projectCode') || 'proj';
+    const engRef = {
+      id: String(pCode + '_' + engNameNorm).replace(/\s+/g, '_'),
+      name: engNameNorm
+    };
+
+    const engTasks = (_getTasks() || []).filter(t => {
+      if (!t || t._deleted || t.is_deleted) return false;
+      if (typeof window.rbi_taskBelongsTo === 'function') {
+        return window.rbi_taskBelongsTo(t, engRef);
+      }
+      const tn = String(t.engineerName || t.inspectorName || '').trim().replace(/\s+/g, ' ');
+      return tn === engNameNorm;
+    });
+
+    let tasksDone = 0;
+    let tasksPending = 0;
+    let tasksOverdue = 0;
+    engTasks.forEach(t => {
+      if (t.status === 'done') {
+        const d = new Date(t.updatedAt || t.date || 0);
+        if (d >= startOfWeek && d <= endOfWeek) tasksDone++;
+        return;
+      }
+      if (t.status === 'blocked') return;
+      tasksPending++;
+      if (t.date) {
+        const td = new Date(t.date);
+        td.setHours(0, 0, 0, 0);
+        if (td < today0) tasksOverdue++;
+      }
+    });
 
     managerStats.push({
       name: p.name, pi: p.pi, level: p.levelObj.level,
@@ -540,7 +695,7 @@ function gameCalculateManagerMetrics() {
       volatility: volatility, photoRate: photoRate, completeness: completeness,
       b3Found: b3Found, avgImpact: avgImpact, improved: improvedContrs, degraded: degradedContrs,
       totalDebt: totalDebt, oldDebtWarning: oldDebtWarning,
-      tasksDone: tasksDone, tasksPending: tasksPending, // <-- Добавили в объект
+      tasksDone: tasksDone, tasksPending: tasksPending, tasksOverdue: tasksOverdue,
       isVacation: (window.engineerAbsence.isActive && p.name === (document.getElementById('inp-inspector')?.value.trim() || ''))
     });
   });
@@ -589,5 +744,6 @@ const GameState = {
 
 export {
   PI_GRADES, SKILL_ICONS, COMPETENCIES, gameSaveLogs, gameCalculateAllProfiles,
+  gameResolveLogInspector, gameIsDuplicateActionLog, gameNormalizeActionLogs,
   getSmartQuest, getWeekId, getStartOfWeek, gameCalculateManagerMetrics, GameState
 };

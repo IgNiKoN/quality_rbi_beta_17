@@ -409,23 +409,23 @@ var SettingsRender = {
                                 <option value="manual">Ручное</option>
                             </select>
                         </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
+                            <div class="min-w-0">
                                 <div class="font-bold text-sm">Анимации интерфейса</div>
                                 <div class="text-[10px] text-[var(--text-muted)] mt-1">Hover, пружины тостов/модалок, скелетоны. Система «уменьшить движение» тоже учитывается
                                 </div>
                             </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ui-motion"
+                            <label class="toggle-switch shrink-0"><input type="checkbox" id="set-ui-motion"
                                     data-settings-action="toggleSetting" data-settings-action-key="uiMotionEnabled" data-settings-action-val-type="element" data-action-event="change"><span
                                     class="toggle-slider"></span></label>
                         </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
+                            <div class="min-w-0">
                                 <div class="font-bold text-sm">Блокировка обновления свайпом</div>
                                 <div class="text-[10px] text-[var(--text-muted)] mt-1">Для Android: жёстко режет pull-to-refresh у верхнего края. Пружина/свечение по краям пропадёт
                                 </div>
                             </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-hard-overscroll"
+                            <label class="toggle-switch shrink-0"><input type="checkbox" id="set-hard-overscroll"
                                     data-settings-action="toggleSetting" data-settings-action-key="hardOverscrollLock" data-settings-action-val-type="element" data-action-event="change"><span
                                     class="toggle-slider"></span></label>
                         </div>
