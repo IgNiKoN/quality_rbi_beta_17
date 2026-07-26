@@ -3,7 +3,7 @@
 
 const DB_NAME = 'RBI_QUALITY_DB';
 // Повышаем версию только при изменении структуры IndexedDB
-const DB_VERSION = 25; // БЫЛО 24, СТАЛО 25 — store construction_defects_v2 (CONST_DEFECTS_V2)
+const DB_VERSION = 29; // БЫЛО 28, СТАЛО 29 — units_v2 + паритет с self-heal bump (локально уже 29)
 
 // Глобально отдаём версию БД в интерфейс диагностики
 window.RBI_DB_VERSION = DB_VERSION;
@@ -53,6 +53,8 @@ const STORES = {
     LOCATION_NODE_ALIASES: 'location_node_aliases',
     CONST_FLOORS_V2: 'construction_floors_v2',
     CONST_DEFECTS_V2: 'construction_defects_v2',
+    CONST_ACCEPTANCE_V2: 'construction_acceptance_v2',
+    CONST_UNITS_V2: 'construction_units_v2',
     PROJECT_OBJECTS: 'project_objects',
     OBJECT_ALIASES: 'object_aliases',
     BACKUP_LOGS: 'backup_logs',
@@ -83,64 +85,134 @@ const INDEX_DEFINITIONS = {
 window.INDEX_DEFINITIONS = INDEX_DEFINITIONS;
 
 /**
-/**
- /**
- * Инициализация и открытие базы данных IndexedDB (Singleton)
+ * Инициализация и открытие базы данных IndexedDB (Singleton).
+ * Self-heal: если версия уже ≥ DB_VERSION, но какого-то store из STORES нет
+ * (типичный случай: bump версии без store / частично закэшированный storage-db),
+ * закрываем соединение и форсируем upgrade на db.version+1.
+ * Если self-heal ранее поднял IDB выше константы DB_VERSION — открываем текущую
+ * версию (без downgrade), иначе VersionError «requested < existing».
  */
 let _dbPromise = null;
 
+function _missingStores(db) {
+    return Object.values(STORES).filter((storeName) => !db.objectStoreNames.contains(storeName));
+}
+
+/** Открыть БД на уже существующей версии (без указания version). */
+function _openDbCurrent() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME);
+        request.onblocked = function () {
+            console.error('IndexedDB заблокирована! Закройте другие вкладки.');
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Закройте все вкладки приложения и откройте заново!');
+            }
+            reject(new Error('БД заблокирована'));
+        };
+        request.onsuccess = () => {
+            const db = request.result;
+            db.onversionchange = () => {
+                db.close();
+                _dbPromise = null;
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ База данных обновлена. Пожалуйста, перезагрузите страницу.');
+                }
+            };
+            resolve(db);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function _applySchemaUpgrade(db, upgradeTx) {
+    Object.values(STORES).forEach((storeName) => {
+        if (!db.objectStoreNames.contains(storeName)) {
+            let keyOptions = { keyPath: 'id' };
+            if (storeName === STORES.STATE || storeName === STORES.SETTINGS) keyOptions = { keyPath: 'key' };
+            if (storeName === STORES.TEMPLATES) keyOptions = { keyPath: 'slug' };
+            db.createObjectStore(storeName, keyOptions);
+        }
+    });
+
+    Object.keys(INDEX_DEFINITIONS).forEach((storeName) => {
+        if (!db.objectStoreNames.contains(storeName)) return;
+        const store = upgradeTx.objectStore(storeName);
+        (INDEX_DEFINITIONS[storeName] || []).forEach((def) => {
+            if (!store.indexNames.contains(def.name)) {
+                store.createIndex(def.name, def.keyPath, def.options || {});
+            }
+        });
+    });
+}
+
+function _openDbAtVersion(version) {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, version);
+
+        request.onupgradeneeded = function (event) {
+            _applySchemaUpgrade(event.target.result, event.target.transaction);
+        };
+
+        request.onblocked = function () {
+            console.error('IndexedDB заблокирована! Закройте другие вкладки.');
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Закройте все вкладки приложения и откройте заново!');
+            }
+            reject(new Error('БД заблокирована'));
+        };
+
+        request.onsuccess = () => {
+            const db = request.result;
+            db.onversionchange = () => {
+                db.close();
+                _dbPromise = null;
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ База данных обновлена. Пожалуйста, перезагрузите страницу.');
+                }
+            };
+            resolve(db);
+        };
+
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+}
+
 function openAppDb() {
     if (!_dbPromise) {
-        _dbPromise = new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-            request.onupgradeneeded = function (event) {
-                const db = event.target.result;
-                const upgradeTx = event.target.transaction;
-
-                // Создаем таблицы, если их нет
-                Object.values(STORES).forEach(storeName => {
-                    if (!db.objectStoreNames.contains(storeName)) {
-                        let keyOptions = { keyPath: 'id' };
-                        if (storeName === STORES.STATE || storeName === STORES.SETTINGS) keyOptions = { keyPath: 'key' };
-                        if (storeName === STORES.TEMPLATES) keyOptions = { keyPath: 'slug' };
-
-                        db.createObjectStore(storeName, keyOptions);
-                    }
-                });
-
-                // Индексы (DB_VERSION 21+: by_date/by_contractor; 24+: by_deleted).
-                Object.keys(INDEX_DEFINITIONS).forEach(storeName => {
-                    if (!db.objectStoreNames.contains(storeName)) return;
-                    const store = upgradeTx.objectStore(storeName);
-                    (INDEX_DEFINITIONS[storeName] || []).forEach(def => {
-                        if (!store.indexNames.contains(def.name)) {
-                            store.createIndex(def.name, def.keyPath, def.options || {});
-                        }
-                    });
-                });
-            };
-
-            // ЕСЛИ БАЗА ЗАБЛОКИРОВАНА СТАРОЙ ВКЛАДКОЙ
-            request.onblocked = function () {
-                console.error("IndexedDB заблокирована! Закройте другие вкладки.");
-                if (typeof showToast === 'function') showToast("⚠️ Закройте все вкладки приложения и откройте заново!");
-                reject(new Error("БД заблокирована"));
-            };
-
-            request.onsuccess = () => {
-                const db = request.result;
-                db.onversionchange = () => {
+        _dbPromise = (async () => {
+            let db;
+            try {
+                db = await _openDbAtVersion(DB_VERSION);
+            } catch (err) {
+                if (err && err.name === 'VersionError') {
+                    console.warn('[DB] Requested version', DB_VERSION, '< existing — opening current');
+                    db = await _openDbCurrent();
+                } else {
+                    throw err;
+                }
+            }
+            let missing = _missingStores(db);
+            if (missing.length) {
+                const bump = db.version + 1;
+                console.warn('[DB] Missing object stores — forcing upgrade →', bump, missing);
+                try {
                     db.close();
-                    _dbPromise = null;
-                    if (typeof showToast === 'function') showToast('⚠️ База данных обновлена. Пожалуйста, перезагрузите страницу.');
-                };
-                resolve(db);
-            };
-            request.onerror = () => {
-                _dbPromise = null; // Сбрасываем промис при ошибке
-                reject(request.error);
-            };
+                } catch (_) {
+                    /* ignore */
+                }
+                db = await _openDbAtVersion(bump);
+                missing = _missingStores(db);
+                if (missing.length) {
+                    console.error('[DB] Stores still missing after forced upgrade:', missing);
+                }
+            }
+            window.RBI_DB_VERSION = Math.max(DB_VERSION, db.version);
+            return db;
+        })().catch((err) => {
+            _dbPromise = null;
+            throw err;
         });
     }
     return _dbPromise;

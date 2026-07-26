@@ -1,11 +1,15 @@
 /**
- * Рабочий UI construction-v2: дерево локаций + интерактивный план + замечания на координатах.
+ * Рабочий UI construction-v2: дерево локаций + план (дефекты/зоны) + канбан приёмки.
  */
 
+import type { AcceptanceZoneV2, ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
 import type { FloorPlan, LocationNode } from '../../services/locations/types';
 import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
+import { openCreateAcceptanceForm, openAcceptanceDetails } from './acceptance-form';
+import { focusAcceptanceOnPlan, renderAcceptanceKanban } from './acceptance-kanban';
 import { PlanViewer } from './plan-viewer';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
+import { renderTransferBoard, teardownTransferUi } from './transfer-board';
 
 type LocSvc = {
   init: () => Promise<boolean>;
@@ -20,16 +24,35 @@ type DefectsSvc = {
   init: () => Promise<boolean>;
   listForFloor: (locationId: string) => ConstructionDefectV2[];
   get: (id: string) => ConstructionDefectV2 | null;
-  create: (input: {
-    locationId: string;
-    x: number;
-    y: number;
-    description: string;
-    category?: string;
-    contractorId?: string | null;
-  }) => Promise<ConstructionDefectV2>;
+  create: (input: Record<string, unknown>) => Promise<ConstructionDefectV2>;
+  update: (id: string, patch: Record<string, unknown>) => Promise<ConstructionDefectV2>;
+  changeStatus: (
+    id: string,
+    newStatus: string,
+    opts?: { comment?: string | null; photos?: string[] | null; photo?: string | null }
+  ) => Promise<ConstructionDefectV2>;
   softDelete: (id: string) => Promise<ConstructionDefectV2>;
 };
+
+type AccSvc = {
+  init: () => Promise<boolean>;
+  listForFloor: (locationId: string) => ConstructionAcceptanceV2[];
+  get: (id: string) => ConstructionAcceptanceV2 | null;
+  create: (input: {
+    locationId: string;
+    zone: AcceptanceZoneV2;
+    template_key?: string | null;
+    work_type?: string | null;
+    volume?: string | null;
+    requested_date?: string | null;
+    requested_time?: string | null;
+    contractorId?: string | null;
+  }) => Promise<ConstructionAcceptanceV2>;
+  changeStatus: (id: string, status: string) => Promise<ConstructionAcceptanceV2>;
+  softDelete: (id: string) => Promise<ConstructionAcceptanceV2>;
+};
+
+export type ConstructionV2Subview = 'plan' | 'acceptance' | 'transfer';
 
 function _loc(): LocSvc | null {
   return (window.RBI?.services?.locations as LocSvc) || null;
@@ -37,6 +60,10 @@ function _loc(): LocSvc | null {
 
 function _defects(): DefectsSvc | null {
   return (window.RBI?.services?.constructionDefects as DefectsSvc) || null;
+}
+
+function _acc(): AccSvc | null {
+  return (window.RBI?.services?.constructionAcceptance as AccSvc) || null;
 }
 
 function _escape(s: string) {
@@ -51,7 +78,10 @@ let _selectedFloorId: string | null = null;
 let _bound = false;
 let _viewer: PlanViewer | null = null;
 let _addMode = false;
+let _zoneMode = false;
 let _mountedPdfUrl: string | null = null;
+let _subview: ConstructionV2Subview = 'plan';
+let _pendingFocusAccId: string | null = null;
 
 function _root(): HTMLElement | null {
   return document.getElementById('construction-v2-root');
@@ -123,21 +153,30 @@ function _renderPlanChrome(svc: LocSvc): string {
   const addCls = _addMode
     ? 'bg-indigo-600 text-white border-indigo-600'
     : 'bg-transparent text-indigo-600 border-indigo-200';
+  const zoneCls = _zoneMode
+    ? 'bg-emerald-600 text-white border-emerald-600'
+    : 'bg-transparent text-emerald-700 border-emerald-200';
   return `<div class="flex flex-col h-full min-h-[320px]">
     <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
       <div class="text-[11px] font-bold text-slate-600 min-w-0">
         ${_escape(path || floor?.displayName || '')}
         <span class="ml-2 text-slate-400 font-normal">${_escape(plan.pdf_name || '')}</span>
       </div>
-      <button type="button" data-c2-add-mode
-        class="shrink-0 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${addCls}">
-        ${_addMode ? 'Кликни на план…' : '+ Замечание'}
-      </button>
+      <div class="flex gap-2 shrink-0">
+        <button type="button" data-c2-zone-mode
+          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${zoneCls}">
+          ${_zoneMode ? '2 клика на план…' : 'Зона приёмки'}
+        </button>
+        <button type="button" data-c2-add-mode
+          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${addCls}">
+          ${_addMode ? 'Кликни на план…' : '+ Замечание'}
+        </button>
+      </div>
     </div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
     <div class="px-3 py-2 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-2">
-      <span>Клик по маркеру — просмотр / удаление. Режим «+ Замечание» — клик по плану.</span>
-      <span id="c2-defect-count"></span>
+      <span>Маркеры — замечания; прямоугольники — зоны приёмки.</span>
+      <span id="c2-overlay-count"></span>
     </div>
   </div>`;
 }
@@ -173,18 +212,27 @@ async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
         openCreateDefectForm(
           { locationId: _selectedFloorId, x, y },
           async (input) => {
-            await dSvc.create(input);
+            await dSvc.create({
+              locationId: input.locationId,
+              x: input.x,
+              y: input.y,
+              description: input.description,
+              category: input.category,
+              contractorId: input.contractorId,
+              deadline: input.deadline,
+              template_key: input.template_key,
+              item_id: input.item_id,
+              item_name: input.item_name,
+              norm_text: input.norm_text,
+              photos: input.photos,
+              status: 'issued'
+            });
             _addMode = false;
             _viewer?.setAddMode(false);
             _viewer?.clearTempPin();
             window.showToast?.('Замечание сохранено');
-            await _refreshMarkersOnly();
-            const addBtn = document.querySelector('[data-c2-add-mode]') as HTMLElement | null;
-            if (addBtn) {
-              addBtn.textContent = '+ Замечание';
-              addBtn.className =
-                'shrink-0 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
-            }
+            await _refreshOverlaysOnly();
+            _syncModeButtons();
           },
           () => _viewer?.clearTempPin()
         );
@@ -193,10 +241,68 @@ async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
         const dSvc = _defects();
         const d = dSvc?.get(id);
         if (!d || !dSvc) return;
-        openViewDefectForm(d, async (defectId) => {
-          await dSvc.softDelete(defectId);
-          window.showToast?.('Замечание удалено');
-          await _refreshMarkersOnly();
+        openViewDefectForm(
+          d,
+          async (defectId) => {
+            await dSvc.softDelete(defectId);
+            window.showToast?.('Замечание удалено');
+            await _refreshOverlaysOnly();
+          },
+          async (defectId, patch) => {
+            await dSvc.update(defectId, patch);
+            window.showToast?.('Замечание обновлено');
+            await _refreshOverlaysOnly();
+          },
+          async (defectId, input) => {
+            await dSvc.changeStatus(defectId, input.status, {
+              comment: input.comment,
+              photos: input.photos
+            });
+            window.showToast?.('✅ Статус обновлён');
+            await _refreshOverlaysOnly();
+          }
+        );
+      },
+      onZoneDrawn: (zone) => {
+        if (!_selectedFloorId) return;
+        const aSvc = _acc();
+        if (!aSvc) {
+          window.showToast?.('service.constructionAcceptance не загружен');
+          return;
+        }
+        openCreateAcceptanceForm(
+          { locationId: _selectedFloorId, zone },
+          async (input) => {
+            await aSvc.create(input);
+            _zoneMode = false;
+            _viewer?.setZoneMode(false);
+            window.showToast?.('✅ Заявка отправлена');
+            await _refreshOverlaysOnly();
+            _syncModeButtons();
+          },
+          () => {
+            _viewer?.clearTempZone();
+          }
+        );
+      },
+      onZoneClick: (id) => {
+        const aSvc = _acc();
+        const item = aSvc?.get(id);
+        if (!item || !aSvc) return;
+        openAcceptanceDetails(item, {
+          onFocusPlan: (rid) => {
+            _viewer?.setFocusZone(rid);
+          },
+          onChangeStatus: async (rid, status) => {
+            await aSvc.changeStatus(rid, status);
+            window.showToast?.('✅ Статус обновлён');
+            await _refreshOverlaysOnly();
+          },
+          onSoftDelete: async (rid) => {
+            await aSvc.softDelete(rid);
+            window.showToast?.('Заявка отозвана');
+            await _refreshOverlaysOnly();
+          }
         });
       }
     });
@@ -212,35 +318,100 @@ async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
     }
   }
 
-  if (_viewer) _viewer.setAddMode(_addMode);
-  await _refreshMarkersOnly();
+  if (_viewer) {
+    _viewer.setAddMode(_addMode);
+    _viewer.setZoneMode(_zoneMode);
+  }
+  await _refreshOverlaysOnly();
+
+  if (_pendingFocusAccId && _viewer) {
+    _viewer.setFocusZone(_pendingFocusAccId);
+    _pendingFocusAccId = null;
+  }
 }
 
-async function _refreshMarkersOnly(): Promise<void> {
+function _syncModeButtons() {
+  const addBtn = document.querySelector('[data-c2-add-mode]') as HTMLElement | null;
+  if (addBtn) {
+    addBtn.textContent = _addMode ? 'Кликни на план…' : '+ Замечание';
+    addBtn.className = _addMode
+      ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600'
+      : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
+  }
+  const zoneBtn = document.querySelector('[data-c2-zone-mode]') as HTMLElement | null;
+  if (zoneBtn) {
+    zoneBtn.textContent = _zoneMode ? '2 клика на план…' : 'Зона приёмки';
+    zoneBtn.className = _zoneMode
+      ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-emerald-600 text-white border-emerald-600'
+      : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-emerald-700 border-emerald-200';
+  }
+}
+
+async function _refreshOverlaysOnly(): Promise<void> {
   const dSvc = _defects();
-  if (!_viewer || !_selectedFloorId || !dSvc) return;
-  await dSvc.init();
-  const list = dSvc.listForFloor(_selectedFloorId);
-  _viewer.setMarkers(list);
-  const countEl = document.getElementById('c2-defect-count');
-  if (countEl) countEl.textContent = `Замечаний: ${list.length}`;
+  const aSvc = _acc();
+  if (!_viewer || !_selectedFloorId) return;
+  if (dSvc) await dSvc.init();
+  if (aSvc) await aSvc.init();
+  const defects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const zones = aSvc ? aSvc.listForFloor(_selectedFloorId) : [];
+  _viewer.setMarkers(defects);
+  _viewer.setZones(zones);
+  const countEl = document.getElementById('c2-overlay-count');
+  if (countEl) countEl.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+}
+
+export function setConstructionV2Subview(view: ConstructionV2Subview): void {
+  _subview = view;
+}
+
+export function getConstructionV2Subview(): ConstructionV2Subview {
+  return _subview;
+}
+
+/** Вызов из index при focus-событии / hash acceptance. */
+export function requestFocusAcceptance(id: string, locationId: string): void {
+  _subview = 'plan';
+  _selectedFloorId = locationId;
+  _pendingFocusAccId = id;
+  renderConstructionV2().catch(() => {});
 }
 
 export async function renderConstructionV2(): Promise<void> {
   const root = _root();
   if (!root) return;
+
+  if (_subview === 'acceptance') {
+    teardownTransferUi();
+    _viewer?.destroy();
+    _viewer = null;
+    _mountedPdfUrl = null;
+    await renderAcceptanceKanban(root);
+    return;
+  }
+
+  if (_subview === 'transfer') {
+    // apartment-plan закрывается только при уходе с transfer (teardownTransferUi выше/ниже)
+    _viewer?.destroy();
+    _viewer = null;
+    _mountedPdfUrl = null;
+    await renderTransferBoard(root);
+    return;
+  }
+
+  teardownTransferUi();
   const svc = _loc();
   if (!svc) {
     root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.locations не загружен</div>`;
     return;
   }
   const dSvc = _defects();
+  const aSvc = _acc();
   await svc.init();
   if (dSvc) await dSvc.init();
+  if (aSvc) await aSvc.init();
 
-  // Сохраняем viewer, если тот же этаж/URL — не убиваем canvas при полном re-render дерева
   const prevFloor = _selectedFloorId;
-  const prevUrl = _mountedPdfUrl;
   _viewer?.destroy();
   _viewer = null;
   _mountedPdfUrl = null;
@@ -255,6 +426,11 @@ export async function renderConstructionV2(): Promise<void> {
             ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>`
             : ''
         }
+        ${
+          !aSvc
+            ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">constructionAcceptance не загружен</div>`
+            : ''
+        }
       </aside>
       <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
         ${_renderPlanChrome(svc)}
@@ -262,9 +438,7 @@ export async function renderConstructionV2(): Promise<void> {
     </div>`;
   _bindOnce();
 
-  // restore selection context for mount
   if (prevFloor) _selectedFloorId = prevFloor;
-  void prevUrl;
   await _mountViewerIfNeeded(svc);
 }
 
@@ -281,17 +455,26 @@ function _bindOnce() {
         if (!id) return;
         _selectedFloorId = id;
         _addMode = false;
+        _zoneMode = false;
         renderConstructionV2().catch((e) => console.warn('[construction-v2] render', e));
         return;
       }
       const addBtn = t?.closest?.('[data-c2-add-mode]') as HTMLElement | null;
       if (addBtn) {
         _addMode = !_addMode;
+        if (_addMode) _zoneMode = false;
         _viewer?.setAddMode(_addMode);
-        addBtn.textContent = _addMode ? 'Кликни на план…' : '+ Замечание';
-        addBtn.className = _addMode
-          ? 'shrink-0 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600'
-          : 'shrink-0 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
+        _viewer?.setZoneMode(_zoneMode);
+        _syncModeButtons();
+        return;
+      }
+      const zoneBtn = t?.closest?.('[data-c2-zone-mode]') as HTMLElement | null;
+      if (zoneBtn) {
+        _zoneMode = !_zoneMode;
+        if (_zoneMode) _addMode = false;
+        _viewer?.setZoneMode(_zoneMode);
+        _viewer?.setAddMode(_addMode);
+        _syncModeButtons();
       }
     },
     true
@@ -313,19 +496,32 @@ export function mountConstructionV2Shell(): void {
     <div class="p-3 sm:p-4">
       <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div>
-          <h2 class="text-[14px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль (новый)</h2>
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Параллельный модуль · legacy не затронут</p>
+          <h2 class="text-[14px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2 (тест)</h2>
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Тестовый контур · основной СК не затронут</p>
         </div>
-        <a href="#/construction" class="text-[10px] font-black uppercase text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-xl">Открыть старый (демо)</a>
+        <a href="#/construction/defects" class="text-[10px] font-black uppercase text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-xl">Открыть старый СК</a>
       </div>
       <div id="construction-v2-root"></div>
     </div>`;
   content.appendChild(section);
 }
 
-/** Точечное обновление маркеров без полного re-render (после sync/CRUD). */
+/** Точечное обновление маркеров/зон без полного re-render (после sync/CRUD). */
 export async function refreshConstructionV2Markers(): Promise<void> {
   const tab = document.getElementById('tab-construction-v2');
   if (!tab || tab.classList.contains('hidden')) return;
-  await _refreshMarkersOnly();
+  if (_subview === 'acceptance') {
+    const root = _root();
+    if (root) await renderAcceptanceKanban(root);
+    return;
+  }
+  if (_subview === 'transfer') {
+    const root = _root();
+    if (root) await renderTransferBoard(root);
+    return;
+  }
+  await _refreshOverlaysOnly();
 }
+
+// re-export для index (focus helper)
+export { focusAcceptanceOnPlan };

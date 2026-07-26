@@ -1,8 +1,13 @@
 /**
- * Минимальная модалка create/view замечания construction-v2 (v1).
+ * Модалка create/view замечания construction-v2 ≈ ConstDefectForm + мультифото.
  */
 
-import type { ConstructionDefectV2, DefectCategoryV2 } from '../../services/construction-defects/types';
+import type {
+  ConstructionDefectV2,
+  DefectCategoryV2,
+  DefectHistoryEntryV2,
+  DefectStatusV2
+} from '../../services/construction-defects/types';
 import { DEFECT_CATEGORIES_V2 } from '../../services/construction-defects/types';
 
 export type DefectFormCreateInput = {
@@ -12,9 +17,35 @@ export type DefectFormCreateInput = {
   description: string;
   category: DefectCategoryV2;
   contractorId: string | null;
+  deadline: string | null;
+  template_key: string | null;
+  item_id: string | null;
+  item_name: string | null;
+  norm_text: string | null;
+  photos: string[];
+};
+
+export type DefectFormEditInput = {
+  description: string;
+  category: DefectCategoryV2;
+  contractorId: string | null;
+  deadline: string | null;
+  template_key: string | null;
+  item_id: string | null;
+  item_name: string | null;
+  norm_text: string | null;
+  photos: string[];
+};
+
+export type DefectFormChangeStatusInput = {
+  status: DefectStatusV2;
+  comment?: string | null;
+  photos?: string[];
 };
 
 type ContractorOpt = { id: string; label: string };
+type TmplItem = { id: string; n: string; t?: string; w?: number };
+type TmplGroup = { items?: TmplItem[] };
 
 function _escape(s: string) {
   return String(s || '')
@@ -25,21 +56,148 @@ function _escape(s: string) {
 }
 
 function _contractors(): ContractorOpt[] {
-  const svc = window.RBI?.services?.contractors as { list?: () => Array<{ id?: string; display_name?: string; displayName?: string }> } | undefined;
+  const svc = window.RBI?.services?.contractors as
+    | { list?: () => Array<{ id?: string; display_name?: string; displayName?: string }> }
+    | undefined;
   const rows = typeof svc?.list === 'function' ? svc.list() : [];
-  return (rows || [])
+  const fromSvc = (rows || [])
     .filter((r) => r && r.id)
     .map((r) => ({
       id: String(r.id),
       label: String(r.display_name || r.displayName || r.id)
+    }));
+  if (fromSvc.length) {
+    return fromSvc.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+  }
+  // fallback: ContractorDirectory → resolve id by display name if possible
+  const dir = (
+    window as unknown as {
+      ContractorDirectory?: { contractors?: Array<{ id?: string; display_name?: string }> };
+    }
+  ).ContractorDirectory;
+  const list = dir?.contractors || [];
+  return list
+    .filter((c) => c && (c.id || c.display_name))
+    .map((c) => ({
+      id: String(c.id || c.display_name),
+      label: String(c.display_name || c.id)
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 }
 
+function _sysTemplates(): Record<string, { title?: string; groups?: TmplGroup[] }> {
+  return (
+    (window as unknown as { SYSTEM_TEMPLATES?: Record<string, { title?: string; groups?: TmplGroup[] }> })
+      .SYSTEM_TEMPLATES || {}
+  );
+}
+
+function _userTemplates(): Record<string, { title?: string; groups?: TmplGroup[] }> {
+  return (
+    (window as unknown as { userTemplates?: Record<string, { title?: string; groups?: TmplGroup[] }> })
+      .userTemplates || {}
+  );
+}
+
+function _flatItems(groups: TmplGroup[] | undefined): TmplItem[] {
+  const items: TmplItem[] = [];
+  (groups || []).forEach((g) => {
+    if (g?.items) items.push(...g.items);
+  });
+  return items;
+}
+
+function _resolveTemplateGroups(tmplKey: string): TmplGroup[] {
+  if (!tmplKey) return [];
+  const type = tmplKey.split('_')[0];
+  const key = tmplKey.replace(type + '_', '');
+  if (type === 'sys') return _sysTemplates()[key]?.groups || [];
+  if (type === 'user') return _userTemplates()[key]?.groups || [];
+  return [];
+}
+
 function _catLabel(c: string): string {
-  if (c === 'critical') return 'Критичный';
-  if (c === 'minor') return 'Незначительный';
-  return 'Существенный';
+  if (c === 'B1' || c === 'minor') return 'B1 (Мелкий)';
+  if (c === 'B3' || c === 'critical') return 'B3 (Критика)';
+  return 'B2 (Значимый)';
+}
+
+function _statusLabel(s: string): string {
+  const map: Record<string, string> = {
+    issued: 'Выдано',
+    in_progress: 'В работе',
+    fixed: 'Устранено',
+    closed: 'Закрыто',
+    rejected: 'Отклонено',
+    open: 'Выдано',
+    cancelled: 'Отклонено'
+  };
+  return map[s] || s;
+}
+
+function _deadlineInputValue(v: unknown): string {
+  if (v == null || v === '') return '';
+  const m = String(v).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
+function _roleInfo() {
+  const perms = window.RBI?.services?.permissions as
+    | {
+        getCurrentRole?: () => string;
+        isEngineerOrAdmin?: () => boolean;
+      }
+    | undefined;
+  const role = perms?.getCurrentRole?.() || 'guest';
+  const isEngineer = perms?.isEngineerOrAdmin?.() ?? ['engineer', 'manager', 'deputy_manager', 'admin'].includes(role);
+  const isContractor = role === 'contractor';
+  return { role, isEngineer, isContractor };
+}
+
+function _photoSrc(ref: string): string {
+  if (!ref) return '';
+  const pm = (window as unknown as { PhotoManager?: { getDisplaySrc?: (u: string) => string; getSrc?: (u: string) => string } })
+    .PhotoManager;
+  if (pm?.getDisplaySrc) return pm.getDisplaySrc(ref) || ref;
+  if (pm?.getSrc) return pm.getSrc(ref) || ref;
+  const g =
+    (window as unknown as { getPhotoThumbSrc?: (u: string) => string; getPhotoSrc?: (u: string) => string })
+      .getPhotoThumbSrc ||
+    (window as unknown as { getPhotoSrc?: (u: string) => string }).getPhotoSrc;
+  return (typeof g === 'function' ? g(ref) : null) || ref;
+}
+
+function _openPhoto(ref: string) {
+  const fn = (window as unknown as { openPhotoViewer?: (u: string) => void }).openPhotoViewer;
+  if (typeof fn === 'function') fn(ref);
+}
+
+async function _fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('Не удалось прочитать файл'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function _savePhotoFiles(files: FileList | File[]): Promise<string[]> {
+  const list = Array.from(files || []).filter((f) => f && f.type && f.type.startsWith('image/'));
+  if (!list.length) return [];
+  const pm = (window as unknown as { PhotoManager?: { saveLocal?: (data: string, prefix?: string, meta?: object) => Promise<string> } })
+    .PhotoManager;
+  const out: string[] = [];
+  for (const file of list) {
+    const dataUrl = await _fileToDataUrl(file);
+    if (!dataUrl.startsWith('data:')) continue;
+    if (pm?.saveLocal) {
+      const id = await pm.saveLocal(dataUrl, 'cdef', { entityType: 'construction_defect_v2' });
+      if (id) out.push(id);
+    } else {
+      out.push(dataUrl);
+    }
+  }
+  return out;
 }
 
 function _ensureOverlay(): HTMLElement {
@@ -48,7 +206,7 @@ function _ensureOverlay(): HTMLElement {
   el = document.createElement('div');
   el.id = 'c2-defect-modal';
   el.className = 'fixed inset-0 z-[600] hidden items-center justify-center bg-black/40 p-3';
-  el.innerHTML = `<div class="w-full max-w-md bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl p-4" data-c2-defect-panel></div>`;
+  el.innerHTML = `<div class="w-full max-w-md max-h-[92vh] overflow-y-auto bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl p-4" data-c2-defect-panel></div>`;
   document.body.appendChild(el);
   return el;
 }
@@ -60,6 +218,256 @@ export function closeDefectForm() {
   el.classList.remove('flex');
 }
 
+function _templateOptionsHtml(selected?: string | null): string {
+  let html = '<option value="">— вид работ —</option>';
+  const st = _sysTemplates();
+  Object.keys(st)
+    .sort()
+    .forEach((k) => {
+      const sel = selected === `sys_${k}` ? ' selected' : '';
+      html += `<option value="sys_${_escape(k)}"${sel}>[СИС] ${_escape(st[k].title || k)}</option>`;
+    });
+  const ut = _userTemplates();
+  Object.keys(ut)
+    .sort()
+    .forEach((k) => {
+      const sel = selected === `user_${k}` ? ' selected' : '';
+      html += `<option value="user_${_escape(k)}"${sel}>[МОЙ] ${_escape(ut[k].title || k)}</option>`;
+    });
+  return html;
+}
+
+function _contractorOptionsHtml(selected?: string | null): string {
+  const opts = _contractors();
+  return (
+    `<option value="">— без подрядчика —</option>` +
+    opts
+      .map((o) => {
+        const sel = selected === o.id ? ' selected' : '';
+        return `<option value="${_escape(o.id)}"${sel}>${_escape(o.label)}</option>`;
+      })
+      .join('')
+  );
+}
+
+function _renderGallery(photos: string[]): string {
+  if (!photos.length) {
+    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>Нет фото</div>`;
+  }
+  return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
+    ${photos
+      .map(
+        (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" data-c2-photo-idx="${i}">
+      <img src="${_escape(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape(p)}" />
+      <button type="button" data-c2-photo-remove="${i}"
+        class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[11px] font-black">✕</button>
+    </div>`
+      )
+      .join('')}
+  </div>`;
+}
+
+function _bindGallery(
+  panel: HTMLElement,
+  photosRef: { current: string[] },
+  onChange: () => void
+) {
+  const refresh = () => {
+    const host = panel.querySelector('[data-c2-photo-host]') as HTMLElement | null;
+    if (host) host.innerHTML = _renderGallery(photosRef.current);
+    _bindGallery(panel, photosRef, onChange);
+  };
+  panel.querySelectorAll('[data-c2-photo-view]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const ref = (el as HTMLElement).getAttribute('data-c2-photo-view') || '';
+      if (ref) _openPhoto(ref);
+    });
+  });
+  panel.querySelectorAll('[data-c2-photo-remove]').forEach((el) => {
+    el.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const idx = Number((el as HTMLElement).getAttribute('data-c2-photo-remove'));
+      if (!Number.isFinite(idx)) return;
+      photosRef.current = photosRef.current.filter((_, i) => i !== idx);
+      refresh();
+      onChange();
+    });
+  });
+  const input = panel.querySelector('[data-c2-photo-input]') as HTMLInputElement | null;
+  if (input && !(input as HTMLInputElement & { _c2Bound?: boolean })._c2Bound) {
+    (input as HTMLInputElement & { _c2Bound?: boolean })._c2Bound = true;
+    input.addEventListener('change', async () => {
+      try {
+        const added = await _savePhotoFiles(input.files || []);
+        if (added.length) {
+          photosRef.current = photosRef.current.concat(added);
+          refresh();
+          onChange();
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        window.showToast?.('❌ ' + msg);
+      } finally {
+        input.value = '';
+      }
+    });
+  }
+}
+
+function _bindItemSearch(panel: HTMLElement) {
+  const search = panel.querySelector('[data-c2-item-search]') as HTMLInputElement | null;
+  const dd = panel.querySelector('[data-c2-item-dd]') as HTMLElement | null;
+  const tmpl = panel.querySelector('[data-c2-template]') as HTMLSelectElement | null;
+  const itemIdEl = panel.querySelector('[data-c2-item-id]') as HTMLInputElement | null;
+  const itemNameEl = panel.querySelector('[data-c2-item-name]') as HTMLInputElement | null;
+  const normBlock = panel.querySelector('[data-c2-norm-block]') as HTMLElement | null;
+  const normText = panel.querySelector('[data-c2-norm-text]') as HTMLElement | null;
+  const desc = panel.querySelector('[data-c2-defect-desc]') as HTMLTextAreaElement | null;
+  const cat = panel.querySelector('[data-c2-defect-cat]') as HTMLSelectElement | null;
+
+  const hideDd = () => dd?.classList.add('hidden');
+
+  tmpl?.addEventListener('change', () => {
+    if (itemIdEl) itemIdEl.value = '';
+    if (itemNameEl) itemNameEl.value = '';
+    if (search) search.value = '';
+    normBlock?.classList.add('hidden');
+    hideDd();
+  });
+
+  const runSearch = (query: string) => {
+    if (!dd) return;
+    const tmplKey = tmpl?.value || '';
+    if (!tmplKey) {
+      dd.innerHTML =
+        '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Сначала выберите вид работ</div>';
+      dd.classList.remove('hidden');
+      return;
+    }
+    const flat = _flatItems(_resolveTemplateGroups(tmplKey));
+    const q = query.toLowerCase().trim();
+    const matched = flat.filter(
+      (i) => i.n?.toLowerCase().includes(q) || (i.t && i.t.toLowerCase().includes(q))
+    );
+    if (!matched.length) {
+      dd.innerHTML =
+        '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Ничего не найдено</div>';
+      dd.classList.remove('hidden');
+      return;
+    }
+    dd.innerHTML = matched
+      .map((i) => {
+        const w = Number(i.w) || 2;
+        return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+          data-c2-pick-item data-id="${_escape(i.id)}" data-name="${_escape(i.n)}" data-w="${w}" data-norm="${_escape(i.t || '')}">
+          <div class="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
+            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape(i.n)}
+          </div>
+        </button>`;
+      })
+      .join('');
+    dd.classList.remove('hidden');
+    dd.querySelectorAll('[data-c2-pick-item]').forEach((btn) => {
+      btn.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        const el = btn as HTMLElement;
+        const id = el.getAttribute('data-id') || '';
+        const name = el.getAttribute('data-name') || '';
+        const w = Number(el.getAttribute('data-w') || 2);
+        const norm = el.getAttribute('data-norm') || '';
+        if (itemIdEl) itemIdEl.value = id;
+        if (itemNameEl) itemNameEl.value = name;
+        if (search) search.value = name;
+        if (norm && normText && normBlock) {
+          normText.textContent = norm;
+          normBlock.classList.remove('hidden');
+        } else {
+          normBlock?.classList.add('hidden');
+        }
+        if (desc) {
+          let auto = `Нарушение: ${name}.`;
+          if (norm && norm !== 'Без норматива') auto += ` Требования: ${norm}`;
+          desc.value = auto;
+        }
+        if (cat) {
+          if (w === 1) cat.value = 'B1';
+          else if (w === 3) cat.value = 'B3';
+          else cat.value = 'B2';
+        }
+        hideDd();
+      });
+    });
+  };
+
+  search?.addEventListener('input', () => runSearch(search.value));
+  search?.addEventListener('focus', () => runSearch(search.value));
+  search?.addEventListener('blur', () => setTimeout(hideDd, 150));
+}
+
+function _readCommonFields(panel: HTMLElement) {
+  const description =
+    (panel.querySelector('[data-c2-defect-desc]') as HTMLTextAreaElement)?.value?.trim() || '';
+  const category = ((panel.querySelector('[data-c2-defect-cat]') as HTMLSelectElement)?.value ||
+    'B2') as DefectCategoryV2;
+  const contractorId =
+    (panel.querySelector('[data-c2-defect-contractor]') as HTMLSelectElement)?.value || '';
+  const deadlineRaw =
+    (panel.querySelector('[data-c2-defect-deadline]') as HTMLInputElement)?.value || '';
+  const template_key =
+    (panel.querySelector('[data-c2-template]') as HTMLSelectElement)?.value || '';
+  const item_id = (panel.querySelector('[data-c2-item-id]') as HTMLInputElement)?.value || '';
+  const item_name =
+    (panel.querySelector('[data-c2-item-name]') as HTMLInputElement)?.value ||
+    (panel.querySelector('[data-c2-item-search]') as HTMLInputElement)?.value ||
+    '';
+  const norm_text =
+    (panel.querySelector('[data-c2-norm-text]') as HTMLElement)?.textContent?.trim() || '';
+  return {
+    description,
+    category,
+    contractorId: contractorId || null,
+    deadline: deadlineRaw || null,
+    template_key: template_key || null,
+    item_id: item_id || null,
+    item_name: item_name || null,
+    norm_text: norm_text || null
+  };
+}
+
+function _historyHtml(history: unknown): string {
+  const list = Array.isArray(history) ? (history as DefectHistoryEntryV2[]) : [];
+  if (!list.length) return '';
+  const rows = [...list].reverse().map((h) => {
+    const stName = _statusLabel(String(h.status || ''));
+    let dDate = '';
+    try {
+      dDate = new Date(h.date).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      dDate = String(h.date || '');
+    }
+    const photos = Array.isArray(h.photos) && h.photos.length ? h.photos : h.photo ? [h.photo] : [];
+    const photosHtml = photos
+      .map(
+        (p) =>
+          `<img src="${_escape(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape(String(p))}" alt="" />`
+      )
+      .join('');
+    return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px]">
+      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape(stName)}</span><span class="text-slate-400">${_escape(dDate)}</span></div>
+      <div class="text-slate-600 dark:text-slate-300">${_escape(h.user || '')}${h.comment ? ` — <i>${_escape(String(h.comment))}</i>` : ''}</div>
+      <div class="flex gap-1 flex-wrap">${photosHtml}</div>
+    </div>`;
+  });
+  return `<div class="w-full mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2 max-h-36 overflow-y-auto" data-c2-history>
+    ${rows.join('')}
+  </div>`;
+}
+
 export function openCreateDefectForm(
   coords: { locationId: string; x: number; y: number },
   onSave: (input: DefectFormCreateInput) => void | Promise<void>,
@@ -67,13 +475,10 @@ export function openCreateDefectForm(
 ): void {
   const root = _ensureOverlay();
   const panel = root.querySelector('[data-c2-defect-panel]') as HTMLElement;
-  const opts = _contractors();
+  const photosRef = { current: [] as string[] };
   const catOpts = DEFECT_CATEGORIES_V2.map(
-    (c) => `<option value="${c}">${_escape(_catLabel(c))}</option>`
+    (c) => `<option value="${c}"${c === 'B2' ? ' selected' : ''}>${_escape(_catLabel(c))}</option>`
   ).join('');
-  const contractorOpts =
-    `<option value="">— без подрядчика —</option>` +
-    opts.map((o) => `<option value="${_escape(o.id)}">${_escape(o.label)}</option>`).join('');
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
@@ -81,17 +486,49 @@ export function openCreateDefectForm(
       <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
     </div>
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${coords.x.toFixed(1)}% × ${coords.y.toFixed(1)}%</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание *</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ (чек-лист) *</label>
+    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+      ${_templateOptionsHtml()}
+    </select>
+    <div class="relative mb-3">
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
+      <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
+        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
+      <input type="hidden" data-c2-item-id />
+      <input type="hidden" data-c2-item-name />
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
+    </div>
+    <div data-c2-norm-block class="hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]">
+          ${catOpts}
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <input type="date" data-c2-defect-deadline
+          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
+      </div>
+    </div>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+      ${_contractorOptionsHtml()}
+    </select>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"></textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
-    <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
-      ${catOpts}
-    </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
-    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-4">
-      ${contractorOpts}
-    </select>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <div data-c2-photo-host>${_renderGallery([])}</div>
+    <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
+    <button type="button" data-c2-photo-add
+      class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      + Добавить фото
+    </button>
     <div class="flex gap-2 justify-end">
       <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Отмена</button>
       <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">Сохранить</button>
@@ -100,6 +537,12 @@ export function openCreateDefectForm(
   root.classList.remove('hidden');
   root.classList.add('flex');
 
+  _bindItemSearch(panel);
+  _bindGallery(panel, photosRef, () => {});
+  panel.querySelector('[data-c2-photo-add]')?.addEventListener('click', () => {
+    (panel.querySelector('[data-c2-photo-input]') as HTMLInputElement)?.click();
+  });
+
   const cancel = () => {
     closeDefectForm();
     onCancel?.();
@@ -107,72 +550,228 @@ export function openCreateDefectForm(
   panel.querySelectorAll('[data-c2-defect-close]').forEach((btn) => {
     btn.addEventListener('click', cancel);
   });
-  // клик по затемнению
   root.onclick = (ev) => {
     if (ev.target === root) cancel();
   };
   panel.querySelector('[data-c2-defect-save]')?.addEventListener('click', async () => {
-    const desc = (panel.querySelector('[data-c2-defect-desc]') as HTMLTextAreaElement)?.value?.trim() || '';
-    if (!desc) {
+    const fields = _readCommonFields(panel);
+    if (!fields.template_key) {
+      window.showToast?.('Выберите вид работ (чек-лист)');
+      return;
+    }
+    if (!fields.item_id && !fields.item_name) {
+      window.showToast?.('Выберите нарушение из списка');
+      return;
+    }
+    const description = fields.description || fields.item_name || '';
+    if (!description) {
       window.showToast?.('Укажите описание замечания');
       return;
     }
-    const category = ((panel.querySelector('[data-c2-defect-cat]') as HTMLSelectElement)?.value ||
-      'major') as DefectCategoryV2;
-    const contractorId =
-      (panel.querySelector('[data-c2-defect-contractor]') as HTMLSelectElement)?.value || '';
     try {
       await onSave({
         locationId: coords.locationId,
         x: coords.x,
         y: coords.y,
-        description: desc,
-        category,
-        contractorId: contractorId || null
+        description,
+        category: fields.category,
+        contractorId: fields.contractorId,
+        deadline: fields.deadline,
+        template_key: fields.template_key,
+        item_id: fields.item_id,
+        item_name: fields.item_name,
+        norm_text: fields.norm_text,
+        photos: photosRef.current.slice()
       });
       closeDefectForm();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      window.showToast?.('❌ ' + (msg));
+      window.showToast?.('❌ ' + msg);
     }
   });
 }
 
+function _actionButtonsHtml(defect: ConstructionDefectV2): string {
+  const { isEngineer, isContractor } = _roleInfo();
+  const st = String(defect.status || 'issued');
+  if (st === 'issued') {
+    if (isContractor) {
+      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">В работу</button>
+        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Фото)</button>`;
+    }
+    if (isEngineer) {
+      return `<button type="button" data-c2-defect-delete class="bg-red-50 text-red-600 py-2.5 px-3 rounded-xl text-[11px] font-bold uppercase border border-red-200">🗑️</button>
+        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+    }
+  } else if (st === 'in_progress') {
+    if (isContractor) {
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Приложить фото)</button>`;
+    }
+    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">Подрядчик взял в работу</div>`;
+  } else if (st === 'fixed') {
+    if (isEngineer) {
+      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">❌ Отклонить</button>
+        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">✅ Принять</button>`;
+    }
+    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">Ожидает проверки инженером</div>`;
+  } else if (st === 'closed') {
+    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">Дефект закрыт</div>`;
+  } else if (st === 'rejected') {
+    if (isContractor) {
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Повторно предъявить (Фото)</button>`;
+    }
+    if (isEngineer) {
+      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+    }
+  }
+  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Закрыть</button>`;
+}
+
 export function openViewDefectForm(
   defect: ConstructionDefectV2,
-  onDelete: (id: string) => void | Promise<void>
+  onDelete: (id: string) => void | Promise<void>,
+  onSave?: (id: string, patch: DefectFormEditInput) => void | Promise<void>,
+  onChangeStatus?: (id: string, input: DefectFormChangeStatusInput) => void | Promise<void>
 ): void {
   const root = _ensureOverlay();
   const panel = root.querySelector('[data-c2-defect-panel]') as HTMLElement;
-  const contractorLabel = (() => {
-    if (!defect.contractorId) return '—';
-    const found = _contractors().find((c) => c.id === defect.contractorId);
-    return found?.label || defect.contractorId;
-  })();
+  const photosRef = {
+    current: Array.isArray(defect.photos)
+      ? defect.photos.slice()
+      : defect.photo
+        ? [String(defect.photo)]
+        : []
+  };
+  const { isEngineer } = _roleInfo();
+  const catOpts = DEFECT_CATEGORIES_V2.map((c) => {
+    const sel = String(defect.category).toUpperCase() === c ? ' selected' : '';
+    return `<option value="${c}"${sel}>${_escape(_catLabel(c))}</option>`;
+  }).join('');
+  const deadlineVal = _deadlineInputValue(defect.deadline);
+  const canEditFields = isEngineer;
+  const disabled = canEditFields ? '' : ' disabled';
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
       <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-2">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
-    <div class="text-[12px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap mb-3">${_escape(defect.description)}</div>
-    <div class="grid grid-cols-2 gap-2 text-[11px] mb-4">
-      <div><span class="text-slate-400 font-bold uppercase text-[9px]">Категория</span><div class="font-bold">${_escape(_catLabel(String(defect.category)))}</div></div>
-      <div><span class="text-slate-400 font-bold uppercase text-[9px]">Статус</span><div class="font-bold">${_escape(String(defect.status || 'open'))}</div></div>
-      <div class="col-span-2"><span class="text-slate-400 font-bold uppercase text-[9px]">Подрядчик</span><div class="font-bold">${_escape(contractorLabel)}</div></div>
+    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape(_statusLabel(String(defect.status)))}</b></p>
+    <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
+    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+      ${_templateOptionsHtml(defect.template_key)}
+    </select>
+    <div class="relative mb-3">
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение</label>
+      <input type="text" data-c2-item-search autocomplete="off" value="${_escape(defect.item_name || '')}"
+        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+      <input type="hidden" data-c2-item-id value="${_escape(defect.item_id || '')}" />
+      <input type="hidden" data-c2-item-name value="${_escape(defect.item_name || '')}" />
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div class="flex gap-2 justify-between">
-      <button type="button" data-c2-defect-delete class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-red-600 border border-red-200">Удалить</button>
-      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Закрыть</button>
+    <div data-c2-norm-block class="${defect.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(defect.norm_text || '')}</div>
+    </div>
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled}>
+          ${catOpts}
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <input type="date" data-c2-defect-deadline value="${_escape(deadlineVal)}"
+          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+      </div>
+    </div>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+      ${_contractorOptionsHtml(defect.contractorId)}
+    </select>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
+    <textarea data-c2-defect-desc rows="3"
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape(defect.description)}</textarea>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
+    ${
+      canEditFields
+        ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
+    <button type="button" data-c2-photo-add
+      class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      + Добавить фото
+    </button>`
+        : `<div class="mb-3"></div>`
+    }
+    ${_historyHtml(defect.history)}
+    <div class="flex gap-2 justify-between mt-3 flex-wrap" data-c2-actions>
+      ${_actionButtonsHtml(defect)}
     </div>`;
 
   root.classList.remove('hidden');
   root.classList.add('flex');
 
+  if (canEditFields) {
+    _bindItemSearch(panel);
+    _bindGallery(panel, photosRef, () => {});
+    panel.querySelector('[data-c2-photo-add]')?.addEventListener('click', () => {
+      (panel.querySelector('[data-c2-photo-input]') as HTMLInputElement)?.click();
+    });
+  } else {
+    panel.querySelectorAll('[data-c2-photo-view]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const ref = (el as HTMLElement).getAttribute('data-c2-photo-view') || '';
+        if (ref) _openPhoto(ref);
+      });
+    });
+  }
+
+  panel.querySelectorAll('[data-c2-history] [data-c2-photo-view]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const ref = (el as HTMLElement).getAttribute('data-c2-photo-view') || '';
+      if (ref) _openPhoto(ref);
+    });
+  });
+
   panel.querySelectorAll('[data-c2-defect-close]').forEach((btn) => {
     btn.addEventListener('click', () => closeDefectForm());
   });
+  root.onclick = (ev) => {
+    if (ev.target === root) closeDefectForm();
+  };
+
+  panel.querySelector('[data-c2-defect-save]')?.addEventListener('click', async () => {
+    if (!onSave) {
+      closeDefectForm();
+      return;
+    }
+    const fields = _readCommonFields(panel);
+    const description = fields.description || fields.item_name || defect.description;
+    if (!description) {
+      window.showToast?.('Укажите описание замечания');
+      return;
+    }
+    try {
+      await onSave(defect.id, {
+        description,
+        category: fields.category,
+        contractorId: fields.contractorId,
+        deadline: fields.deadline,
+        template_key: fields.template_key,
+        item_id: fields.item_id,
+        item_name: fields.item_name,
+        norm_text: fields.norm_text,
+        photos: photosRef.current.slice()
+      });
+      closeDefectForm();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      window.showToast?.('❌ ' + msg);
+    }
+  });
+
   panel.querySelector('[data-c2-defect-delete]')?.addEventListener('click', async () => {
     if (!confirm('Удалить замечание?')) return;
     try {
@@ -180,7 +779,58 @@ export function openViewDefectForm(
       closeDefectForm();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      window.showToast?.('❌ ' + (msg));
+      window.showToast?.('❌ ' + msg);
     }
+  });
+
+  panel.querySelectorAll('[data-c2-status]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!onChangeStatus) return;
+      const status = (btn as HTMLElement).getAttribute('data-c2-status') as DefectStatusV2;
+      let comment: string | null = null;
+      let fixPhotos: string[] = [];
+      if (status === 'rejected') {
+        comment = prompt('Укажите причину отклонения:') || '';
+        if (!comment) {
+          window.showToast?.('⚠️ Для отклонения нужен комментарий');
+          return;
+        }
+      }
+      if (status === 'fixed') {
+        comment = prompt('Краткий комментарий об устранении:');
+        if (comment === null) return;
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = 'image/*';
+        picker.multiple = true;
+        const picked = await new Promise<FileList | null>((resolve) => {
+          picker.onchange = () => resolve(picker.files);
+          picker.oncancel = () => resolve(null);
+          picker.click();
+        });
+        if (!picked || !picked.length) {
+          window.showToast?.('⚠️ Для статуса «Устранено» нужно фото');
+          return;
+        }
+        try {
+          fixPhotos = await _savePhotoFiles(picked);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          window.showToast?.('❌ ' + msg);
+          return;
+        }
+        if (!fixPhotos.length) {
+          window.showToast?.('⚠️ Не удалось сохранить фото');
+          return;
+        }
+      }
+      try {
+        await onChangeStatus(defect.id, { status, comment, photos: fixPhotos });
+        closeDefectForm();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        window.showToast?.('❌ ' + msg);
+      }
+    });
   });
 }

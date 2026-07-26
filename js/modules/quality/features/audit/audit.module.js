@@ -5,6 +5,11 @@
 import './audit.state.js';
 import './audit.actions.js';
 import './audit.render.js';
+import {
+  mountControls as mountQualityPlanPin,
+  updatePinIndicator,
+  seedLocationSuggestions
+} from './features/quality-plan-pin.js';
 
 var _listeners = [];
 
@@ -117,6 +122,15 @@ var AuditModule = {
     if (window.AuditState) window.AuditState.bindCtx(ctx);
 
     bindAuditActionDelegation();
+
+    // Q-pin-1: кнопка «на плане» + индикатор pin (ES-feature, без window.* в feature)
+    try {
+      mountQualityPlanPin();
+      seedLocationSuggestions();
+      updatePinIndicator();
+    } catch (e) {
+      console.warn('[AuditModule] quality-plan-pin mount failed', e);
+    }
 
     // sync:completed → автосохранение сеанса
     on(document, 'sync:completed', function () {

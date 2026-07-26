@@ -554,7 +554,9 @@ async function handleFabExportAction(actionType, mode = 'script') {
     if (mode === 'pptx') {
         const pptxActions = {
             onepager_v2: 1,
+            onepager_v4: 1,
             full_report: 1,
+            full_report_v2: 1,
             global_onepager_v2: 1,
             poster: 1,
             defect_remediation: 1
@@ -641,8 +643,10 @@ async function handleFabExportAction(actionType, mode = 'script') {
             await exportPdfOnePager(data, mode); // Старый fallback
         } else if (actionType === 'onepager_v2') {
             await exportPdfOnePagerV2(data, mode);
-        } else if (actionType === 'onepager_v3') {
-            await exportPdfOnePagerV3(data, mode);
+        } else if (actionType === 'onepager_v4') {
+            await exportPdfOnePagerV4(data, mode);
+        } else if (actionType === 'full_report_v2') {
+            await exportPdfFullObjectReportV2(data, mode);
         } else if (actionType === 'global_onepager_v2') {
             await exportPdfGlobalOnePagerV2(data, mode);
         } else if (actionType === 'global_onepager_v3') {
@@ -1112,7 +1116,7 @@ function classifyDocKind(title) {
     if (title.includes('Плакат Качества')) return 'Плакат качества';
     if (title.includes('Повторяющиеся дефекты')) return 'Повторяющиеся дефекты';
     if (title.includes('Паспорта Подрядчиков') || title.includes('Список подрядчиков') || title.includes('Срез:') || title.includes('Отчет для')) return 'Отчёт по подрядчику';
-    if (title.includes('Сводка для Руководства') || title.includes('One-Pager 2.0') || title.includes('Сводный отчет по объект') || title.includes('Полный отчет по объекту') || title.includes('База проверок')) return 'Сводный отчёт';
+    if (title.includes('Сводка для Руководства') || title.includes('One-Pager 2.0') || title.includes('One-Pager 4.0') || title.includes('Отчёт по объекту 2.0') || title.includes('Сводный отчет по объект') || title.includes('Полный отчет по объекту') || title.includes('База проверок')) return 'Сводный отчёт';
     return 'Прочее';
 }
 
@@ -3982,14 +3986,71 @@ async function exportPdfOnePagerV2(data, mode = 'script') {
 }
 
 /**
- * One-Pager 3.0 — то же содержание, что 2.0, на A1 landscape (×2).
- * Старые onepager / onepager_v2 не трогаем.
+ * Строгий визуальный слой (Times + серые рамки) поверх HTML OP2 / карточек подрядчиков.
+ * Метрики не пересчитываются — только оформление как у TWI / практик.
  */
-async function exportPdfOnePagerV3(data, mode = 'script') {
-    const built = await buildOnePagerV2Html(data, { pageFormat: 'A1' });
+function _skinStrictExecutiveHtml(html) {
+    let s = String(html || '');
+    const pairs = [
+        [/#4f46e5/gi, '#374151'],
+        [/#6366f1/gi, '#4b5563'],
+        [/#4338ca/gi, '#1f2937'],
+        [/#312e81/gi, '#111827'],
+        [/#818cf8/gi, '#6b7280'],
+        [/#a5b4fc/gi, '#9ca3af'],
+        [/#c7d2fe/gi, '#d1d5db'],
+        [/#e0e7ff/gi, '#f3f4f6'],
+        [/#eef2ff/gi, '#f8fafc'],
+        [/#f5f7ff/gi, '#f8fafc'],
+        [/border-radius:\s*[\d.]+(?:px|rem|%)/gi, 'border-radius:0'],
+        [/font-family:\s*[^;"']+/gi, "font-family:'Times New Roman',Georgia,serif"],
+        [/Bricolage Grotesque/gi, 'Times New Roman']
+    ];
+    pairs.forEach(([re, to]) => { s = s.replace(re, to); });
+    return `<div style="font-family:'Times New Roman',Georgia,serif;color:#111827;box-sizing:border-box;">${s}</div>`;
+}
+
+/**
+ * One-Pager 4.0 — те же метрики, что OP2, строгий Times/серый стиль, A3 landscape.
+ */
+async function buildOnePagerV4Html(data, opts = {}) {
+    const built = await buildOnePagerV2Html(data, { ...opts, pageFormat: 'A3' });
+    if (!built) return null;
+    const baseTitle = String(built.shellTitle || 'Сводный отчет')
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+    const shellTitle = baseTitle.startsWith('One-Pager 4.0')
+        ? baseTitle
+        : (`One-Pager 4.0 · ` + baseTitle.replace(/^Сводный отчет\s*/i, '').trim());
+    const escTitle = (t) => String(t || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return {
+        shellTitle: escTitle(shellTitle),
+        content: _skinStrictExecutiveHtml(built.content),
+        headerOpts: {
+            ...(built.headerOpts || {}),
+            qrPx: 52,
+            logoH: 44,
+            logoMaxW: 150,
+            marginBottom: 6,
+            paddingBottom: 4,
+            titlePx: 13,
+            dense: true,
+            wrapTitle: true,
+            titleTooltip: escTitle(shellTitle)
+        },
+        pageFormat: 'A3'
+    };
+}
+
+async function exportPdfOnePagerV4(data, mode = 'script') {
+    const built = await buildOnePagerV4Html(data);
     if (!built) return showToast('Нет данных для выгрузки');
-    printPdfShell(built.shellTitle, built.content, 'A1', 'landscape', mode, {
-        headerOpts: built.headerOpts
+    printPdfShell(built.shellTitle, built.content, 'A3', 'landscape', mode, {
+        headerOpts: built.headerOpts,
+        allowFlowPages: false
     });
 }
 
@@ -6618,6 +6679,46 @@ async function exportPdfFullObjectReport(data, mode = 'script') {
     await printPdfShell(shellTitle, content, 'A3', 'landscape', mode, {
         allowFlowPages: true,
         headerOpts: op2.headerOpts || null
+    });
+}
+
+/**
+ * Карточка подрядчика для отчёта 2.0 — та же логика, строгий Times/серый skin.
+ */
+async function buildContractorMeetingSlidesV2(cObj, mode, opts) {
+    const raw = await buildContractorMeetingSlides(cObj, mode, opts);
+    return _skinStrictExecutiveHtml(raw);
+}
+
+/**
+ * Отчёт по объекту 2.0: титул One-Pager 4.0 + строгие карточки подрядчиков (A3).
+ * full_report (v1) не трогаем.
+ */
+async function exportPdfFullObjectReportV2(data, mode = 'script') {
+    if (!data || data.length === 0) return showToast('Нет данных для выгрузки');
+
+    showToast('⚙️ Собираем отчёт по объекту 2.0…');
+    const cList = _meetingGroupContractors(data);
+    if (cList.length === 0) return showToast('Нет подрядчиков в текущей выборке');
+
+    const op4 = await buildOnePagerV4Html(data, { mode: mode });
+    if (!op4 || !op4.content) return showToast('Нет данных для выгрузки');
+
+    let content = op4.content;
+    for (let i = 0; i < cList.length; i++) {
+        content += await buildContractorMeetingSlidesV2(cList[i], mode, { pageBreakFirst: true });
+    }
+
+    const shellTitle = 'Отчёт по объекту 2.0 | ' + String(op4.shellTitle || '')
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/^One-Pager 4\.0 ·\s*/i, '');
+
+    await printPdfShell(shellTitle, content, 'A3', 'landscape', mode, {
+        allowFlowPages: true,
+        headerOpts: op4.headerOpts || null
     });
 }
 
@@ -10092,195 +10193,205 @@ export const ReportsActions = {
     },
 
     /**
-     * Печать практики — A3 landscape, 1–3 слайда без клипа, фото object-fit:contain.
+     * Печать практики — строгий A4 portrait (как TWI/эталон).
+     * Один и тот же HTML для PDF (mode=script) и печати на принтере (mode=browser).
      */
     async printPractice(id, mode = 'browser') {
         const p = _getPractices().find(x => x.id === id);
         if (!p) return;
 
         const esc = (s) => escapeHtml(String(s || ''));
-        const clip = (s, max) => {
-            const t = String(s || '').replace(/\s+/g, ' ').trim();
-            if (t.length <= max) return t;
-            return `${t.slice(0, max - 1).trim()}…`;
-        };
+        const fs = (pt, px) => (mode === 'browser' ? pt : px);
+        const text = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
-        const beforeUrls = (p.photosBefore && p.photosBefore.length) ? p.photosBefore.filter(Boolean) : (p.photoBefore ? [p.photoBefore] : []);
+        const beforeUrls = (p.photosBefore && p.photosBefore.length)
+            ? p.photosBefore.filter(Boolean)
+            : (p.photoBefore ? [p.photoBefore] : []);
         const processUrls = (p.photosProcess || []).filter(Boolean);
-        const afterUrls = (p.photosAfter && p.photosAfter.length) ? p.photosAfter.filter(Boolean) : (p.photoAfter ? [p.photoAfter] : []);
+        const afterUrls = (p.photosAfter && p.photosAfter.length)
+            ? p.photosAfter.filter(Boolean)
+            : (p.photoAfter ? [p.photoAfter] : []);
         const docs = Array.isArray(p.docs) ? p.docs : [];
-        const takeaway = String(p.takeaway || '').trim() || clip(p.solution, 220);
-
-        const needProcessPage = processUrls.length > 0 || beforeUrls.length > 2 || afterUrls.length > 2;
-        const needClosingPage = docs.length > 0 || !!String(p.takeaway || '').trim();
+        const takeaway = text(p.takeaway) || text(p.solution);
+        const dateLabel = p.date
+            ? new Date(p.date).toLocaleDateString('ru-RU')
+            : new Date().toLocaleDateString('ru-RU');
+        const author = p.author || p.owner || _getSetting('engineerName') || 'Инженер';
+        const deltaLabel = Number(p.deltaUrk) > 0
+            ? `+${Number(p.deltaUrk)}% УрК`
+            : 'Опыт с площадки';
 
         const resolveUrl = async (url) => {
             if (!url) return '';
-            return (await PhotoManager.getAsyncUrl(url)) || window.getPhotoSrc(url) || url;
+            return (await PhotoManager.getAsyncUrl(url)) || window.getPhotoSrc(url) || '';
         };
 
-        const photoFrame = async (url, height) => {
+        // Акцент на фото (как в PPTX): крупные кадры, текст вторичен
+        const photoH = mode === 'browser' ? '72mm' : '260px';
+        const processH = mode === 'browser' ? '58mm' : '210px';
+
+        const figCell = async (url, caption, widthPct) => {
             const real = await resolveUrl(url);
-            if (!real) {
-                return `<div style="height:${height}px;border:1px dashed #cbd5e1;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;font-weight:700;">Нет фото</div>`;
-            }
-            return `<div style="height:${height}px;background:#e2e8f0;border-radius:10px;border:1px solid #cbd5e1;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                <img src="${esc(real)}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" alt="">
-            </div>`;
+            return `
+                <td class="no-break" style="width:${widthPct}%;vertical-align:top;padding:4px;box-sizing:border-box;">
+                    <div style="border:1px solid #9ca3af;background:#fafafa;padding:8px 8px 6px;box-sizing:border-box;">
+                        ${real
+                            ? `<div style="height:${photoH};display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;background:#fff;padding:4px;box-sizing:border-box;">
+                                    <img src="${esc(real)}" alt="${esc(caption)}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
+                               </div>`
+                            : `<div style="height:${photoH};display:flex;align-items:center;justify-content:center;border:1px dashed #9ca3af;background:#fff;color:#6b7280;font-size:${fs('8pt', '10px')};font-weight:700;">Нет фото</div>`}
+                        <div style="margin-top:6px;font-size:${fs('8pt', '9px')};font-weight:700;color:#4b5563;text-align:center;">${esc(caption)}</div>
+                    </div>
+                </td>`;
         };
 
-        const renderPhotoStack = async (urls, opts = {}) => {
-            const max = opts.max || 2;
-            const height = opts.height || 320;
-            const list = (urls || []).slice(0, max);
+        const renderPhotoPairs = async (urls, prefix) => {
+            const list = (urls || []).slice(0, 4);
             if (!list.length) {
-                return `<div style="height:${Math.min(height, 160)}px;border:1px dashed #cbd5e1;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;font-weight:700;">Нет фото</div>`;
+                return `<div style="border:1px dashed #9ca3af;padding:18px;text-align:center;color:#6b7280;font-size:${fs('9pt', '11px')};font-weight:700;">Нет фото</div>`;
             }
-            const parts = [];
-            const cellH = list.length > 1 ? Math.max(140, Math.floor(height / list.length) - 6) : height;
-            for (let i = 0; i < list.length; i++) {
-                parts.push(`<div style="margin-bottom:${i < list.length - 1 ? '8px' : '0'};">${await photoFrame(list[i], cellH)}</div>`);
+            let html = '';
+            for (let i = 0; i < list.length; i += 2) {
+                const left = list[i];
+                const right = list[i + 1];
+                if (right) {
+                    html += `<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 6px 0;"><tr>
+                        ${await figCell(left, `Рис. ${prefix}.${i + 1}`, 50)}
+                        ${await figCell(right, `Рис. ${prefix}.${i + 2}`, 50)}
+                    </tr></table>`;
+                } else {
+                    html += `<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 6px 0;"><tr>
+                        ${await figCell(left, `Рис. ${prefix}.${i + 1}`, 100)}
+                    </tr></table>`;
+                }
             }
-            return parts.join('');
+            return html;
         };
 
-        const renderProcessGrid = async (urls) => {
-            const list = (urls || []).slice(0, 6);
-            if (!list.length) return '';
-            const cols = list.length === 1 ? 1 : (list.length <= 4 ? 2 : 3);
-            const cellH = list.length <= 2 ? 280 : (list.length <= 4 ? 220 : 170);
-            const cells = [];
-            for (let i = 0; i < list.length; i++) {
-                cells.push(`<td style="width:${Math.floor(100 / cols)}%;padding:6px;vertical-align:top;">${await photoFrame(list[i], cellH)}</td>`);
-            }
+        const stageBlock = async (title, body, urls, prefix, border, bg, fg) => `
+            <td class="no-break" style="width:50%;vertical-align:top;padding:4px;box-sizing:border-box;">
+                <div style="border:2px solid ${border};background:${bg};padding:12px 12px 10px;box-sizing:border-box;">
+                    <div style="font-size:${fs('9pt', '11px')};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${fg};margin-bottom:8px;">${title}</div>
+                    <div style="font-size:${fs('10pt', '12px')};font-weight:600;color:#1e293b;line-height:1.45;margin-bottom:10px;white-space:pre-wrap;">${esc(body || '—')}</div>
+                    ${await renderPhotoPairs(urls, prefix)}
+                </div>
+            </td>`;
+
+        let processHtml = '';
+        if (processUrls.length) {
+            const list = processUrls.slice(0, 6);
+            const cols = list.length === 1 ? 1 : 2;
             let rows = '';
-            for (let i = 0; i < cells.length; i += cols) {
-                rows += `<tr>${cells.slice(i, i + cols).join('')}</tr>`;
+            for (let i = 0; i < list.length; i += cols) {
+                const cells = [];
+                for (let c = 0; c < cols; c++) {
+                    const url = list[i + c];
+                    if (!url) {
+                        cells.push(`<td style="width:${Math.floor(100 / cols)}%;padding:4px;"></td>`);
+                        continue;
+                    }
+                    const real = await resolveUrl(url);
+                    const cap = `Рис. П.${i + c + 1}`;
+                    cells.push(`
+                        <td class="no-break" style="width:${Math.floor(100 / cols)}%;vertical-align:top;padding:4px;box-sizing:border-box;">
+                            <div style="border:1px solid #9ca3af;background:#fafafa;padding:8px 8px 6px;box-sizing:border-box;">
+                                ${real
+                                    ? `<div style="height:${processH};display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;background:#fff;padding:4px;box-sizing:border-box;">
+                                            <img src="${esc(real)}" alt="${esc(cap)}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;">
+                                       </div>`
+                                    : `<div style="height:${processH};border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:${fs('8pt', '10px')};font-weight:700;">Нет фото</div>`}
+                                <div style="margin-top:6px;font-size:${fs('8pt', '9px')};font-weight:700;color:#4b5563;text-align:center;">${esc(cap)}</div>
+                            </div>
+                        </td>`);
+                }
+                rows += `<tr>${cells.join('')}</tr>`;
             }
-            return `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">${rows}</table>`;
-        };
+            processHtml = `
+                <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:16px 0 10px 0;">2. Ход работ · процесс на площадке</div>
+                <table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 12px 0;">${rows}</table>`;
+        }
 
-        const dateLabel = p.date ? new Date(p.date).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
-        const badge = Number(p.deltaUrk) > 0
-            ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:900;">+${Number(p.deltaUrk)}% УрК</span>`
-            : `<span style="display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:900;">Опыт с площадки</span>`;
+        const docsHtml = docs.length
+            ? docs.map((d) => `<div style="font-size:${fs('9pt', '11px')};font-weight:600;color:#1e293b;padding:5px 0;border-bottom:1px solid #e5e7eb;">• ${esc(d.name || 'Документ')}${d.desc ? ` — ${esc(d.desc)}` : ''}</div>`).join('')
+            : `<div style="font-size:${fs('9pt', '11px')};color:#6b7280;font-weight:600;">Документы не прикреплены</div>`;
 
-        const pageShell = (inner, pageNo, total) => `
-            <div style="font-family:'Bricolage Grotesque',Verdana,sans-serif;box-sizing:border-box;page-break-inside:avoid;break-inside:avoid;">
-                ${inner}
-                <div style="font-size:10px;color:#94a3b8;font-weight:700;text-align:right;margin-top:10px;">Слайд ${pageNo}/${total} · Лучшие практики</div>
-            </div>`;
-
-        const titleBand = `
-            <div style="margin-bottom:14px;">
-                <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">
-                    ${esc(p.templateTitle || 'Практика')} · ${esc(p.projectName || 'Объект')} · ${esc(dateLabel)}
-                </div>
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-                    <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1.15;text-transform:uppercase;flex:1;">${esc(p.title)}</div>
-                    <div style="flex-shrink:0;">${badge}</div>
-                </div>
-            </div>`;
-
-        const beforeMain = beforeUrls.slice(0, 2);
-        const afterMain = afterUrls.slice(0, 2);
-        const beforeExtra = beforeUrls.slice(2, 4);
-        const afterExtra = afterUrls.slice(2, 4);
-
-        const photoH = needClosingPage || needProcessPage ? 360 : 300;
-        const imgBeforeHtml = await renderPhotoStack(beforeMain, { max: 2, height: photoH });
-        const imgAfterHtml = await renderPhotoStack(afterMain, { max: 2, height: photoH });
-
-        const total = 1 + (needProcessPage ? 1 : 0) + (needClosingPage ? 1 : 0);
-        const takeawayOnPage1 = !needClosingPage
-            ? `<div style="margin-top:14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:12px 14px;">
-                    <div style="font-size:11px;font-weight:900;color:#3730a3;text-transform:uppercase;margin-bottom:4px;">Ключевой вывод</div>
-                    <div style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.35;">${esc(clip(takeaway, 280))}</div>
-               </div>`
-            : '';
-
-        let content = pageShell(`
-            ${titleBand}
-            <table style="width:100%;border-collapse:separate;border-spacing:12px 0;table-layout:fixed;">
+        const closingHtml = (takeaway || docs.length) ? `
+            <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:16px 0 10px 0;">${processUrls.length ? '3' : '2'}. Ключевой вывод и материалы</div>
+            <table class="no-break" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 8px 0;">
                 <tr>
-                    <td style="width:50%;vertical-align:top;background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:14px 16px;">
-                        <div style="font-size:12px;font-weight:900;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Было · проблема</div>
-                        <div style="font-size:13px;font-weight:600;color:#1e293b;line-height:1.4;margin-bottom:12px;min-height:48px;">${esc(clip(p.problem, 280))}</div>
-                        ${imgBeforeHtml}
+                    <td style="width:58%;vertical-align:top;padding:4px;box-sizing:border-box;">
+                        <div style="border:1px solid #9ca3af;background:#f8fafc;padding:12px 14px;box-sizing:border-box;min-height:120px;">
+                            <div style="font-size:${fs('9pt', '11px')};font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Ключевой вывод</div>
+                            <div style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;line-height:1.4;white-space:pre-wrap;">${esc(takeaway || '—')}</div>
+                        </div>
                     </td>
-                    <td style="width:50%;vertical-align:top;background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:14px 16px;">
-                        <div style="font-size:12px;font-weight:900;color:#166534;text-transform:uppercase;margin-bottom:8px;">Стало · решение</div>
-                        <div style="font-size:13px;font-weight:600;color:#14532d;line-height:1.4;margin-bottom:12px;min-height:48px;">${esc(clip(p.solution, 280))}</div>
-                        ${imgAfterHtml}
+                    <td style="width:42%;vertical-align:top;padding:4px;box-sizing:border-box;">
+                        <div style="border:1px solid #9ca3af;background:#fff;padding:12px 14px;box-sizing:border-box;min-height:120px;">
+                            <div style="font-size:${fs('9pt', '11px')};font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Материалы</div>
+                            ${docsHtml}
+                        </div>
                     </td>
                 </tr>
-            </table>
-            ${takeawayOnPage1}
-        `, 1, total);
+            </table>` : '';
 
-        let pageNo = 1;
-
-        if (needProcessPage) {
-            pageNo += 1;
-            const processHtml = processUrls.length ? await renderProcessGrid(processUrls) : '';
-            const extraBefore = beforeExtra.length ? await renderPhotoStack(beforeExtra, { max: 2, height: 180 }) : '';
-            const extraAfter = afterExtra.length ? await renderPhotoStack(afterExtra, { max: 2, height: 180 }) : '';
-            const extraBlock = (beforeExtra.length || afterExtra.length) ? `
-                <table style="width:100%;border-collapse:separate;border-spacing:10px 0;table-layout:fixed;margin-top:10px;">
+        const content = `
+            <div style="font-family:'Times New Roman',Georgia,serif;box-sizing:border-box;color:#111827;">
+                <table class="no-break" style="width:100%;border-collapse:collapse;margin:0 0 14px 0;font-size:${fs('9pt', '11px')};color:#0f172a;">
                     <tr>
-                        <td style="width:50%;vertical-align:top;">
-                            ${beforeExtra.length ? `<div style="font-size:11px;font-weight:900;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Было · доп. кадры</div>${extraBefore}` : ''}
-                        </td>
-                        <td style="width:50%;vertical-align:top;">
-                            ${afterExtra.length ? `<div style="font-size:11px;font-weight:900;color:#166534;text-transform:uppercase;margin-bottom:6px;">Стало · доп. кадры</div>${extraAfter}` : ''}
-                        </td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;width:32%;color:#4b5563;">Вид работ / контекст</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(p.templateTitle || 'Практика')}</td>
                     </tr>
-                </table>` : '';
-
-            content += '<div class="pdf-page-break page-break-before" style="page-break-before:always;break-before:page;"></div>' + pageShell(`
-                ${titleBand}
-                <div style="font-size:14px;font-weight:900;color:#1e40af;text-transform:uppercase;margin-bottom:10px;">
-                    ${processUrls.length ? 'Ход работ · процесс на площадке' : 'Дополнительные кадры'}
-                </div>
-                ${processHtml || '<div style="color:#94a3b8;font-weight:700;">Нет фото процесса — показаны дополнительные кадры Было/Стало</div>'}
-                ${extraBlock}
-                <div style="margin-top:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
-                    <div style="font-size:11px;font-weight:900;color:#64748b;text-transform:uppercase;margin-bottom:4px;">Суть решения</div>
-                    <div style="font-size:13px;font-weight:600;color:#0f172a;line-height:1.4;">${esc(clip(p.solution, 360))}</div>
-                </div>
-            `, pageNo, total);
-        }
-
-        if (needClosingPage) {
-            pageNo += 1;
-            const docsHtml = docs.length
-                ? docs.map((d) => `<div style="font-size:13px;font-weight:600;color:#1e293b;padding:6px 0;border-bottom:1px solid #f1f5f9;">• ${esc(d.name)}${d.desc ? ` — ${esc(d.desc)}` : ''}</div>`).join('')
-                : `<div style="font-size:12px;color:#94a3b8;font-weight:600;">Документы не прикреплены</div>`;
-            content += '<div class="pdf-page-break page-break-before" style="page-break-before:always;break-before:page;"></div>' + pageShell(`
-                ${titleBand}
-                <table style="width:100%;border-collapse:separate;border-spacing:12px 0;table-layout:fixed;">
                     <tr>
-                        <td style="width:55%;vertical-align:top;background:#eef2ff;border:2px solid #c7d2fe;border-radius:14px;padding:18px 20px;">
-                            <div style="font-size:12px;font-weight:900;color:#3730a3;text-transform:uppercase;margin-bottom:10px;">Ключевой вывод</div>
-                            <div style="font-size:18px;font-weight:800;color:#0f172a;line-height:1.35;">${esc(clip(takeaway, 420))}</div>
-                            <div style="margin-top:16px;font-size:12px;font-weight:700;color:#64748b;">
-                                Закрепить на аналогичных работах · ${esc(p.templateTitle || '')}
-                            </div>
-                        </td>
-                        <td style="width:45%;vertical-align:top;background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:18px 20px;">
-                            <div style="font-size:12px;font-weight:900;color:#64748b;text-transform:uppercase;margin-bottom:10px;">Материалы</div>
-                            ${docsHtml}
-                        </td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Объект</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(p.projectName || '—')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Автор</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(author)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;background:#f8fafc;font-weight:700;color:#4b5563;">Эффект / дата</td>
+                        <td style="padding:8px 10px;border:1px solid #9ca3af;font-weight:700;">${esc(deltaLabel)} · ${esc(dateLabel)}</td>
                     </tr>
                 </table>
-            `, pageNo, total);
-        }
 
+                <div class="no-break" style="font-size:${fs('14pt', '16px')};font-weight:700;color:#0f172a;margin:0 0 12px 0;line-height:1.25;text-transform:uppercase;">
+                    ${esc(p.title || 'Лучшая практика')}
+                </div>
+
+                <div class="no-break" style="font-size:${fs('11pt', '13px')};font-weight:700;color:#0f172a;margin:0 0 10px 0;">1. Было / Стало</div>
+                <table class="no-break" style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0 0 8px 0;">
+                    <tr>
+                        ${await stageBlock('Было · проблема', p.problem, beforeUrls, 'Б', '#6b7280', '#f8fafc', '#374151')}
+                        ${await stageBlock('Стало · решение', p.solution, afterUrls, 'С', '#16a34a', '#f0fdf4', '#166534')}
+                    </tr>
+                </table>
+
+                ${processHtml}
+                ${closingHtml}
+
+                <div style="font-size:${fs('8pt', '10px')};font-weight:600;color:#6b7280;text-align:center;border-top:1px solid #9ca3af;padding-top:8px;margin-top:8px;">
+                    Лучшая практика · ${esc(author)} · ${esc(dateLabel)}
+                </div>
+            </div>`;
+
+        const shellTitle = `Практика: ${p.title || 'Без названия'}`;
         if (typeof printPdfShell === 'function') {
-            printPdfShell(`Практика: ${p.title}`, content, 'A3', 'landscape', mode, {
-                author: p.author || _getSetting('engineerName') || 'Инженер',
+            printPdfShell(shellTitle, content, 'A4', 'portrait', mode, {
+                author,
                 period: `с ${dateLabel} по ${dateLabel}`,
-                allowFlowPages: true
+                allowFlowPages: true,
+                headerOpts: {
+                    qrPx: 52,
+                    logoH: 44,
+                    logoMaxW: 150,
+                    marginBottom: 8,
+                    paddingBottom: 6,
+                    titlePx: 14,
+                    dense: true,
+                    wrapTitle: true,
+                    titleTooltip: shellTitle
+                }
             });
         }
     },
@@ -10916,12 +11027,14 @@ if (typeof window !== 'undefined') {
     // Группа G1 закрыта этим присвоением целиком.
     window.exportPdfOnePager = exportPdfOnePager;
     window.exportPdfOnePagerV2 = exportPdfOnePagerV2;
-    window.exportPdfOnePagerV3 = exportPdfOnePagerV3;
+    window.exportPdfOnePagerV4 = exportPdfOnePagerV4;
     window.exportPdfGlobalOnePager = exportPdfGlobalOnePager;
     window.exportPdfGlobalOnePagerV2 = exportPdfGlobalOnePagerV2;
     window.exportPdfGlobalOnePagerV3 = exportPdfGlobalOnePagerV3;
     window.exportPdfCurrentScreen = exportPdfCurrentScreen;
     window.exportPdfFullObjectReport = exportPdfFullObjectReport;
+    window.exportPdfFullObjectReportV2 = exportPdfFullObjectReportV2;
+    window.buildOnePagerV4Html = buildOnePagerV4Html;
     window.exportPdfPoster = exportPdfPoster;
 
     // Обратная совместимость (Фаза физического переноса G2): 13 функций

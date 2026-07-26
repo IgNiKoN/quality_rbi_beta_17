@@ -308,6 +308,24 @@ function analyticsTabCanReusePaint(tabId) {
 }
 window.analyticsTabCanReusePaint = analyticsTabCanReusePaint;
 
+/**
+ * Отпечаток фильтров расходится с последним успешным paint.
+ * Только фильтры (не dataSig): иначе тихий sync снова full-render'ил бы
+ * «живой» DOM. Нужен flush после sync-defer, когда UI кнопки уже обновлён.
+ */
+function analyticsFilterPaintIsStale() {
+    return _analyticsFilterFingerprint() !== _analyticsFilterFp;
+}
+window.analyticsFilterPaintIsStale = analyticsFilterPaintIsStale;
+
+/** Сброс кэша paint при apply мультифильтра (до отложенного render). */
+function invalidateAnalyticsFilterCache() {
+    _analyticsFilteredCache = null;
+    _analyticsFilterFp = '';
+    _analyticsRenderedTabs.clear();
+}
+window.invalidateAnalyticsFilterCache = invalidateAnalyticsFilterCache;
+
 /** Пометить подвкладку как отрисованную (async-пайплайны вроде ПК СК / График). */
 function analyticsMarkTabPainted(tabId) {
     if (!tabId) return;

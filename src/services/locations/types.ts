@@ -1,4 +1,4 @@
-export type NodeType = 'object' | 'building' | 'section' | 'floor';
+export type NodeType = 'object' | 'building' | 'section' | 'floor' | 'apartment';
 
 export interface LocationNode {
   id: string;
@@ -41,11 +41,12 @@ export interface FloorPlan {
   _deleted?: boolean;
 }
 
-export const NODE_TYPES: NodeType[] = ['object', 'building', 'section', 'floor'];
+export const NODE_TYPES: NodeType[] = ['object', 'building', 'section', 'floor', 'apartment'];
 
 export const CHILD_OF: Record<NodeType, NodeType | null> = {
   object: null,
   building: 'object',
   section: 'building',
-  floor: 'section'
+  floor: 'section',
+  apartment: 'floor'
 };

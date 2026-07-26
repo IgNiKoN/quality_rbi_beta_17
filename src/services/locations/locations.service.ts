@@ -5,6 +5,8 @@
 
 import type { FloorPlan, LocationNode, NodeType } from './types';
 import { CHILD_OF, NODE_TYPES } from './types';
+import { attachObjectBridge } from './object-bridge';
+import { migrateOdCatalogToLocations as runOdMigrate, type OdMigrateReport } from './od-migrate';
 
 let _nodes: LocationNode[] = [];
 let _plans: FloorPlan[] = [];
@@ -163,6 +165,7 @@ export const LocationsService = {
     parentId?: string | null;
     sort_order?: number;
     canonical_key?: string;
+    synonyms?: string[];
   }): Promise<LocationNode> {
     if (!NODE_TYPES.includes(input.nodeType)) throw new Error('Некорректный nodeType');
     const name = String(input.displayName || '').trim();
@@ -179,7 +182,7 @@ export const LocationsService = {
       displayName: name,
       canonical_key: input.canonical_key || '',
       sort_order: input.sort_order != null ? input.sort_order : siblings.length + 1,
-      synonyms: [],
+      synonyms: Array.isArray(input.synonyms) ? input.synonyms.map((s) => String(s || '').trim()).filter(Boolean) : [],
       created_by: window.syncConfig?.engineerName || '',
       is_deleted: false,
       deleted_at: null,
@@ -195,7 +198,10 @@ export const LocationsService = {
     return node;
   },
 
-  async updateNode(id: string, patch: Partial<Pick<LocationNode, 'displayName' | 'sort_order' | 'canonical_key'>>): Promise<LocationNode> {
+  async updateNode(
+    id: string,
+    patch: Partial<Pick<LocationNode, 'displayName' | 'sort_order' | 'canonical_key' | 'synonyms'>>
+  ): Promise<LocationNode> {
     const cur = _nodes.find((n) => n.id === id);
     if (!cur || cur.is_deleted || cur._deleted) throw new Error('Узел не найден');
     const next: LocationNode = {
@@ -203,6 +209,12 @@ export const LocationsService = {
       displayName: patch.displayName != null ? String(patch.displayName).trim() || cur.displayName : cur.displayName,
       sort_order: patch.sort_order != null ? patch.sort_order : cur.sort_order,
       canonical_key: patch.canonical_key != null ? patch.canonical_key : cur.canonical_key,
+      synonyms:
+        patch.synonyms !== undefined
+          ? Array.isArray(patch.synonyms)
+            ? patch.synonyms.map((s) => String(s || '').trim()).filter(Boolean)
+            : cur.synonyms
+          : cur.synonyms,
       updated_at: _now(),
       version: (cur.version || 1) + 1,
       syncStatus: 'not_synced',
@@ -214,9 +226,16 @@ export const LocationsService = {
     return next;
   },
 
-  async softDeleteNode(id: string): Promise<LocationNode> {
+  /**
+   * Soft-delete узла + потомков.
+   * floor → softDelete связанного PDF-плана.
+   * apartment → softDelete связанного construction_units_v2 (locationId=apartment.id),
+   *   без обратного каскада на этот же apartment (`skipLinkedUnit` / units.skipApartment).
+   */
+  async softDeleteNode(id: string, opts?: { skipLinkedUnit?: boolean }): Promise<LocationNode> {
     const cur = _nodes.find((n) => n.id === id);
     if (!cur) throw new Error('Узел не найден');
+    if (cur.is_deleted || cur._deleted) return cur;
     const kids = this.getChildren(id);
     for (const k of kids) {
       await this.softDeleteNode(k.id);
@@ -224,6 +243,20 @@ export const LocationsService = {
     if (cur.nodeType === 'floor') {
       const plan = this.getPlanForFloor(id);
       if (plan) await this.softDeletePlan(plan.id);
+    }
+    if (cur.nodeType === 'apartment' && !opts?.skipLinkedUnit) {
+      const unitsSvc = window.RBI?.services?.constructionUnits as
+        | {
+            list?: (o: { locationId: string }) => { id: string }[];
+            softDelete?: (uid: string, o?: { skipApartment?: boolean }) => Promise<unknown>;
+          }
+        | undefined;
+      if (unitsSvc?.list && unitsSvc?.softDelete) {
+        const linked = unitsSvc.list({ locationId: id }) || [];
+        for (const u of linked) {
+          await unitsSvc.softDelete(u.id, { skipApartment: true });
+        }
+      }
     }
     const next: LocationNode = {
       ...cur,
@@ -363,7 +396,66 @@ export const LocationsService = {
       pdf_size: String(file.size || ''),
       name: floor.displayName
     });
+  },
+
+  // --- ObjectDirectory ↔ locations.object bridge (C1) ---
+  resolveObjectLink(input?: {
+    canonical_key?: string;
+    displayName?: string;
+    locationObjectId?: string;
+  }) {
+    return _bridge().resolveObjectLink(input);
+  },
+
+  listUnlinkedObjects() {
+    return _bridge().listUnlinkedObjects();
+  },
+
+  ensureCanonicalLink(opts: {
+    locationObjectId?: string;
+    odCanonicalKey?: string;
+    createMissing?: 'od' | 'location' | null;
+  }) {
+    return _bridge().ensureCanonicalLink(opts);
+  },
+
+  linkLocationToOd(locationObjectId: string, odCanonicalKey?: string) {
+    return _bridge().linkLocationToOd(locationObjectId, odCanonicalKey);
+  },
+
+  createOdFromLocation(locationObjectId: string) {
+    return _bridge().createOdFromLocation(locationObjectId);
+  },
+
+  createLocationFromOd(odCanonicalKey: string) {
+    return _bridge().createLocationFromOd(odCanonicalKey);
+  },
+
+  cleanObjectName(str: string) {
+    return _bridge().cleanObjectName(str);
+  },
+
+  /** C2: идемпотентная миграция OD → locations.object (+ synonyms). */
+  migrateOdCatalogToLocations(opts?: { dryRun?: boolean }): Promise<OdMigrateReport> {
+    return runOdMigrate(
+      {
+        listNodes: (o) => LocationsService.listNodes(o),
+        getNode: (id) => LocationsService.getNode(id),
+        updateNode: (id, patch) => LocationsService.updateNode(id, patch),
+        createNode: (input) => LocationsService.createNode(input)
+      },
+      opts || {}
+    );
   }
 };
+
+function _bridge() {
+  return attachObjectBridge({
+    listNodes: (opts) => LocationsService.listNodes(opts),
+    getNode: (id) => LocationsService.getNode(id),
+    updateNode: (id, patch) => LocationsService.updateNode(id, patch),
+    createNode: (input) => LocationsService.createNode(input)
+  });
+}
 
 export type LocationsServiceApi = typeof LocationsService;

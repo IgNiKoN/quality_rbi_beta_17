@@ -281,13 +281,17 @@ window.AppViews = {
     renderSafety() { showModePlaceholder('safety'); }, // <-- ДОБАВИЛИ ЭТУ СТРОКУ
     renderUk() { showModePlaceholder('uk'); },
 
-    // Новый construction-v2 (Vite) — параллельный контур, не legacy #/construction/*
+    // Новый construction-v2 (Vite) — параллельный тестовый контур, не legacy #/construction/*
     renderConstructionV2() {
+        if (AppModeManager.currentMode !== 'construction-v2') {
+            AppModeManager.changeMode('construction-v2');
+            return;
+        }
         if (window.ConstructionV2Module && typeof window.ConstructionV2Module.showTab === 'function') {
             window.ConstructionV2Module.showTab();
             return;
         }
-        showModePlaceholder('construction-v2', 'Модуль «Стройконтроль (новый)» загружается… Обновите страницу, если экран не сменится.');
+        showModePlaceholder('construction-v2', 'Модуль «Стройконтроль в2 (тест)» загружается… Обновите страницу, если экран не сменится.');
     },
 
     renderNotFound() { showModePlaceholder('404'); }

@@ -184,8 +184,12 @@
         if (!flags) return;
 
         if (flags.analytics && isViewActive('analytics')) {
-            if (!_analyticsNeedsFlushPaint()) {
-                // Живой DOM — не трогаем (аккордеоны/скролл/детали подрядчика).
+            // Живой DOM после sync не трогаем (аккордеоны/скролл). Но если
+            // пользователь сменил глобальный фильтр во время defer — filter paint
+            // stale, иначе кнопка «закреплена», а данные остаются старыми.
+            var filterStale = typeof window.analyticsFilterPaintIsStale === 'function'
+                && window.analyticsFilterPaintIsStale();
+            if (!_analyticsNeedsFlushPaint() && !filterStale) {
                 return;
             }
             if (typeof window.renderCurrentAnalyticsTab === 'function') {

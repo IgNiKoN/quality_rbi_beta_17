@@ -402,6 +402,12 @@ window.closeMultiFilterModal = closeMultiFilterModal;
 // подряд идущие apply в один отложенный вызов.
 var _analyticsFilterRenderTimer = null;
 function _scheduleAnalyticsRenderFromFilter() {
+    // Сразу инвалидируем кэш paint: иначе при sync-defer первый apply обновляет
+    // только кнопку фильтра, а flushDirtyActiveViews пропускает перерисовку
+    // «живого» DOM — данные остаются нефильтрованными до второго клика.
+    if (typeof window.invalidateAnalyticsFilterCache === 'function') {
+        window.invalidateAnalyticsFilterCache();
+    }
     if (_analyticsFilterRenderTimer) clearTimeout(_analyticsFilterRenderTimer);
     _analyticsFilterRenderTimer = setTimeout(function () {
         _analyticsFilterRenderTimer = null;

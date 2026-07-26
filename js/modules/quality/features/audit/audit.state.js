@@ -22,6 +22,9 @@
   var _auditOriginalData = null;
   window.auditOriginalData = _auditOriginalData;
 
+  // Pin на PDF-плане этажа (Q-pin-1): { locationId, x, y } | null
+  var _planPin = null;
+
   var AuditState = {
     _ctx: null,
     bindCtx: function (ctx) { this._ctx = ctx; },
@@ -43,6 +46,30 @@
     get contractorName() { return window.contractorName; },
     get location() { return window.location_ !== undefined ? window.location_ : window.location; },
     get isDirty() { return window.isDirty; },
+
+    get planPin() { return _planPin; },
+    getPlanPin: function () { return _planPin; },
+    setPlanPin: function (pin) {
+      if (!pin || pin.locationId == null) {
+        _planPin = null;
+        return;
+      }
+      var x = Number(pin.x);
+      var y = Number(pin.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        _planPin = null;
+        return;
+      }
+      _planPin = {
+        locationId: String(pin.locationId),
+        x: x,
+        y: y
+      };
+    },
+    clearPlanPin: function () { _planPin = null; },
+    restorePlanPin: function (pin) {
+      this.setPlanPin(pin || null);
+    },
 
     setState: function (key, val) {
       var s = _session();
@@ -100,6 +127,7 @@
       if (window.photos && typeof window.photos === 'object') {
         Object.keys(window.photos).forEach(function (k) { delete window.photos[k]; });
       }
+      _planPin = null;
       window.isDirty = false;
     },
 

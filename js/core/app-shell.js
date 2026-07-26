@@ -149,7 +149,8 @@
 
       var icons = {
         quality: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>',
-        construction: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>'
+        construction: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>',
+        'construction-v2': '<path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>'
       };
 
       var html = '';
@@ -163,6 +164,16 @@
           '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">' + icons[mod.id] + '</svg>' +
           '<span class="app-sidebar-item-label">' + mod.label + '</span>' +
           '</button>';
+        // Тестовый вход construction-v2 — сразу под обычным Стройконтролем
+        if (mod.id === 'construction') {
+          var v2Active = currentMode === 'construction-v2';
+          html += '<button type="button" data-sidebar-module-id="construction-v2"' +
+            ' onclick="window.changeAppMode(\'construction-v2\')"' +
+            ' class="app-sidebar-item' + (v2Active ? ' active' : '') + '" title="Стройконтроль в2 (тест)">' +
+            '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">' + icons['construction-v2'] + '</svg>' +
+            '<span class="app-sidebar-item-label">Стройконтроль в2 (тест)</span>' +
+            '</button>';
+        }
       });
       PLACEHOLDER_MODULES.forEach(function (mod) {
         html += '<button type="button" data-shell-action="showPlaceholderModule" data-shell-action-arg="' + mod.id + '"' +
@@ -246,7 +257,11 @@
       var roleAllowedIds = getRoleAllowedBusinessModuleIds();
       var currentMode = (window.AppModeManager && window.AppModeManager.currentMode) || null;
 
-      var labels = { quality: 'Качество', construction: 'Стройконтроль' };
+      var labels = {
+        quality: 'Качество',
+        construction: 'Стройконтроль',
+        'construction-v2': 'Стройконтроль в2 (тест)'
+      };
       var html = '';
 
       BUSINESS_MODULES.forEach(function (mod) {
@@ -259,6 +274,15 @@
           '<span>' + (labels[mod.id] || mod.label) + '</span>' +
           (isActive ? '<span class="text-[8px] font-black text-indigo-500">●</span>' : '') +
           '</button>';
+        if (mod.id === 'construction') {
+          var v2Active = currentMode === 'construction-v2';
+          html += '<button type="button" data-shell-action="selectMobileModule" data-shell-action-arg="construction-v2"' +
+            ' class="w-full text-left px-3.5 py-2.5 text-[11px] font-bold uppercase flex items-center justify-between gap-2 transition-colors ' +
+            (v2Active ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-700 dark:text-slate-300') + '">' +
+            '<span>' + labels['construction-v2'] + '</span>' +
+            (v2Active ? '<span class="text-[8px] font-black text-indigo-500">●</span>' : '') +
+            '</button>';
+        }
       });
 
       html += '<div class="border-t border-[var(--card-border)] my-1"></div>';
@@ -299,7 +323,11 @@
       var container = document.getElementById('app-mode-selector-container');
       if (!select) return;
 
-      var labels = { quality: 'Качество', construction: 'Стройконтроль' };
+      var labels = {
+        quality: 'Качество',
+        construction: 'Стройконтроль',
+        'construction-v2': 'Стройконтроль в2 (тест)'
+      };
       var currentValue = select.value;
       select.innerHTML = '';
       selectedIds.forEach(function (id) {
@@ -307,16 +335,25 @@
         opt.value = id;
         opt.textContent = labels[id] || id;
         select.appendChild(opt);
+        // Тестовый v2 — сразу под пунктом Стройконтроль
+        if (id === 'construction') {
+          var v2 = document.createElement('option');
+          v2.value = 'construction-v2';
+          v2.textContent = labels['construction-v2'];
+          select.appendChild(v2);
+        }
       });
 
-      if (selectedIds.indexOf(currentValue) !== -1) {
+      var optionValues = [...select.options].map(function (o) { return o.value; });
+      if (optionValues.indexOf(currentValue) !== -1) {
         select.value = currentValue;
       } else {
         select.value = selectedIds[0];
       }
 
       if (container) {
-        container.style.display = selectedIds.length > 1 ? 'flex' : 'none';
+        // >1 с учётом тестового v2 под construction
+        container.style.display = select.options.length > 1 ? 'flex' : 'none';
       }
     },
     submitAuthGateConnect: function () {

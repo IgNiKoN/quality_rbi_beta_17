@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.319';
+const SW_VERSION = '18.57.341';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -126,6 +126,8 @@ const urlsToCache = [
   './js/modules/quality/features/settings/index.js',
   './js/dist/rbi-locations.js',
   './js/dist/rbi-construction-defects.js',
+  './js/dist/rbi-construction-acceptance.js',
+  './js/dist/rbi-construction-units.js',
   './js/dist/construction-v2.js',
   './js/modules/construction-v2/construction-v2.manifest.js',
   './js/modules/construction-v2/index.js',
@@ -174,6 +176,7 @@ const urlsToCache = [
   './js/modules/quality/features/audit/audit.state.js',
   './js/modules/quality/features/audit/audit.actions.js',
   './js/modules/quality/features/audit/audit.render.js',
+  './js/modules/quality/features/audit/features/quality-plan-pin.js',
 
   // Фаза 15 — Construction Module
   './js/modules/construction/construction.module.js',
@@ -245,6 +248,7 @@ const urlsToCache = [
   './js/modules/quality/index.js',
   './js/modules/quality/quality.module.js',
   './js/modules/quality/features/interventions.js',
+  './js/modules/quality/features/practice.pptx-export.js',
 
   // Модули (legacy)
   './manifest.webmanifest',

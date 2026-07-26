@@ -192,6 +192,43 @@ function rbiIsAutoCacheEnabled() {
     // Полное автокэширование запускаем только когда настройка явно включена.
     return typeof appSettings !== 'undefined' && appSettings.autoCacheCloudFiles === true;
 }
+
+/** После очистки кэша / нехватки места — заново скачать облачные файлы для офлайна. */
+function rbiRequestFullOfflineCache(reason = '') {
+    localStorage.removeItem('rbi_first_full_offline_cache_done');
+    localStorage.removeItem('rbi_first_full_offline_cache_started_at');
+    localStorage.setItem('rbi_need_full_offline_cache', '1');
+    if (reason) {
+        console.log('[OfflineCache] Запрошено полное копирование:', reason);
+    }
+}
+
+function rbiScheduleFullOfflineCacheIfEnabled(delayMs = 800) {
+    if (!navigator.onLine) return;
+    if (!rbiIsAutoCacheEnabled()) return;
+    if (typeof window.downloadMissingCloudFiles !== 'function') return;
+    if (window.rbiFullOfflineCacheProcessing || window.rbiFileCacheQueueLock) return;
+
+    setTimeout(async () => {
+        if (!rbiIsAutoCacheEnabled() || !navigator.onLine) return;
+        if (window.rbiFullOfflineCacheProcessing || window.rbiFileCacheQueueLock) return;
+
+        window.rbiFullOfflineCacheProcessing = true;
+        try {
+            console.log('[OfflineCache] Запуск докачки после очистки/запроса.');
+            await window.downloadMissingCloudFiles(true);
+            window.rbiBgCacheQueue = [];
+            localStorage.setItem('rbi_first_full_offline_cache_done', '1');
+            localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
+            localStorage.removeItem('rbi_need_full_offline_cache');
+        } catch (e) {
+            console.warn('[OfflineCache] Ошибка докачки после запроса:', e);
+            localStorage.removeItem('rbi_first_full_offline_cache_done');
+        } finally {
+            window.rbiFullOfflineCacheProcessing = false;
+        }
+    }, delayMs);
+}
 // === /RBI FIX ===
 // === /RBI FIX ===
 // === RBI FIX: постраничный pull без жёсткого потолка ===
@@ -282,6 +319,8 @@ window.rbiProcessBgCacheQueue = rbiProcessBgCacheQueue;
 window.rbiCollectCloudStorageUrls = rbiCollectCloudStorageUrls;
 window.rbiIsRemotePollDue = rbiIsRemotePollDue;
 window.rbiIsAutoCacheEnabled = rbiIsAutoCacheEnabled;
+window.rbiRequestFullOfflineCache = rbiRequestFullOfflineCache;
+window.rbiScheduleFullOfflineCacheIfEnabled = rbiScheduleFullOfflineCacheIfEnabled;
 window.rbiPullAllRows = rbiPullAllRows;
 window.rbiPullRowsByInspectionIds = rbiPullRowsByInspectionIds;
 window.rbiUpsertBatches = rbiUpsertBatches;

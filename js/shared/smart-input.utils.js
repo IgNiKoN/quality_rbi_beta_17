@@ -143,6 +143,19 @@ window.loadObjectDirectoryToInspectionInput = async function () {
     try {
         let objectNames = [];
 
+        const cleanFn = (function () {
+            if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.cleanString === 'function') {
+                return function (s) { return ObjectDirectory.cleanString(s); };
+            }
+            const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+            if (loc && typeof loc.cleanObjectName === 'function') {
+                return function (s) { return loc.cleanObjectName(s); };
+            }
+            return function (s) {
+                return String(s || '').toLowerCase().replace(/['"«»]/g, '').replace(/жк\s+/gi, '').trim();
+            };
+        })();
+
         // 1. Берём объекты из ObjectDirectory
         if (
             typeof ObjectDirectory !== 'undefined' &&
@@ -157,14 +170,36 @@ window.loadObjectDirectoryToInspectionInput = async function () {
 
         // 2. Если ObjectDirectory ещё не готов — берём из IndexedDB
         if (objectNames.length === 0 && window.RBI && window.RBI.services && window.RBI.services.storage) {
-            const dirs = await window.RBI.services.storage.getAll('project_objects');
-            if (dirs) {
-                objectNames = dirs
-                    .filter(o => !o._deleted && !o.is_deleted)
-                    .map(o => o.display_name || o.name || o.canonical_key)
-                    .filter(Boolean);
-            }
+            try {
+                const dirs = await window.RBI.services.storage.getAll('project_objects');
+                if (dirs) {
+                    objectNames = dirs
+                        .filter(o => !o._deleted && !o.is_deleted)
+                        .map(o => o.display_name || o.name || o.canonical_key)
+                        .filter(Boolean);
+                }
+            } catch (_idbErr) { /* store/key может отличаться — не блокируем merge locations */ }
         }
+
+        // 2b. Merge locations.objects (C1) — без дублей по clean-имени
+        try {
+            const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+            if (loc && typeof loc.listNodes === 'function') {
+                // parentId filter optional — берём все object, в т.ч. root
+                const locObjs = (loc.listNodes({ nodeType: 'object', parentId: null }) || [])
+                    .concat((loc.listNodes({ nodeType: 'object' }) || []).filter(function (n) {
+                        return n && (n.parentId == null);
+                    }));
+                locObjs.forEach(function (n) {
+                    if (n && n.displayName) objectNames.push(n.displayName);
+                    if (n && Array.isArray(n.synonyms)) {
+                        n.synonyms.forEach(function (syn) {
+                            if (syn) objectNames.push(String(syn));
+                        });
+                    }
+                });
+            }
+        } catch (_e) { /* ignore */ }
 
         // 3. Добавляем объекты из истории осмотров
         if (typeof window.contractorArray !== 'undefined') {
@@ -175,19 +210,48 @@ window.loadObjectDirectoryToInspectionInput = async function () {
             objectNames = objectNames.concat(histNames);
         }
 
-        objectNames = [...new Set(objectNames.map(v => String(v).trim()).filter(Boolean))].sort();
+        const seen = new Set();
+        const unique = [];
+        objectNames.forEach(function (raw) {
+            const v = String(raw || '').trim();
+            if (!v) return;
+            const k = cleanFn(v);
+            if (!k || seen.has(k)) return;
+            seen.add(k);
+            unique.push(v);
+        });
+        objectNames = unique.sort();
 
-        if (!_smartInputMemoryCache) {
-            _smartInputMemoryCache = JSON.parse(localStorage.getItem('smart_input_cache') || '{}');
+        // Пишем в window-кэш (module-scope let может быть невидим другим classic-скриптам)
+        let cacheObj = window._smartInputMemoryCache;
+        if (!cacheObj || typeof cacheObj !== 'object') {
+            try {
+                cacheObj = JSON.parse(localStorage.getItem('smart_input_cache') || '{}') || {};
+            } catch (_e) {
+                cacheObj = {};
+            }
         }
-
-        _smartInputMemoryCache['projectName'] = objectNames;
-        window._smartInputMemoryCache = _smartInputMemoryCache;
-        localStorage.setItem('smart_input_cache', JSON.stringify(_smartInputMemoryCache));
+        cacheObj.projectName = objectNames;
+        window._smartInputMemoryCache = cacheObj;
+        // синхронизируем module-scope, если доступен
+        try {
+            if (typeof _smartInputMemoryCache !== 'undefined') {
+                _smartInputMemoryCache = cacheObj;
+            }
+        } catch (_e) { /* ignore */ }
+        localStorage.setItem('smart_input_cache', JSON.stringify(cacheObj));
 
         initSmartInput('inp-project', 'projectName');
         if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.initUI === 'function') {
             ObjectDirectory.initUI();
+            // initUI может перезаписать projectName только из OD — возвращаем merge
+            cacheObj = window._smartInputMemoryCache || cacheObj;
+            cacheObj.projectName = objectNames;
+            window._smartInputMemoryCache = cacheObj;
+            try {
+                if (typeof _smartInputMemoryCache !== 'undefined') _smartInputMemoryCache = cacheObj;
+            } catch (_e2) { /* ignore */ }
+            localStorage.setItem('smart_input_cache', JSON.stringify(cacheObj));
         }
 
     } catch (e) {

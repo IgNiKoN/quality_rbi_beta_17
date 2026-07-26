@@ -1,0 +1,355 @@
+/**
+ * Шахматка / передача помещений construction-v2.
+ * Потребляет service.locations + service.constructionUnits.
+ */
+
+import type { ConstructionUnitV2, UnitStatusV2 } from '../../services/construction-units/types';
+import { UNIT_STATUS_LABELS_RU } from '../../services/construction-units/types';
+import type { LocationNode } from '../../services/locations/types';
+import { closeApartmentPlan, openApartmentPlan } from './apartment-plan';
+import { closeUnitCard, openUnitCard } from './unit-card';
+
+type LocSvc = {
+  init: () => Promise<boolean>;
+  listNodes: (opts?: { nodeType?: string; parentId?: string | null }) => LocationNode[];
+  getChildren: (parentId: string | null) => LocationNode[];
+  getPath?: (id: string) => LocationNode[];
+};
+
+/** Этажи корпуса: building → sections → floors (как в service.constructionUnits). */
+function _floorsForBuilding(buildingId: string, loc: LocSvc): LocationNode[] {
+  if (!buildingId) return [];
+  const sections = loc.getChildren(buildingId) || [];
+  const floors: LocationNode[] = [];
+  for (const sec of sections) {
+    if (!sec?.id) continue;
+    for (const fl of loc.getChildren(sec.id) || []) {
+      if (!fl?.id) continue;
+      if (fl.nodeType && fl.nodeType !== 'floor') continue;
+      floors.push(fl);
+    }
+  }
+  floors.sort((a, b) => Number(b.sort_order || 0) - Number(a.sort_order || 0));
+  return floors;
+}
+
+type UnitsSvc = {
+  init: () => Promise<boolean>;
+  listForBuilding: (buildingId: string) => ConstructionUnitV2[];
+  listForFloor: (locationId: string) => ConstructionUnitV2[];
+  changeStatus: (id: string, status: string) => Promise<ConstructionUnitV2>;
+  softDelete: (id: string) => Promise<ConstructionUnitV2>;
+  generateGrid: (buildingId: string, perFloor?: number) => Promise<ConstructionUnitV2[]>;
+  migrateUnitsToApartmentNodes?: (buildingId: string) => Promise<number>;
+  ensureApartmentForUnit?: (unitId: string) => Promise<ConstructionUnitV2>;
+  get: (id: string) => ConstructionUnitV2 | null;
+};
+
+/** Закрыть sheet/plan при уходе с transfer. */
+export function teardownTransferUi(): void {
+  closeApartmentPlan();
+  closeUnitCard();
+}
+
+function _loc(): LocSvc | null {
+  return (window.RBI?.services?.locations as LocSvc) || null;
+}
+
+function _units(): UnitsSvc | null {
+  return (window.RBI?.services?.constructionUnits as UnitsSvc) || null;
+}
+
+function _permissions() {
+  return window.RBI?.services?.permissions as
+    | {
+        getCurrentRole?: () => string;
+        canManageHierarchy?: () => boolean;
+        getCurrentEngineerName?: () => string;
+      }
+    | undefined;
+}
+
+function _escape(s: string) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function _toast(msg: string) {
+  const fn = (window as unknown as { showToast?: (m: string) => void }).showToast;
+  if (typeof fn === 'function') fn(msg);
+  else console.info('[transfer-board]', msg);
+}
+
+function _isGuest(): boolean {
+  const role = _permissions()?.getCurrentRole?.() || 'guest';
+  return role === 'guest';
+}
+
+function _canManage(): boolean {
+  const p = _permissions();
+  if (p?.canManageHierarchy) return !!p.canManageHierarchy();
+  const role = p?.getCurrentRole?.() || '';
+  return ['manager', 'deputy_manager', 'director', 'admin'].includes(role);
+}
+
+function _canSoftDelete(u: ConstructionUnitV2): boolean {
+  if (_canManage()) return true;
+  const me = _permissions()?.getCurrentEngineerName?.() || '';
+  return !!(me && u.created_by && me === u.created_by);
+}
+
+function _cellBg(status: string): string {
+  const st = String(status || 'not_inspected');
+  if (st === 'transferred' || st === 'accepted') {
+    return 'bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:border-green-800';
+  }
+  if (st === 'has_defects' || st === 'defects') {
+    return 'bg-red-50 text-red-700 border-red-300 dark:bg-red-900/30 dark:border-red-800';
+  }
+  if (st === 'shareholder_defects') {
+    return 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:border-orange-800';
+  }
+  if (st === 'ready_for_transfer') {
+    return 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:border-amber-700';
+  }
+  if (st === 'finishing' || st === 'ready') {
+    return 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:border-blue-800';
+  }
+  return 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+}
+
+let _objectId: string | null = null;
+let _buildingId: string | null = null;
+let _bound = false;
+
+function _renderLegend(): string {
+  const items: { st: UnitStatusV2; swatch: string }[] = [
+    { st: 'not_inspected', swatch: 'bg-white border border-slate-300 dark:bg-slate-700 dark:border-slate-600' },
+    { st: 'finishing', swatch: 'bg-blue-100 border border-blue-300' },
+    { st: 'has_defects', swatch: 'bg-red-100 border border-red-300' },
+    { st: 'ready_for_transfer', swatch: 'bg-amber-100 border border-amber-300' },
+    { st: 'transferred', swatch: 'bg-green-100 border border-green-300' },
+    { st: 'shareholder_defects', swatch: 'bg-orange-100 border border-orange-300' }
+  ];
+  return `
+    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+      ${items
+        .map(
+          (it) =>
+            `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape(
+              UNIT_STATUS_LABELS_RU[it.st]
+            )}</span></div>`
+        )
+        .join('')}
+    </div>`;
+}
+
+function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
+  if (!_buildingId) {
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">Выберите корпус для просмотра шахматки</div>`;
+  }
+  const floors = _floorsForBuilding(_buildingId, loc);
+  if (!floors.length) {
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">В этом корпусе ещё не созданы этажи</div>`;
+  }
+  const bldUnits = uSvc.listForBuilding(_buildingId);
+  let html = _renderLegend();
+  html += `<div class="overflow-x-auto pb-4 custom-scrollbar"><div class="min-w-max flex flex-col gap-1.5">`;
+  for (const floor of floors) {
+    const floorUnits = uSvc
+      .listForFloor(floor.id)
+      .slice()
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+    const floorLabel = floor.displayName || floor.id;
+    html += `
+      <div class="flex items-center gap-2">
+        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape(
+          floorLabel
+        )}</div>
+        <div class="flex gap-1.5 flex-1">`;
+    if (!floorUnits.length) {
+      html += `<div class="text-[9px] text-slate-300 italic py-3">Помещений нет</div>`;
+    } else {
+      for (const u of floorUnits) {
+        const bg = _cellBg(String(u.status || 'not_inspected'));
+        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : '';
+        html += `
+          <button type="button" data-c2-unit-cell="${_escape(u.id)}"
+            class="relative ${bg} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95">
+            ${pdfDot}
+            <span class="text-[12px] font-black">${_escape(u.name)}</span>
+            <span class="text-[8px] opacity-60 font-bold">${_escape(u.type || 'КВ')}</span>
+          </button>`;
+      }
+    }
+    html += `</div></div>`;
+  }
+  html += `</div></div>`;
+
+  if (_canManage() && bldUnits.length === 0) {
+    html += `
+      <button type="button" data-c2-generate-grid
+        class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+        Сгенерировать сетку квартир (8 на этаж)
+      </button>`;
+  }
+  return html;
+}
+
+function _selectorsHtml(loc: LocSvc): string {
+  const objects = loc.listNodes({ nodeType: 'object', parentId: null });
+  let objOpts = `<option value="">— объект —</option>`;
+  for (const o of objects) {
+    objOpts += `<option value="${_escape(o.id)}" ${_objectId === o.id ? 'selected' : ''}>${_escape(
+      o.displayName
+    )}</option>`;
+  }
+  let bldOpts = `<option value="">— корпус —</option>`;
+  if (_objectId) {
+    const buildings = loc.getChildren(_objectId).filter((b) => !b.nodeType || b.nodeType === 'building');
+    for (const b of buildings) {
+      bldOpts += `<option value="${_escape(b.id)}" ${_buildingId === b.id ? 'selected' : ''}>${_escape(
+        b.displayName
+      )}</option>`;
+    }
+  }
+  return `
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <select id="c2-transfer-object" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold">
+        ${objOpts}
+      </select>
+      <select id="c2-transfer-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId ? '' : 'disabled'}>
+        ${bldOpts}
+      </select>
+    </div>`;
+}
+
+async function _refreshBoard() {
+  const root = document.getElementById('construction-v2-root');
+  if (root) await renderTransferBoard(root);
+}
+
+export async function renderTransferBoard(root: HTMLElement): Promise<void> {
+  const loc = _loc();
+  const uSvc = _units();
+  if (!loc) {
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.locations не загружен</div>`;
+    return;
+  }
+  if (!uSvc) {
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.constructionUnits не загружен</div>`;
+    return;
+  }
+  await loc.init();
+  await uSvc.init();
+  // Ленивая миграция legacy units (locationId=floor) → apartment nodes.
+  if (_buildingId && typeof uSvc.migrateUnitsToApartmentNodes === 'function') {
+    try {
+      await uSvc.migrateUnitsToApartmentNodes(_buildingId);
+    } catch (e) {
+      console.warn('[transfer-board] migrateUnitsToApartmentNodes', e);
+    }
+  }
+  closeUnitCard();
+  // Не закрываем apartment-plan при refresh сетки — только при уходе с transfer (teardownTransferUi).
+
+  root.innerHTML = `
+    <div class="max-w-5xl mx-auto">
+      <div class="mb-3">
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Передача · шахматка v2</div>
+        <p class="text-[11px] text-slate-400 font-bold mt-0.5">Клик по клетке — карточка квартиры${_isGuest() ? ' (только просмотр)' : ''}</p>
+      </div>
+      ${_selectorsHtml(loc)}
+      <div id="c2-transfer-grid">${_renderGrid(uSvc, loc)}</div>
+    </div>`;
+
+  _bindOnce();
+}
+
+function _bindOnce() {
+  if (_bound) return;
+  _bound = true;
+
+  document.addEventListener(
+    'change',
+    (ev) => {
+      const t = ev.target as HTMLElement | null;
+      if (!t) return;
+      if (t.id === 'c2-transfer-object') {
+        _objectId = (t as HTMLSelectElement).value || null;
+        _buildingId = null;
+        void _refreshBoard();
+        return;
+      }
+      if (t.id === 'c2-transfer-building') {
+        _buildingId = (t as HTMLSelectElement).value || null;
+        void _refreshBoard();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    'click',
+    (ev) => {
+      const t = ev.target as HTMLElement | null;
+      if (!t) return;
+
+      const gen = t.closest?.('[data-c2-generate-grid]') as HTMLElement | null;
+      if (gen) {
+        ev.preventDefault();
+        void _onGenerate();
+        return;
+      }
+
+      const cell = t.closest?.('[data-c2-unit-cell]') as HTMLElement | null;
+      if (cell) {
+        ev.preventDefault();
+        const id = cell.getAttribute('data-c2-unit-cell');
+        const uSvc = _units();
+        const loc = _loc();
+        const u = id && uSvc ? uSvc.get(id) : null;
+        if (u && uSvc) {
+          openUnitCard(u, {
+            loc,
+            units: uSvc,
+            cb: {
+              onChanged: _refreshBoard,
+              isGuest: _isGuest,
+              canSoftDelete: _canSoftDelete,
+              toast: _toast,
+              onOpenApartmentPlan: async (unit) => {
+                closeUnitCard();
+                await openApartmentPlan(unit, {
+                  isGuest: _isGuest,
+                  toast: _toast,
+                  onChanged: _refreshBoard
+                });
+              }
+            }
+          });
+        }
+      }
+    },
+    true
+  );
+}
+
+async function _onGenerate() {
+  if (!_buildingId || !_canManage()) return;
+  if (!confirm('Сгенерировать по 8 квартир на каждом этаже? (статус — не осматривалась)')) return;
+  const uSvc = _units();
+  if (!uSvc) return;
+  try {
+    _toast('⏳ Генерируем помещения…');
+    const created = await uSvc.generateGrid(_buildingId, 8);
+    _toast(`✅ Создано: ${created.length}`);
+    await _refreshBoard();
+  } catch (e) {
+    console.warn('[transfer-board] generateGrid', e);
+    _toast(`Ошибка: ${(e as Error)?.message || e}`);
+  }
+}

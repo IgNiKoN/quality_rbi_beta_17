@@ -241,7 +241,9 @@ function _docKindFromTitle(title) {
     var t = String(title || '');
     if (t.includes('Плакат')) return 'Плакат качества';
     if (t.includes('Повторяющиеся дефекты')) return 'Повторяющиеся дефекты';
-    if (t.includes('One-Pager') || t.includes('Сводный отчет') || t.includes('Полный отчет')) return 'Сводный отчёт';
+    if (t.includes('Отчёт по объекту 2.0') || t.includes('Отчет по объекту 2.0')) return 'Отчёт по объекту 2.0';
+    if (t.includes('One-Pager 4.0')) return 'One-Pager 4.0';
+    if (t.includes('One-Pager') || t.includes('Сводный отчет') || t.includes('Полный отчет') || t.includes('Отчёт по объекту')) return 'Сводный отчёт';
     return 'Прочее';
 }
 
@@ -881,6 +883,214 @@ async function _buildOp2Pptx(data) {
     await _downloadAndSave(pptx, title, payload.projectLabel, payload.periodText);
 }
 
+/** One-Pager 4.0 — те же цифры, что OP2, строгий Times / серые рамки. */
+function _addOp4ExecutiveSlide(pptx, payload) {
+    var W = 13.333;
+    var H = 7.5;
+    var s = pptx.addSlide();
+    var FONT = 'Times New Roman';
+    s.addShape(pptx.shapes.RECTANGLE, {
+        x: 0, y: 0, w: W, h: H,
+        fill: { color: COLOR.white }, line: { color: COLOR.white }
+    });
+
+    s.addText('ONE-PAGER 4.0  ·  СВОДКА ДЛЯ РУКОВОДСТВА', {
+        x: 0.35, y: 0.18, w: 12.6, h: 0.22,
+        fontSize: 10, bold: true, color: COLOR.muted, margin: 0, fontFace: FONT
+    });
+    s.addText(String(payload.projectLabel || 'Объект'), {
+        x: 0.35, y: 0.4, w: 8.5, h: 0.32,
+        fontSize: 18, bold: true, color: COLOR.text, margin: 0, fontFace: FONT
+    });
+    s.addText([
+        payload.periodText || 'Период',
+        'Автор: ' + (payload.author || '—'),
+        new Date().toLocaleDateString('ru-RU')
+    ].join('  ·  '), {
+        x: 8.6, y: 0.44, w: 4.35, h: 0.28,
+        fontSize: 10, color: COLOR.muted, align: 'right', margin: 0, fontFace: FONT
+    });
+
+    var metaY = 0.85;
+    var metaRows = [
+        ['УрК (физика)', String(payload.avgUrk) + '%' + (payload.avgDoc != null ? (' · док. ' + payload.avgDoc + '%') : '')],
+        ['Индекс риска ИКО', String(payload.IKO) + (payload.ikoStatus ? (' · ' + payload.ikoStatus) : '')],
+        ['Проверок / подрядчиков', String(payload.checks) + ' / ' + String(payload.contractors)],
+        ['Красная зона (ИУрК<70%)', payload.relN > 0
+            ? (String(payload.redContrCount) + '/' + String(payload.relN)
+                + (payload.redContrPerc != null ? (' · ' + payload.redContrPerc + '%') : ''))
+            : 'СБОР (нужен N≥7)']
+    ];
+    metaRows.forEach(function (row, idx) {
+        var y = metaY + idx * 0.4;
+        s.addShape(pptx.shapes.RECTANGLE, {
+            x: 0.35, y: y, w: 3.4, h: 0.36,
+            fill: { color: COLOR.card }, line: { color: '9ca3af', pt: 1 }
+        });
+        s.addText(row[0], {
+            x: 0.45, y: y, w: 3.2, h: 0.36,
+            fontSize: 11, bold: true, color: COLOR.muted, valign: 'middle', margin: 0, fontFace: FONT
+        });
+        s.addShape(pptx.shapes.RECTANGLE, {
+            x: 3.75, y: y, w: 9.2, h: 0.36,
+            fill: { color: COLOR.white }, line: { color: '9ca3af', pt: 1 }
+        });
+        s.addText(String(row[1] || '—'), {
+            x: 3.85, y: y, w: 9.0, h: 0.36,
+            fontSize: 12, bold: true, color: COLOR.text, valign: 'middle', margin: 0, fontFace: FONT
+        });
+    });
+
+    s.addText('Рейтинг подрядчиков (окно ≤15)', {
+        x: 0.35, y: 2.55, w: 7.8, h: 0.28,
+        fontSize: 13, bold: true, color: COLOR.text, margin: 0, fontFace: FONT
+    });
+
+    var rating = (payload.rating || []).slice(0, 10);
+    var tableRows = [[
+        { text: 'Подрядчик', options: { bold: true, fill: { color: COLOR.header } } },
+        { text: 'N', options: { bold: true, fill: { color: COLOR.header }, align: 'center' } },
+        { text: 'УрК', options: { bold: true, fill: { color: COLOR.header }, align: 'center' } },
+        { text: 'ИУрК', options: { bold: true, fill: { color: COLOR.header }, align: 'center' } },
+        { text: 'B3', options: { bold: true, fill: { color: COLOR.header }, align: 'center' } }
+    ]];
+    rating.forEach(function (r) {
+        tableRows.push([
+            String(r.name || '—'),
+            { text: String(r.count || 0), options: { align: 'center' } },
+            { text: String(r.urk) + '%', options: { align: 'center' } },
+            { text: r.count >= 7 ? (r.val + '%') : 'СБОР', options: { align: 'center' } },
+            { text: String(r.b3 || 0), options: { align: 'center' } }
+        ]);
+    });
+    if (tableRows.length === 1) {
+        tableRows.push(['Нет подрядчиков в срезе', '—', '—', '—', '—']);
+    }
+    s.addTable(tableRows, {
+        x: 0.35, y: 2.9, w: 7.9, colW: [3.5, 0.8, 1.2, 1.2, 1.2],
+        border: [{ pt: 0.75, color: '9ca3af' }],
+        fontFace: FONT,
+        fontSize: 10,
+        color: COLOR.text
+    });
+
+    s.addText('Критические дефекты B3 (топ)', {
+        x: 8.5, y: 2.55, w: 4.45, h: 0.28,
+        fontSize: 13, bold: true, color: COLOR.text, margin: 0, fontFace: FONT
+    });
+    var b3 = (payload.topB3 || []).slice(0, 6);
+    if (!b3.length) {
+        s.addShape(pptx.shapes.RECTANGLE, {
+            x: 8.5, y: 2.95, w: 4.45, h: 0.7,
+            fill: { color: COLOR.card }, line: { color: '9ca3af', pt: 1 }
+        });
+        s.addText('Критических B3 в срезе нет', {
+            x: 8.65, y: 3.15, w: 4.15, h: 0.3,
+            fontSize: 12, color: COLOR.green, margin: 0, fontFace: FONT
+        });
+    } else {
+        b3.forEach(function (item, idx) {
+            var y = 2.95 + idx * 0.48;
+            s.addShape(pptx.shapes.RECTANGLE, {
+                x: 8.5, y: y, w: 4.45, h: 0.42,
+                fill: { color: COLOR.white }, line: { color: '9ca3af', pt: 1 }
+            });
+            s.addText(String(item.name || 'Дефект'), {
+                x: 8.6, y: y + 0.08, w: 3.3, h: 0.26,
+                fontSize: 11, color: COLOR.text, margin: 0, fontFace: FONT
+            });
+            s.addText(String(item.count) + '×', {
+                x: 11.9, y: y + 0.08, w: 0.9, h: 0.26,
+                fontSize: 12, bold: true, color: COLOR.red, align: 'right', margin: 0, fontFace: FONT
+            });
+        });
+    }
+
+    var sk = payload.skStats || {};
+    s.addShape(pptx.shapes.RECTANGLE, {
+        x: 0.35, y: 6.55, w: 12.6, h: 0.5,
+        fill: { color: COLOR.card }, line: { color: '9ca3af', pt: 1 }
+    });
+    s.addText(
+        'ПК СК: откр. ' + (sk.open || 0)
+        + '  ·  просроч. ' + (sk.overdue || 0)
+        + '  ·  закр. ' + (sk.closed || 0)
+        + '     |     One-Pager 4.0 · RBI Platform',
+        {
+            x: 0.5, y: 6.65, w: 12.3, h: 0.3,
+            fontSize: 11, bold: true, color: COLOR.muted, margin: 0, fontFace: FONT
+        }
+    );
+}
+
+async function _buildOp4Pptx(data) {
+    var Ctor = _pptxCtor();
+    if (!Ctor) return _toast('Библиотека экспорта не загружена');
+    var payload = _collectOp2Payload(data);
+    var pptx = new Ctor();
+    pptx.author = 'RBI Platform';
+    pptx.title = 'One-Pager 4.0 — сводка для руководства';
+    pptx.defineLayout({ name: 'LAYOUT_16x9_RBI', width: 13.333, height: 7.5 });
+    pptx.layout = 'LAYOUT_16x9_RBI';
+    var title = 'One-Pager 4.0 — ' + payload.projectLabel;
+    _addOp4ExecutiveSlide(pptx, payload);
+    await _downloadAndSave(pptx, title, payload.projectLabel, payload.periodText);
+}
+
+async function _buildFullReportV2Pptx(data) {
+    var Ctor = _pptxCtor();
+    if (!Ctor) return _toast('Библиотека экспорта не загружена');
+    var payload = _collectOp2Payload(data);
+    var pptx = new Ctor();
+    var FONT = 'Times New Roman';
+    pptx.author = 'RBI Platform';
+    pptx.title = 'Отчёт по объекту 2.0';
+    pptx.defineLayout({ name: 'LAYOUT_16x9_RBI', width: 13.333, height: 7.5 });
+    pptx.layout = 'LAYOUT_16x9_RBI';
+
+    _addOp4ExecutiveSlide(pptx, payload);
+
+    var list = (payload.rating || []).slice(0, 24);
+    for (var i = 0; i < list.length; i++) {
+        var r = list[i];
+        var s = pptx.addSlide();
+        s.addText('ОТЧЁТ ПО ОБЪЕКТУ 2.0  ·  КАРТОЧКА ПОДРЯДЧИКА', {
+            x: 0.35, y: 0.18, w: 12.6, h: 0.22,
+            fontSize: 10, bold: true, color: COLOR.muted, margin: 0, fontFace: FONT
+        });
+        s.addText(String(r.name || 'Подрядчик'), {
+            x: 0.35, y: 0.42, w: 12.6, h: 0.36,
+            fontSize: 18, bold: true, color: COLOR.text, margin: 0, fontFace: FONT
+        });
+        var rows = [
+            [
+                { text: 'Показатель', options: { bold: true, fill: { color: COLOR.header } } },
+                { text: 'Значение', options: { bold: true, fill: { color: COLOR.header } } }
+            ],
+            ['Вид работ', String(r.workType || '—')],
+            ['Проверок (N)', String(r.count)],
+            ['УрК физика', String(r.urk) + '%'],
+            ['ИУрК (надёжность)', r.count >= 7 ? (r.val + '%') : 'СБОР (N<7)'],
+            ['Докум. УрК', r.doc != null ? (r.doc + '%') : '—'],
+            ['Критические B3', String(r.b3 || 0)]
+        ];
+        s.addTable(rows, {
+            x: 0.35, y: 1.0, w: 12.6, colW: [5.5, 7.1],
+            border: [{ pt: 0.75, color: '9ca3af' }],
+            fontFace: FONT,
+            fontSize: 13,
+            color: COLOR.text
+        });
+        s.addText(payload.projectLabel + '  ·  ' + (payload.periodText || ''), {
+            x: 0.35, y: 6.9, w: 12.6, h: 0.28,
+            fontSize: 10, color: COLOR.muted, margin: 0, fontFace: FONT
+        });
+    }
+
+    var title = 'Отчёт по объекту 2.0 — ' + payload.projectLabel;
+    await _downloadAndSave(pptx, title, payload.projectLabel, payload.periodText);
+}
+
 async function _buildFullReportPptx(data) {
     var Ctor = _pptxCtor();
     if (!Ctor) return _toast('Библиотека экспорта не загружена');
@@ -1166,8 +1376,12 @@ export async function exportReportPptx(actionType, data) {
     switch (actionType) {
         case 'onepager_v2':
             return _buildOp2Pptx(list);
+        case 'onepager_v4':
+            return _buildOp4Pptx(list);
         case 'full_report':
             return _buildFullReportPptx(list);
+        case 'full_report_v2':
+            return _buildFullReportV2Pptx(list);
         case 'global_onepager_v2':
             return _buildGlobalPptx(list);
         case 'poster':

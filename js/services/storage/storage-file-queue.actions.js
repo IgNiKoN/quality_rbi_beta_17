@@ -139,32 +139,41 @@ window.downloadMissingCloudFiles = async function (silent = false) {
 
         const urlsToDownload = new Set();
 
+        // TWI steps.photo / photos[itemId] могут быть строкой ИЛИ массивом —
+        // .startsWith на массиве валил всю докачку (TypeError).
+        const addCloudUrls = (value) => {
+            const list = typeof window.normalizeItemPhotos === 'function'
+                ? window.normalizeItemPhotos(value)
+                : (Array.isArray(value) ? value : (value != null && value !== '' ? [value] : []));
+
+            list.forEach((url) => {
+                if (typeof url !== 'string') return;
+                if (url.startsWith('http') || url.startsWith('cloud://')) {
+                    urlsToDownload.add(url);
+                }
+            });
+        };
+
         if (typeof contractorArray !== 'undefined') {
             contractorArray.forEach(check => {
                 if (check.photos) {
-                    // RBI NEW (Множественные фото к пункту чек-листа, B1): значение
-                    // photos[itemId] может быть массивом — нормализуем перед .startsWith.
-                    Object.values(check.photos).forEach(rawValue => {
-                        const urls = window.normalizeItemPhotos ? window.normalizeItemPhotos(rawValue) : [rawValue];
-                        urls.forEach(url => {
-                            if (url && (url.startsWith('http') || url.startsWith('cloud://'))) urlsToDownload.add(url);
-                        });
-                    });
+                    Object.values(check.photos).forEach(addCloudUrls);
                 }
             });
         }
 
         if (typeof customTwiCards !== 'undefined') {
             customTwiCards.forEach(twi => {
-                [twi.photoGood, twi.photoBad, twi.pdfData].forEach(url => {
-                    if (url && (url.startsWith('http') || url.startsWith('cloud://'))) urlsToDownload.add(url);
-                });
+                addCloudUrls(twi.photoGood);
+                addCloudUrls(twi.photoBad);
+                addCloudUrls(twi.pdfData);
 
-                if (twi.steps) {
+                if (Array.isArray(twi.steps)) {
                     twi.steps.forEach(step => {
-                        if (step.photo && (step.photo.startsWith('http') || step.photo.startsWith('cloud://'))) {
-                            urlsToDownload.add(step.photo);
-                        }
+                        if (!step) return;
+                        addCloudUrls(step.photo);
+                        addCloudUrls(step.photoGood);
+                        addCloudUrls(step.photoBad);
                     });
                 }
             });
@@ -172,16 +181,11 @@ window.downloadMissingCloudFiles = async function (silent = false) {
 
         if (typeof customNodes !== 'undefined') {
             customNodes.forEach(node => {
-                if (node.img && (node.img.startsWith('http') || node.img.startsWith('cloud://'))) {
-                    urlsToDownload.add(node.img);
-                }
+                addCloudUrls(node.img);
 
                 if (Array.isArray(node.attachments)) {
                     node.attachments.forEach(att => {
-                        const url = att.url || att.data || att.file_url || '';
-                        if (url && (url.startsWith('http') || url.startsWith('cloud://'))) {
-                            urlsToDownload.add(url);
-                        }
+                        addCloudUrls(att && (att.url || att.data || att.file_url || ''));
                     });
                 }
             });
@@ -189,31 +193,26 @@ window.downloadMissingCloudFiles = async function (silent = false) {
 
         if (typeof customDocs !== 'undefined') {
             customDocs.forEach(doc => {
-                if (doc.pdfData && (doc.pdfData.startsWith('http') || doc.pdfData.startsWith('cloud://'))) {
-                    urlsToDownload.add(doc.pdfData);
-                }
+                addCloudUrls(doc.pdfData);
             });
         }
 
         if (typeof window.rbi_meetingsData !== 'undefined') {
             window.rbi_meetingsData.forEach(m => {
-                if (m.qDayPhoto && (m.qDayPhoto.startsWith('http') || m.qDayPhoto.startsWith('cloud://'))) {
-                    urlsToDownload.add(m.qDayPhoto);
-                }
+                addCloudUrls(m.qDayPhoto);
             });
         }
 
         if (typeof window.rbi_practicesData !== 'undefined') {
             window.rbi_practicesData.forEach(p => {
-                [p.photoBefore, p.photoAfter].forEach(url => {
-                    if (url && (url.startsWith('http') || url.startsWith('cloud://'))) urlsToDownload.add(url);
-                });
+                addCloudUrls(p.photoBefore);
+                addCloudUrls(p.photoAfter);
             });
         }
 
         if (typeof reportsArray !== 'undefined') {
             reportsArray.forEach(rep => {
-                if (rep.file_url && rep.file_url.startsWith('http') && !rep.file_blob) {
+                if (rep.file_url && typeof rep.file_url === 'string' && rep.file_url.startsWith('http') && !rep.file_blob) {
                     urlsToDownload.add(rep.file_url);
                 }
             });

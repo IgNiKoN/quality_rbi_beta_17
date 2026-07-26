@@ -144,6 +144,16 @@
         }
 
         _saveSettings(settingKey, val);
+
+        // Включили автокэш — сразу запросить полное копирование (на случай «застрявшего» флага done).
+        if (settingKey === 'autoCacheCloudFiles' && val === true) {
+            if (typeof window.rbiRequestFullOfflineCache === 'function') {
+                window.rbiRequestFullOfflineCache('settings_toggle_on');
+            }
+            if (typeof window.rbiScheduleFullOfflineCacheIfEnabled === 'function') {
+                window.rbiScheduleFullOfflineCacheIfEnabled(500);
+            }
+        }
     }
 
     function _resetSettingsToDefault() {

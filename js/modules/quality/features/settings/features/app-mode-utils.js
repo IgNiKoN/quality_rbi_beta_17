@@ -374,6 +374,10 @@ function isValidBusinessMode(mode) {
     return mode === 'quality' || mode === 'construction';
 }
 
+function isConstructionV2TestMode(mode) {
+    return mode === 'construction-v2';
+}
+
 const AppModeManager = {
     currentMode: 'quality',
     previousMode: 'quality',
@@ -386,7 +390,12 @@ const AppModeManager = {
         const selectedModules = shell && typeof shell.setSelectedModules === 'function'
             ? shell.setSelectedModules(shell.getSelectedModules())
             : null;
-        if (selectedModules && selectedModules.indexOf(this.currentMode) === -1) {
+        // construction-v2 — тестовый вход, не входит в selected business modules
+        const modeAllowed = selectedModules
+            && (selectedModules.indexOf(this.currentMode) !== -1
+                || (isConstructionV2TestMode(this.currentMode)
+                    && selectedModules.indexOf('construction') !== -1));
+        if (selectedModules && !modeAllowed) {
             this.currentMode = selectedModules[0];
             localStorage.setItem('rbi_app_mode', this.currentMode);
         }
@@ -423,7 +432,12 @@ const AppModeManager = {
         const shell = window.RBI?.services?.shell;
         if (shell && typeof shell.getSelectedModules === 'function') {
             const selectedModules = shell.getSelectedModules();
-            if (selectedModules.indexOf(newMode) === -1 && isValidBusinessMode(newMode)) return;
+            if (isConstructionV2TestMode(newMode)) {
+                // Тестовый v2 доступен, если выбран обычный Стройконтроль
+                if (selectedModules.indexOf('construction') === -1) return;
+            } else if (selectedModules.indexOf(newMode) === -1 && isValidBusinessMode(newMode)) {
+                return;
+            }
         }
 
         this.previousMode = this.currentMode;
@@ -433,8 +447,14 @@ const AppModeManager = {
         const selector = document.getElementById('app-mode-selector');
         const label = document.getElementById('current-mode-label');
         if (selector && label) {
-            selector.value = newMode;
-            label.innerHTML = `${selector.options[selector.selectedIndex].text.split(' ')[0]} ▾`;
+            if ([...selector.options].some((o) => o.value === newMode)) {
+                selector.value = newMode;
+            }
+            if (selector.selectedIndex !== -1) {
+                label.innerHTML = `${selector.options[selector.selectedIndex].text.split(' ')[0]} ▾`;
+            } else if (isConstructionV2TestMode(newMode)) {
+                label.innerHTML = 'Стройконтроль ▾';
+            }
         }
 
         this.renderBottomNav();
@@ -454,6 +474,10 @@ const AppModeManager = {
             case 'construction':
                 document.getElementById('construction-warning-banner').style.display = 'flex';
                 window.AppRouter.navigate('#/construction/defects', true);
+                break;
+            case 'construction-v2':
+                document.getElementById('construction-warning-banner').style.display = 'none';
+                window.AppRouter.navigate('#/construction-v2', true);
                 break;
             case 'safety':
                 window.AppRouter.navigate('#/safety/placeholder', true);
@@ -555,6 +579,26 @@ const AppModeManager = {
                     <span class="nav-text">Отчеты СК</span>
                 </div>
                  <div class="nav-item" data-path="#/quality/settings">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span class="nav-text">Настройки</span>
+                </div>
+            `;
+            nav.style.display = 'flex';
+        } else if (this.currentMode === 'construction-v2') {
+            html = `
+                <div class="nav-item" data-path="#/construction-v2">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                    <span class="nav-text">Планы</span>
+                </div>
+                <div class="nav-item" data-path="#/construction-v2/acceptance">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5h6m-3 4v6m-3-3h6"></path></svg>
+                    <span class="nav-text">Приёмка</span>
+                </div>
+                <div class="nav-item" data-path="#/construction-v2/transfer">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"></path></svg>
+                    <span class="nav-text">Передача</span>
+                </div>
+                <div class="nav-item" data-path="#/quality/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">Настройки</span>
                 </div>

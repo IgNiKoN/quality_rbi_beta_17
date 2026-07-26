@@ -397,6 +397,41 @@ function prepareFloorPlanForCloud(item) {
     return payload;
 }
 
+/** Локальные photos[] / legacy photo → значение колонки photo (JSON-массив URL или один URL). */
+function serializeConstructionDefectV2Photo(item) {
+    let photos = [];
+    if (Array.isArray(item.photos) && item.photos.length) {
+        photos = item.photos.filter(function (p) { return typeof p === 'string' && p.trim(); });
+    } else if (typeof item.photo === 'string' && item.photo.trim()) {
+        var raw = item.photo.trim();
+        if (raw.charAt(0) === '[') {
+            try {
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    photos = parsed.filter(function (p) { return typeof p === 'string' && p.trim(); });
+                } else {
+                    photos = [raw];
+                }
+            } catch (_) {
+                photos = [raw];
+            }
+        } else {
+            photos = [raw];
+        }
+    }
+    if (!photos.length) return null;
+    if (photos.length === 1) return photos[0];
+    return JSON.stringify(photos);
+}
+
+function normalizeConstructionDefectV2Status(status) {
+    var s = String(status || '').trim().toLowerCase();
+    if (s === 'open') return 'issued';
+    if (s === 'cancelled') return 'rejected';
+    if (s === 'issued' || s === 'in_progress' || s === 'fixed' || s === 'closed' || s === 'rejected') return s;
+    return 'issued';
+}
+
 function prepareConstructionDefectV2ForCloud(item) {
     if (!item || !item.id || !item.locationId) return null;
     const isDeleted = item.is_deleted === true || item._deleted === true;
@@ -419,8 +454,8 @@ function prepareConstructionDefectV2ForCloud(item) {
         deadline: item.deadline || null,
         contractorId: item.contractorId || null,
         description: description || null,
-        photo: item.photo || null,
-        status: item.status || 'open',
+        photo: serializeConstructionDefectV2Photo(item),
+        status: normalizeConstructionDefectV2Status(item.status),
         history: item.history != null ? item.history : [],
         created_by: item.created_by || window.syncConfig?.engineerName || '',
         is_deleted: isDeleted,
@@ -432,6 +467,125 @@ function prepareConstructionDefectV2ForCloud(item) {
     return payload;
 }
 
+window.serializeConstructionDefectV2Photo = serializeConstructionDefectV2Photo;
+window.normalizeConstructionDefectV2Status = normalizeConstructionDefectV2Status;
+
 window.prepareLocationNodeForCloud = prepareLocationNodeForCloud;
 window.prepareFloorPlanForCloud = prepareFloorPlanForCloud;
 window.prepareConstructionDefectV2ForCloud = prepareConstructionDefectV2ForCloud;
+
+function normalizeConstructionAcceptanceV2Status(status) {
+    const s = String(status || '').trim().toLowerCase();
+    if (s === 'pending' || s === 'rejected' || s === 'accepted') return s;
+    return 'pending';
+}
+
+function prepareConstructionAcceptanceV2ForCloud(item) {
+    if (!item || !item.id || !item.locationId) return null;
+    const isDeleted = item.is_deleted === true || item._deleted === true;
+    const nowIso = new Date().toISOString();
+    let zone = null;
+    if (item.zone && typeof item.zone === 'object') {
+        const z = item.zone;
+        const x = Number(z.x);
+        const y = Number(z.y);
+        const w = Number(z.w);
+        const h = Number(z.h);
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h)) {
+            zone = {
+                x: Math.max(0, Math.min(100, x)),
+                y: Math.max(0, Math.min(100, y)),
+                w: Math.max(0.1, Math.min(100, w)),
+                h: Math.max(0.1, Math.min(100, h))
+            };
+            if (z.room != null && String(z.room).trim()) zone.room = String(z.room).trim();
+        }
+    }
+    let requestedDate = item.requested_date || null;
+    if (requestedDate) {
+        const m = String(requestedDate).match(/^(\d{4}-\d{2}-\d{2})/);
+        requestedDate = m ? m[1] : null;
+    }
+    const payload = {
+        id: item.id,
+        companyId: item.companyId || 'rbi',
+        locationId: item.locationId,
+        zone,
+        template_key: item.template_key || null,
+        work_type: item.work_type || null,
+        volume: item.volume || null,
+        requested_date: requestedDate,
+        requested_time: item.requested_time || null,
+        contractorId: item.contractorId || null,
+        status: normalizeConstructionAcceptanceV2Status(item.status),
+        created_by: item.created_by || window.syncConfig?.engineerName || '',
+        is_deleted: isDeleted,
+        created_at: item.created_at || item.createdAt || nowIso,
+        updated_at: nowIso,
+        version: Number.isFinite(item.version) ? item.version : 1
+    };
+    if (isDeleted) payload.deleted_at = item.deleted_at || nowIso;
+    return payload;
+}
+
+window.normalizeConstructionAcceptanceV2Status = normalizeConstructionAcceptanceV2Status;
+window.prepareConstructionAcceptanceV2ForCloud = prepareConstructionAcceptanceV2ForCloud;
+
+/** Canonical статусы передачи v2 + aliases старого MVP → canonical. */
+function normalizeConstructionUnitV2Status(status) {
+    const s = String(status || '').trim().toLowerCase();
+    const canonical = [
+        'not_inspected',
+        'finishing',
+        'has_defects',
+        'ready_for_transfer',
+        'transferred',
+        'shareholder_defects'
+    ];
+    if (canonical.includes(s)) return s;
+    const aliases = {
+        none: 'not_inspected',
+        ready: 'finishing',
+        defects: 'has_defects',
+        accepted: 'transferred'
+    };
+    if (aliases[s]) return aliases[s];
+    return 'not_inspected';
+}
+
+function _unitPdfField(v) {
+    if (v == null) return null;
+    const s = String(v).trim();
+    return s || null;
+}
+
+/** construction_unit_v2 → Supabase construction_units_v2 (camelCase; pdf_* после sql/008). */
+function prepareConstructionUnitV2ForCloud(item) {
+    if (!item || !item.id || !item.locationId) return null;
+    const isDeleted = item.is_deleted === true || item._deleted === true;
+    const nowIso = new Date().toISOString();
+    const sortRaw = Number(item.sort_order);
+    const payload = {
+        id: item.id,
+        companyId: item.companyId || 'rbi',
+        locationId: item.locationId,
+        name: item.name != null ? String(item.name) : '',
+        type: item.type != null ? String(item.type) : 'КВ',
+        sort_order: Number.isFinite(sortRaw) ? sortRaw : 0,
+        status: normalizeConstructionUnitV2Status(item.status),
+        // Требует sql/008_construction_units_v2_apartment_plan.sql (иначе upsert 400).
+        pdf_url: _unitPdfField(item.pdf_url),
+        pdf_name: _unitPdfField(item.pdf_name),
+        pdf_size: _unitPdfField(item.pdf_size),
+        created_by: item.created_by || window.syncConfig?.engineerName || '',
+        is_deleted: isDeleted,
+        created_at: item.created_at || item.createdAt || nowIso,
+        updated_at: nowIso,
+        version: Number.isFinite(item.version) ? item.version : 1
+    };
+    if (isDeleted) payload.deleted_at = item.deleted_at || nowIso;
+    return payload;
+}
+
+window.normalizeConstructionUnitV2Status = normalizeConstructionUnitV2Status;
+window.prepareConstructionUnitV2ForCloud = prepareConstructionUnitV2ForCloud;

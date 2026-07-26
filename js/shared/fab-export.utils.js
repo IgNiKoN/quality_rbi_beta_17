@@ -119,6 +119,7 @@ function handleFabDownload() {
     if (ctx === 'sub-contractors') {
         contentHtml += createRow('current', 'Текущий экран', 'Детализация или список (А4)', 'bg-indigo-50 dark:bg-indigo-900/30', 'text-indigo-600 dark:text-indigo-400', iconDoc);
         contentHtml += createRow('full_report', 'Отчёт по объекту', 'Паспорта подрядчиков (А3)', 'bg-emerald-50 dark:bg-emerald-900/30', 'text-emerald-600 dark:text-emerald-400', iconChart, true);
+        contentHtml += createRow('full_report_v2', 'Отчёт по объекту 2.0', 'Строгий стиль · OP4 + карточки подрядчиков (А3)', 'bg-slate-100 dark:bg-slate-800', 'text-slate-700 dark:text-slate-200', iconChart, true);
         contentHtml += createRow('defect_remediation', 'Повторяющиеся дефекты', 'Брак / устранение, ≥3 повтора (А3 альбом)', 'bg-rose-50 dark:bg-rose-900/30', 'text-rose-600 dark:text-rose-400', iconPoster, true);
         contentHtml += createRow('poster', 'Плакат качества', 'Рейтинги и фото (А3)', 'bg-orange-50 dark:bg-orange-900/30', 'text-orange-600 dark:text-orange-400', iconPoster, true);
         contentHtml += createRow('tender', 'Тендерный отчет', 'Левая кнопка: PDF | Правая: Excel CSV', 'bg-purple-50 dark:bg-purple-900/30', 'text-purple-600 dark:text-purple-400', iconTable);
@@ -127,7 +128,7 @@ function handleFabDownload() {
         contentHtml += createRow('onepager_preview', 'Сводка к печати (OP2)', 'One-Pager 2.0 в HTML · секции on/off → Печать', 'bg-teal-50 dark:bg-teal-900/30', 'text-teal-600 dark:text-teal-400', iconDoc);
         contentHtml += createRow('onepager', 'Сводный статус объекта', 'Классический One-Pager (А3)', 'bg-indigo-50 dark:bg-indigo-900/30', 'text-indigo-600 dark:text-indigo-400', iconChart);
         contentHtml += createRow('onepager_v2', 'One-Pager 2.0', 'Метрики + ПК СК + рейтинги на 1 листе А3', 'bg-violet-50 dark:bg-violet-900/30', 'text-violet-600 dark:text-violet-400', iconPoster, true);
-        contentHtml += createRow('onepager_v3', 'One-Pager 3.0', 'То же, что 2.0, укрупнённо на A1 альбом', 'bg-fuchsia-50 dark:bg-fuchsia-900/30', 'text-fuchsia-600 dark:text-fuchsia-400', iconPoster);
+        contentHtml += createRow('onepager_v4', 'One-Pager 4.0', 'Те же метрики · строгий Times / серые рамки (А3)', 'bg-slate-100 dark:bg-slate-800', 'text-slate-700 dark:text-slate-200', iconPoster, true);
         contentHtml += createRow('defect_remediation', 'Повторяющиеся дефекты', 'Брак / устранение, ≥3 повтора (А3 альбом)', 'bg-rose-50 dark:bg-rose-900/30', 'text-rose-600 dark:text-rose-400', iconPoster, true);
         contentHtml += createRow('global_onepager_v2', 'Сводный отчет по компании 2.0', 'Титул с KPI + One-Pager 2.0 по каждому объекту (А3)', 'bg-violet-50 dark:bg-violet-900/30', 'text-violet-600 dark:text-violet-400', iconDoc, true);
         contentHtml += createRow('global_onepager_v3', 'Сводный отчет по компании 3.0', 'То же, что 2.0, укрупнённо на A1 альбом', 'bg-fuchsia-50 dark:bg-fuchsia-900/30', 'text-fuchsia-600 dark:text-fuchsia-400', iconDoc);

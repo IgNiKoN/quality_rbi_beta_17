@@ -322,7 +322,7 @@ window.RbiStorageManager = {
                 appSettings.storagePersistentGranted = granted === true;
 
                 try {
-                    await dbPut(STORES.SETTINGS, { key: 'app_settings', data: appSettings });
+                    await dbPut(STORES.SETTINGS, { key: 'user_prefs', ...appSettings });
                 } catch (e) { }
             }
 
@@ -1256,8 +1256,16 @@ window.RbiStorageManager = {
                 appSettings.storageLastCleanupAt = new Date().toISOString();
 
                 try {
-                    await dbPut(STORES.SETTINGS, { key: 'app_settings', data: appSettings });
+                    await dbPut(STORES.SETTINGS, { key: 'user_prefs', ...appSettings });
                 } catch (e) { }
+            }
+
+            // Ручная очистка — пользователь ждёт повторной докачки при наличии сети.
+            if (deletedCount > 0 && typeof window.rbiRequestFullOfflineCache === 'function') {
+                window.rbiRequestFullOfflineCache('manual_cleanup');
+                if (typeof window.rbiScheduleFullOfflineCacheIfEnabled === 'function') {
+                    window.rbiScheduleFullOfflineCacheIfEnabled(1000);
+                }
             }
 
             if (typeof updateStorageInfo === 'function') updateStorageInfo();
@@ -1460,10 +1468,15 @@ window.RbiStorageManager = {
                     appSettings.storageLastCleanupAt = new Date().toISOString();
 
                     try {
-                        await dbPut(STORES.SETTINGS, { key: 'app_settings', data: appSettings });
+                        // Тот же ключ, что loadSettings/user_prefs — иначе пауза 6ч не переживает reload
+                        await dbPut(STORES.SETTINGS, { key: 'user_prefs', ...appSettings });
                     } catch (e) { }
                 }
             }
+
+            // Не запрашиваем полное автокэширование после adaptive cleanup:
+            // иначе «освободили место → сразу скачали всё обратно» (петля after_sync).
+            // Повторная докачка — только у ручной «Очистить кэш».
 
             await this.logEvent('cleanup_completed', {
                 reason,

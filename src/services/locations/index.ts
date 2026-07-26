@@ -3,6 +3,15 @@
  */
 
 import { LocationsService } from './locations.service';
+export {
+  resolveObjectLink,
+  listUnlinkedObjects,
+  ensureCanonicalLink,
+  cleanObjectName
+} from './object-bridge';
+export type { ObjectLinkResult, OdObjectLite } from './object-bridge';
+export { migrateOdCatalogToLocations, collectOdSynonyms } from './od-migrate';
+export type { OdMigrateReport } from './od-migrate';
 
 function register() {
   window.RBI = window.RBI || ({ services: {} } as Window['RBI']);

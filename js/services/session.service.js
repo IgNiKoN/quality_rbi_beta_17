@@ -178,6 +178,24 @@
         if (document.getElementById('inp-room')) document.getElementById('inp-room').value = data.room || '';
 
         updateLocationFromStructured(); // Пересчитываем скрытый inp-location
+
+        // Q-pin-1: восстановить pin из draft session (top-level или metrics.planPin)
+        var restoredPin = data.planPin || (data.metrics && data.metrics.planPin) || null;
+        if (window.AuditState && typeof window.AuditState.restorePlanPin === 'function') {
+          window.AuditState.restorePlanPin(restoredPin);
+        }
+        try {
+          var ind = document.getElementById('quality-plan-pin-indicator');
+          var roomEl = document.getElementById('inp-room');
+          if (restoredPin && restoredPin.locationId != null) {
+            if (ind) { ind.classList.remove('hidden'); ind.classList.add('flex'); }
+            if (roomEl) roomEl.placeholder = 'Оси/Пом. (опц.)';
+          } else if (ind) {
+            ind.classList.add('hidden');
+            ind.classList.remove('flex');
+          }
+        } catch (_pinUi) { /* ignore */ }
+
         window.applySmartLocks(); // Применяем замки после загрузки сессии
 
         if (typeof updateDataSummary === 'function') window.updateDataSummary();

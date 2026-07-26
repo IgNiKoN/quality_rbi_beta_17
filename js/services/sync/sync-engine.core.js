@@ -1612,15 +1612,97 @@ if (window.RbiStorageManager) {
                         if (Array.isArray(cloudDefects)) {
                             for (const d of cloudDefects) {
                                 if (!d || !d.id) continue;
+                                // photo (text) → photos[]; open/cancelled → issued/rejected
+                                let photos = [];
+                                if (Array.isArray(d.photos) && d.photos.length) {
+                                    photos = d.photos.filter(function (p) { return typeof p === 'string' && p.trim(); });
+                                } else if (typeof d.photo === 'string' && d.photo.trim()) {
+                                    const rawPhoto = d.photo.trim();
+                                    if (rawPhoto.charAt(0) === '[') {
+                                        try {
+                                            const parsedPhoto = JSON.parse(rawPhoto);
+                                            if (Array.isArray(parsedPhoto)) {
+                                                photos = parsedPhoto.filter(function (p) {
+                                                    return typeof p === 'string' && p.trim();
+                                                });
+                                            } else {
+                                                photos = [rawPhoto];
+                                            }
+                                        } catch (_) {
+                                            photos = [rawPhoto];
+                                        }
+                                    } else {
+                                        photos = [rawPhoto];
+                                    }
+                                }
+                                let st = String(d.status || '').toLowerCase();
+                                if (st === 'open') st = 'issued';
+                                if (st === 'cancelled') st = 'rejected';
                                 await dbPut(STORES.CONST_DEFECTS_V2, {
                                     ...d,
                                     locationId: d.locationId || d.location_id,
                                     contractorId: d.contractorId || d.contractor_id || null,
+                                    photos,
+                                    photo: photos[0] || d.photo || null,
+                                    status: st || 'issued',
                                     _deleted: d.is_deleted === true,
                                     source: 'cloud',
                                     syncStatus: 'synced',
                                     sync_status: 'synced',
                                     updatedAt: d.updated_at || new Date().toISOString()
+                                });
+                            }
+                        }
+                    }
+                    if (STORES.CONST_ACCEPTANCE_V2) {
+                        const { data: cloudAcc, error: accErr } = await window.supabaseClient
+                            .from('construction_acceptance_v2')
+                            .select('*');
+                        if (accErr) throw accErr;
+                        if (Array.isArray(cloudAcc)) {
+                            for (const a of cloudAcc) {
+                                if (!a || !a.id) continue;
+                                let st = String(a.status || '').toLowerCase();
+                                if (st !== 'pending' && st !== 'rejected' && st !== 'accepted') st = 'pending';
+                                await dbPut(STORES.CONST_ACCEPTANCE_V2, {
+                                    ...a,
+                                    locationId: a.locationId || a.location_id,
+                                    contractorId: a.contractorId || a.contractor_id || null,
+                                    zone: a.zone && typeof a.zone === 'object' ? a.zone : null,
+                                    status: st,
+                                    _deleted: a.is_deleted === true,
+                                    source: 'cloud',
+                                    syncStatus: 'synced',
+                                    sync_status: 'synced',
+                                    updatedAt: a.updated_at || new Date().toISOString()
+                                });
+                            }
+                        }
+                    }
+                    // Pull помещений construction-v2 (шахматка; без фото)
+                    if (STORES.CONST_UNITS_V2) {
+                        const { data: cloudUnits, error: unitsErr } = await window.supabaseClient
+                            .from('construction_units_v2')
+                            .select('*');
+                        if (unitsErr) throw unitsErr;
+                        if (Array.isArray(cloudUnits)) {
+                            for (const u of cloudUnits) {
+                                if (!u || !u.id) continue;
+                                let st = String(u.status || '').toLowerCase();
+                                if (st !== 'none' && st !== 'ready' && st !== 'defects' && st !== 'accepted') st = 'none';
+                                const sortRaw = Number(u.sort_order);
+                                await dbPut(STORES.CONST_UNITS_V2, {
+                                    ...u,
+                                    locationId: u.locationId || u.location_id,
+                                    name: u.name != null ? String(u.name) : '',
+                                    type: u.type != null ? String(u.type) : 'КВ',
+                                    sort_order: Number.isFinite(sortRaw) ? sortRaw : 0,
+                                    status: st,
+                                    _deleted: u.is_deleted === true,
+                                    source: 'cloud',
+                                    syncStatus: 'synced',
+                                    sync_status: 'synced',
+                                    updatedAt: u.updated_at || new Date().toISOString()
                                 });
                             }
                         }
@@ -1633,8 +1715,16 @@ if (window.RbiStorageManager) {
                     if (defSvc && typeof defSvc.init === 'function') {
                         await defSvc.init();
                     }
+                    const accSvc = window.RBI && window.RBI.services && window.RBI.services.constructionAcceptance;
+                    if (accSvc && typeof accSvc.init === 'function') {
+                        await accSvc.init();
+                    }
+                    const unitsSvc = window.RBI && window.RBI.services && window.RBI.services.constructionUnits;
+                    if (unitsSvc && typeof unitsSvc.init === 'function') {
+                        await unitsSvc.init();
+                    }
                 } catch (e) {
-                    console.warn('[Sync][Локации] Не удалось подтянуть location_nodes/floors_v2/defects_v2:', e.message || e);
+                    console.warn('[Sync][Локации] Не удалось подтянуть location_nodes/floors_v2/defects_v2/acceptance_v2/units_v2:', e.message || e);
                 }
             }
             // Пользовательские Чек-листы (Объекты)
@@ -2841,7 +2931,43 @@ if (window.RbiStorageManager) {
                                 }
                             }
 
-                            // Push справочника локаций v2
+                            try {
+                                const aliasItems = await dbGetAll(STORES.CONTRACTOR_ALIASES) || [];
+                                const aliasesToPush = aliasItems.filter(a => {
+                                    const status = a.syncStatus || a.sync_status || '';
+                                    const source = a.source || '';
+                                    return status === 'not_synced' || status === 'blocked' || source === 'local';
+                                });
+
+                                for (const item of aliasesToPush) {
+                                    const cloudItem = window.prepareContractorAliasForCloud(item, pCode);
+                                    if (!cloudItem) continue;
+
+                                    const { error } = await window.supabaseClient
+                                        .from('contractor_aliases')
+                                        .upsert(cloudItem, {
+                                            onConflict: 'project_code,raw_name'
+                                        });
+
+                                    if (error) throw error;
+
+                                    item.source = 'cloud';
+                                    item.syncStatus = 'synced';
+                                    item.sync_status = 'synced';
+                                    item.syncBlockReason = '';
+                                    item.sync_block_reason = '';
+                                    item.updatedAt = new Date().toISOString();
+                                    item.updated_at = item.updatedAt;
+
+                                    await dbPut(STORES.CONTRACTOR_ALIASES, item);
+                                }
+                            } catch (e) {
+                                console.warn('[Sync][Подрядчики] Ошибка отправки contractor_aliases:', e);
+                                pushErrors++;
+                                localStorage.setItem('rbi_cloud_dirty', '1');
+                            }
+
+                            // Push справочника локаций v2 + планов этажей — только admin (как contractor_directory).
                             if (STORES.LOCATION_NODES && typeof window.prepareLocationNodeForCloud === 'function') {
                                 try {
                                     const nodeItems = await dbGetAll(STORES.LOCATION_NODES) || [];
@@ -2895,42 +3021,6 @@ if (window.RbiStorageManager) {
                                     pushErrors++;
                                     localStorage.setItem('rbi_cloud_dirty', '1');
                                 }
-                            }
-
-                            try {
-                                const aliasItems = await dbGetAll(STORES.CONTRACTOR_ALIASES) || [];
-                                const aliasesToPush = aliasItems.filter(a => {
-                                    const status = a.syncStatus || a.sync_status || '';
-                                    const source = a.source || '';
-                                    return status === 'not_synced' || status === 'blocked' || source === 'local';
-                                });
-
-                                for (const item of aliasesToPush) {
-                                    const cloudItem = window.prepareContractorAliasForCloud(item, pCode);
-                                    if (!cloudItem) continue;
-
-                                    const { error } = await window.supabaseClient
-                                        .from('contractor_aliases')
-                                        .upsert(cloudItem, {
-                                            onConflict: 'project_code,raw_name'
-                                        });
-
-                                    if (error) throw error;
-
-                                    item.source = 'cloud';
-                                    item.syncStatus = 'synced';
-                                    item.sync_status = 'synced';
-                                    item.syncBlockReason = '';
-                                    item.sync_block_reason = '';
-                                    item.updatedAt = new Date().toISOString();
-                                    item.updated_at = item.updatedAt;
-
-                                    await dbPut(STORES.CONTRACTOR_ALIASES, item);
-                                }
-                            } catch (e) {
-                                console.warn('[Sync][Подрядчики] Ошибка отправки contractor_aliases:', e);
-                                pushErrors++;
-                                localStorage.setItem('rbi_cloud_dirty', '1');
                             }
                         } // <-- ЗАКРЫЛИ БЛОК АДМИНА
 
@@ -3017,6 +3107,34 @@ if (window.RbiStorageManager) {
                                     });
                                 }
                                 for (const item of defectsToPush) {
+                                    // Upload local:// / data:image из photos + history (+ legacy photo)
+                                    // в bucket construction-defects до upsert (как const_defect).
+                                    if (
+                                        item.is_deleted !== true &&
+                                        item._deleted !== true &&
+                                        typeof window.uploadObjectFilesToCloud === 'function'
+                                    ) {
+                                        const pCode = (window.syncConfig && window.syncConfig.projectCode) || 'shared';
+                                        const uploaded = await window.uploadObjectFilesToCloud(
+                                            {
+                                                photos: Array.isArray(item.photos) ? item.photos : [],
+                                                history: item.history != null ? item.history : [],
+                                                photo: item.photo || null
+                                            },
+                                            'construction-defects',
+                                            `${pCode}/const_defect_v2/${item.id}`,
+                                            'photo'
+                                        );
+                                        if (uploaded) {
+                                            if (Array.isArray(uploaded.photos)) item.photos = uploaded.photos;
+                                            if (uploaded.history != null) item.history = uploaded.history;
+                                            if (uploaded.photo != null) item.photo = uploaded.photo;
+                                            // если photos залиты, а photo остался local — синхронизируем mirror
+                                            if (Array.isArray(item.photos) && item.photos.length) {
+                                                item.photo = item.photos[0];
+                                            }
+                                        }
+                                    }
                                     const cloudItem = window.prepareConstructionDefectV2ForCloud(item);
                                     if (!cloudItem) continue;
                                     const { error } = await window.supabaseClient
@@ -3036,6 +3154,92 @@ if (window.RbiStorageManager) {
                                 }
                             } catch (e) {
                                 console.warn('[Sync][Стройконтроль v2] Ошибка отправки construction_defects_v2:', e);
+                                pushErrors++;
+                                localStorage.setItem('rbi_cloud_dirty', '1');
+                            }
+                        }
+
+                        // Push заявок на приёмку construction-v2 (без upload фото — zone jsonb)
+                        if (STORES.CONST_ACCEPTANCE_V2 && typeof window.prepareConstructionAcceptanceV2ForCloud === 'function') {
+                            try {
+                                const accItems = await dbGetAll(STORES.CONST_ACCEPTANCE_V2) || [];
+                                let accToPush = accItems.filter(d => {
+                                    const status = d.syncStatus || d.sync_status || '';
+                                    const source = d.source || '';
+                                    return status === 'not_synced' || status === 'blocked' || source === 'local';
+                                });
+                                const isAdminAcc = window.RBI.services.permissions
+                                    ? window.RBI.services.permissions.isAdmin()
+                                    : false;
+                                if (!isAdminAcc) {
+                                    accToPush = accToPush.filter(d => {
+                                        const owner = d.owner || d.created_by || d.author || '';
+                                        return !owner || owner === iName;
+                                    });
+                                }
+                                for (const item of accToPush) {
+                                    const cloudItem = window.prepareConstructionAcceptanceV2ForCloud(item);
+                                    if (!cloudItem) continue;
+                                    const { error } = await window.supabaseClient
+                                        .from('construction_acceptance_v2')
+                                        .upsert(cloudItem, { onConflict: 'id' });
+                                    if (error) throw error;
+                                    item.source = 'cloud';
+                                    item.syncStatus = 'synced';
+                                    item.sync_status = 'synced';
+                                    item.updatedAt = new Date().toISOString();
+                                    item.updated_at = item.updatedAt;
+                                    await dbPut(STORES.CONST_ACCEPTANCE_V2, item);
+                                }
+                                const accSvcPush = window.RBI && window.RBI.services && window.RBI.services.constructionAcceptance;
+                                if (accSvcPush && typeof accSvcPush.init === 'function') {
+                                    await accSvcPush.init();
+                                }
+                            } catch (e) {
+                                console.warn('[Sync][Стройконтроль v2] Ошибка отправки construction_acceptance_v2:', e);
+                                pushErrors++;
+                                localStorage.setItem('rbi_cloud_dirty', '1');
+                            }
+                        }
+
+                        // Push помещений construction-v2 (шахматка; без фото)
+                        if (STORES.CONST_UNITS_V2 && typeof window.prepareConstructionUnitV2ForCloud === 'function') {
+                            try {
+                                const unitItems = await dbGetAll(STORES.CONST_UNITS_V2) || [];
+                                let unitsToPush = unitItems.filter(d => {
+                                    const status = d.syncStatus || d.sync_status || '';
+                                    const source = d.source || '';
+                                    return status === 'not_synced' || status === 'blocked' || source === 'local';
+                                });
+                                const isAdminUnits = window.RBI.services.permissions
+                                    ? window.RBI.services.permissions.isAdmin()
+                                    : false;
+                                if (!isAdminUnits) {
+                                    unitsToPush = unitsToPush.filter(d => {
+                                        const owner = d.owner || d.created_by || d.author || '';
+                                        return !owner || owner === iName;
+                                    });
+                                }
+                                for (const item of unitsToPush) {
+                                    const cloudItem = window.prepareConstructionUnitV2ForCloud(item);
+                                    if (!cloudItem) continue;
+                                    const { error } = await window.supabaseClient
+                                        .from('construction_units_v2')
+                                        .upsert(cloudItem, { onConflict: 'id' });
+                                    if (error) throw error;
+                                    item.source = 'cloud';
+                                    item.syncStatus = 'synced';
+                                    item.sync_status = 'synced';
+                                    item.updatedAt = new Date().toISOString();
+                                    item.updated_at = item.updatedAt;
+                                    await dbPut(STORES.CONST_UNITS_V2, item);
+                                }
+                                const unitsSvcPush = window.RBI && window.RBI.services && window.RBI.services.constructionUnits;
+                                if (unitsSvcPush && typeof unitsSvcPush.init === 'function') {
+                                    await unitsSvcPush.init();
+                                }
+                            } catch (e) {
+                                console.warn('[Sync][Стройконтроль v2] Ошибка отправки construction_units_v2:', e);
                                 pushErrors++;
                                 localStorage.setItem('rbi_cloud_dirty', '1');
                             }
@@ -3174,33 +3378,67 @@ if (window.RbiStorageManager) {
                     if (!obj) return;
                     if (typeof obj === 'string') {
                         if (obj.startsWith('local://') || obj.startsWith('http')) usedPhotos.add(obj);
-                    } else if (typeof obj === 'object') {
+                        return;
+                    }
+                    if (Array.isArray(obj)) {
+                        obj.forEach(extractFiles);
+                        return;
+                    }
+                    if (typeof obj === 'object') {
+                        // Не обходим бинарные payload'ы фото/отчётов
+                        if (
+                            (typeof ArrayBuffer !== 'undefined' && obj instanceof ArrayBuffer) ||
+                            (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(obj)) ||
+                            (typeof Blob !== 'undefined' && obj instanceof Blob)
+                        ) {
+                            return;
+                        }
                         Object.values(obj).forEach(extractFiles);
                     }
                 };
 
-                const allStores = ['app_history', 'rbi_etalon_acts', 'rbi_tasks', 'rbi_meetings', 'rbi_practices', 'rbi_fmea', 'sk_records'];
+                // Важно: раньше не сканировали twi/docs/nodes/templates/reports из IDB —
+                // после hard-delete «мёртвых» карточек автоочистка могла снести живой офлайн-кэш БЗ.
+                const allStores = [
+                    'app_history', 'rbi_etalon_acts', 'rbi_tasks', 'rbi_meetings',
+                    'rbi_practices', 'rbi_interventions', 'rbi_fmea', 'sk_records',
+                    'user_templates', 'custom_docs', 'custom_nodes', 'twi_cards',
+                    'app_reports', 'app_assistant_kb'
+                ];
                 for (let store of allStores) {
-                    const items = await dbGetAll(store);
-                    if (items) items.forEach(extractFiles);
+                    try {
+                        const items = await dbGetAll(store);
+                        if (items) items.forEach(extractFiles);
+                    } catch (e) { /* store может отсутствовать на старых БД */ }
                 }
                 if (typeof customTwiCards !== 'undefined') extractFiles(customTwiCards);
                 if (typeof customNodes !== 'undefined') extractFiles(customNodes);
                 if (typeof customDocs !== 'undefined') extractFiles(customDocs);
+                if (typeof window.rbi_practicesData !== 'undefined') extractFiles(window.rbi_practicesData);
+                if (typeof window.rbi_meetingsData !== 'undefined') extractFiles(window.rbi_meetingsData);
+                if (typeof reportsArray !== 'undefined') extractFiles(reportsArray);
 
+                let orphanPhotosDeleted = 0;
                 const allPhotos = await dbGetAll('app_photos');
                 if (allPhotos) {
                     for (let p of allPhotos) {
-                        if (!usedPhotos.has(p.id)) {
-                            await dbDelete('app_photos', p.id);
-                            if (PhotoManager.cache && PhotoManager.cache[p.id]) {
-                                URL.revokeObjectURL(PhotoManager.cache[p.id]);
-                                delete PhotoManager.cache[p.id];
-                            }
+                        if (!p || !p.id) continue;
+                        const alt =
+                            p.sourceUrl || p.source_url || p.public_url || p.publicUrl || '';
+                        if (usedPhotos.has(p.id) || (alt && usedPhotos.has(alt))) continue;
+
+                        await dbDelete('app_photos', p.id);
+                        orphanPhotosDeleted++;
+                        if (PhotoManager.cache && PhotoManager.cache[p.id]) {
+                            URL.revokeObjectURL(PhotoManager.cache[p.id]);
+                            delete PhotoManager.cache[p.id];
                         }
                     }
                 }
-                console.log(`[Sync] Авто-очистка: навсегда удалено ${hardDeletedCount} записей и очищен кэш фото.`);
+                console.log(
+                    `[Sync] Авто-очистка: навсегда удалено ${hardDeletedCount} записей` +
+                    (orphanPhotosDeleted ? `, осиротевших фото: ${orphanPhotosDeleted}` : '') + '.'
+                );
             }
         } catch (e) {
             console.warn('[Sync] Ошибка авто-очистки удаленных записей:', e);
@@ -3217,12 +3455,19 @@ if (window.RbiStorageManager) {
 
             const firstFullOfflineCacheDone =
                 localStorage.getItem('rbi_first_full_offline_cache_done') === '1';
+            const needFullOfflineCache =
+                localStorage.getItem('rbi_need_full_offline_cache') === '1';
 
+            // Полное копирование: после первого full-pull ИЛИ после очистки кэша
+            // (флаг rbi_need_full_offline_cache) — иначе после «Очистить кэш»
+            // остаётся done=1 и файлы больше не докачиваются.
             const shouldRunFirstFullOfflineCache =
-                wasFirstFullPullForOfflineCache === true &&
                 !firstFullOfflineCacheDone &&
-                syncWasSuccessful &&
-                typeof window.downloadMissingCloudFiles === 'function';
+                typeof window.downloadMissingCloudFiles === 'function' &&
+                (
+                    (wasFirstFullPullForOfflineCache === true && syncWasSuccessful) ||
+                    needFullOfflineCache === true
+                );
 
             if (shouldRunFirstFullOfflineCache) {
                 // ВАЖНО:
@@ -3236,14 +3481,19 @@ if (window.RbiStorageManager) {
                     window.rbiFullOfflineCacheProcessing = true;
 
                     try {
-                        console.log('[OfflineCache] Первая полная синхронизация завершена. Запускаем полное копирование файлов для офлайна.');
+                        console.log(
+                            needFullOfflineCache
+                                ? '[OfflineCache] Запрошено повторное полное копирование для офлайна.'
+                                : '[OfflineCache] Первая полная синхронизация завершена. Запускаем полное копирование файлов для офлайна.'
+                        );
 
-                        await window.downloadMissingCloudFiles(false);
+                        await window.downloadMissingCloudFiles(needFullOfflineCache === true);
 
                         window.rbiBgCacheQueue = [];
 
                         localStorage.setItem('rbi_first_full_offline_cache_done', '1');
                         localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
+                        localStorage.removeItem('rbi_need_full_offline_cache');
 
                         if (typeof window.rbi_reloadReferenceMemory === 'function') {
                             await window.rbi_reloadReferenceMemory();

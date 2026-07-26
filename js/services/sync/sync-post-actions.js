@@ -215,14 +215,22 @@ window.addEventListener('online', () => {
         setTimeout(() => window.SyncQueueManager.process(), 2000);
     }
 
-    // После восстановления интернета обрабатываем только лёгкую очередь.
-    // Полное "Скопировать всё для офлайна" запускается только после первой полной синхронизации.
+    // После восстановления интернета: если просили полное копирование — докачиваем всё;
+    // иначе только лёгкая очередь.
     setTimeout(() => {
+        if (typeof window.rbiIsAutoCacheEnabled !== 'function' || !window.rbiIsAutoCacheEnabled()) {
+            return;
+        }
+
         if (
-            typeof window.rbiProcessBgCacheQueue === 'function' &&
-            typeof window.rbiIsAutoCacheEnabled === 'function' &&
-            window.rbiIsAutoCacheEnabled()
+            localStorage.getItem('rbi_need_full_offline_cache') === '1' &&
+            typeof window.rbiScheduleFullOfflineCacheIfEnabled === 'function'
         ) {
+            window.rbiScheduleFullOfflineCacheIfEnabled(0);
+            return;
+        }
+
+        if (typeof window.rbiProcessBgCacheQueue === 'function') {
             const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
             const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
 

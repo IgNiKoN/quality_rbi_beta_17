@@ -41,6 +41,89 @@
                 .trim();
         },
 
+
+        /**
+         * C2 forward-write: после создания OD-карточки — ensure locations.object с тем же key.
+         * Не бросает наружу (не ломает заявки при недоступном locations).
+         */
+        async _ensureLocationsObjectPeer(canonicalKey) {
+            const key = String(canonicalKey || '').trim();
+            if (!key) return null;
+            try {
+                const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+                if (!loc || typeof loc.createLocationFromOd !== 'function') return null;
+                if (typeof loc.init === 'function') await loc.init();
+                return await loc.createLocationFromOd(key);
+            } catch (e) {
+                console.warn('[ObjectDirectory] locations forward-write failed:', e);
+                return null;
+            }
+        },
+
+        /** C2: match locations.object (locations-only) по key/display/synonyms. */
+        _matchLocationsObject(cleanInput, rawName) {
+            try {
+                const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+                if (!loc || typeof loc.listNodes !== 'function' || !cleanInput) return null;
+                const nodes = (loc.listNodes({ nodeType: 'object', parentId: null }) || [])
+                    .filter((n) => n && !n.is_deleted && !n._deleted);
+                for (const n of nodes) {
+                    const disp = this.cleanString(n.displayName || '');
+                    const key = this.cleanString(n.canonical_key || '');
+                    if (disp === cleanInput || (key && key === cleanInput)) {
+                        return {
+                            status: 'matched',
+                            canonical_key: n.canonical_key || this.cleanString(n.displayName || rawName),
+                            display_name: n.displayName || rawName,
+                            raw_name: rawName,
+                            match_type: 'locations_exact',
+                            score: 1
+                        };
+                    }
+                    if (Array.isArray(n.synonyms)) {
+                        const hit = n.synonyms.some((syn) => this.cleanString(syn) === cleanInput);
+                        if (hit) {
+                            return {
+                                status: 'matched',
+                                canonical_key: n.canonical_key || this.cleanString(n.displayName || rawName),
+                                display_name: n.displayName || rawName,
+                                raw_name: rawName,
+                                match_type: 'locations_synonym',
+                                score: 1
+                            };
+                        }
+                    }
+                }
+                let best = null;
+                for (const n of nodes) {
+                    const scores = [
+                        this.getSimilarity(cleanInput, this.cleanString(n.displayName || '')),
+                        this.getSimilarity(cleanInput, this.cleanString(n.canonical_key || ''))
+                    ];
+                    if (Array.isArray(n.synonyms)) {
+                        n.synonyms.forEach((syn) => {
+                            scores.push(this.getSimilarity(cleanInput, this.cleanString(syn || '')));
+                        });
+                    }
+                    const score = Math.max(...scores);
+                    if (score > 0.75 && (!best || score > best.score)) {
+                        best = { n, score };
+                    }
+                }
+                if (best) {
+                    return {
+                        status: 'matched',
+                        canonical_key: best.n.canonical_key || this.cleanString(best.n.displayName || rawName),
+                        display_name: best.n.displayName || rawName,
+                        raw_name: rawName,
+                        match_type: 'locations_fuzzy',
+                        score: best.score
+                    };
+                }
+            } catch (_e) { /* ignore */ }
+            return null;
+        },
+
         // Расчет процента совпадения (расстояние Левенштейна)
         getSimilarity(s1, s2) {
             if (!s1 || !s2) return 0;
@@ -122,6 +205,12 @@
                 }
             }
 
+            // 2b. C2: locations exact/synonym до OD-fuzzy (locations — источник истины по структуре)
+            const locExact = this._matchLocationsObject(cleanInput, rawName);
+            if (locExact && (locExact.match_type === 'locations_exact' || locExact.match_type === 'locations_synonym')) {
+                return locExact;
+            }
+
             // 3. Нечёткий поиск по display_name, canonical_key и synonyms
             let matches = [];
 
@@ -187,6 +276,10 @@
                 };
             }
 
+            // 4b. C2: locations fuzzy fallback (если OD fuzzy не сработал)
+            const locFuzzy = this._matchLocationsObject(cleanInput, rawName);
+            if (locFuzzy) return locFuzzy;
+
             // 5. Если совпадений нет — отправляем заявку руководителю на подтверждение
             const newKey = this.cleanString(rawName);
 
@@ -234,6 +327,47 @@
             return this.objects.find(o =>
                 String(o.canonical_key) === String(canonicalKey)
             ) || null;
+        },
+
+        /**
+         * Создать OD-карточку из locations.object (мост C1).
+         * Минимальный helper — без рефакторинга панели.
+         */
+        async createFromLocation(opts) {
+            const options = opts || {};
+            const displayName = String(options.displayName || options.display_name || '').trim();
+            if (!displayName) throw new Error('displayName обязателен');
+
+            let key = String(options.canonical_key || '').trim();
+            if (!key) key = this.cleanString(displayName);
+
+            const existing = this.getObjectByKey(key)
+                || this.objects.find(o =>
+                    !o._deleted && !o.is_deleted
+                    && this.cleanString(o.display_name || o.name || '') === this.cleanString(displayName)
+                );
+            if (existing) return existing;
+
+            const nowIso = new Date().toISOString();
+            const newObj = {
+                id: 'obj_' + Date.now().toString(36),
+                project_code: window.syncConfig?.projectCode || '',
+                canonical_key: key,
+                display_name: displayName,
+                synonyms: [],
+                created_by: window.syncConfig?.engineerName || window.appSettings?.engineerName || '',
+                updated_at: nowIso,
+                is_deleted: false,
+                _deleted: false,
+                source: 'local',
+                sync_status: 'not_synced'
+            };
+            this.objects.push(newObj);
+            if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
+            await this._ensureLocationsObjectPeer(key);
+            localStorage.setItem('rbi_cloud_dirty', '1');
+            if (typeof triggerSync === 'function') triggerSync('silent');
+            return newObj;
         },
 
         // Получить красивое название по canonical_key
@@ -363,16 +497,49 @@
                 availableObjects
                     .map(o => String(o.display_name || o.name || o.canonical_key || '').trim())
                     .filter(Boolean)
-            )].sort();
+            )];
 
-            if (typeof _smartInputMemoryCache !== 'undefined') {
-                if (!_smartInputMemoryCache) {
-                    _smartInputMemoryCache = JSON.parse(localStorage.getItem('smart_input_cache') || '{}');
+            // C1: merge locations.object names (clean-unique)
+            try {
+                const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+                if (loc && typeof loc.listNodes === 'function') {
+                    const locObjs = loc.listNodes({ nodeType: 'object', parentId: null }) || [];
+                    locObjs.forEach(function (n) {
+                        if (n && n.displayName) objectNames.push(String(n.displayName).trim());
+                    });
                 }
+            } catch (_e) { /* ignore */ }
 
-                _smartInputMemoryCache['projectName'] = objectNames;
-                localStorage.setItem('smart_input_cache', JSON.stringify(_smartInputMemoryCache));
+            const clean = (typeof this.cleanString === 'function')
+                ? (s) => this.cleanString(s)
+                : (s) => String(s || '').toLowerCase().trim();
+            const seen = new Set();
+            const mergedNames = [];
+            objectNames.forEach(function (raw) {
+                const v = String(raw || '').trim();
+                if (!v) return;
+                const k = clean(v);
+                if (!k || seen.has(k)) return;
+                seen.add(k);
+                mergedNames.push(v);
+            });
+            mergedNames.sort();
+
+            const cacheTarget = (typeof window._smartInputMemoryCache === 'object' && window._smartInputMemoryCache)
+                ? window._smartInputMemoryCache
+                : (JSON.parse(localStorage.getItem('smart_input_cache') || '{}') || {});
+            cacheTarget.projectName = mergedNames;
+            window._smartInputMemoryCache = cacheTarget;
+            if (typeof _smartInputMemoryCache !== 'undefined') {
+                try {
+                    if (!_smartInputMemoryCache) {
+                        _smartInputMemoryCache = cacheTarget;
+                    } else {
+                        _smartInputMemoryCache['projectName'] = mergedNames;
+                    }
+                } catch (_e2) { /* module-scope недоступен из classic */ }
             }
+            localStorage.setItem('smart_input_cache', JSON.stringify(cacheTarget));
 
             // Убираем всё, что делает объект похожим на select/datalist
             projectInput.removeAttribute('list');
@@ -671,6 +838,7 @@
 
                     this.objects.push(newObj);
                     if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
+                    await this._ensureLocationsObjectPeer(newKey);
 
                     // 2. Создаем алиас ЛОКАЛЬНО
                     const newAlias = {
@@ -792,6 +960,7 @@
 
                     this.objects.push(newObj);
                     if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
+                    await this._ensureLocationsObjectPeer(newKey);
 
                     if (!assigned.includes(newKey)) assigned.push(newKey);
                     showToast('Создан новый объект и выдан доступ!');
@@ -870,7 +1039,7 @@
         },
 
         // Новое добавление объекта (Инлайн)
-        addNewObjectInline() {
+        async addNewObjectInline() {
             const inputEl = document.getElementById('inline-new-obj-name');
             const name = inputEl ? inputEl.value.trim() : '';
             if (!name) return showToast("⚠️ Введите название объекта!");
@@ -893,6 +1062,7 @@
 
             this.objects.push(newObj);
             if (typeof dbPut === 'function') dbPut('project_objects', newObj);
+            await this._ensureLocationsObjectPeer(canonical);
 
             localStorage.setItem('rbi_cloud_dirty', '1');
             // triggerSync не вызываем сразу, чтобы не блокировать добавление следующих объектов

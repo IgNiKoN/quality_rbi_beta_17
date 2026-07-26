@@ -10,6 +10,8 @@
  * Бизнес-логику не меняет — перенос 1-в-1 из app.js.
  */
 
+import './practice.pptx-export.js'; // side-effect: exportPracticePptx / rbi_exportPracticePptx
+
 // =========================================================================
 // ПРИВАТНЫЕ ХЕЛПЕРЫ (изоляция от прямых dbPut/STORES/triggerSync)
 // =========================================================================
@@ -1744,14 +1746,26 @@ window.openUniversalActionSheet = function (id, type, title, isOwner, extraData)
         </button>
     `;
 
-    // Кнопка: PDF (Только Практики)
+    // Кнопки выгрузки (Практики): PDF / Печать / PPTX — один строгий макет A4
     if (type === 'practice') {
         btnsHtml += `
         <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
             <div class="w-8 h-8 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Скачать PDF (А3)</span>
+            <span class="text-[12px] font-bold">Скачать PDF</span>
+        </button>
+        <button onclick="handleUasAction('${id}', '${type}', 'print')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+            <div class="w-8 h-8 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"></path></svg>
+            </div>
+            <span class="text-[12px] font-bold">Печать</span>
+        </button>
+        <button onclick="handleUasAction('${id}', '${type}', 'pptx')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+            <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h4M8 12h8M8 16h5"></path></svg>
+            </div>
+            <span class="text-[12px] font-bold">Сохранить PPTX</span>
         </button>`;
     }
 
@@ -1903,7 +1917,9 @@ window.handleUasAction = function (id, type, action) {
         // --- ДЕЙСТВИЯ ПРАКТИК ---
         if (type === 'practice') {
             if (action === 'view') rbi_openPracticeViewer(id);
-            if (action === 'pdf') rbi_printPracticePdf(id);
+            if (action === 'pdf') rbi_printPracticePdf(id, 'script');
+            if (action === 'print') rbi_printPracticePdf(id, 'browser');
+            if (action === 'pptx' && typeof window.rbi_exportPracticePptx === 'function') window.rbi_exportPracticePptx(id);
             if (action === 'publish') rbi_publishPractice(id);
             if (action === 'delete') rbi_deletePractice(id);
         }
@@ -2039,12 +2055,15 @@ window.rbi_openPracticeViewer = async function (id) {
             </div>` : ''}
         </div>
         ${docsHtml}
-        <div class="flex gap-2 w-full">
-            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'script')" class="flex-1 bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
-                📥 Скачать PDF
+        <div class="grid grid-cols-3 gap-2 w-full">
+            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'script')" class="bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
+                PDF
             </button>
-            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'browser')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">
-                🖨️ Печать (А3)
+            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'browser')" class="bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">
+                Печать
+            </button>
+            <button onclick="closeModal(); if(window.rbi_exportPracticePptx) rbi_exportPracticePptx('${p.id}')" class="bg-orange-50 text-orange-700 border border-orange-200 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
+                PPTX
             </button>
         </div>
     `;

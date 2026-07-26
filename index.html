@@ -303,6 +303,7 @@
                             data-settings-action="changeAppMode" data-settings-action-val-type="value" data-action-event="change">
                             <option value="quality" selected>Качество</option>
                             <option value="construction">Стройконтроль</option>
+                            <option value="construction-v2">Стройконтроль в2 (тест)</option>
                             <option value="safety">Безопасность</option>
                             <option value="warranty">Гарантия</option>
                             <option value="uk">УК (Упр. компания)</option>
@@ -448,6 +449,21 @@
                                 placeholder="Этаж*" autocomplete="off"></div>
                         <div class="relative"><input type="text" id="inp-room" class="input-base text-center"
                                 placeholder="Оси/Пом.*" autocomplete="off"></div>
+                    </div>
+                    <div class="col-span-2 flex items-center gap-2 mt-1.5">
+                        <button type="button" id="btn-quality-plan-pin"
+                            class="shrink-0 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700
+                                   text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-200 hover:bg-indigo-100 transition-colors">
+                            📍 на плане
+                        </button>
+                        <div id="quality-plan-pin-indicator"
+                            class="hidden flex-1 items-center gap-2 min-w-0 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                            <span class="text-[10px] font-bold text-emerald-800 dark:text-emerald-200 truncate">● Точка на плане</span>
+                            <button type="button" data-qpin-reposition
+                                class="ml-auto shrink-0 text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-300">переставить</button>
+                            <button type="button" data-qpin-clear
+                                class="shrink-0 text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-red-600">снять</button>
+                        </div>
                     </div>
                     <input type="hidden" id="inp-location">
                 </div>
@@ -681,8 +697,8 @@
     <script>
         window.RBI_APP_VERSION = {
             app: '18.57.0',
-            sw: '18.57.319',
-            buildDate: '2026-07-24'
+            sw: '18.57.341',
+            buildDate: '2026-07-25'
         };
     </script>
     <!-- === ПОДКЛЮЧЕНИЕ МОДУЛЕЙ JS === -->
@@ -732,9 +748,11 @@
     <script type="module" src="js/services/storage/storage-photo-manager.js"></script>
     <script type="module" src="js/services/storage/storage-file-queue.actions.js"></script>
     <script type="module" src="js/services/storage.service.js"></script>
-    <!-- service.locations + constructionDefects (Vite/TS бандлы) — после storage -->
+    <!-- service.locations + constructionDefects + constructionAcceptance + constructionUnits (Vite/TS бандлы) — после storage -->
     <script type="module" src="js/dist/rbi-locations.js"></script>
     <script type="module" src="js/dist/rbi-construction-defects.js"></script>
+    <script type="module" src="js/dist/rbi-construction-acceptance.js"></script>
+    <script type="module" src="js/dist/rbi-construction-units.js"></script>
     <script type="module" src="js/services/settings.service.js"></script>
     <script type="module" src="js/services/session.service.js"></script>
     <script type="module" src="js/services/inspection.service.js"></script>
