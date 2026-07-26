@@ -12,8 +12,77 @@ import {
   requestFocusAcceptance,
   setConstructionV2Subview
 } from './ui';
+import type { ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
+import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
 
 let _inited = false;
+
+type AccSvcLoop = {
+  list: (opts?: { locationId?: string }) => ConstructionAcceptanceV2[];
+  listForLocation?: (locationId: string) => ConstructionAcceptanceV2[];
+  setChecklistItem: (
+    id: string,
+    item: {
+      id: string;
+      group?: string | null;
+      name: string;
+      status: string;
+    }
+  ) => Promise<ConstructionAcceptanceV2>;
+};
+
+type DefSvcLoop = {
+  get: (id: string) => ConstructionDefectV2 | null;
+};
+
+/**
+ * B-петля: defect → closed (+ item_id) → FAIL/fail_escalated пункта той же locationId → OK.
+ * Rejected приёмки не трогаем. Канон: closed (fixed не авто-OK).
+ */
+async function _syncChecklistOnDefectClosed(payload: {
+  reason?: string;
+  id?: string;
+  locationId?: string;
+  status?: string;
+}): Promise<void> {
+  if (payload?.reason !== 'changeStatus') return;
+  if (String(payload.status || '') !== 'closed') return;
+  const defectId = String(payload.id || '').trim();
+  if (!defectId) return;
+
+  const dSvc = window.RBI?.services?.constructionDefects as DefSvcLoop | undefined;
+  const aSvc = window.RBI?.services?.constructionAcceptance as AccSvcLoop | undefined;
+  if (!dSvc?.get || !aSvc?.setChecklistItem) return;
+
+  const defect = dSvc.get(defectId);
+  if (!defect || defect.is_deleted || defect._deleted) return;
+  const itemId = String(defect.item_id || '').trim();
+  const locationId = String(defect.locationId || payload.locationId || '').trim();
+  if (!itemId || !locationId) return;
+
+  const acceptances =
+    (typeof aSvc.listForLocation === 'function'
+      ? aSvc.listForLocation(locationId)
+      : aSvc.list({ locationId })) || [];
+
+  for (const acc of acceptances) {
+    if (!acc || acc.is_deleted || acc._deleted) continue;
+    if (String(acc.status) === 'rejected') continue;
+    const row = (acc.checklist_results?.items || []).find((it) => String(it.id) === itemId);
+    if (!row) continue;
+    if (row.status !== 'fail' && row.status !== 'fail_escalated') continue;
+    try {
+      await aSvc.setChecklistItem(acc.id, {
+        id: itemId,
+        name: String(row.name || defect.item_name || itemId),
+        group: row.group ?? null,
+        status: 'ok'
+      });
+    } catch (e) {
+      console.warn('[construction-v2] auto checklist OK on defect closed', e);
+    }
+  }
+}
 
 function _hashPath(): string {
   return (location.hash || '').replace(/^#/, '');
@@ -25,6 +94,8 @@ function _applyHashSubview() {
     setConstructionV2Subview('acceptance');
   } else if (h.startsWith('/construction-v2/transfer')) {
     setConstructionV2Subview('transfer');
+  } else if (h.startsWith('/construction-v2/defects')) {
+    setConstructionV2Subview('defects');
   } else if (h.startsWith('/construction-v2')) {
     setConstructionV2Subview('plan');
   }
@@ -47,13 +118,28 @@ async function init(_ctx?: Record<string, unknown>) {
     }
   });
 
-  window.RBI?.events?.on?.('construction-defects:changed', () => {
+  window.RBI?.events?.on?.('construction-defects:changed', (payload?: unknown) => {
     refreshConstructionV2Markers().catch(() => {});
     refreshApartmentPlanMarkers().catch(() => {});
+    const p = (payload || {}) as {
+      reason?: string;
+      id?: string;
+      locationId?: string;
+      status?: string;
+    };
+    void _syncChecklistOnDefectClosed(p);
   });
 
   window.RBI?.events?.on?.('construction-acceptance:changed', () => {
     refreshConstructionV2Markers().catch(() => {});
+    // Шахматка подхватывает B при следующем render transfer (hash/subview).
+    const tab = document.getElementById('tab-construction-v2');
+    if (tab && !tab.classList.contains('hidden')) {
+      const transferRoot = document.getElementById('c2-transfer-grid');
+      if (transferRoot) {
+        renderConstructionV2().catch(() => {});
+      }
+    }
   });
 
   window.RBI?.events?.on?.('construction-units:changed', () => {
@@ -121,6 +207,7 @@ function _registerAppRouter() {
     router.addRoute('#/construction-v2', () => showTab());
     router.addRoute('#/construction-v2/acceptance', () => showTab());
     router.addRoute('#/construction-v2/transfer', () => showTab());
+    router.addRoute('#/construction-v2/defects', () => showTab());
   }
 }
 

@@ -4,6 +4,7 @@
 
 import type { ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
 import type { LocationNode } from '../../services/locations/types';
+import { computeChecklistProgress, progressLine } from './acceptance-checklist';
 import { openAcceptanceDetails } from './acceptance-form';
 
 type AccSvc = {
@@ -55,6 +56,15 @@ function _cardHtml(r: ConstructionAcceptanceV2, loc: LocSvc): string {
     r.status === 'pending' &&
     r.requested_date &&
     new Date(r.requested_date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+  const progress = computeChecklistProgress(r.template_key, r.checklist_results);
+  const progressHtml =
+    progress.total > 0 && (r.checklist_results || progress.done > 0)
+      ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape(progressLine(progress))}${
+          progress.fail ? ` · FAIL ${progress.fail}` : ''
+        }</div>`
+      : progress.total > 0
+        ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>`
+        : '';
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
          data-c2-acc-card="${_escape(r.id)}">
@@ -69,6 +79,7 @@ function _cardHtml(r: ConstructionAcceptanceV2, loc: LocSvc): string {
           class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">План</button>
       </div>
       ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape(r.volume)}</div>` : ''}
+      ${progressHtml}
     </div>`;
 }
 
@@ -177,6 +188,10 @@ function _bindOnce() {
           onSoftDelete: async (rid) => {
             await acc.softDelete(rid);
             window.showToast?.('Заявка отозвана');
+            const root = document.getElementById('construction-v2-root');
+            if (root) await renderAcceptanceKanban(root);
+          },
+          onChecklistChanged: async () => {
             const root = document.getElementById('construction-v2-root');
             if (root) await renderAcceptanceKanban(root);
           }

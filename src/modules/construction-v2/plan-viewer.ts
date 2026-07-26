@@ -1,5 +1,5 @@
 /**
- * Лёгкий PDF-просмотрщик этажа для construction-v2 (pdfjsLib + overlay маркеров/зон).
+ * Лёгкий PDF-просмотрщик этажа для construction-v2 (pdfjsLib + overlay маркеров/зон + Panzoom).
  * Не использует UniversalPdfViewer / pdf-viewer.js.
  */
 
@@ -30,8 +30,27 @@ type PdfPage = {
   };
 };
 
+type PanzoomInstance = {
+  zoom: (scale: number, opts?: { animate?: boolean }) => void;
+  zoomIn: (opts?: { animate?: boolean }) => void;
+  zoomOut: (opts?: { animate?: boolean }) => void;
+  zoomWithWheel: (event: WheelEvent) => void;
+  pan: (x: number, y: number, opts?: { animate?: boolean; relative?: boolean }) => void;
+  getScale: () => number;
+  getPan: () => { x: number; y: number };
+  reset: (opts?: { animate?: boolean }) => void;
+  destroy: () => void;
+  setOptions: (opts: Record<string, unknown>) => void;
+};
+
+type PanzoomFactory = (el: HTMLElement, opts?: Record<string, unknown>) => PanzoomInstance;
+
 function _pdfjs(): PdfjsLib | null {
   return (window as unknown as { pdfjsLib?: PdfjsLib }).pdfjsLib || null;
+}
+
+function _panzoomFactory(): PanzoomFactory | null {
+  return (window as unknown as { Panzoom?: PanzoomFactory }).Panzoom || null;
 }
 
 /** Цвета как в legacy ConstDefectForm: B1 blue / B2 orange / B3 red / closed green. */
@@ -71,8 +90,11 @@ export class PlanViewer {
   private zoneMode = false;
   private zoneClick1: { x: number; y: number } | null = null;
   private focusZoneId: string | null = null;
+  private highlightId: string | null = null;
   private destroyed = false;
   private pdfUrl = '';
+  private panzoom: PanzoomInstance | null = null;
+  private _onWheelBound: ((e: WheelEvent) => void) | null = null;
 
   constructor(host: HTMLElement, handlers: PlanViewerHandlers = {}) {
     this.host = host;
@@ -118,8 +140,49 @@ export class PlanViewer {
     });
   }
 
+  getMarkerEl(id: string): HTMLElement | null {
+    if (!this.pins || !id) return null;
+    const pins = this.pins.querySelectorAll('[data-c2-pin]');
+    for (const el of pins) {
+      if ((el as HTMLElement).getAttribute('data-c2-pin') === id) return el as HTMLElement;
+    }
+    return null;
+  }
+
+  /** Подсветка маркера (pulse/ring) + по возможности pan к пину. */
+  highlightMarker(id: string | null) {
+    this.highlightId = id;
+    this._applyHighlight();
+    if (id) this._panToMarker(id);
+  }
+
+  setScale(scale: number) {
+    if (!this.panzoom) return;
+    const s = Math.min(8, Math.max(0.4, Number(scale) || 1));
+    this.panzoom.zoom(s, { animate: true });
+  }
+
+  zoomIn() {
+    this.panzoom?.zoomIn({ animate: true });
+  }
+
+  zoomOut() {
+    this.panzoom?.zoomOut({ animate: true });
+  }
+
+  /** Сброс масштаба/пана к стартовому fit. */
+  fit() {
+    if (!this.panzoom) return;
+    this.panzoom.reset({ animate: true });
+  }
+
+  getScale(): number {
+    return this.panzoom?.getScale() ?? 1;
+  }
+
   destroy() {
     this.destroyed = true;
+    this._destroyPanzoom();
     this.host.innerHTML = '';
     this.wrap = null;
     this.stage = null;
@@ -131,9 +194,10 @@ export class PlanViewer {
   async load(pdfUrl: string): Promise<void> {
     this.pdfUrl = pdfUrl;
     this.destroyed = false;
+    this._destroyPanzoom();
     this.host.innerHTML = `
-      <div class="absolute inset-0 overflow-auto bg-slate-200 dark:bg-slate-900" data-c2-plan-wrap>
-        <div class="relative mx-auto my-2 shadow-lg bg-white" data-c2-plan-stage style="width:fit-content">
+      <div class="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-900 flex items-center justify-center" data-c2-plan-wrap>
+        <div class="relative shadow-lg bg-white" data-c2-plan-stage style="width:fit-content;touch-action:none">
           <canvas data-c2-plan-canvas class="block max-w-none"></canvas>
           <div data-c2-plan-zones class="absolute inset-0 pointer-events-none"></div>
           <div data-c2-plan-pins class="absolute inset-0 pointer-events-none"></div>
@@ -180,8 +244,9 @@ export class PlanViewer {
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
     const page = await pdf.getPage(1);
     const hostW = Math.max(this.host.clientWidth || 640, 320);
+    const hostH = Math.max(this.host.clientHeight || 400, 240);
     const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(2.2, Math.max(1.1, (hostW - 24) / base.width));
+    const scale = Math.min(2.2, Math.max(0.8, Math.min((hostW - 24) / base.width, (hostH - 24) / base.height)));
     const viewport = page.getViewport({ scale });
 
     this.canvas.width = viewport.width;
@@ -194,6 +259,7 @@ export class PlanViewer {
     await page.render({ canvasContext: ctx, viewport }).promise;
 
     if (loader) loader.remove();
+    this._initPanzoom();
     this._syncCursor();
   }
 
@@ -212,11 +278,12 @@ export class PlanViewer {
           class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
                  flex items-center justify-center text-white text-[10px] font-black
                  cursor-pointer hover:scale-125 transition-transform z-20
-                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
       })
       .join('');
     this.pins.innerHTML = html;
+    this._applyHighlight();
   }
 
   setZones(items: ConstructionAcceptanceV2[]) {
@@ -236,7 +303,7 @@ export class PlanViewer {
         const zIndex = this.focusZoneId === a.id ? 25 : 10;
         return `<button type="button" data-c2-zone="${_escapeAttr(a.id)}"
           class="absolute border-2 ${colors.box} ${focus} shadow-inner flex items-center justify-center
-                 cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto"
+                 cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;z-index:${zIndex}" title="${title}">
           <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">зона</span>
         </button>`;
@@ -279,11 +346,88 @@ export class PlanViewer {
     );
   }
 
+  private _initPanzoom() {
+    this._destroyPanzoom();
+    const factory = _panzoomFactory();
+    if (!factory || !this.stage || !this.wrap) return;
+    this.panzoom = factory(this.stage, {
+      maxScale: 8,
+      minScale: 0.4,
+      step: 0.2,
+      cursor: 'grab',
+      excludeClass: 'panzoom-exclude'
+    });
+    this._onWheelBound = (e: WheelEvent) => {
+      if (!this.panzoom) return;
+      e.preventDefault();
+      this.panzoom.zoomWithWheel(e);
+    };
+    this.wrap.addEventListener('wheel', this._onWheelBound, { passive: false });
+  }
+
+  private _destroyPanzoom() {
+    if (this.wrap && this._onWheelBound) {
+      this.wrap.removeEventListener('wheel', this._onWheelBound);
+    }
+    this._onWheelBound = null;
+    if (this.panzoom) {
+      try {
+        this.panzoom.destroy();
+      } catch {
+        /* ignore */
+      }
+      this.panzoom = null;
+    }
+  }
+
+  private _applyHighlight() {
+    const pins = this.pins?.querySelectorAll('[data-c2-pin]');
+    pins?.forEach((el) => {
+      const hid = el as HTMLElement;
+      const match = !!this.highlightId && hid.getAttribute('data-c2-pin') === this.highlightId;
+      hid.classList.toggle('ring-4', match);
+      hid.classList.toggle('ring-yellow-300', match);
+      hid.classList.toggle('scale-150', match);
+      hid.classList.toggle('animate-pulse', match);
+      hid.style.zIndex = match ? '40' : '';
+    });
+  }
+
+  private _panToMarker(id: string) {
+    if (!this.panzoom || !this.wrap) return;
+    const el = this.getMarkerEl(id);
+    if (!el) return;
+    const run = () => {
+      if (!this.panzoom || !this.wrap) return;
+      const er = el.getBoundingClientRect();
+      const wr = this.wrap.getBoundingClientRect();
+      const dx = wr.left + wr.width / 2 - (er.left + er.width / 2);
+      const dy = wr.top + wr.height / 2 - (er.top + er.height / 2);
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      const pan = this.panzoom.getPan();
+      const s = this.panzoom.getScale() || 1;
+      this.panzoom.pan(pan.x + dx / s, pan.y + dy / s, { animate: true });
+    };
+    // Чуть увеличить, если слишком мелко
+    if (this.panzoom.getScale() < 1.2) {
+      this.panzoom.zoom(1.5, { animate: true });
+      setTimeout(run, 220);
+    } else {
+      requestAnimationFrame(run);
+    }
+  }
+
   private _syncCursor() {
     if (!this.wrap) return;
     const cross = this.addMode || this.zoneMode;
     this.wrap.classList.toggle('cursor-crosshair', cross);
     this.wrap.classList.toggle('cursor-default', !cross);
+    if (this.panzoom) {
+      this.panzoom.setOptions({
+        cursor: cross ? 'crosshair' : 'grab',
+        disablePan: cross
+      });
+    }
   }
 
   private _onClick(ev: MouseEvent) {

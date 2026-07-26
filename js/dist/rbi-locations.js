@@ -14,9 +14,66 @@ function cleanObjectName(str) {
   if (od && typeof od.cleanString === "function") return od.cleanString(str);
   return String(str || "").toLowerCase().replace(/['"«»]/g, "").replace(/жк\s+/gi, "").trim();
 }
+function locationNodeToOdShape(n) {
+  const key = String(n.canonical_key || "").trim() || cleanObjectName(n.displayName || "");
+  return {
+    id: n.id,
+    canonical_key: key,
+    display_name: n.displayName || key,
+    name: n.displayName || key,
+    synonyms: Array.isArray(n.synonyms) ? n.synonyms.map((s) => String(s || "").trim()).filter(Boolean) : [],
+    _deleted: false,
+    is_deleted: false,
+    sync_status: n.syncStatus || "local",
+    source: "locations",
+    updated_at: n.updated_at,
+    created_by: n.created_by
+  };
+}
+function listObjectsAsOdShape(api) {
+  return listLocationObjects(api).map(locationNodeToOdShape);
+}
+async function ensureObjectNode(api, opts) {
+  const key = String(opts.canonical_key || "").trim();
+  const displayName = String(opts.displayName || "").trim() || key;
+  if (!key) throw new Error("canonical_key обязателен");
+  let loc = findLocByKey(api, key) || findLocByDisplay(api, displayName);
+  const syn = Array.isArray(opts.synonyms) ? opts.synonyms.map((s) => String(s || "").trim()).filter(Boolean) : [];
+  if (!loc) {
+    loc = await api.createNode({
+      nodeType: "object",
+      displayName,
+      parentId: null,
+      canonical_key: key,
+      synonyms: syn
+    });
+    return loc;
+  }
+  const patch = {};
+  if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(key)) {
+    patch.canonical_key = key;
+  }
+  if (syn.length) {
+    const cur = Array.isArray(loc.synonyms) ? loc.synonyms.map(String) : [];
+    const merged = [...cur];
+    for (const s of syn) {
+      if (!merged.some((x) => cleanObjectName(x) === cleanObjectName(s))) merged.push(s);
+    }
+    if (merged.length !== cur.length) patch.synonyms = merged;
+  }
+  if (Object.keys(patch).length) {
+    loc = await api.updateNode(loc.id, patch);
+  }
+  return loc;
+}
 function listOdActive$1() {
   const od = _od$1();
   const list = od && Array.isArray(od.objects) ? od.objects : [];
+  return list.filter((o) => o && !o._deleted && !o.is_deleted);
+}
+function listOdLeftover() {
+  const od = _od$1();
+  const list = od && Array.isArray(od.leftoverObjects) ? od.leftoverObjects : [];
   return list.filter((o) => o && !o._deleted && !o.is_deleted);
 }
 function findOdByKey(key) {
@@ -27,7 +84,9 @@ function findOdByKey(key) {
     if (hit && !hit._deleted && !hit.is_deleted) return hit;
   }
   const clean = cleanObjectName(key);
-  return listOdActive$1().find((o) => cleanObjectName(o.canonical_key || "") === clean) || null;
+  const fromActive = listOdActive$1().find((o) => cleanObjectName(o.canonical_key || "") === clean);
+  if (fromActive) return fromActive;
+  return listOdLeftover().find((o) => cleanObjectName(o.canonical_key || "") === clean) || null;
 }
 function findOdByDisplay(name) {
   const clean = cleanObjectName(name);
@@ -74,22 +133,17 @@ function resolveObjectLink(api, input = {}) {
   return { od: od || null, locationObject: loc || null, linked };
 }
 function listUnlinkedObjects(api) {
-  const locs = listLocationObjects(api);
-  const ods = listOdActive$1();
   const locationOnly = locs.filter((n) => {
-    const r = resolveObjectLink(api, {
-      locationObjectId: n.id,
-      canonical_key: n.canonical_key,
-      displayName: n.displayName
-    });
-    return !r.linked;
+    return !String(n.canonical_key || "").trim();
   });
+  const leftover = listOdLeftover();
+  const ods = leftover.length ? leftover : [];
   const odOnly = ods.filter((o) => {
     const r = resolveObjectLink(api, {
       canonical_key: o.canonical_key,
       displayName: o.display_name || o.name
     });
-    return !r.linked;
+    return !r.locationObject;
   });
   return { locationOnly, odOnly };
 }
@@ -114,33 +168,25 @@ async function linkLocationToOd(api, locationObjectId, odCanonicalKey) {
   return resolveObjectLink(api, { locationObjectId, canonical_key: key });
 }
 async function createOdFromLocation(api, locationObjectId) {
-  const loc = api.getNode(locationObjectId);
-  if (!loc || loc.nodeType !== "object") throw new Error("Нужен узел object");
-  const od = _od$1();
-  if (!od) throw new Error("ObjectDirectory недоступен");
-  const displayName = String(loc.displayName || "").trim();
+  const loc0 = api.getNode(locationObjectId);
+  if (!loc0 || loc0.nodeType !== "object") throw new Error("Нужен узел object");
+  const displayName = String(loc0.displayName || "").trim();
   if (!displayName) throw new Error("displayName пуст");
-  let key = String(loc.canonical_key || "").trim() || cleanObjectName(displayName);
-  const existing = findOdByKey(key) || findOdByDisplay(displayName);
-  if (existing && existing.canonical_key) {
-    if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(existing.canonical_key)) {
-      await api.updateNode(locationObjectId, { canonical_key: existing.canonical_key });
-    }
-    return resolveObjectLink(api, {
-      locationObjectId,
-      canonical_key: existing.canonical_key
-    });
-  }
-  if (typeof od.createFromLocation === "function") {
-    const created = await od.createFromLocation({ displayName, canonical_key: key });
-    if (created && created.canonical_key) key = created.canonical_key;
-  } else {
-    throw new Error("ObjectDirectory.createFromLocation недоступен");
-  }
-  if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(key)) {
+  let key = String(loc0.canonical_key || "").trim() || cleanObjectName(displayName);
+  if (!loc0.canonical_key || cleanObjectName(loc0.canonical_key) !== cleanObjectName(key)) {
     await api.updateNode(locationObjectId, { canonical_key: key });
   }
-  return resolveObjectLink(api, { locationObjectId, canonical_key: key });
+  const od = _od$1();
+  if (od && typeof od.rebuildFromLocations === "function") {
+    await od.rebuildFromLocations();
+  } else if (od && typeof od.createFromLocation === "function") {
+    await od.createFromLocation({ displayName, canonical_key: key });
+  }
+  return {
+    od: locationNodeToOdShape(api.getNode(locationObjectId) || loc0),
+    locationObject: api.getNode(locationObjectId) || loc0,
+    linked: true
+  };
 }
 async function createLocationFromOd(api, odCanonicalKey) {
   const odObj = findOdByKey(odCanonicalKey);
@@ -197,10 +243,13 @@ function attachObjectBridge(api) {
   return {
     resolveObjectLink: (input) => resolveObjectLink(api, input || {}),
     listUnlinkedObjects: () => listUnlinkedObjects(api),
+    listObjectsAsOdShape: () => listObjectsAsOdShape(api),
+    ensureObjectNode: (opts) => ensureObjectNode(api, opts),
     ensureCanonicalLink: (opts) => ensureCanonicalLink(api, opts),
     linkLocationToOd: (locationObjectId, odCanonicalKey) => linkLocationToOd(api, locationObjectId, odCanonicalKey),
     createOdFromLocation: (locationObjectId) => createOdFromLocation(api, locationObjectId),
     createLocationFromOd: (odCanonicalKey) => createLocationFromOd(api, odCanonicalKey),
+    locationNodeToOdShape,
     cleanObjectName
   };
 }
@@ -209,7 +258,8 @@ function _od() {
 }
 function listOdActive() {
   const od = _od();
-  const list = od && Array.isArray(od.objects) ? od.objects : [];
+  const leftover = od && Array.isArray(od.leftoverObjects) ? od.leftoverObjects : [];
+  const list = leftover.length ? leftover : od && Array.isArray(od.objects) ? od.objects : [];
   return list.filter((o) => o && !o._deleted && !o.is_deleted);
 }
 function collectOdSynonyms(odObj) {
@@ -676,10 +726,16 @@ const LocationsService = {
   createLocationFromOd(odCanonicalKey) {
     return _bridge().createLocationFromOd(odCanonicalKey);
   },
+  listObjectsAsOdShape() {
+    return _bridge().listObjectsAsOdShape();
+  },
+  ensureObjectNode(opts) {
+    return _bridge().ensureObjectNode(opts);
+  },
   cleanObjectName(str) {
     return _bridge().cleanObjectName(str);
   },
-  /** C2: идемпотентная миграция OD → locations.object (+ synonyms). */
+  /** C2: идемпотентная миграция OD → locations.object (+ synonyms). C2b: leftover-only. */
   migrateOdCatalogToLocations(opts) {
     return migrateOdCatalogToLocations(
       {
@@ -731,7 +787,10 @@ export {
   cleanObjectName,
   collectOdSynonyms,
   ensureCanonicalLink,
+  ensureObjectNode,
+  listObjectsAsOdShape,
   listUnlinkedObjects,
+  locationNodeToOdShape,
   migrateOdCatalogToLocations,
   resolveObjectLink
 };

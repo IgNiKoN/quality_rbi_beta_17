@@ -49,8 +49,10 @@ export type ObjectBridgeApi = {
 
 type OdGlobal = {
   objects?: OdObjectLite[];
+  leftoverObjects?: OdObjectLite[];
   cleanString?: (s: string) => string;
   getObjectByKey?: (key: string) => OdObjectLite | null;
+  rebuildFromLocations?: () => Promise<void> | void;
   createFromLocation?: (opts: {
     displayName: string;
     canonical_key?: string;
@@ -72,9 +74,84 @@ export function cleanObjectName(str: string): string {
     .trim();
 }
 
+/** C2b: OD-форма узла locations.object (проекция, без записи в project_objects). */
+export function locationNodeToOdShape(n: LocationNode): OdObjectLite {
+  const key = String(n.canonical_key || '').trim() || cleanObjectName(n.displayName || '');
+  return {
+    id: n.id,
+    canonical_key: key,
+    display_name: n.displayName || key,
+    name: n.displayName || key,
+    synonyms: Array.isArray(n.synonyms) ? n.synonyms.map((s) => String(s || '').trim()).filter(Boolean) : [],
+    _deleted: false,
+    is_deleted: false,
+    sync_status: n.syncStatus || 'local',
+    source: 'locations',
+    updated_at: n.updated_at,
+    created_by: n.created_by
+  };
+}
+
+export function listObjectsAsOdShape(api: ObjectBridgeApi): OdObjectLite[] {
+  return listLocationObjects(api).map(locationNodeToOdShape);
+}
+
+/**
+ * C2b: ensure locations.object с canonical_key (+ synonyms).
+ * Не пишет project_objects.
+ */
+export async function ensureObjectNode(
+  api: ObjectBridgeApi,
+  opts: { canonical_key: string; displayName: string; synonyms?: string[] }
+): Promise<LocationNode> {
+  const key = String(opts.canonical_key || '').trim();
+  const displayName = String(opts.displayName || '').trim() || key;
+  if (!key) throw new Error('canonical_key обязателен');
+
+  let loc = findLocByKey(api, key) || findLocByDisplay(api, displayName);
+  const syn = Array.isArray(opts.synonyms)
+    ? opts.synonyms.map((s) => String(s || '').trim()).filter(Boolean)
+    : [];
+
+  if (!loc) {
+    loc = await api.createNode({
+      nodeType: 'object',
+      displayName,
+      parentId: null,
+      canonical_key: key,
+      synonyms: syn
+    });
+    return loc;
+  }
+
+  const patch: Partial<Pick<LocationNode, 'displayName' | 'canonical_key' | 'synonyms'>> = {};
+  if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(key)) {
+    patch.canonical_key = key;
+  }
+  if (syn.length) {
+    const cur = Array.isArray(loc.synonyms) ? loc.synonyms.map(String) : [];
+    const merged = [...cur];
+    for (const s of syn) {
+      if (!merged.some((x) => cleanObjectName(x) === cleanObjectName(s))) merged.push(s);
+    }
+    if (merged.length !== cur.length) patch.synonyms = merged;
+  }
+  if (Object.keys(patch).length) {
+    loc = await api.updateNode(loc.id, patch);
+  }
+  return loc;
+}
+
 function listOdActive(): OdObjectLite[] {
   const od = _od();
   const list = od && Array.isArray(od.objects) ? od.objects : [];
+  return list.filter((o) => o && !o._deleted && !o.is_deleted);
+}
+
+/** Leftover IDB project_objects (C2b) — не SoT, только для banner/createLocationFromOd. */
+function listOdLeftover(): OdObjectLite[] {
+  const od = _od();
+  const list = od && Array.isArray(od.leftoverObjects) ? od.leftoverObjects : [];
   return list.filter((o) => o && !o._deleted && !o.is_deleted);
 }
 
@@ -86,7 +163,9 @@ function findOdByKey(key: string): OdObjectLite | null {
     if (hit && !hit._deleted && !hit.is_deleted) return hit;
   }
   const clean = cleanObjectName(key);
-  return listOdActive().find((o) => cleanObjectName(o.canonical_key || '') === clean) || null;
+  const fromActive = listOdActive().find((o) => cleanObjectName(o.canonical_key || '') === clean);
+  if (fromActive) return fromActive;
+  return listOdLeftover().find((o) => cleanObjectName(o.canonical_key || '') === clean) || null;
 }
 
 function findOdByDisplay(name: string): OdObjectLite | null {
@@ -166,22 +245,18 @@ export function listUnlinkedObjects(api: ObjectBridgeApi): {
   locationOnly: LocationNode[];
   odOnly: OdObjectLite[];
 } {
-  const locs = listLocationObjects(api);
-  const ods = listOdActive();
   const locationOnly = locs.filter((n) => {
-    const r = resolveObjectLink(api, {
-      locationObjectId: n.id,
-      canonical_key: n.canonical_key,
-      displayName: n.displayName
-    });
-    return !r.linked;
+    // C2b: «location only» = object без canonical_key (ещё не готов для quality)
+    return !String(n.canonical_key || '').trim();
   });
+  const leftover = listOdLeftover();
+  const ods = leftover.length ? leftover : [];
   const odOnly = ods.filter((o) => {
     const r = resolveObjectLink(api, {
       canonical_key: o.canonical_key,
       displayName: o.display_name || o.name
     });
-    return !r.linked;
+    return !r.locationObject;
   });
   return { locationOnly, odOnly };
 }
@@ -214,43 +289,38 @@ export async function linkLocationToOd(
   return resolveObjectLink(api, { locationObjectId, canonical_key: key });
 }
 
-/** Создать OD из locations.object (admin). */
+/**
+ * C2b: «создать OD» = ensure canonical_key + rebuild facade-проекции.
+ * Не пишет project_objects (OD — compatibility-facade над locations).
+ */
 export async function createOdFromLocation(
   api: ObjectBridgeApi,
   locationObjectId: string
 ): Promise<ObjectLinkResult> {
-  const loc = api.getNode(locationObjectId);
-  if (!loc || loc.nodeType !== 'object') throw new Error('Нужен узел object');
+  const loc0 = api.getNode(locationObjectId);
+  if (!loc0 || loc0.nodeType !== 'object') throw new Error('Нужен узел object');
 
-  const od = _od();
-  if (!od) throw new Error('ObjectDirectory недоступен');
-
-  const displayName = String(loc.displayName || '').trim();
+  const displayName = String(loc0.displayName || '').trim();
   if (!displayName) throw new Error('displayName пуст');
 
-  let key = String(loc.canonical_key || '').trim() || cleanObjectName(displayName);
-  const existing = findOdByKey(key) || findOdByDisplay(displayName);
-  if (existing && existing.canonical_key) {
-    if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(existing.canonical_key)) {
-      await api.updateNode(locationObjectId, { canonical_key: existing.canonical_key });
-    }
-    return resolveObjectLink(api, {
-      locationObjectId,
-      canonical_key: existing.canonical_key
-    });
-  }
-
-  if (typeof od.createFromLocation === 'function') {
-    const created = await od.createFromLocation({ displayName, canonical_key: key });
-    if (created && created.canonical_key) key = created.canonical_key;
-  } else {
-    throw new Error('ObjectDirectory.createFromLocation недоступен');
-  }
-
-  if (!loc.canonical_key || cleanObjectName(loc.canonical_key) !== cleanObjectName(key)) {
+  let key = String(loc0.canonical_key || '').trim() || cleanObjectName(displayName);
+  if (!loc0.canonical_key || cleanObjectName(loc0.canonical_key) !== cleanObjectName(key)) {
     await api.updateNode(locationObjectId, { canonical_key: key });
   }
-  return resolveObjectLink(api, { locationObjectId, canonical_key: key });
+
+  const od = _od();
+  if (od && typeof od.rebuildFromLocations === 'function') {
+    await od.rebuildFromLocations();
+  } else if (od && typeof od.createFromLocation === 'function') {
+    // fallback: facade createFromLocation (no dirty OD write после C2b)
+    await od.createFromLocation({ displayName, canonical_key: key });
+  }
+
+  return {
+    od: locationNodeToOdShape(api.getNode(locationObjectId) || loc0),
+    locationObject: api.getNode(locationObjectId) || loc0,
+    linked: true
+  };
 }
 
 /** Создать locations.object из OD (admin). */
@@ -333,6 +403,9 @@ export function attachObjectBridge(api: ObjectBridgeApi) {
       locationObjectId?: string;
     }) => resolveObjectLink(api, input || {}),
     listUnlinkedObjects: () => listUnlinkedObjects(api),
+    listObjectsAsOdShape: () => listObjectsAsOdShape(api),
+    ensureObjectNode: (opts: { canonical_key: string; displayName: string; synonyms?: string[] }) =>
+      ensureObjectNode(api, opts),
     ensureCanonicalLink: (opts: {
       locationObjectId?: string;
       odCanonicalKey?: string;
@@ -342,6 +415,7 @@ export function attachObjectBridge(api: ObjectBridgeApi) {
       linkLocationToOd(api, locationObjectId, odCanonicalKey),
     createOdFromLocation: (locationObjectId: string) => createOdFromLocation(api, locationObjectId),
     createLocationFromOd: (odCanonicalKey: string) => createLocationFromOd(api, odCanonicalKey),
+    locationNodeToOdShape,
     cleanObjectName
   };
 }

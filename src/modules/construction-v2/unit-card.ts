@@ -25,6 +25,8 @@ export type UnitCardCallbacks = {
   toast: (msg: string) => void;
   /** Открыть pin-UI на PDF квартиры (блок B). */
   onOpenApartmentPlan?: (unit: ConstructionUnitV2) => void | Promise<void>;
+  /** Приёмка квартиры (locationId = apartment). */
+  onOpenAcceptance?: (unit: ConstructionUnitV2) => void | Promise<void>;
 };
 
 let _openUnitId: string | null = null;
@@ -117,6 +119,9 @@ export function openUnitCard(
                    class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">Замечания на плане</button>`
           }
         </div>
+        <button type="button" data-c2-unit-acceptance="${_escape(unit.id)}"
+          class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? 'opacity-50 cursor-not-allowed' : ''}"
+          ${guest ? 'disabled' : ''}>Приёмка</button>
         ${
           canDel
             ? `<button type="button" data-c2-unit-delete="${_escape(unit.id)}"
@@ -164,6 +169,19 @@ export function openUnitCard(
       return;
     }
     void deps.cb.onOpenApartmentPlan(fresh);
+  });
+
+  wrap.querySelector('[data-c2-unit-acceptance]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (guest) return;
+    const id = (ev.currentTarget as HTMLElement).getAttribute('data-c2-unit-acceptance');
+    if (!id) return;
+    const fresh = deps.units.get(id) || unit;
+    if (!deps.cb.onOpenAcceptance) {
+      deps.cb.toast('Приёмка недоступна');
+      return;
+    }
+    void deps.cb.onOpenAcceptance(fresh);
   });
 
   wrap.querySelector('[data-c2-unit-delete]')?.addEventListener('click', (ev) => {

@@ -38,6 +38,7 @@ export type OdMigrateApi = ObjectBridgeApi & {
 
 type OdGlobal = {
   objects?: OdObjectLite[];
+  leftoverObjects?: OdObjectLite[];
   aliases?: Record<string, string>;
 };
 
@@ -47,7 +48,13 @@ function _od(): OdGlobal | null {
 
 function listOdActive(): OdObjectLite[] {
   const od = _od();
-  const list = od && Array.isArray(od.objects) ? od.objects : [];
+  // C2b: migrate leftover IDB; objects = locations-проекция
+  const leftover = od && Array.isArray(od.leftoverObjects) ? od.leftoverObjects : [];
+  const list = leftover.length
+    ? leftover
+    : od && Array.isArray(od.objects)
+      ? od.objects
+      : [];
   return list.filter((o) => o && !o._deleted && !o.is_deleted);
 }
 

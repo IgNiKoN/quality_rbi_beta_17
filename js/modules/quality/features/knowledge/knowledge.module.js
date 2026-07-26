@@ -1559,19 +1559,33 @@ window.closeTwiViewer = function () {
 };
 
 // === МЕНЮ СПРАВКИ В КАРТОЧКЕ ДЕФЕКТА (БЕЗ ЭМОДЗИ) ===
-window.openItemHelpMenu = function (id, event) {
+// ctx? — для ChecklistRunner / construction: { templateKey, checklist } без AuditState.
+window.openItemHelpMenu = function (id, event, ctx) {
     if (event) event.stopPropagation();
 
-    const flat = getFlatList((window.AuditState && window.AuditState.currentChecklist) || currentChecklist);
-    const itemData = flat.find(x => x.id === id);
-    if (!itemData) return;
+    const checklist =
+        (ctx && ctx.checklist) ||
+        (window.AuditState && window.AuditState.currentChecklist) ||
+        currentChecklist;
+    const templateKey =
+        (ctx && ctx.templateKey) ||
+        ((window.AuditState && window.AuditState.currentTemplateKey) || currentTemplateKey);
+
+    const flat = getFlatList(checklist || []);
+    const itemData = flat.find(x => String(x.id) === String(id));
+    if (!itemData) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Пункт чек-листа не найден для справки');
+        }
+        return;
+    }
 
     document.getElementById('help-modal-title').innerText = itemData.n;
 
     const inspectorCard = customTwiCards.find(c => c.type === 'INSPECTOR' && String(c.itemId) === String(id));
     const generalCards = customTwiCards.filter(c =>
         (c.type === 'WORKER' || c.type === 'PDF') &&
-        c.checklistKey === ((window.AuditState && window.AuditState.currentTemplateKey) || currentTemplateKey) &&
+        c.checklistKey === templateKey &&
         (String(c.itemId) === String(id) || c.itemId === 'ALL' || !c.itemId)
     );
 
@@ -1622,6 +1636,10 @@ window.openItemHelpMenu = function (id, event) {
                 </div>
             `;
         });
+    }
+
+    if (!html) {
+        html = `<div class="text-[12px] font-bold text-slate-500 p-3">К этому пункту пока не привязаны инструкции</div>`;
     }
 
     listContainer.innerHTML = html;

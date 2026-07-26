@@ -11,9 +11,32 @@ export type AcceptanceZoneV2 = {
 /** Статусы заявки на приёмку v2. */
 export type AcceptanceStatusV2 = 'pending' | 'rejected' | 'accepted';
 
+/** Статус пункта чек-листа приёмки (C+D; P — паритет аудита). */
+export type ChecklistItemStatusV2 = 'ok' | 'fail' | 'na' | 'fail_escalated';
+
+export type ChecklistResultItemV2 = {
+  id: string;
+  group?: string | null;
+  name: string;
+  status: ChecklistItemStatusV2;
+  /** Комментарий к FAIL (как AuditState.details[id].comment). */
+  comment?: string;
+  /** Мультифото пункта: local:// | https (как AuditState.photos[id]). */
+  photos?: string[];
+  updated_at?: string;
+};
+
+/** jsonb checklist_results на construction_acceptance_v2 (sql/010). */
+export type ChecklistResultsV2 = {
+  template_key: string;
+  updated_at: string;
+  items: ChecklistResultItemV2[];
+};
+
 /**
- * ConstructionAcceptanceV2 — поля ≈ таблица construction_acceptance_v2 (sql/002).
- * locationId = id узла floor из service.locations.
+ * ConstructionAcceptanceV2 — поля ≈ таблица construction_acceptance_v2 (sql/002 + 010).
+ * locationId = id узла floor | apartment из service.locations
+ * (этаж/зона — zone на плане; квартира — zone full-rect {0,0,100,100}).
  */
 export interface ConstructionAcceptanceV2 {
   id: string;
@@ -26,6 +49,8 @@ export interface ConstructionAcceptanceV2 {
   requested_date?: string | null;
   requested_time?: string | null;
   contractorId?: string | null;
+  /** Результаты прохода чек-листа (этаж/зона или квартира); null если ещё не начат. */
+  checklist_results?: ChecklistResultsV2 | null;
   status: AcceptanceStatusV2 | string;
   created_by?: string;
   is_deleted?: boolean;

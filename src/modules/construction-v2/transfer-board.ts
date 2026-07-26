@@ -6,6 +6,16 @@
 import type { ConstructionUnitV2, UnitStatusV2 } from '../../services/construction-units/types';
 import { UNIT_STATUS_LABELS_RU } from '../../services/construction-units/types';
 import type { LocationNode } from '../../services/locations/types';
+import type { ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
+import {
+  computeAcceptanceQualityB,
+  pickLatestAcceptanceForB
+} from './acceptance-checklist';
+import {
+  APARTMENT_FULL_ZONE,
+  openAcceptanceDetails,
+  openCreateAcceptanceForm
+} from './acceptance-form';
 import { closeApartmentPlan, openApartmentPlan } from './apartment-plan';
 import { closeUnitCard, openUnitCard } from './unit-card';
 
@@ -45,6 +55,16 @@ type UnitsSvc = {
   get: (id: string) => ConstructionUnitV2 | null;
 };
 
+type AccSvc = {
+  init?: () => Promise<boolean>;
+  list: (opts?: { locationId?: string }) => ConstructionAcceptanceV2[];
+  listForLocation?: (locationId: string) => ConstructionAcceptanceV2[];
+  get: (id: string) => ConstructionAcceptanceV2 | null;
+  create: (input: Record<string, unknown>) => Promise<ConstructionAcceptanceV2>;
+  changeStatus: (id: string, status: string) => Promise<ConstructionAcceptanceV2>;
+  softDelete: (id: string) => Promise<ConstructionAcceptanceV2>;
+};
+
 /** Закрыть sheet/plan при уходе с transfer. */
 export function teardownTransferUi(): void {
   closeApartmentPlan();
@@ -57,6 +77,28 @@ function _loc(): LocSvc | null {
 
 function _units(): UnitsSvc | null {
   return (window.RBI?.services?.constructionUnits as UnitsSvc) || null;
+}
+
+function _acc(): AccSvc | null {
+  return (window.RBI?.services?.constructionAcceptance as AccSvc) || null;
+}
+
+function _listAccForLocation(locationId: string): ConstructionAcceptanceV2[] {
+  const a = _acc();
+  if (!a || !locationId) return [];
+  if (typeof a.listForLocation === 'function') return a.listForLocation(locationId) || [];
+  return a.list({ locationId }) || [];
+}
+
+function _bForUnit(unit: ConstructionUnitV2): { final: number; statusTxt: string } | null {
+  const latest = pickLatestAcceptanceForB(_listAccForLocation(unit.locationId));
+  if (!latest) return null;
+  const b = computeAcceptanceQualityB(
+    latest.template_key || latest.checklist_results?.template_key,
+    latest.checklist_results
+  );
+  if (!b) return null;
+  return { final: b.final, statusTxt: b.statusTxt };
 }
 
 function _permissions() {
@@ -176,10 +218,30 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || 'not_inspected'));
         const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : '';
+        const b = _bForUnit(u);
+        let bTint = '';
+        let bBadge = '';
+        if (b) {
+          const ring =
+            b.final < 70
+              ? 'ring-2 ring-red-400/70'
+              : b.final < 85
+                ? 'ring-2 ring-amber-400/70'
+                : 'ring-2 ring-emerald-400/60';
+          bTint = ` ${ring}`;
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${
+            b.final < 70
+              ? 'bg-red-500/90 text-white'
+              : b.final < 85
+                ? 'bg-amber-500/90 text-white'
+                : 'bg-emerald-600/90 text-white'
+          }" title="${_escape(b.statusTxt)}">${_escape(String(b.final))}</span>`;
+        }
         html += `
           <button type="button" data-c2-unit-cell="${_escape(u.id)}"
-            class="relative ${bg} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95">
+            class="relative ${bg}${bTint} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
+            ${bBadge}
             <span class="text-[12px] font-black">${_escape(u.name)}</span>
             <span class="text-[8px] opacity-60 font-bold">${_escape(u.type || 'КВ')}</span>
           </button>`;
@@ -245,6 +307,12 @@ export async function renderTransferBoard(root: HTMLElement): Promise<void> {
   }
   await loc.init();
   await uSvc.init();
+  const aSvc = _acc();
+  if (aSvc?.init) {
+    try {
+      await aSvc.init();
+    } catch (_) { /* ignore */ }
+  }
   // Ленивая миграция legacy units (locationId=floor) → apartment nodes.
   if (_buildingId && typeof uSvc.migrateUnitsToApartmentNodes === 'function') {
     try {
@@ -328,6 +396,9 @@ function _bindOnce() {
                   toast: _toast,
                   onChanged: _refreshBoard
                 });
+              },
+              onOpenAcceptance: async (unit) => {
+                await _openUnitAcceptance(unit);
               }
             }
           });
@@ -335,6 +406,76 @@ function _bindOnce() {
       }
     },
     true
+  );
+}
+
+async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
+  if (_isGuest()) {
+    _toast('Гости не могут открывать приёмку');
+    return;
+  }
+  const aSvc = _acc();
+  const uSvc = _units();
+  if (!aSvc) {
+    _toast('service.constructionAcceptance не загружен');
+    return;
+  }
+  let fresh = unit;
+  if (uSvc?.ensureApartmentForUnit) {
+    try {
+      fresh = await uSvc.ensureApartmentForUnit(unit.id);
+    } catch (e) {
+      console.warn('[transfer-board] ensureApartmentForUnit', e);
+    }
+  }
+  const locationId = String(fresh.locationId || '').trim();
+  if (!locationId) {
+    _toast('У квартиры нет locationId');
+    return;
+  }
+
+  const list = _listAccForLocation(locationId)
+    .filter((a) => String(a.status) !== 'rejected')
+    .slice()
+    .sort((a, b) =>
+      String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''))
+    );
+  const pending = list.find((a) => String(a.status) === 'pending');
+  const openItem = pending || list[0] || null;
+
+  const openDetails = (item: ConstructionAcceptanceV2) => {
+    closeUnitCard();
+    openAcceptanceDetails(item, {
+      onChangeStatus: async (rid, status) => {
+        await aSvc.changeStatus(rid, status);
+        _toast('✅ Статус обновлён');
+        await _refreshBoard();
+      },
+      onSoftDelete: async (rid) => {
+        await aSvc.softDelete(rid);
+        _toast('Заявка отозвана');
+        await _refreshBoard();
+      },
+      onChecklistChanged: async () => {
+        await _refreshBoard();
+      }
+    });
+  };
+
+  if (openItem) {
+    openDetails(openItem);
+    return;
+  }
+
+  closeUnitCard();
+  openCreateAcceptanceForm(
+    { locationId, zone: { ...APARTMENT_FULL_ZONE }, mode: 'apartment' },
+    async (input) => {
+      const created = await aSvc.create(input);
+      _toast('✅ Приёмка создана');
+      await _refreshBoard();
+      openDetails(created);
+    }
   );
 }
 

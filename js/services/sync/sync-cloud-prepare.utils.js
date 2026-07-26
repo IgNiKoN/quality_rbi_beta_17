@@ -506,6 +506,32 @@ function prepareConstructionAcceptanceV2ForCloud(item) {
         const m = String(requestedDate).match(/^(\d{4}-\d{2}-\d{2})/);
         requestedDate = m ? m[1] : null;
     }
+    // Deep-copy checklist_results; strip leftover local:// if any slipped past upload
+    let checklistResults = null;
+    if (item.checklist_results && typeof item.checklist_results === 'object') {
+        try {
+            checklistResults = JSON.parse(JSON.stringify(item.checklist_results));
+            if (Array.isArray(checklistResults.items)) {
+                checklistResults.items = checklistResults.items.map((row) => {
+                    if (!row || typeof row !== 'object') return row;
+                    const next = { ...row };
+                    if (Array.isArray(next.photos)) {
+                        next.photos = next.photos.filter(
+                            (p) =>
+                                typeof p === 'string' &&
+                                p &&
+                                !p.startsWith('local://') &&
+                                !p.startsWith('data:image')
+                        );
+                        if (!next.photos.length) delete next.photos;
+                    }
+                    return next;
+                });
+            }
+        } catch (_e) {
+            checklistResults = item.checklist_results;
+        }
+    }
     const payload = {
         id: item.id,
         companyId: item.companyId || 'rbi',
@@ -518,6 +544,7 @@ function prepareConstructionAcceptanceV2ForCloud(item) {
         requested_time: item.requested_time || null,
         contractorId: item.contractorId || null,
         status: normalizeConstructionAcceptanceV2Status(item.status),
+        checklist_results: checklistResults,
         created_by: item.created_by || window.syncConfig?.engineerName || '',
         is_deleted: isDeleted,
         created_at: item.created_at || item.createdAt || nowIso,

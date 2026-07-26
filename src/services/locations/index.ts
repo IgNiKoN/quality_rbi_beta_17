@@ -7,7 +7,10 @@ export {
   resolveObjectLink,
   listUnlinkedObjects,
   ensureCanonicalLink,
-  cleanObjectName
+  cleanObjectName,
+  listObjectsAsOdShape,
+  ensureObjectNode,
+  locationNodeToOdShape
 } from './object-bridge';
 export type { ObjectLinkResult, OdObjectLite } from './object-bridge';
 export { migrateOdCatalogToLocations, collectOdSynonyms } from './od-migrate';

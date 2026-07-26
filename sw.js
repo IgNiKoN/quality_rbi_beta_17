@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.342';
+const SW_VERSION = '18.57.354';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -72,6 +72,7 @@ const urlsToCache = [
   './js/shared/error-log.utils.js',
   './js/shared/touch-gestures.utils.js',
   './js/shared/snake-game.utils.js',
+  './js/shared/checklist-runner.js',
   './js/core/bootstrap.js',
   './js/core/app-shell.js',
 
@@ -112,18 +113,18 @@ const urlsToCache = [
   './js/services/company.service.js',
   './js/services/user-context.service.js',
   './js/services/session.service.js',
-  './js/modules/quality/features/settings/settings.manifest.js',
-  './js/modules/quality/features/settings/settings.render.js',
-  './js/modules/quality/features/settings/settings.actions.js',
-  './js/modules/quality/features/settings/settings.module.js',
-  './js/modules/quality/features/settings/features/tutorial.js',
-  './js/modules/quality/features/settings/features/app-mode-utils.js',
-  './js/modules/quality/features/settings/features/changelog.js',
-  './js/modules/quality/features/settings/features/feedback.js',
-  './js/modules/quality/features/settings/features/contractor-directory-ui.js',
-  './js/modules/quality/features/settings/features/contractor-id-backfill-ui.js',
-  './js/modules/quality/features/settings/features/location-directory-ui.js',
-  './js/modules/quality/features/settings/index.js',
+  './js/modules/settings/settings.manifest.js',
+  './js/modules/settings/settings.render.js',
+  './js/modules/settings/settings.actions.js',
+  './js/modules/settings/settings.module.js',
+  './js/modules/settings/features/tutorial.js',
+  './js/modules/settings/features/app-mode-utils.js',
+  './js/modules/settings/features/changelog.js',
+  './js/modules/settings/features/feedback.js',
+  './js/modules/settings/features/contractor-directory-ui.js',
+  './js/modules/settings/features/contractor-id-backfill-ui.js',
+  './js/modules/settings/features/location-directory-ui.js',
+  './js/modules/settings/index.js',
   './js/dist/rbi-locations.js',
   './js/dist/rbi-construction-defects.js',
   './js/dist/rbi-construction-acceptance.js',

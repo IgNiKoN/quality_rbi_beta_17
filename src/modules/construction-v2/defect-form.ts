@@ -471,7 +471,14 @@ function _historyHtml(history: unknown): string {
 export function openCreateDefectForm(
   coords: { locationId: string; x: number; y: number },
   onSave: (input: DefectFormCreateInput) => void | Promise<void>,
-  onCancel?: () => void
+  onCancel?: () => void,
+  prefill?: {
+    template_key?: string | null;
+    item_id?: string | null;
+    item_name?: string | null;
+    norm_text?: string | null;
+    description?: string | null;
+  }
 ): void {
   const root = _ensureOverlay();
   const panel = root.querySelector('[data-c2-defect-panel]') as HTMLElement;
@@ -488,19 +495,20 @@ export function openCreateDefectForm(
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${coords.x.toFixed(1)}% × ${coords.y.toFixed(1)}%</p>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ (чек-лист) *</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
-      ${_templateOptionsHtml()}
+      ${_templateOptionsHtml(prefill?.template_key)}
     </select>
     <div class="relative mb-3">
       <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
       <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
-      <input type="hidden" data-c2-item-id />
-      <input type="hidden" data-c2-item-name />
+        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
+        value="${_escape(prefill?.item_name || '')}" />
+      <input type="hidden" data-c2-item-id value="${_escape(prefill?.item_id || '')}" />
+      <input type="hidden" data-c2-item-name value="${_escape(prefill?.item_name || '')}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${prefill?.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(prefill?.norm_text || '')}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -521,7 +529,7 @@ export function openCreateDefectForm(
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"></textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape(prefill?.description || prefill?.item_name || '')}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />

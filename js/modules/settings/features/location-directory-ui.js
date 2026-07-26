@@ -6,6 +6,8 @@
 
 let _delegationBound = false;
 let _selectedId = null;
+/** Свёрнутость дерева: id узлов, у которых дети раскрыты. */
+const _expandedIds = new Set();
 
 function _svc() {
     return (window.RBI && window.RBI.services && window.RBI.services.locations) || null;
@@ -112,46 +114,13 @@ function _treePlanMark(svc, n) {
 }
 
 function _odLinkBlockHtml(svc, node, can) {
-    if (!node || node.nodeType !== 'object' || typeof svc.resolveObjectLink !== 'function') return '';
-    const link = svc.resolveObjectLink({
-        locationObjectId: node.id,
-        canonical_key: node.canonical_key,
-        displayName: node.displayName
-    });
-    const odName = link.od
-        ? (link.od.display_name || link.od.name || link.od.canonical_key || '')
-        : '';
-    const status = link.linked
-        ? `<div class="text-[11px] text-teal-700 font-bold">🔗 Связан с ObjectDirectory: ${_escape(odName)}</div>
-           <div class="text-[10px] text-slate-400">key: ${_escape(link.od?.canonical_key || node.canonical_key || '')}</div>`
-        : link.od
-            ? `<div class="text-[11px] text-amber-700 font-bold">Есть peer OD «${_escape(odName)}», canonical_key не совпадает</div>`
-            : `<div class="text-[11px] text-slate-500 font-bold">Нет связи с ObjectDirectory</div>
-               <div class="text-[10px] text-slate-400">key: ${_escape(node.canonical_key || '—')}</div>`;
-    let actions = '';
-    if (can) {
-        if (!link.linked && link.od) {
-            actions += `<button type="button" data-loc-dir-action="link-od" data-id="${_escape(node.id)}"
-                data-od-key="${_escape(link.od.canonical_key || '')}"
-                class="bg-teal-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Привязать</button>`;
-        }
-        if (!link.od) {
-            actions += `<button type="button" data-loc-dir-action="create-od" data-id="${_escape(node.id)}"
-                class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Создать в ObjectDirectory</button>`;
-        }
-        if (typeof svc.listUnlinkedObjects === 'function') {
-            const un = svc.listUnlinkedObjects();
-            const odOnly = (un && un.odOnly) || [];
-            if (odOnly.length) {
-                actions += `<button type="button" data-loc-dir-action="create-loc-from-od"
-                    class="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">+ object из OD…</button>`;
-            }
-        }
-    }
+    if (!node || node.nodeType !== 'object') return '';
+    const key = String(node.canonical_key || '').trim();
+    // C2b: SoT = locations; OD — facade-проекция
     return `<div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-2 space-y-2">
-        <div class="text-[10px] font-black uppercase text-slate-500">Связь ObjectDirectory</div>
-        ${status}
-        ${actions ? `<div class="flex flex-wrap gap-2">${actions}</div>` : ''}
+        <div class="text-[10px] font-black uppercase text-slate-500">Каталог объектов (C2b)</div>
+        <div class="text-[11px] text-teal-700 font-bold">SoT: locations.object</div>
+        <div class="text-[10px] text-slate-400">key: ${_escape(key || '—')} · ObjectDirectory = facade</div>
     </div>`;
 }
 
@@ -159,22 +128,28 @@ function _odLinkBlockHtml(svc, node, can) {
 function _migrateBannerHtml(svc) {
     const p = _perm();
     const isAdmin = !!(p && p.isAdmin?.());
-    if (!isAdmin || typeof svc.listUnlinkedObjects !== 'function') return '';
-    const un = svc.listUnlinkedObjects() || {};
-    const odOnly = (un.odOnly || []).length;
-    const locObjs = svc.listNodes({ nodeType: 'object', parentId: null }) || [];
-    const noKey = locObjs.filter((n) => n && !String(n.canonical_key || '').trim()).length;
-    return `<div class="border-b border-teal-200 dark:border-teal-800 p-2 space-y-2 bg-teal-50/50 dark:bg-teal-950/20">
-        <div class="text-[10px] font-black uppercase text-teal-800 dark:text-teal-300">
-            OD→locations: ${odOnly} без object / ${noKey} без key
+    if (!isAdmin) return '';
+    let leftover = 0;
+    try {
+        if (typeof window.ObjectDirectory !== 'undefined'
+            && Array.isArray(window.ObjectDirectory.leftoverObjects)) {
+            leftover = window.ObjectDirectory.leftoverObjects.length;
+        } else if (typeof svc.listUnlinkedObjects === 'function') {
+            leftover = ((svc.listUnlinkedObjects() || {}).odOnly || []).length;
+        }
+    } catch (_e) { /* ignore */ }
+    if (!leftover) {
+        return `<div class="border-b border-slate-200 dark:border-slate-700 p-2 text-[10px] text-slate-500 font-bold">
+            C2b: каталог объектов = locations (OD leftover: 0)
+        </div>`;
+    }
+    return `<div class="border-b border-amber-200 dark:border-amber-800 p-2 space-y-1 bg-amber-50/50 dark:bg-amber-950/20">
+        <div class="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300">
+            OD leftover: ${leftover} (локальный IDB без peer в locations)
         </div>
-        <div class="flex flex-wrap gap-2">
-            <button type="button" data-loc-dir-action="migrate-od-dry"
-                class="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">Dry-run миграции</button>
-            <button type="button" data-loc-dir-action="migrate-od-apply"
-                class="bg-teal-700 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Мигрировать OD→locations</button>
+        <div class="text-[10px] text-slate-600 dark:text-slate-300">
+            Apply миграции отключён (C2b). Создавайте/правьте объекты только здесь. Sync project_objects выключен.
         </div>
-        <div id="loc-dir-migrate-report" class="text-[10px] text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap"></div>
     </div>`;
 }
 
@@ -187,29 +162,54 @@ function _formatMigrateReport(rep) {
     ].filter(Boolean).join('\n');
 }
 
+/** Раскрыть предков выбранного узла (чтобы он был виден в дереве). */
+function _expandAncestors(svc, nodeId) {
+    if (!svc || !nodeId) return;
+    let cur = svc.getNode(nodeId);
+    while (cur && cur.parentId) {
+        _expandedIds.add(cur.parentId);
+        cur = svc.getNode(cur.parentId);
+    }
+}
+
 function _renderTreeHtml(svc) {
     const objects = svc.listNodes({ nodeType: 'object', parentId: null });
     if (!objects.length) {
         return '<div class="p-4 text-[11px] text-slate-400 font-bold uppercase tracking-widest text-center">Дерево пусто — создайте объект</div>';
     }
+    if (_selectedId) _expandAncestors(svc, _selectedId);
+
     let html = '<ul class="space-y-1 text-[12px]">';
     const walk = (nodes, depth) => {
         for (const n of nodes) {
             const sel = _selectedId === n.id ? 'bg-teal-100 dark:bg-teal-900/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800';
             const mark = _treePlanMark(svc, n);
-            html += `<li>
-                <button type="button" data-loc-dir-action="select" data-id="${_escape(n.id)}"
-                    class="w-full text-left px-2 py-1 rounded-lg ${sel}" style="padding-left:${8 + depth * 12}px">
+            const kids = svc.getChildren(n.id);
+            const hasKids = kids.length > 0;
+            const open = hasKids && _expandedIds.has(n.id);
+            const pad = 8 + depth * 12;
+
+            html += `<li>`;
+            html += `<div class="flex items-center gap-0.5" style="padding-left:${pad}px">`;
+            if (hasKids) {
+                html += `<button type="button" data-loc-dir-action="toggle-expand" data-id="${_escape(n.id)}"
+                    class="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title="${open ? 'Свернуть' : 'Развернуть'}" aria-expanded="${open ? 'true' : 'false'}">${open ? '▾' : '▸'}</button>`;
+            } else {
+                html += `<span class="shrink-0 w-5" aria-hidden="true"></span>`;
+            }
+            html += `<button type="button" data-loc-dir-action="select" data-id="${_escape(n.id)}"
+                    class="flex-1 min-w-0 text-left px-2 py-1 rounded-lg ${sel}">
                     <span class="text-[9px] uppercase text-slate-400 mr-1">${_escape(n.nodeType)}</span>
                     ${mark} ${_escape(n.displayName)}
                 </button>`;
-            const kids = svc.getChildren(n.id);
-            if (kids.length) {
-                html += '<ul>';
+            html += `</div>`;
+            if (hasKids && open) {
+                html += '<ul class="mt-0.5">';
                 walk(kids, depth + 1);
                 html += '</ul>';
             }
-            html += '</li>';
+            html += `</li>`;
         }
     };
     walk(objects, 0);
@@ -291,6 +291,15 @@ function _bindDelegation() {
             await svc.init();
             if (action === 'select') {
                 _selectedId = el.getAttribute('data-id');
+                _expandAncestors(svc, _selectedId);
+                await mountLocationDirectoryUI();
+                return;
+            }
+            if (action === 'toggle-expand') {
+                const id = el.getAttribute('data-id');
+                if (!id) return;
+                if (_expandedIds.has(id)) _expandedIds.delete(id);
+                else _expandedIds.add(id);
                 await mountLocationDirectoryUI();
                 return;
             }
@@ -307,8 +316,10 @@ function _bindDelegation() {
                     canonical_key: clean
                 });
                 _selectedId = n.id;
-                if (typeof svc.createOdFromLocation === 'function') {
-                    try { await svc.createOdFromLocation(n.id); } catch (_e) { /* shadow OD optional */ }
+                // C2b: без shadow OD / createOdFromLocation — SoT уже locations
+                if (typeof window.ObjectDirectory !== 'undefined'
+                    && typeof window.ObjectDirectory.rebuildFromLocations === 'function') {
+                    try { await window.ObjectDirectory.rebuildFromLocations(); } catch (_e) { /* ignore */ }
                 }
                 _toast('Объект создан');
                 await mountLocationDirectoryUI();
@@ -324,6 +335,7 @@ function _bindDelegation() {
                     await _ensureUnitForApartment(n);
                 }
                 _selectedId = n.id;
+                _expandedIds.add(parentId);
                 _toast('Создано');
                 await mountLocationDirectoryUI();
                 return;
@@ -401,23 +413,7 @@ function _bindDelegation() {
                 return;
             }
             if (action === 'migrate-od-dry' || action === 'migrate-od-apply') {
-                if (!_perm()?.isAdmin?.()) {
-                    _toast('Только администратор');
-                    return;
-                }
-                if (typeof svc.migrateOdCatalogToLocations !== 'function') {
-                    _toast('migrateOdCatalogToLocations недоступен');
-                    return;
-                }
-                const dryRun = action === 'migrate-od-dry';
-                if (!dryRun && !confirm('Мигрировать ObjectDirectory → locations.object? Операция идемпотентна.')) return;
-                const rep = await svc.migrateOdCatalogToLocations({ dryRun });
-                const box = document.getElementById('loc-dir-migrate-report');
-                if (box) box.textContent = _formatMigrateReport(rep);
-                _toast(dryRun
-                    ? `Dry-run: +${rep.created} create / ${rep.updatedSynonyms} syn`
-                    : `Миграция: +${rep.created} create / ${rep.linked} link / ${rep.updatedSynonyms} syn`);
-                if (!dryRun) await mountLocationDirectoryUI();
+                _toast('C2b: Apply миграции отключён — каталог = locations');
                 return;
             }
             if (action === 'upload-pdf') {

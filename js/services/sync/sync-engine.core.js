@@ -1181,8 +1181,9 @@ if (window.RbiStorageManager) {
                 { type: 'custom_node', store: 'custom_nodes', memory: 'customNodes' },
                 { type: 'custom_twi_card', store: 'twi_cards', memory: 'customTwiCards' },
                 { type: 'feedback', store: 'feedback_list', memory: 'rbi_feedbackData' },
-                { type: 'project_object', store: 'project_objects', memory: '_sys_obj_dummy' },
-                { type: 'object_alias', store: 'object_aliases', memory: '_sys_alias_dummy' },
+                // C2b: project_object / object_alias sync disabled — SoT = locations.object
+                // { type: 'project_object', store: 'project_objects', memory: '_sys_obj_dummy' },
+                // { type: 'object_alias', store: 'object_aliases', memory: '_sys_alias_dummy' },
                 { type: 'report', store: 'app_reports', memory: 'reportsArray' },
                 { type: 'report_template', store: 'report_templates', memory: 'userReportTemplates' },
                 { type: 'assistant_kb', store: 'app_assistant_kb', memory: 'appAssistantData' }
@@ -1195,9 +1196,8 @@ if (window.RbiStorageManager) {
                         'custom_node',
                         'custom_twi_card',
                         'assistant_kb',
-                        'user_template',
-                        'project_object',
-                        'object_alias'
+                        'user_template'
+                        // C2b: project_object / object_alias removed from pull
                     ].includes(cType.type);
 
                     const pullSince = isReferenceType && needFullReferencePull ? '' : lastPullAt;
@@ -1252,9 +1252,8 @@ if (window.RbiStorageManager) {
                         'custom_node',
                         'custom_twi_card',
                         'assistant_kb',
-                        'user_template',
-                        'project_object',
-                        'object_alias'
+                        'user_template'
+                        // C2b: project_object / object_alias no longer reference-pull
                     ].includes(cType.type)) {
                         referencePullErrors++;
                     }
@@ -1571,6 +1570,39 @@ if (window.RbiStorageManager) {
                     if (Array.isArray(cloudNodes)) {
                         for (const n of cloudNodes) {
                             if (!n || !n.id) continue;
+                            // Как у ПК СК: локальное soft-delete ещё не запушено — не откатывать pull'ом.
+                            const localNode = await dbGet(STORES.LOCATION_NODES, n.id);
+                            const localDeletePending =
+                                localNode &&
+                                (localNode._deleted === true || localNode.is_deleted === true) &&
+                                ((localNode.syncStatus || localNode.sync_status) === 'not_synced' ||
+                                    localNode.source === 'local');
+                            const cloudIsDeleted = n.is_deleted === true;
+                            if (localDeletePending && !cloudIsDeleted) {
+                                console.log(
+                                    '[Sync][Локации] Пропущен pull: локальное удаление узла ожидает отправки',
+                                    n.id
+                                );
+                                continue;
+                            }
+                            // Локально грязный create/update — не затирать облачной копией до push.
+                            const localDirty =
+                                localNode &&
+                                ((localNode.syncStatus || localNode.sync_status) === 'not_synced' ||
+                                    localNode.source === 'local');
+                            if (localDirty && !cloudIsDeleted) {
+                                const localTime = new Date(
+                                    localNode.updated_at || localNode.updatedAt || 0
+                                ).getTime();
+                                const cloudTime = new Date(n.updated_at || 0).getTime();
+                                if (localTime >= cloudTime) {
+                                    console.log(
+                                        '[Sync][Локации] Пропущен pull: локальная правка узла новее/ожидает push',
+                                        n.id
+                                    );
+                                    continue;
+                                }
+                            }
                             await dbPut(STORES.LOCATION_NODES, {
                                 ...n,
                                 nodeType: n.nodeType || n.node_type || null,
@@ -1592,6 +1624,20 @@ if (window.RbiStorageManager) {
                         if (Array.isArray(cloudPlans)) {
                             for (const p of cloudPlans) {
                                 if (!p || !p.id) continue;
+                                const localPlan = await dbGet(STORES.CONST_FLOORS_V2, p.id);
+                                const localDeletePending =
+                                    localPlan &&
+                                    (localPlan._deleted === true || localPlan.is_deleted === true) &&
+                                    ((localPlan.syncStatus || localPlan.sync_status) === 'not_synced' ||
+                                        localPlan.source === 'local');
+                                const cloudIsDeleted = p.is_deleted === true;
+                                if (localDeletePending && !cloudIsDeleted) {
+                                    console.log(
+                                        '[Sync][Локации] Пропущен pull: локальное удаление плана ожидает отправки',
+                                        p.id
+                                    );
+                                    continue;
+                                }
                                 await dbPut(STORES.CONST_FLOORS_V2, {
                                     ...p,
                                     locationId: p.locationId || p.location_id,
@@ -2527,17 +2573,19 @@ if (window.RbiStorageManager) {
                     await syncTableData('custom_nodes', 'customNodes', 'custom_node');
                     await syncTableData('twi_cards', 'customTwiCards', 'custom_twi_card');
 
-                    // Официальный справочник объектов и алиасы ведут только админ/зам.
-                    // Инженер не должен писать напрямую в project_objects/object_aliases:
-                    // от инженера уходят заявки через object_normalization_queue.
+                    // C2b: sync project_objects / object_aliases отключён — SoT = locations
+                    // (case-ветки в push-pull сохранены для отката; сюда не заходим)
+                    const C2B_OD_SYNC_DISABLED = true;
                     const canManageObjects = window.RBI.services.permissions && typeof window.RBI.services.permissions.canManageObjects === 'function'
                         ? window.RBI.services.permissions.canManageObjects()
                         : false;
 
-                    // Отправка справочника объектов (только для Админов)
-                    if (canManageObjects) {
+                    // Отправка справочника объектов (только для Админов) — disabled C2b
+                    if (!C2B_OD_SYNC_DISABLED && canManageObjects) {
                         await syncTableData('project_objects', '_sys_obj_dummy', 'project_object');
                         await syncTableData('object_aliases', '_sys_alias_dummy', 'object_alias');
+                    } else if (C2B_OD_SYNC_DISABLED && canManageObjects) {
+                        console.log('[Sync] C2b: skip push project_object / object_alias (SoT=locations)');
                     }
 
                     // Отправка заявок на новые объекты (могут все, кто может создавать проверки)
@@ -3178,6 +3226,52 @@ if (window.RbiStorageManager) {
                                     });
                                 }
                                 for (const item of accToPush) {
+                                    // Upload local:// / data:image из checklist_results.items[].photos
+                                    // в bucket construction-defects до upsert (паритет defects_v2).
+                                    if (
+                                        item.is_deleted !== true &&
+                                        item._deleted !== true &&
+                                        item.checklist_results &&
+                                        typeof item.checklist_results === 'object' &&
+                                        Array.isArray(item.checklist_results.items) &&
+                                        typeof window.uploadObjectFilesToCloud === 'function'
+                                    ) {
+                                        const pCode = (window.syncConfig && window.syncConfig.projectCode) || 'shared';
+                                        const cr = item.checklist_results;
+                                        const nextItems = [];
+                                        for (const row of cr.items) {
+                                            if (!row || typeof row !== 'object') {
+                                                nextItems.push(row);
+                                                continue;
+                                            }
+                                            const photos = Array.isArray(row.photos) ? row.photos : [];
+                                            if (!photos.length) {
+                                                nextItems.push(row);
+                                                continue;
+                                            }
+                                            const uploaded = await window.uploadObjectFilesToCloud(
+                                                { photos },
+                                                'construction-defects',
+                                                `${pCode}/const_acceptance_v2/${item.id}/checklist/${row.id || 'item'}`,
+                                                'photo'
+                                            );
+                                            const nextPhotos =
+                                                uploaded && Array.isArray(uploaded.photos)
+                                                    ? uploaded.photos
+                                                    : photos;
+                                            nextItems.push({ ...row, photos: nextPhotos });
+                                        }
+                                        if (nextItems.length) {
+                                            item.checklist_results = {
+                                                ...cr,
+                                                items: nextItems
+                                            };
+                                            // Persist https refs locally before cloud upsert
+                                            try {
+                                                await dbPut(STORES.CONST_ACCEPTANCE_V2, item);
+                                            } catch (_ePersist) { /* ignore */ }
+                                        }
+                                    }
                                     const cloudItem = window.prepareConstructionAcceptanceV2ForCloud(item);
                                     if (!cloudItem) continue;
                                     const { error } = await window.supabaseClient

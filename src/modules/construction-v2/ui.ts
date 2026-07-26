@@ -1,5 +1,5 @@
 /**
- * Рабочий UI construction-v2: дерево локаций + план (дефекты/зоны) + канбан приёмки.
+ * Рабочий UI construction-v2: дерево локаций + план (дефекты/зоны) + реестр + канбан приёмки.
  */
 
 import type { AcceptanceZoneV2, ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
@@ -10,6 +10,7 @@ import { focusAcceptanceOnPlan, renderAcceptanceKanban } from './acceptance-kanb
 import { PlanViewer } from './plan-viewer';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
 import { renderTransferBoard, teardownTransferUi } from './transfer-board';
+import { type DefectsFilter, renderDefectsRegistry } from './defects-registry';
 
 type LocSvc = {
   init: () => Promise<boolean>;
@@ -52,7 +53,7 @@ type AccSvc = {
   softDelete: (id: string) => Promise<ConstructionAcceptanceV2>;
 };
 
-export type ConstructionV2Subview = 'plan' | 'acceptance' | 'transfer';
+export type ConstructionV2Subview = 'plan' | 'defects' | 'acceptance' | 'transfer';
 
 function _loc(): LocSvc | null {
   return (window.RBI?.services?.locations as LocSvc) || null;
@@ -82,6 +83,11 @@ let _zoneMode = false;
 let _mountedPdfUrl: string | null = null;
 let _subview: ConstructionV2Subview = 'plan';
 let _pendingFocusAccId: string | null = null;
+let _pendingHighlightDefectId: string | null = null;
+let _defectsFilter: DefectsFilter = 'all';
+let _fsOpen = false;
+let _fsPlaceholder: Comment | null = null;
+let _fsEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
 function _root(): HTMLElement | null {
   return document.getElementById('construction-v2-root');
@@ -131,9 +137,32 @@ function _renderTree(svc: LocSvc): string {
   return html;
 }
 
+function _zoomToolbarHtml(prefix: string): string {
+  // Только для fullscreen / apartment (inline chrome без zoom)
+  return `<div class="flex gap-1 shrink-0 items-center rounded-xl bg-black/20 p-0.5">
+    <button type="button" data-c2-zoom-out="${prefix}"
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Уменьшить">−</button>
+    <button type="button" data-c2-zoom-in="${prefix}"
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Увеличить">+</button>
+    <button type="button" data-c2-zoom-fit="${prefix}"
+      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="По размеру">Fit</button>
+  </div>`;
+}
+
+function _fullscreenIconBtn(): string {
+  return `<button type="button" data-c2-fullscreen
+    class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center
+           text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+    title="На весь экран" aria-label="На весь экран">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
+    </svg>
+  </button>`;
+}
+
 function _renderPlanChrome(svc: LocSvc): string {
   if (!_selectedFloorId) {
-    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
       Выберите этаж слева
     </div>`;
   }
@@ -146,39 +175,73 @@ function _renderPlanChrome(svc: LocSvc): string {
   if (!plan?.pdf_url) {
     return `<div class="p-6">
       <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape(path)}</div>
-      <div class="text-amber-600 font-black text-[12px] uppercase">Нет PDF-плана на этом этаже</div>
+      <div class="text-amber-600 font-bold text-[13px]">Нет PDF-плана на этом этаже</div>
       <p class="text-[11px] text-slate-500 mt-2">Загрузите план в Настройках → «Объекты и планы».</p>
     </div>`;
   }
   const addCls = _addMode
     ? 'bg-indigo-600 text-white border-indigo-600'
-    : 'bg-transparent text-indigo-600 border-indigo-200';
+    : 'bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800';
   const zoneCls = _zoneMode
     ? 'bg-emerald-600 text-white border-emerald-600'
-    : 'bg-transparent text-emerald-700 border-emerald-200';
-  return `<div class="flex flex-col h-full min-h-[320px]">
+    : 'bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800';
+  return `<div class="flex flex-col h-full min-h-[320px]" id="c2-plan-chrome">
     <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
-      <div class="text-[11px] font-bold text-slate-600 min-w-0">
+      <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
         ${_escape(path || floor?.displayName || '')}
-        <span class="ml-2 text-slate-400 font-normal">${_escape(plan.pdf_name || '')}</span>
       </div>
-      <div class="flex gap-2 shrink-0">
+      <div class="flex gap-1.5 shrink-0 items-center">
         <button type="button" data-c2-zone-mode
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${zoneCls}">
-          ${_zoneMode ? '2 клика на план…' : 'Зона приёмки'}
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+          ${_zoneMode ? '2 клика…' : 'Зона'}
         </button>
         <button type="button" data-c2-add-mode
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${addCls}">
-          ${_addMode ? 'Кликни на план…' : '+ Замечание'}
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+          ${_addMode ? 'Кликни…' : '+ Замечание'}
         </button>
+        ${_fullscreenIconBtn()}
       </div>
     </div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
-    <div class="px-3 py-2 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-2">
-      <span>Маркеры — замечания; прямоугольники — зоны приёмки.</span>
+    <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
       <span id="c2-overlay-count"></span>
     </div>
   </div>`;
+}
+
+function _openViewDefect(id: string): void {
+  const dSvc = _defects();
+  const d = dSvc?.get(id);
+  if (!d || !dSvc) return;
+  openViewDefectForm(
+    d,
+    async (defectId) => {
+      await dSvc.softDelete(defectId);
+      window.showToast?.('Замечание удалено');
+      await _afterDefectMutation();
+    },
+    async (defectId, patch) => {
+      await dSvc.update(defectId, patch);
+      window.showToast?.('Замечание обновлено');
+      await _afterDefectMutation();
+    },
+    async (defectId, input) => {
+      await dSvc.changeStatus(defectId, input.status, {
+        comment: input.comment,
+        photos: input.photos
+      });
+      window.showToast?.('✅ Статус обновлён');
+      await _afterDefectMutation();
+    }
+  );
+}
+
+async function _afterDefectMutation(): Promise<void> {
+  if (_subview === 'defects') {
+    await renderConstructionV2();
+    return;
+  }
+  await _refreshOverlaysOnly();
 }
 
 async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
@@ -238,30 +301,7 @@ async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
         );
       },
       onMarkerClick: (id) => {
-        const dSvc = _defects();
-        const d = dSvc?.get(id);
-        if (!d || !dSvc) return;
-        openViewDefectForm(
-          d,
-          async (defectId) => {
-            await dSvc.softDelete(defectId);
-            window.showToast?.('Замечание удалено');
-            await _refreshOverlaysOnly();
-          },
-          async (defectId, patch) => {
-            await dSvc.update(defectId, patch);
-            window.showToast?.('Замечание обновлено');
-            await _refreshOverlaysOnly();
-          },
-          async (defectId, input) => {
-            await dSvc.changeStatus(defectId, input.status, {
-              comment: input.comment,
-              photos: input.photos
-            });
-            window.showToast?.('✅ Статус обновлён');
-            await _refreshOverlaysOnly();
-          }
-        );
+        _openViewDefect(id);
       },
       onZoneDrawn: (zone) => {
         if (!_selectedFloorId) return;
@@ -328,23 +368,40 @@ async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
     _viewer.setFocusZone(_pendingFocusAccId);
     _pendingFocusAccId = null;
   }
+  if (_pendingHighlightDefectId && _viewer) {
+    _viewer.highlightMarker(_pendingHighlightDefectId);
+    _pendingHighlightDefectId = null;
+  }
 }
 
 function _syncModeButtons() {
-  const addBtn = document.querySelector('[data-c2-add-mode]') as HTMLElement | null;
-  if (addBtn) {
-    addBtn.textContent = _addMode ? 'Кликни на план…' : '+ Замечание';
-    addBtn.className = _addMode
-      ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600'
-      : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
-  }
-  const zoneBtn = document.querySelector('[data-c2-zone-mode]') as HTMLElement | null;
-  if (zoneBtn) {
-    zoneBtn.textContent = _zoneMode ? '2 клика на план…' : 'Зона приёмки';
-    zoneBtn.className = _zoneMode
-      ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-emerald-600 text-white border-emerald-600'
-      : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-emerald-700 border-emerald-200';
-  }
+  const inFs = !!document.getElementById('c2-plan-fs');
+  document.querySelectorAll('[data-c2-add-mode]').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.textContent = _addMode ? 'Кликни…' : '+ Замечание';
+    if (inFs && btn.closest('#c2-plan-fs')) {
+      btn.className = _addMode
+        ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600'
+        : 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30';
+    } else {
+      btn.className = _addMode
+        ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600'
+        : 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800';
+    }
+  });
+  document.querySelectorAll('[data-c2-zone-mode]').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.textContent = _zoneMode ? '2 клика…' : 'Зона';
+    if (inFs && btn.closest('#c2-plan-fs')) {
+      btn.className = _zoneMode
+        ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600'
+        : 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30';
+    } else {
+      btn.className = _zoneMode
+        ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600'
+        : 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800';
+    }
+  });
 }
 
 async function _refreshOverlaysOnly(): Promise<void> {
@@ -359,9 +416,93 @@ async function _refreshOverlaysOnly(): Promise<void> {
   _viewer.setZones(zones);
   const countEl = document.getElementById('c2-overlay-count');
   if (countEl) countEl.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  const fsCount = document.getElementById('c2-fs-overlay-count');
+  if (fsCount) fsCount.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+}
+
+function _closePlanFullscreen(): void {
+  if (!_fsOpen) return;
+  const overlay = document.getElementById('c2-plan-fs');
+  const host = document.getElementById('c2-plan-host');
+  if (host && _fsPlaceholder?.parentNode) {
+    _fsPlaceholder.parentNode.insertBefore(host, _fsPlaceholder);
+    _fsPlaceholder.remove();
+  }
+  _fsPlaceholder = null;
+  overlay?.remove();
+  if (_fsEscHandler) {
+    document.removeEventListener('keydown', _fsEscHandler);
+    _fsEscHandler = null;
+  }
+  _fsOpen = false;
+}
+
+function _openPlanFullscreen(): void {
+  if (_fsOpen) return;
+  const host = document.getElementById('c2-plan-host');
+  if (!host || !_viewer) {
+    window.showToast?.('Сначала откройте план этажа');
+    return;
+  }
+  const parent = host.parentNode;
+  if (!parent) return;
+
+  _fsPlaceholder = document.createComment('c2-plan-host-slot');
+  parent.insertBefore(_fsPlaceholder, host);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'c2-plan-fs';
+  overlay.className = 'fixed inset-0 z-[92] flex flex-col bg-slate-900';
+  const addCls = _addMode
+    ? 'bg-indigo-600 text-white border-indigo-600'
+    : 'bg-white/10 text-white border-white/30';
+  const zoneCls = _zoneMode
+    ? 'bg-emerald-600 text-white border-emerald-600'
+    : 'bg-white/10 text-white border-white/30';
+  overlay.innerHTML = `
+    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-slate-950/90 flex-wrap">
+      <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
+        ${_zoomToolbarHtml('fs')}
+        <button type="button" data-c2-zone-mode
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+          ${_zoneMode ? '2 клика…' : 'Зона'}
+        </button>
+        <button type="button" data-c2-add-mode
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+          ${_addMode ? 'Кликни…' : '+ Замечание'}
+        </button>
+        <button type="button" data-c2-fs-close
+          class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+      </div>
+    </div>
+    <div id="c2-plan-fs-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
+
+  const fsHost = overlay.querySelector('#c2-plan-fs-host') as HTMLElement;
+  host.classList.add('h-full', 'min-h-0');
+  fsHost.appendChild(host);
+  document.body.appendChild(overlay);
+  _fsOpen = true;
+
+  overlay.querySelector('[data-c2-fs-close]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    _closePlanFullscreen();
+  });
+
+  _fsEscHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      _closePlanFullscreen();
+    }
+  };
+  document.addEventListener('keydown', _fsEscHandler);
+
+  void _refreshOverlaysOnly();
 }
 
 export function setConstructionV2Subview(view: ConstructionV2Subview): void {
+  if (view !== 'plan') _closePlanFullscreen();
   _subview = view;
 }
 
@@ -374,7 +515,23 @@ export function requestFocusAcceptance(id: string, locationId: string): void {
   _subview = 'plan';
   _selectedFloorId = locationId;
   _pendingFocusAccId = id;
+  if ((location.hash || '').replace(/^#/, '') !== '/construction-v2') {
+    location.hash = '#/construction-v2';
+  }
   renderConstructionV2().catch(() => {});
+}
+
+/** Из реестра: план + подсветка маркера. */
+export function focusDefectOnPlan(id: string, locationId: string): void {
+  _closePlanFullscreen();
+  _subview = 'plan';
+  _selectedFloorId = locationId;
+  _pendingHighlightDefectId = id;
+  if ((location.hash || '').replace(/^#/, '') !== '/construction-v2') {
+    location.hash = '#/construction-v2';
+  } else {
+    renderConstructionV2().catch(() => {});
+  }
 }
 
 export async function renderConstructionV2(): Promise<void> {
@@ -382,6 +539,7 @@ export async function renderConstructionV2(): Promise<void> {
   if (!root) return;
 
   if (_subview === 'acceptance') {
+    _closePlanFullscreen();
     teardownTransferUi();
     _viewer?.destroy();
     _viewer = null;
@@ -391,7 +549,7 @@ export async function renderConstructionV2(): Promise<void> {
   }
 
   if (_subview === 'transfer') {
-    // apartment-plan закрывается только при уходе с transfer (teardownTransferUi выше/ниже)
+    _closePlanFullscreen();
     _viewer?.destroy();
     _viewer = null;
     _mountedPdfUrl = null;
@@ -412,10 +570,56 @@ export async function renderConstructionV2(): Promise<void> {
   if (aSvc) await aSvc.init();
 
   const prevFloor = _selectedFloorId;
+  _closePlanFullscreen();
   _viewer?.destroy();
   _viewer = null;
   _mountedPdfUrl = null;
 
+  if (_subview === 'defects') {
+    root.innerHTML = `
+      <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
+        <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+          <div id="c2-tree">${_renderTree(svc)}</div>
+          ${
+            !dSvc
+              ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>`
+              : ''
+          }
+        </aside>
+        <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-defects-host"></main>
+      </div>`;
+    _bindOnce();
+    if (prevFloor) _selectedFloorId = prevFloor;
+
+    const host = document.getElementById('c2-defects-host');
+    if (!host) return;
+    const floor = _selectedFloorId ? svc.getNode(_selectedFloorId) : null;
+    const path = _selectedFloorId
+      ? svc
+          .getPath(_selectedFloorId)
+          .map((n) => n.displayName)
+          .join(' / ')
+      : '';
+    const list = _selectedFloorId && dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+    renderDefectsRegistry(host, {
+      floorId: _selectedFloorId,
+      floorLabel: path || floor?.displayName || '',
+      defects: list,
+      filter: _defectsFilter,
+      onFilterChange: (f) => {
+        _defectsFilter = f;
+        renderConstructionV2().catch(() => {});
+      },
+      cb: {
+        onOpenDefect: (id) => _openViewDefect(id),
+        onShowOnPlan: (id, locationId) => focusDefectOnPlan(id, locationId)
+      }
+    });
+    return;
+  }
+
+  // plan subview
   root.innerHTML = `
     <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
       <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
@@ -436,8 +640,8 @@ export async function renderConstructionV2(): Promise<void> {
         ${_renderPlanChrome(svc)}
       </main>
     </div>`;
-  _bindOnce();
 
+  _bindOnce();
   if (prevFloor) _selectedFloorId = prevFloor;
   await _mountViewerIfNeeded(svc);
 }
@@ -475,6 +679,30 @@ function _bindOnce() {
         _viewer?.setZoneMode(_zoneMode);
         _viewer?.setAddMode(_addMode);
         _syncModeButtons();
+        return;
+      }
+      const fsBtn = t?.closest?.('[data-c2-fullscreen]') as HTMLElement | null;
+      if (fsBtn) {
+        ev.preventDefault();
+        _openPlanFullscreen();
+        return;
+      }
+      const zIn = t?.closest?.('[data-c2-zoom-in]') as HTMLElement | null;
+      if (zIn) {
+        ev.preventDefault();
+        _viewer?.zoomIn();
+        return;
+      }
+      const zOut = t?.closest?.('[data-c2-zoom-out]') as HTMLElement | null;
+      if (zOut) {
+        ev.preventDefault();
+        _viewer?.zoomOut();
+        return;
+      }
+      const zFit = t?.closest?.('[data-c2-zoom-fit]') as HTMLElement | null;
+      if (zFit) {
+        ev.preventDefault();
+        _viewer?.fit();
       }
     },
     true
@@ -494,12 +722,13 @@ export function mountConstructionV2Shell(): void {
   section.className = 'view-section hidden';
   section.innerHTML = `
     <div class="p-3 sm:p-4">
-      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <div>
-          <h2 class="text-[14px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2 (тест)</h2>
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Тестовый контур · основной СК не затронут</p>
+      <div class="flex items-center justify-between mb-3 gap-2">
+        <div class="min-w-0">
+          <h2 class="text-[14px] font-bold tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5">Тестовый контур · основной СК не затронут</p>
         </div>
-        <a href="#/construction/defects" class="text-[10px] font-black uppercase text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-xl">Открыть старый СК</a>
+        <a href="#/construction/defects"
+          class="shrink-0 text-[10px] font-bold text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-xl">Старый СК</a>
       </div>
       <div id="construction-v2-root"></div>
     </div>`;
@@ -518,6 +747,10 @@ export async function refreshConstructionV2Markers(): Promise<void> {
   if (_subview === 'transfer') {
     const root = _root();
     if (root) await renderTransferBoard(root);
+    return;
+  }
+  if (_subview === 'defects') {
+    await renderConstructionV2();
     return;
   }
   await _refreshOverlaysOnly();

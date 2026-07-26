@@ -9,23 +9,95 @@
     window.RBI.services = window.RBI.services || {};
 
     const objectDirectory = {
-        objects: [], // Эталонный массив объектов из БД
-        aliases: {}, // Кэш алиасов (кривое название -> эталон)
+        objects: [], // C2b: проекция locations.object (не независимый каталог)
+        leftoverObjects: [], // C2b: IDB project_objects без peer в locations (banner)
+        aliases: {}, // Кэш алиасов (synonyms + leftover aliases)
 
-        // Загрузка эталонного справочника ТОЛЬКО из локальной базы (Offline-First)
-        async init() {
+        /** C2b: locations.object → OD-shape. */
+        _nodeToOdShape(n) {
+            if (!n) return null;
+            const key = String(n.canonical_key || '').trim()
+                || this.cleanString(n.displayName || '');
+            return {
+                id: n.id,
+                canonical_key: key,
+                display_name: n.displayName || key,
+                name: n.displayName || key,
+                synonyms: Array.isArray(n.synonyms)
+                    ? n.synonyms.map((s) => String(s || '').trim()).filter(Boolean)
+                    : [],
+                project_code: window.syncConfig?.projectCode || '',
+                created_by: n.created_by || '',
+                updated_at: n.updated_at || new Date().toISOString(),
+                is_deleted: false,
+                _deleted: false,
+                source: 'locations',
+                sync_status: n.syncStatus || 'local'
+            };
+        },
+
+        _locationsSvc() {
+            return window.RBI && window.RBI.services && window.RBI.services.locations
+                ? window.RBI.services.locations
+                : null;
+        },
+
+        /** C2b: пересобрать objects/aliases из locations (+ leftover IDB). */
+        async rebuildFromLocations() {
+            const loc = this._locationsSvc();
+            if (loc && typeof loc.init === 'function') {
+                try { await loc.init(); } catch (_e) { /* ignore */ }
+            }
+
+            const nodes = (loc && typeof loc.listNodes === 'function')
+                ? (loc.listNodes({ nodeType: 'object', parentId: null }) || [])
+                    .filter((n) => n && !n.is_deleted && !n._deleted)
+                : [];
+
+            this.objects = nodes.map((n) => this._nodeToOdShape(n)).filter(Boolean);
+
+            const nextAliases = {};
+            this.objects.forEach((o) => {
+                if (Array.isArray(o.synonyms)) {
+                    o.synonyms.forEach((syn) => {
+                        const s = String(syn || '').trim();
+                        if (s && o.canonical_key) nextAliases[s] = o.canonical_key;
+                    });
+                }
+            });
+
+            this.leftoverObjects = [];
             try {
                 if (typeof dbGetAll !== 'undefined') {
                     const storedObjs = await dbGetAll('project_objects');
-                    if (storedObjs) this.objects = storedObjs.filter(o => !o._deleted);
+                    const locKeys = new Set(
+                        this.objects.map((o) => this.cleanString(o.canonical_key || '')).filter(Boolean)
+                    );
+                    (storedObjs || []).forEach((o) => {
+                        if (!o || o._deleted || o.is_deleted) return;
+                        const ck = this.cleanString(o.canonical_key || '');
+                        if (!ck || locKeys.has(ck)) return;
+                        this.leftoverObjects.push(o);
+                    });
 
                     const storedAliases = await dbGetAll('object_aliases');
-                    if (storedAliases) {
-                        storedAliases.forEach(a => {
-                            this.aliases[a.raw_name] = a.canonical_key;
-                        });
-                    }
+                    (storedAliases || []).forEach((a) => {
+                        if (!a || !a.raw_name || !a.canonical_key) return;
+                        if (!nextAliases[a.raw_name]) nextAliases[a.raw_name] = a.canonical_key;
+                    });
                 }
+            } catch (e) {
+                console.warn('[ObjectDirectory] leftover IDB read failed:', e);
+            }
+
+            this.aliases = nextAliases;
+            return true;
+        },
+
+        // C2b: SoT = locations; IDB project_objects только leftover
+        async init() {
+            try {
+                await this.rebuildFromLocations();
             } catch (e) {
                 console.error("[ObjectDirectory] Ошибка инициализации:", e);
             }
@@ -43,19 +115,50 @@
 
 
         /**
-         * C2 forward-write: после создания OD-карточки — ensure locations.object с тем же key.
-         * Не бросает наружу (не ломает заявки при недоступном locations).
+         * C2b: ensure locations.object (не пишет project_objects / не dirty OD sync).
          */
-        async _ensureLocationsObjectPeer(canonicalKey) {
+        async _ensureLocationsObjectPeer(canonicalKey, displayName, synonyms) {
             const key = String(canonicalKey || '').trim();
             if (!key) return null;
             try {
-                const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
-                if (!loc || typeof loc.createLocationFromOd !== 'function') return null;
+                const loc = this._locationsSvc();
+                if (!loc) return null;
                 if (typeof loc.init === 'function') await loc.init();
-                return await loc.createLocationFromOd(key);
+                const name = String(displayName || canonicalKey).trim() || key;
+                const syn = Array.isArray(synonyms) ? synonyms : [];
+                let node = null;
+                if (typeof loc.ensureObjectNode === 'function') {
+                    node = await loc.ensureObjectNode({
+                        canonical_key: key,
+                        displayName: name,
+                        synonyms: syn
+                    });
+                } else if (typeof loc.createNode === 'function') {
+                    const existing = (loc.listNodes({ nodeType: 'object', parentId: null }) || [])
+                        .find((n) => this.cleanString(n.canonical_key || '') === this.cleanString(key));
+                    if (existing) {
+                        node = existing;
+                        if (syn.length) {
+                            const cur = Array.isArray(existing.synonyms) ? existing.synonyms.slice() : [];
+                            syn.forEach((s) => {
+                                if (!cur.some((x) => this.cleanString(x) === this.cleanString(s))) cur.push(s);
+                            });
+                            node = await loc.updateNode(existing.id, { synonyms: cur });
+                        }
+                    } else {
+                        node = await loc.createNode({
+                            nodeType: 'object',
+                            displayName: name,
+                            parentId: null,
+                            canonical_key: key,
+                            synonyms: syn
+                        });
+                    }
+                }
+                await this.rebuildFromLocations();
+                return node;
             } catch (e) {
-                console.warn('[ObjectDirectory] locations forward-write failed:', e);
+                console.warn('[ObjectDirectory] locations ensure failed:', e);
                 return null;
             }
         },
@@ -246,20 +349,14 @@
 
                 this.aliases[rawName] = bestMatch.canonical_key;
 
-                const newAlias = {
-                    id: 'alias_' + Date.now().toString(36),
-                    raw_name: rawName,
-                    canonical_key: bestMatch.canonical_key,
-                    project_code: window.syncConfig?.projectCode || '',
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
-
-                if (typeof dbPut === 'function' && typeof STORES !== 'undefined') {
-                    await dbPut(STORES.OBJECT_ALIASES, newAlias);
-                }
-
-                localStorage.setItem('rbi_cloud_dirty', '1');
+                // C2b: memory-only alias + synonyms на locations — без dirty object_aliases sync
+                try {
+                    await this._ensureLocationsObjectPeer(
+                        bestMatch.canonical_key,
+                        bestMatch.display_name,
+                        [rawName]
+                    );
+                } catch (_e) { /* ignore */ }
 
                 return {
                     status: matches.length > 1 ? 'multiple_matched_auto_best' : 'matched',
@@ -330,8 +427,8 @@
         },
 
         /**
-         * Создать OD-карточку из locations.object (мост C1).
-         * Минимальный helper — без рефакторинга панели.
+         * C2b facade: «создать OD» = ensure locations + rebuild проекции.
+         * Не пишет project_objects / не включает OD sync.
          */
         async createFromLocation(opts) {
             const options = opts || {};
@@ -348,26 +445,17 @@
                 );
             if (existing) return existing;
 
-            const nowIso = new Date().toISOString();
-            const newObj = {
-                id: 'obj_' + Date.now().toString(36),
-                project_code: window.syncConfig?.projectCode || '',
+            await this._ensureLocationsObjectPeer(key, displayName, []);
+            return this.getObjectByKey(key) || {
+                id: key,
                 canonical_key: key,
                 display_name: displayName,
                 synonyms: [],
-                created_by: window.syncConfig?.engineerName || window.appSettings?.engineerName || '',
-                updated_at: nowIso,
-                is_deleted: false,
+                source: 'locations',
+                sync_status: 'local',
                 _deleted: false,
-                source: 'local',
-                sync_status: 'not_synced'
+                is_deleted: false
             };
-            this.objects.push(newObj);
-            if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
-            await this._ensureLocationsObjectPeer(key);
-            localStorage.setItem('rbi_cloud_dirty', '1');
-            if (typeof triggerSync === 'function') triggerSync('silent');
-            return newObj;
         },
 
         // Получить красивое название по canonical_key
@@ -618,67 +706,18 @@
             const container = document.getElementById('manager-objects-list');
             if (!container) return;
 
-            let html = `
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl mb-4 text-[10px] text-blue-800 dark:text-blue-300 shadow-sm leading-relaxed">
-                <b>Как это работает:</b><br>
-                1. Создайте здесь эталонный объект (например, <i>ЖК Ромашка</i>). Система присвоит ему ID.<br>
-                2. Впишите этот ID (ключ) в профиль инженера во вкладке "Роли" (через запятую, если объектов несколько).<br>
-                3. Если в Excel-файлах Стройконтроля прорабы пишут "Ромашка 1 очередь", добавьте это как Синоним.
+            const leftover = Array.isArray(this.leftoverObjects) ? this.leftoverObjects.length : 0;
+            const count = Array.isArray(this.objects) ? this.objects.length : 0;
+            container.innerHTML = `
+            <div class="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-3 rounded-xl mb-4 text-[10px] text-teal-800 dark:text-teal-300 shadow-sm leading-relaxed">
+                <b>C2b:</b> каталог объектов ведётся в <b>Настройки → Справочник локаций</b>
+                (иерархия object → building → …). Здесь только заявки на объекты.<br>
+                В locations сейчас объектов: <b>${count}</b>.
+                ${leftover ? `<br>OD leftover (локальный IDB без peer): <b>${leftover}</b> — без Apply/sync.` : ''}
+            </div>
+            <div class="text-center py-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-300 rounded-xl bg-white dark:bg-slate-800">
+                Плоский CRUD ObjectDirectory отключён
             </div>`;
-
-            if (this.objects.length === 0) {
-                html += `<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-300 rounded-xl bg-white dark:bg-slate-800">Справочник пуст</div>`;
-            } else {
-                this.objects.forEach(obj => {
-                    const objAliases = Object.keys(this.aliases).filter(k => this.aliases[k] === obj.canonical_key);
-
-                    // Рендерим синонимы
-                    const aliasTags = objAliases.map(a => `
-                        <span class="bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] mr-1 mb-1 inline-flex items-center gap-1">
-                            ${a}
-                        </span>
-                    `).join('');
-
-                    // Безопасное имя для кнопок (замена кавычек)
-                    const safeName = String(obj.display_name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-                    html += `
-                    <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl mb-2 shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                        <summary class="p-2 sm:p-3 cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)] bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] rounded-xl group-open:rounded-b-none">
-                            <div class="flex items-center gap-3 min-w-0 pr-2">
-                                <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm shrink-0 border border-blue-100 dark:border-blue-800 shadow-sm">
-                                    🏢
-                                </div>
-                                <div class="min-w-0 flex flex-col justify-center">
-                                    <div class="font-black text-[11px] sm:text-[12px] text-slate-800 dark:text-white uppercase truncate leading-tight">${obj.display_name}</div>
-                                    <div class="text-[8px] font-mono text-slate-400 mt-1 truncate">ID: ${obj.canonical_key} | Синонимов: ${objAliases.length}</div>
-                                </div>
-                            </div>
-                            <div class="shrink-0 text-slate-400 transition-transform duration-300 group-open:rotate-180 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-full border border-slate-200 dark:border-slate-700">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </summary>
-                        
-                        <div class="p-3 bg-[var(--hover-bg)] rounded-b-xl">
-                            <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] mb-3 shadow-sm">
-                                <div class="flex justify-between items-center mb-1.5">
-                                    <span class="text-[8px] font-bold text-slate-500 uppercase">Привязанные синонимы:</span>
-                                    <button onclick="ObjectDirectory.generateObjectSynonymsAI('${obj.canonical_key}', '${safeName}')" class="text-indigo-500 hover:text-indigo-700 font-black flex items-center gap-1 active:scale-95 transition-transform bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-200 text-[8px] uppercase"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI-Генерация</button>
-                                </div>
-                                <div class="flex flex-wrap gap-1 mb-2">${aliasTags || '<span class="text-[9px] italic text-slate-400">Нет синонимов</span>'}</div>
-                                
-                                <div class="flex gap-1.5 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-                                    <input type="text" id="alias_input_${obj.canonical_key}" class="input-base !py-1.5 text-[10px] flex-1 bg-slate-50 dark:bg-slate-900" placeholder="Напр: Ромашка 1 оч">
-                                    <button onclick="ObjectDirectory.addAliasInline('${obj.canonical_key}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border border-blue-200 dark:border-blue-800 active:scale-95 transition-transform shrink-0">+ Добавить</button>
-                                </div>
-                            </div>
-                            <button onclick="ObjectDirectory.deleteObject('${obj.id}')" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform">Удалить объект</button>
-                        </div>
-                    </details>`;
-                });
-            }
-
-            container.innerHTML = html;
         },
 
         // НОВАЯ ФУНКЦИЯ: Загрузка заявок из Supabase
@@ -822,66 +861,17 @@
                 if (action === 'create') {
                     const newKey = this.cleanString(rawName);
 
-                    // 1. Создаем объект ЛОКАЛЬНО
-                    const newObj = {
-                        id: 'obj_' + Date.now().toString(36),
-                        project_code: pCode,
-                        canonical_key: newKey,
-                        display_name: rawName,
-                        synonyms: [],
-                        created_by: window.syncConfig?.engineerName || '',
-                        updated_at: nowIso,
-                        is_deleted: false,
-                        source: 'local',
-                        sync_status: 'not_synced'
-                    };
-
-                    this.objects.push(newObj);
-                    if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
-                    await this._ensureLocationsObjectPeer(newKey);
-
-                    // 2. Создаем алиас ЛОКАЛЬНО
-                    const newAlias = {
-                        id: 'alias_' + Date.now().toString(36),
-                        project_code: pCode,
-                        raw_name: rawName,
-                        canonical_key: newKey,
-                        updated_at: nowIso,
-                        source: 'local',
-                        sync_status: 'not_synced'
-                    };
+                    // C2b: создаём в locations (не project_objects)
+                    await this._ensureLocationsObjectPeer(newKey, rawName, [rawName]);
                     this.aliases[rawName] = newKey;
-                    if (typeof dbPut === 'function') await dbPut('object_aliases', newAlias);
 
-                    showToast('✅ Объект добавлен в справочник');
+                    showToast('✅ Объект добавлен в справочник локаций');
                 }
                 else if (action.startsWith('link_')) {
                     const canonicalKey = action.replace('link_', '');
 
-                    // Обновляем синонимы ЛОКАЛЬНО
-                    const objIndex = this.objects.findIndex(o => o.canonical_key === canonicalKey);
-                    if (objIndex > -1) {
-                        if (!this.objects[objIndex].synonyms) this.objects[objIndex].synonyms = [];
-                        if (!this.objects[objIndex].synonyms.includes(rawName)) {
-                            this.objects[objIndex].synonyms.push(rawName);
-                            this.objects[objIndex].updated_at = nowIso;
-                            this.objects[objIndex].sync_status = 'not_synced';
-                            if (typeof dbPut === 'function') await dbPut('project_objects', this.objects[objIndex]);
-                        }
-                    }
-
-                    // Добавляем алиас ЛОКАЛЬНО
-                    const newAlias = {
-                        id: 'alias_' + Date.now().toString(36),
-                        project_code: pCode,
-                        raw_name: rawName,
-                        canonical_key: canonicalKey,
-                        updated_at: nowIso,
-                        source: 'local',
-                        sync_status: 'not_synced'
-                    };
+                    await this._ensureLocationsObjectPeer(canonicalKey, null, [rawName]);
                     this.aliases[rawName] = canonicalKey;
-                    if (typeof dbPut === 'function') await dbPut('object_aliases', newAlias);
 
                     showToast('✅ Объект связан со справочником');
                 }
@@ -900,7 +890,7 @@
                 this.renderManagerPanel();
                 this.loadRequests();
 
-                // Даем команду синхронизатору выгрузить наши локальные правки
+                // locations dirty → sync location_nodes (admin); OD sync отключён C2b
                 localStorage.setItem('rbi_cloud_dirty', '1');
                 if (typeof triggerSync === 'function') triggerSync('silent');
 
@@ -944,23 +934,9 @@
                 else if (action === 'create') {
                     const newKey = this.cleanString(rawName);
 
-                    // Создаем ЛОКАЛЬНО
-                    const newObj = {
-                        id: 'obj_' + Date.now().toString(36),
-                        project_code: pCode,
-                        canonical_key: newKey,
-                        display_name: rawName,
-                        synonyms: [],
-                        created_by: window.syncConfig?.engineerName || '',
-                        updated_at: nowIso,
-                        is_deleted: false,
-                        source: 'local',
-                        sync_status: 'not_synced'
-                    };
-
-                    this.objects.push(newObj);
-                    if (typeof dbPut === 'function') await dbPut('project_objects', newObj);
-                    await this._ensureLocationsObjectPeer(newKey);
+                    // C2b: locations only
+                    await this._ensureLocationsObjectPeer(newKey, rawName, [rawName]);
+                    this.aliases[rawName] = newKey;
 
                     if (!assigned.includes(newKey)) assigned.push(newKey);
                     showToast('Создан новый объект и выдан доступ!');
@@ -969,28 +945,8 @@
                     const canonicalKey = action.replace('link_', '');
                     if (!assigned.includes(canonicalKey)) assigned.push(canonicalKey);
 
-                    // Обновляем ЛОКАЛЬНО
-                    const objIndex = this.objects.findIndex(o => o.canonical_key === canonicalKey);
-                    if (objIndex > -1) {
-                        if (!this.objects[objIndex].synonyms) this.objects[objIndex].synonyms = [];
-                        if (!this.objects[objIndex].synonyms.includes(rawName)) {
-                            this.objects[objIndex].synonyms.push(rawName);
-                            this.objects[objIndex].updated_at = nowIso;
-                            this.objects[objIndex].sync_status = 'not_synced';
-                            if (typeof dbPut === 'function') await dbPut('project_objects', this.objects[objIndex]);
-                        }
-                    }
-                    const newAlias = {
-                        id: 'alias_' + Date.now().toString(36),
-                        project_code: pCode,
-                        raw_name: rawName,
-                        canonical_key: canonicalKey,
-                        updated_at: nowIso,
-                        source: 'local',
-                        sync_status: 'not_synced'
-                    };
+                    await this._ensureLocationsObjectPeer(canonicalKey, null, [rawName]);
                     this.aliases[rawName] = canonicalKey;
-                    if (typeof dbPut === 'function') await dbPut('object_aliases', newAlias);
 
                     showToast('Объект связан, доступ выдан!');
                 }
@@ -1038,7 +994,7 @@
             }
         },
 
-        // Новое добавление объекта (Инлайн)
+        // C2b: создание объекта → locations (не project_objects)
         async addNewObjectInline() {
             const inputEl = document.getElementById('inline-new-obj-name');
             const name = inputEl ? inputEl.value.trim() : '';
@@ -1049,30 +1005,14 @@
                 return showToast("⚠️ Объект с таким названием уже существует!");
             }
 
-            const newObj = {
-                id: 'obj_' + Date.now().toString(36),
-                canonical_key: canonical,
-                display_name: name,
-                synonyms: [],
-                project_code: window.syncConfig?.projectCode || '',
-                created_by: window.appSettings?.engineerName || 'Админ',
-                updated_at: new Date().toISOString(),
-                _deleted: false
-            };
+            await this._ensureLocationsObjectPeer(canonical, name, []);
 
-            this.objects.push(newObj);
-            if (typeof dbPut === 'function') dbPut('project_objects', newObj);
-            await this._ensureLocationsObjectPeer(canonical);
-
-            localStorage.setItem('rbi_cloud_dirty', '1');
-            // triggerSync не вызываем сразу, чтобы не блокировать добавление следующих объектов
-
-            showToast("✅ Объект добавлен в Справочник!");
-            inputEl.value = ''; // Очищаем поле
+            showToast("✅ Объект добавлен в Справочник локаций!");
+            if (inputEl) inputEl.value = '';
             this.renderManagerPanel();
         },
 
-        // Новое добавление синонима (Инлайн + Поддержка ИИ)
+        // C2b: синоним → locations.synonyms (без dirty object_aliases)
         async addAliasInline(canonicalKey, predefinedValue = null) {
             const inputEl = document.getElementById(`alias_input_${canonicalKey}`);
             const alias = predefinedValue || (inputEl ? inputEl.value.trim() : '');
@@ -1087,37 +1027,8 @@
             if (!predefinedValue) showToast("⏳ Сохранение синонима...");
 
             try {
-                const pCode = window.syncConfig?.projectCode || 'RBI';
-                const currentUser = window.syncConfig?.engineerName || 'Админ';
-                const nowIso = new Date().toISOString();
-
-                // 1. Обновляем локальные словари и БД объектов
                 this.aliases[alias] = canonicalKey;
-
-                const objIndex = this.objects.findIndex(o => o.canonical_key === canonicalKey);
-                if (objIndex > -1) {
-                    if (!this.objects[objIndex].synonyms) this.objects[objIndex].synonyms = [];
-                    this.objects[objIndex].synonyms.push(alias);
-                    this.objects[objIndex].sync_status = 'not_synced';
-                    this.objects[objIndex].updated_at = nowIso;
-                    
-                    if (typeof dbPut === 'function') await dbPut('project_objects', this.objects[objIndex]);
-                }
-
-                // 2. Локальное сохранение алиаса
-                const newAlias = {
-                    id: 'alias_' + Date.now().toString(36),
-                    raw_name: alias,
-                    canonical_key: canonicalKey,
-                    project_code: pCode,
-                    created_by: currentUser,
-                    created_at: nowIso,
-                    updated_at: nowIso,
-                    source: 'local',
-                    sync_status: 'not_synced'
-                };
-                
-                if (typeof dbPut === 'function') await dbPut('object_aliases', newAlias);
+                await this._ensureLocationsObjectPeer(canonicalKey, null, [alias]);
 
                 if (!predefinedValue) {
                     if (inputEl) inputEl.value = '';
@@ -1153,50 +1064,24 @@
 
                 showToast(`✨ ИИ придумал ${aiSynonyms.length} синонимов. Сохраняем...`);
 
-                const pCode = window.syncConfig?.projectCode || 'RBI';
-                const currentUser = window.syncConfig?.engineerName || 'Админ';
-                const nowIso = new Date().toISOString();
-
-                // Получаем объект
-                const objIndex = this.objects.findIndex(o => o.canonical_key === canonicalKey);
-                if (objIndex > -1) {
-                    if (!this.objects[objIndex].synonyms) this.objects[objIndex].synonyms = [];
-
-                    let addedCount = 0;
-                    for (let syn of aiSynonyms) {
-                        if (!this.aliases[syn]) {
-                            this.aliases[syn] = canonicalKey;
-                            this.objects[objIndex].synonyms.push(syn);
-
-                            // Сохраняем ТОЛЬКО локально (Cloud подтянет sync.js)
-                            const newAlias = { 
-                                id: 'alias_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5), 
-                                raw_name: syn, 
-                                canonical_key: canonicalKey, 
-                                project_code: pCode,
-                                created_by: currentUser,
-                                created_at: nowIso,
-                                updated_at: nowIso,
-                                source: 'local',
-                                sync_status: 'not_synced'
-                            };
-                            if (typeof dbPut === 'function') await dbPut('object_aliases', newAlias);
-                            addedCount++;
-                        }
+                let addedCount = 0;
+                const toAdd = [];
+                for (let syn of aiSynonyms) {
+                    if (!this.aliases[syn]) {
+                        this.aliases[syn] = canonicalKey;
+                        toAdd.push(syn);
+                        addedCount++;
                     }
-
-                    // Обновляем массив синонимов самого объекта локально
-                    if (addedCount > 0) {
-                        this.objects[objIndex].updated_at = nowIso;
-                        this.objects[objIndex].sync_status = 'not_synced';
-                        if (typeof dbPut === 'function') await dbPut('project_objects', this.objects[objIndex]);
-                    }
-
-                    showToast("✅ Синонимы от ИИ успешно привязаны!");
-                    this.renderManagerPanel();
-                    localStorage.setItem('rbi_cloud_dirty', '1');
-                    if (typeof triggerSync === 'function') triggerSync('silent');
                 }
+
+                if (addedCount > 0) {
+                    await this._ensureLocationsObjectPeer(canonicalKey, displayName, toAdd);
+                }
+
+                showToast("✅ Синонимы от ИИ успешно привязаны!");
+                this.renderManagerPanel();
+                localStorage.setItem('rbi_cloud_dirty', '1');
+                if (typeof triggerSync === 'function') triggerSync('silent');
 
             } catch (e) {
                 console.error('[generateObjectSynonymsAI]', e);
@@ -1210,23 +1095,14 @@
             const objIndex = this.objects.findIndex(o => o.id === id);
             if (objIndex > -1) {
                 const targetObj = this.objects[objIndex];
-
-                // Ставим все флаги "мертв"
-                targetObj._deleted = true;
-                targetObj.is_deleted = true;
-                targetObj.sync_status = 'not_synced';
-                targetObj.updated_at = new Date().toISOString();
-
                 try {
-                    // 1. Сохраняем удаление в локальную БД телефона
-                    if (typeof dbPut === 'function') await dbPut('project_objects', targetObj);
-
-                    // 2. Жестко вырезаем объект из оперативной памяти
-                    this.objects.splice(objIndex, 1);
-
-                    showToast("🗑️ Объект удален");
-                    this.renderManagerPanel(); // Перерисовываем список на экране
-
+                    const loc = this._locationsSvc();
+                    if (loc && typeof loc.softDeleteNode === 'function' && targetObj.id) {
+                        await loc.softDeleteNode(targetObj.id);
+                    }
+                    await this.rebuildFromLocations();
+                    showToast("🗑️ Объект удален из локаций");
+                    this.renderManagerPanel();
                     localStorage.setItem('rbi_cloud_dirty', '1');
                 } catch (e) {
                     console.error("Ошибка удаления:", e);

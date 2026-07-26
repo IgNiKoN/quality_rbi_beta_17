@@ -16,7 +16,7 @@ window.RBI = window.RBI || {};
 var MODULE_BASE_URLS = {
     'quality':      './js/modules/quality/',
     'sk':           './js/modules/quality/features/sk/',
-    'settings':     './js/modules/quality/features/settings/',
+    'settings':     './js/modules/settings/',
     'knowledge':    './js/modules/quality/features/knowledge/',
     'construction':    './js/modules/construction/',
     'construction-v2': './js/modules/construction-v2/',

@@ -200,12 +200,20 @@ export async function openApartmentPlan(
   wrap.innerHTML = `
     <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="min-w-0">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
         <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape(title)}</div>
         <div class="text-[10px] font-bold text-slate-400 truncate">${_escape(path)}</div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-2 shrink-0 flex-wrap">
         <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Замечаний: 0</span>
+        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
+          <button type="button" data-c2-apt-zoom-out
+            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+          <button type="button" data-c2-apt-zoom-in
+            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+          <button type="button" data-c2-apt-zoom-fit
+            class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+        </div>
         ${
           guest
             ? ''
@@ -232,6 +240,19 @@ export async function openApartmentPlan(
     _addMode = !_addMode;
     _viewer?.setAddMode(_addMode);
     _syncAddBtn();
+  });
+
+  wrap.querySelector('[data-c2-apt-zoom-in]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    _viewer?.zoomIn();
+  });
+  wrap.querySelector('[data-c2-apt-zoom-out]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    _viewer?.zoomOut();
+  });
+  wrap.querySelector('[data-c2-apt-zoom-fit]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    _viewer?.fit();
   });
 
   const host = wrap.querySelector('#c2-apt-plan-host') as HTMLElement;

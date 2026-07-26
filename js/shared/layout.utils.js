@@ -22,10 +22,11 @@ function updateBodyPadding() {
     const isDefects = document.getElementById('tab-construction-defects')?.classList.contains('active');
     const isAcceptance = document.getElementById('tab-construction-acceptance')?.classList.contains('active');
     const isTransfer = document.getElementById('tab-transfer')?.classList.contains('active'); // <-- НОВОЕ
+    const isConstructionV2 = document.getElementById('tab-construction-v2')?.classList.contains('active');
     const isPlaceholder = document.getElementById('tab-mode-placeholder')?.classList.contains('active');
 
     // Шапка нужна на любой из этих вкладок
-    const needsHeader = isAuditActive || isDefects || isAcceptance || isTransfer || isPlaceholder;
+    const needsHeader = isAuditActive || isDefects || isAcceptance || isTransfer || isConstructionV2 || isPlaceholder;
 
     // Снимаем дефолтный отступ контента
     const mainEl = document.querySelector('main');

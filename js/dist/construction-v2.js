@@ -12,7 +12,7 @@ const ConstructionV2Manifest = {
   defaultRoute: "/construction-v2"
 };
 const DEFECT_CATEGORIES_V2 = ["B1", "B2", "B3"];
-function _escape$6(s) {
+function _escape$8(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _contractors() {
@@ -33,10 +33,10 @@ function _contractors() {
     label: String(c.display_name || c.id)
   })).sort((a, b) => a.label.localeCompare(b.label, "ru"));
 }
-function _sysTemplates$1() {
+function _sysTemplates$2() {
   return window.SYSTEM_TEMPLATES || {};
 }
-function _userTemplates$1() {
+function _userTemplates$2() {
   return window.userTemplates || {};
 }
 function _flatItems(groups) {
@@ -51,8 +51,8 @@ function _resolveTemplateGroups(tmplKey) {
   if (!tmplKey) return [];
   const type = tmplKey.split("_")[0];
   const key = tmplKey.replace(type + "_", "");
-  if (type === "sys") return ((_a = _sysTemplates$1()[key]) == null ? void 0 : _a.groups) || [];
-  if (type === "user") return ((_b = _userTemplates$1()[key]) == null ? void 0 : _b.groups) || [];
+  if (type === "sys") return ((_a = _sysTemplates$2()[key]) == null ? void 0 : _a.groups) || [];
+  if (type === "user") return ((_b = _userTemplates$2()[key]) == null ? void 0 : _b.groups) || [];
   return [];
 }
 function _catLabel(c) {
@@ -60,7 +60,7 @@ function _catLabel(c) {
   if (c === "B3" || c === "critical") return "B3 (Критика)";
   return "B2 (Значимый)";
 }
-function _statusLabel(s) {
+function _statusLabel$1(s) {
   const map = {
     issued: "Выдано",
     in_progress: "В работе",
@@ -97,7 +97,7 @@ function _openPhoto(ref) {
   const fn = window.openPhotoViewer;
   if (typeof fn === "function") fn(ref);
 }
-async function _fileToDataUrl(file) {
+async function _fileToDataUrl$1(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ""));
@@ -111,7 +111,7 @@ async function _savePhotoFiles(files) {
   const pm = window.PhotoManager;
   const out = [];
   for (const file of list) {
-    const dataUrl = await _fileToDataUrl(file);
+    const dataUrl = await _fileToDataUrl$1(file);
     if (!dataUrl.startsWith("data:")) continue;
     if (pm == null ? void 0 : pm.saveLocal) {
       const id = await pm.saveLocal(dataUrl, "cdef", { entityType: "construction_defect_v2" });
@@ -140,15 +140,15 @@ function closeDefectForm() {
 }
 function _templateOptionsHtml(selected) {
   let html = '<option value="">— вид работ —</option>';
-  const st = _sysTemplates$1();
+  const st = _sysTemplates$2();
   Object.keys(st).sort().forEach((k) => {
     const sel = selected === `sys_${k}` ? " selected" : "";
-    html += `<option value="sys_${_escape$6(k)}"${sel}>[СИС] ${_escape$6(st[k].title || k)}</option>`;
+    html += `<option value="sys_${_escape$8(k)}"${sel}>[СИС] ${_escape$8(st[k].title || k)}</option>`;
   });
-  const ut = _userTemplates$1();
+  const ut = _userTemplates$2();
   Object.keys(ut).sort().forEach((k) => {
     const sel = selected === `user_${k}` ? " selected" : "";
-    html += `<option value="user_${_escape$6(k)}"${sel}>[МОЙ] ${_escape$6(ut[k].title || k)}</option>`;
+    html += `<option value="user_${_escape$8(k)}"${sel}>[МОЙ] ${_escape$8(ut[k].title || k)}</option>`;
   });
   return html;
 }
@@ -156,7 +156,7 @@ function _contractorOptionsHtml(selected) {
   const opts = _contractors();
   return `<option value="">— без подрядчика —</option>` + opts.map((o) => {
     const sel = selected === o.id ? " selected" : "";
-    return `<option value="${_escape$6(o.id)}"${sel}>${_escape$6(o.label)}</option>`;
+    return `<option value="${_escape$8(o.id)}"${sel}>${_escape$8(o.label)}</option>`;
   }).join("");
 }
 function _renderGallery(photos) {
@@ -166,7 +166,7 @@ function _renderGallery(photos) {
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos.map(
     (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" data-c2-photo-idx="${i}">
-      <img src="${_escape$6(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape$6(p)}" />
+      <img src="${_escape$8(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape$8(p)}" />
       <button type="button" data-c2-photo-remove="${i}"
         class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[11px] font-black">✕</button>
     </div>`
@@ -258,9 +258,9 @@ function _bindItemSearch(panel) {
     dd.innerHTML = matched.map((i) => {
       const w = Number(i.w) || 2;
       return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-          data-c2-pick-item data-id="${_escape$6(i.id)}" data-name="${_escape$6(i.n)}" data-w="${w}" data-norm="${_escape$6(i.t || "")}">
+          data-c2-pick-item data-id="${_escape$8(i.id)}" data-name="${_escape$8(i.n)}" data-w="${w}" data-norm="${_escape$8(i.t || "")}">
           <div class="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
-            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$6(i.n)}
+            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$8(i.n)}
           </div>
         </button>`;
     }).join("");
@@ -325,7 +325,7 @@ function _historyHtml(history) {
   const list = Array.isArray(history) ? history : [];
   if (!list.length) return "";
   const rows = [...list].reverse().map((h) => {
-    const stName = _statusLabel(String(h.status || ""));
+    const stName = _statusLabel$1(String(h.status || ""));
     let dDate = "";
     try {
       dDate = new Date(h.date).toLocaleString("ru-RU", {
@@ -339,11 +339,11 @@ function _historyHtml(history) {
     }
     const photos = Array.isArray(h.photos) && h.photos.length ? h.photos : h.photo ? [h.photo] : [];
     const photosHtml = photos.map(
-      (p) => `<img src="${_escape$6(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape$6(String(p))}" alt="" />`
+      (p) => `<img src="${_escape$8(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape$8(String(p))}" alt="" />`
     ).join("");
     return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px]">
-      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape$6(stName)}</span><span class="text-slate-400">${_escape$6(dDate)}</span></div>
-      <div class="text-slate-600 dark:text-slate-300">${_escape$6(h.user || "")}${h.comment ? ` — <i>${_escape$6(String(h.comment))}</i>` : ""}</div>
+      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape$8(stName)}</span><span class="text-slate-400">${_escape$8(dDate)}</span></div>
+      <div class="text-slate-600 dark:text-slate-300">${_escape$8(h.user || "")}${h.comment ? ` — <i>${_escape$8(String(h.comment))}</i>` : ""}</div>
       <div class="flex gap-1 flex-wrap">${photosHtml}</div>
     </div>`;
   });
@@ -351,13 +351,13 @@ function _historyHtml(history) {
     ${rows.join("")}
   </div>`;
 }
-function openCreateDefectForm(coords, onSave, onCancel) {
+function openCreateDefectForm(coords, onSave, onCancel, prefill) {
   var _a, _b;
   const root = _ensureOverlay();
   const panel = root.querySelector("[data-c2-defect-panel]");
   const photosRef = { current: [] };
   const catOpts = DEFECT_CATEGORIES_V2.map(
-    (c) => `<option value="${c}"${c === "B2" ? " selected" : ""}>${_escape$6(_catLabel(c))}</option>`
+    (c) => `<option value="${c}"${c === "B2" ? " selected" : ""}>${_escape$8(_catLabel(c))}</option>`
   ).join("");
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
@@ -367,19 +367,20 @@ function openCreateDefectForm(coords, onSave, onCancel) {
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${coords.x.toFixed(1)}% × ${coords.y.toFixed(1)}%</p>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ (чек-лист) *</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
-      ${_templateOptionsHtml()}
+      ${_templateOptionsHtml(prefill == null ? void 0 : prefill.template_key)}
     </select>
     <div class="relative mb-3">
       <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
       <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
-      <input type="hidden" data-c2-item-id />
-      <input type="hidden" data-c2-item-name />
+        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
+        value="${_escape$8((prefill == null ? void 0 : prefill.item_name) || "")}" />
+      <input type="hidden" data-c2-item-id value="${_escape$8((prefill == null ? void 0 : prefill.item_id) || "")}" />
+      <input type="hidden" data-c2-item-name value="${_escape$8((prefill == null ? void 0 : prefill.item_name) || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${(prefill == null ? void 0 : prefill.norm_text) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$8((prefill == null ? void 0 : prefill.norm_text) || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -400,7 +401,7 @@ function openCreateDefectForm(coords, onSave, onCancel) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"></textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$8((prefill == null ? void 0 : prefill.description) || (prefill == null ? void 0 : prefill.item_name) || "")}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -514,7 +515,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   const { isEngineer } = _roleInfo$1();
   const catOpts = DEFECT_CATEGORIES_V2.map((c) => {
     const sel = String(defect.category).toUpperCase() === c ? " selected" : "";
-    return `<option value="${c}"${sel}>${_escape$6(_catLabel(c))}</option>`;
+    return `<option value="${c}"${sel}>${_escape$8(_catLabel(c))}</option>`;
   }).join("");
   const deadlineVal = _deadlineInputValue(defect.deadline);
   const canEditFields = isEngineer;
@@ -524,7 +525,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
       <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$6(_statusLabel(String(defect.status)))}</b></p>
+    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$8(_statusLabel$1(String(defect.status)))}</b></p>
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
@@ -532,15 +533,15 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </select>
     <div class="relative mb-3">
       <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение</label>
-      <input type="text" data-c2-item-search autocomplete="off" value="${_escape$6(defect.item_name || "")}"
+      <input type="text" data-c2-item-search autocomplete="off" value="${_escape$8(defect.item_name || "")}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
-      <input type="hidden" data-c2-item-id value="${_escape$6(defect.item_id || "")}" />
-      <input type="hidden" data-c2-item-name value="${_escape$6(defect.item_name || "")}" />
+      <input type="hidden" data-c2-item-id value="${_escape$8(defect.item_id || "")}" />
+      <input type="hidden" data-c2-item-name value="${_escape$8(defect.item_name || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${defect.norm_text ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$6(defect.norm_text || "")}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$8(defect.norm_text || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -551,7 +552,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       </div>
       <div>
         <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
-        <input type="date" data-c2-defect-deadline value="${_escape$6(deadlineVal)}"
+        <input type="date" data-c2-defect-deadline value="${_escape$8(deadlineVal)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       </div>
     </div>
@@ -561,7 +562,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$6(defect.description)}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$8(defect.description)}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${canEditFields ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -699,6 +700,9 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
 function _pdfjs() {
   return window.pdfjsLib || null;
 }
+function _panzoomFactory() {
+  return window.Panzoom || null;
+}
 function _pinBg(category, status) {
   const st = String(status || "").toLowerCase();
   if (st === "closed" || st === "fixed") return "bg-green-500";
@@ -727,8 +731,11 @@ class PlanViewer {
     this.zoneMode = false;
     this.zoneClick1 = null;
     this.focusZoneId = null;
+    this.highlightId = null;
     this.destroyed = false;
     this.pdfUrl = "";
+    this.panzoom = null;
+    this._onWheelBound = null;
     this.host = host;
     this.handlers = handlers;
   }
@@ -767,8 +774,45 @@ class PlanViewer {
       hid.style.zIndex = match ? "25" : "10";
     });
   }
+  getMarkerEl(id) {
+    if (!this.pins || !id) return null;
+    const pins = this.pins.querySelectorAll("[data-c2-pin]");
+    for (const el of pins) {
+      if (el.getAttribute("data-c2-pin") === id) return el;
+    }
+    return null;
+  }
+  /** Подсветка маркера (pulse/ring) + по возможности pan к пину. */
+  highlightMarker(id) {
+    this.highlightId = id;
+    this._applyHighlight();
+    if (id) this._panToMarker(id);
+  }
+  setScale(scale) {
+    if (!this.panzoom) return;
+    const s = Math.min(8, Math.max(0.4, Number(scale) || 1));
+    this.panzoom.zoom(s, { animate: true });
+  }
+  zoomIn() {
+    var _a;
+    (_a = this.panzoom) == null ? void 0 : _a.zoomIn({ animate: true });
+  }
+  zoomOut() {
+    var _a;
+    (_a = this.panzoom) == null ? void 0 : _a.zoomOut({ animate: true });
+  }
+  /** Сброс масштаба/пана к стартовому fit. */
+  fit() {
+    if (!this.panzoom) return;
+    this.panzoom.reset({ animate: true });
+  }
+  getScale() {
+    var _a;
+    return ((_a = this.panzoom) == null ? void 0 : _a.getScale()) ?? 1;
+  }
   destroy() {
     this.destroyed = true;
+    this._destroyPanzoom();
     this.host.innerHTML = "";
     this.wrap = null;
     this.stage = null;
@@ -780,9 +824,10 @@ class PlanViewer {
     var _a;
     this.pdfUrl = pdfUrl;
     this.destroyed = false;
+    this._destroyPanzoom();
     this.host.innerHTML = `
-      <div class="absolute inset-0 overflow-auto bg-slate-200 dark:bg-slate-900" data-c2-plan-wrap>
-        <div class="relative mx-auto my-2 shadow-lg bg-white" data-c2-plan-stage style="width:fit-content">
+      <div class="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-900 flex items-center justify-center" data-c2-plan-wrap>
+        <div class="relative shadow-lg bg-white" data-c2-plan-stage style="width:fit-content;touch-action:none">
           <canvas data-c2-plan-canvas class="block max-w-none"></canvas>
           <div data-c2-plan-zones class="absolute inset-0 pointer-events-none"></div>
           <div data-c2-plan-pins class="absolute inset-0 pointer-events-none"></div>
@@ -821,8 +866,9 @@ class PlanViewer {
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
     const page = await pdf.getPage(1);
     const hostW = Math.max(this.host.clientWidth || 640, 320);
+    const hostH = Math.max(this.host.clientHeight || 400, 240);
     const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(2.2, Math.max(1.1, (hostW - 24) / base.width));
+    const scale = Math.min(2.2, Math.max(0.8, Math.min((hostW - 24) / base.width, (hostH - 24) / base.height)));
     const viewport = page.getViewport({ scale });
     this.canvas.width = viewport.width;
     this.canvas.height = viewport.height;
@@ -832,6 +878,7 @@ class PlanViewer {
     if (!ctx) throw new Error("canvas 2d недоступен");
     await page.render({ canvasContext: ctx, viewport }).promise;
     if (loader) loader.remove();
+    this._initPanzoom();
     this._syncCursor();
   }
   setMarkers(defects) {
@@ -847,10 +894,11 @@ class PlanViewer {
           class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
                  flex items-center justify-center text-white text-[10px] font-black
                  cursor-pointer hover:scale-125 transition-transform z-20
-                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
     }).join("");
     this.pins.innerHTML = html;
+    this._applyHighlight();
   }
   setZones(items) {
     if (!this.zonesEl) return;
@@ -868,7 +916,7 @@ class PlanViewer {
       const zIndex = this.focusZoneId === a.id ? 25 : 10;
       return `<button type="button" data-c2-zone="${_escapeAttr(a.id)}"
           class="absolute border-2 ${colors.box} ${focus} shadow-inner flex items-center justify-center
-                 cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto"
+                 cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;z-index:${zIndex}" title="${title}">
           <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">зона</span>
         </button>`;
@@ -907,11 +955,83 @@ class PlanViewer {
         style="left:${zone.x}%;top:${zone.y}%;width:${zone.w}%;height:${zone.h}%;"></div>`
     );
   }
+  _initPanzoom() {
+    this._destroyPanzoom();
+    const factory = _panzoomFactory();
+    if (!factory || !this.stage || !this.wrap) return;
+    this.panzoom = factory(this.stage, {
+      maxScale: 8,
+      minScale: 0.4,
+      step: 0.2,
+      cursor: "grab",
+      excludeClass: "panzoom-exclude"
+    });
+    this._onWheelBound = (e) => {
+      if (!this.panzoom) return;
+      e.preventDefault();
+      this.panzoom.zoomWithWheel(e);
+    };
+    this.wrap.addEventListener("wheel", this._onWheelBound, { passive: false });
+  }
+  _destroyPanzoom() {
+    if (this.wrap && this._onWheelBound) {
+      this.wrap.removeEventListener("wheel", this._onWheelBound);
+    }
+    this._onWheelBound = null;
+    if (this.panzoom) {
+      try {
+        this.panzoom.destroy();
+      } catch {
+      }
+      this.panzoom = null;
+    }
+  }
+  _applyHighlight() {
+    var _a;
+    const pins = (_a = this.pins) == null ? void 0 : _a.querySelectorAll("[data-c2-pin]");
+    pins == null ? void 0 : pins.forEach((el) => {
+      const hid = el;
+      const match = !!this.highlightId && hid.getAttribute("data-c2-pin") === this.highlightId;
+      hid.classList.toggle("ring-4", match);
+      hid.classList.toggle("ring-yellow-300", match);
+      hid.classList.toggle("scale-150", match);
+      hid.classList.toggle("animate-pulse", match);
+      hid.style.zIndex = match ? "40" : "";
+    });
+  }
+  _panToMarker(id) {
+    if (!this.panzoom || !this.wrap) return;
+    const el = this.getMarkerEl(id);
+    if (!el) return;
+    const run = () => {
+      if (!this.panzoom || !this.wrap) return;
+      const er = el.getBoundingClientRect();
+      const wr = this.wrap.getBoundingClientRect();
+      const dx = wr.left + wr.width / 2 - (er.left + er.width / 2);
+      const dy = wr.top + wr.height / 2 - (er.top + er.height / 2);
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      const pan = this.panzoom.getPan();
+      const s = this.panzoom.getScale() || 1;
+      this.panzoom.pan(pan.x + dx / s, pan.y + dy / s, { animate: true });
+    };
+    if (this.panzoom.getScale() < 1.2) {
+      this.panzoom.zoom(1.5, { animate: true });
+      setTimeout(run, 220);
+    } else {
+      requestAnimationFrame(run);
+    }
+  }
   _syncCursor() {
     if (!this.wrap) return;
     const cross = this.addMode || this.zoneMode;
     this.wrap.classList.toggle("cursor-crosshair", cross);
     this.wrap.classList.toggle("cursor-default", !cross);
+    if (this.panzoom) {
+      this.panzoom.setOptions({
+        cursor: cross ? "crosshair" : "grab",
+        disablePan: cross
+      });
+    }
   }
   _onClick(ev) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
@@ -970,10 +1090,10 @@ let _viewer$1 = null;
 let _openUnitId = null;
 let _apartmentId = null;
 let _addMode$1 = false;
-function _escape$5(s) {
+function _escape$7(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function _defects$1() {
+function _defects$2() {
   var _a, _b;
   return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionDefects) || null;
 }
@@ -1007,7 +1127,7 @@ function _syncAddBtn() {
   btn.className = _addMode$1 ? "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600" : "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200";
 }
 async function _refreshPins() {
-  const dSvc = _defects$1();
+  const dSvc = _defects$2();
   if (!_viewer$1 || !_apartmentId || !dSvc) return;
   await dSvc.init();
   const defects = _listForApartment(dSvc, _apartmentId);
@@ -1042,7 +1162,7 @@ async function refreshApartmentPlanMarkers() {
   await _refreshPins();
 }
 async function openApartmentPlan(unit, cb) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d, _e, _f;
   closeApartmentPlan();
   const pdfUrl = String(unit.pdf_url || "");
   if (!pdfUrl.startsWith("http")) {
@@ -1050,7 +1170,7 @@ async function openApartmentPlan(unit, cb) {
     return;
   }
   const uSvc = _units$1();
-  const dSvc = _defects$1();
+  const dSvc = _defects$2();
   if (!dSvc) {
     cb.toast("service.constructionDefects не загружен");
     return;
@@ -1091,12 +1211,20 @@ async function openApartmentPlan(unit, cb) {
   wrap.innerHTML = `
     <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="min-w-0">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане</div>
-        <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$5(title)}</div>
-        <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$5(path)}</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
+        <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$7(title)}</div>
+        <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$7(path)}</div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-2 shrink-0 flex-wrap">
         <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Замечаний: 0</span>
+        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
+          <button type="button" data-c2-apt-zoom-out
+            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+          <button type="button" data-c2-apt-zoom-in
+            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+          <button type="button" data-c2-apt-zoom-fit
+            class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+        </div>
         ${guest ? "" : `<button type="button" data-c2-apt-add-mode
                 class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`}
         <button type="button" data-c2-apt-close
@@ -1117,6 +1245,18 @@ async function openApartmentPlan(unit, cb) {
     _addMode$1 = !_addMode$1;
     _viewer$1 == null ? void 0 : _viewer$1.setAddMode(_addMode$1);
     _syncAddBtn();
+  });
+  (_d = wrap.querySelector("[data-c2-apt-zoom-in]")) == null ? void 0 : _d.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    _viewer$1 == null ? void 0 : _viewer$1.zoomIn();
+  });
+  (_e = wrap.querySelector("[data-c2-apt-zoom-out]")) == null ? void 0 : _e.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    _viewer$1 == null ? void 0 : _viewer$1.zoomOut();
+  });
+  (_f = wrap.querySelector("[data-c2-apt-zoom-fit]")) == null ? void 0 : _f.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    _viewer$1 == null ? void 0 : _viewer$1.fit();
   });
   const host = wrap.querySelector("#c2-apt-plan-host");
   _viewer$1 = new PlanViewer(host, {
@@ -1188,11 +1328,225 @@ async function openApartmentPlan(unit, cb) {
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape$5(msg)}</div>`;
+    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape$7(msg)}</div>`;
     _viewer$1 = null;
   }
 }
-function _escape$4(s) {
+const ACTIVE_DEFECT_STATUSES_FOR_BATCH = /* @__PURE__ */ new Set(["issued", "in_progress", "fixed"]);
+function _escape$6(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _sysTemplates$1() {
+  return window.SYSTEM_TEMPLATES || {};
+}
+function _userTemplates$1() {
+  return window.userTemplates || {};
+}
+function resolveTemplateGroups(tmplKey) {
+  var _a, _b;
+  if (!tmplKey) return [];
+  const type = tmplKey.split("_")[0];
+  const key = tmplKey.replace(type + "_", "");
+  if (type === "sys") return ((_a = _sysTemplates$1()[key]) == null ? void 0 : _a.groups) || [];
+  if (type === "user") return ((_b = _userTemplates$1()[key]) == null ? void 0 : _b.groups) || [];
+  return [];
+}
+function listTemplateChecklistItems(tmplKey) {
+  const out = [];
+  resolveTemplateGroups(tmplKey).forEach((g, gi) => {
+    const groupName = String(g.group || g.title || `Группа ${gi + 1}`);
+    (g.items || []).forEach((it) => {
+      if (!it) return;
+      const id = String(it.id ?? "").trim();
+      const name = String(it.n || "").trim();
+      if (!id || !name) return;
+      const w = it.w != null ? Number(it.w) : null;
+      out.push({
+        id,
+        group: groupName,
+        name,
+        norm: it.t ? String(it.t) : void 0,
+        weight: w != null && Number.isFinite(w) ? w : null
+      });
+    });
+  });
+  return out;
+}
+function categoryFromWeight(w, escalated) {
+  if (escalated) return "B3";
+  if (w === 1) return "B1";
+  if (w === 3) return "B3";
+  return "B2";
+}
+function computeChecklistProgress(tmplKey, results) {
+  const templateItems = listTemplateChecklistItems(String(tmplKey || (results == null ? void 0 : results.template_key) || ""));
+  const byId = new Map(
+    ((results == null ? void 0 : results.items) || []).map((it) => [String(it.id), it.status])
+  );
+  const total = templateItems.length || ((results == null ? void 0 : results.items) || []).length;
+  let ok = 0;
+  let fail = 0;
+  let na = 0;
+  let done = 0;
+  const sourceIds = templateItems.length > 0 ? templateItems.map((t) => t.id) : ((results == null ? void 0 : results.items) || []).map((it) => String(it.id));
+  sourceIds.forEach((id) => {
+    const st = byId.get(String(id));
+    if (!st) return;
+    done += 1;
+    if (st === "ok") ok += 1;
+    else if (st === "fail" || st === "fail_escalated") fail += 1;
+    else if (st === "na") na += 1;
+  });
+  return {
+    total,
+    done,
+    ok,
+    fail,
+    na,
+    unset: Math.max(0, total - done)
+  };
+}
+function progressLine(p) {
+  if (!p.total) return "";
+  return `${p.done}/${p.total}`;
+}
+function computeAcceptanceQualityB(tmplKey, results) {
+  var _a, _b, _c;
+  const key = String(tmplKey || (results == null ? void 0 : results.template_key) || "").trim();
+  const groups = resolveTemplateGroups(key);
+  if (!groups.length) return null;
+  const getProductMetrics = window.getProductMetrics || ((_c = (_b = (_a = window.RBI) == null ? void 0 : _a.utils) == null ? void 0 : _b.math) == null ? void 0 : _c.getProductMetrics);
+  if (typeof getProductMetrics !== "function") return null;
+  const productState = {};
+  for (const it of (results == null ? void 0 : results.items) || []) {
+    if (!(it == null ? void 0 : it.id) || !it.status) continue;
+    productState[String(it.id)] = String(it.status);
+  }
+  if (!Object.keys(productState).length) return null;
+  const m = getProductMetrics(productState, groups);
+  if (!m || m.final == null) return null;
+  return {
+    final: Number(m.final) || 0,
+    statusTxt: String(m.statusTxt || ""),
+    statusCls: String(m.statusCls || ""),
+    isDanger: m.isDanger === true,
+    reason: String(m.reason || ""),
+    checkedCount: Number(m.checkedCount) || 0,
+    n_B1_fail: Number(m.n_B1_fail) || 0,
+    n_B2_fail: Number(m.n_B2_fail) || 0,
+    n_B3_fail: Number(m.n_B3_fail) || 0
+  };
+}
+function pickLatestAcceptanceForB(acceptances) {
+  const list = (acceptances || []).filter((a) => a && !a.is_deleted && !a._deleted && String(a.status) !== "rejected").filter((a) => a.checklist_results && (a.checklist_results.items || []).length > 0).slice().sort(
+    (a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""))
+  );
+  return list[0] || null;
+}
+function listFailBatchCandidates(acceptance, existingDefects) {
+  var _a, _b;
+  const tmplKey = String(acceptance.template_key || ((_a = acceptance.checklist_results) == null ? void 0 : _a.template_key) || "");
+  const templateItems = listTemplateChecklistItems(tmplKey);
+  const byId = new Map(templateItems.map((t) => [t.id, t]));
+  const locationId = String(acceptance.locationId || "");
+  const blockedIds = /* @__PURE__ */ new Set();
+  for (const d of existingDefects || []) {
+    if (!d || d.is_deleted || d._deleted) continue;
+    if (String(d.locationId || "") !== locationId) continue;
+    if (!ACTIVE_DEFECT_STATUSES_FOR_BATCH.has(String(d.status || ""))) continue;
+    const iid = String(d.item_id || "").trim();
+    if (iid) blockedIds.add(iid);
+  }
+  const out = [];
+  for (const row of ((_b = acceptance.checklist_results) == null ? void 0 : _b.items) || []) {
+    const st = row == null ? void 0 : row.status;
+    if (st !== "fail" && st !== "fail_escalated") continue;
+    const id = String(row.id || "").trim();
+    if (!id || blockedIds.has(id)) continue;
+    const tmpl = byId.get(id);
+    const weight = (tmpl == null ? void 0 : tmpl.weight) ?? null;
+    out.push({
+      id,
+      group: (tmpl == null ? void 0 : tmpl.group) || String(row.group || "") || "",
+      name: (tmpl == null ? void 0 : tmpl.name) || String(row.name || id),
+      norm: tmpl == null ? void 0 : tmpl.norm,
+      weight,
+      status: st,
+      category: categoryFromWeight(weight, st === "fail_escalated")
+    });
+  }
+  return out;
+}
+function acceptGateWarning(item) {
+  var _a;
+  const tmplKey = String(item.template_key || ((_a = item.checklist_results) == null ? void 0 : _a.template_key) || "");
+  const progress = computeChecklistProgress(tmplKey, item.checklist_results);
+  if (!tmplKey) return null;
+  if (!item.checklist_results || progress.done === 0) {
+    return "Чек-лист ещё не начат. Принять заявку anyway?";
+  }
+  if (progress.fail > 0) {
+    return `Есть ${progress.fail} пункт(ов) FAIL. Принять заявку anyway?`;
+  }
+  if (progress.unset > 0) {
+    return `Не пройдено ${progress.unset} пункт(ов) чек-листа. Принять anyway?`;
+  }
+  return null;
+}
+function _bBadgeHtml(b) {
+  if (!b) return "";
+  const tone = b.final < 70 || b.isDanger ? "bg-red-50 text-red-700 border-red-200" : b.final < 85 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
+  return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] font-black uppercase">УрК B</span>
+        <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape$6(String(b.final))}%</span>
+      </div>
+      <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$6(b.statusTxt || "")}</div>
+    </div>`;
+}
+function renderChecklistSectionHtml(item, opts) {
+  var _a;
+  const editable = (opts == null ? void 0 : opts.editable) !== false;
+  const tmplKey = String(item.template_key || ((_a = item.checklist_results) == null ? void 0 : _a.template_key) || "");
+  if (!tmplKey) {
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">Чек-лист: вид работ не выбран</div>`;
+  }
+  const templateItems = listTemplateChecklistItems(tmplKey);
+  if (!templateItems.length) {
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">Чек-лист шаблона пуст или не найден</div>`;
+  }
+  const progress = computeChecklistProgress(tmplKey, item.checklist_results);
+  const b = computeAcceptanceQualityB(tmplKey, item.checklist_results);
+  const batchN = (opts == null ? void 0 : opts.batchFailCount) != null ? opts.batchFailCount : listFailBatchCandidates(item, []).length;
+  const openBtn = editable ? `<button type="button" data-c2-cl-open
+         class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase shadow-md">
+         Пройти чек-лист</button>` : "";
+  const batchBtn = editable && batchN > 0 ? `<button type="button" data-c2-cl-batch-fail
+           class="w-full mt-2 bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-[11px] font-black uppercase">
+           Создать замечания по FAIL (${batchN})</button>` : "";
+  return `
+    <div class="mt-3 pt-3 border-t border-[var(--card-border)]" data-c2-cl-section>
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="text-[10px] font-black uppercase text-indigo-600">Чек-лист</div>
+        <div class="text-[10px] font-bold text-slate-500" data-c2-cl-progress>
+          ${progress.done}/${progress.total}
+          · OK ${progress.ok} · FAIL ${progress.fail} · N/A ${progress.na}
+        </div>
+      </div>
+      <div class="text-[10px] text-slate-400 font-bold">
+        ${_escape$6(String(templateItems.length))} пункт(ов) · ${_escape$6(String(new Set(templateItems.map((t) => t.group)).size))} групп
+      </div>
+      ${_bBadgeHtml(b)}
+      ${openBtn}
+      ${batchBtn}
+    </div>`;
+}
+const APARTMENT_FULL_ZONE = { x: 0, y: 0, w: 100, h: 100 };
+function _checklistRunner() {
+  var _a, _b;
+  return window.ChecklistRunner || (((_b = (_a = window.RBI) == null ? void 0 : _a.shared) == null ? void 0 : _b.checklistRunner) ?? null);
+}
+function _escape$5(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _roleInfo() {
@@ -1208,17 +1562,79 @@ function _sysTemplates() {
 function _userTemplates() {
   return window.userTemplates || {};
 }
+async function _fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = () => reject(new Error("Не удалось прочитать файл"));
+    r.readAsDataURL(file);
+  });
+}
+async function _pickAndSaveChecklistPhotos() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = true;
+    input.style.display = "none";
+    document.body.appendChild(input);
+    const cleanup = () => {
+      try {
+        input.remove();
+      } catch (_) {
+      }
+    };
+    input.addEventListener("change", () => {
+      void (async () => {
+        try {
+          const files = Array.from(input.files || []).filter(
+            (f) => f && f.type && f.type.startsWith("image/")
+          );
+          if (!files.length) {
+            cleanup();
+            resolve([]);
+            return;
+          }
+          const pm = window.PhotoManager;
+          const out = [];
+          for (const file of files) {
+            const dataUrl = await _fileToDataUrl(file);
+            if (!dataUrl.startsWith("data:")) continue;
+            if (pm == null ? void 0 : pm.saveLocal) {
+              const id = await pm.saveLocal(dataUrl, "cacc", {
+                entityType: "construction_acceptance_checklist"
+              });
+              if (id) out.push(id);
+            } else {
+              out.push(dataUrl);
+            }
+          }
+          cleanup();
+          resolve(out);
+        } catch (_) {
+          cleanup();
+          resolve([]);
+        }
+      })();
+    });
+    input.addEventListener("cancel", () => {
+      cleanup();
+      resolve([]);
+    });
+    input.click();
+  });
+}
 function _tmplOptions(selected) {
   let html = '<option value="">-- Выберите вид работ --</option>';
   const st = _sysTemplates();
   Object.keys(st).sort().forEach((k) => {
     const v = `sys_${k}`;
-    html += `<option value="${_escape$4(v)}" ${selected === v ? "selected" : ""}>[СИС] ${_escape$4(st[k].title || k)}</option>`;
+    html += `<option value="${_escape$5(v)}" ${selected === v ? "selected" : ""}>[СИС] ${_escape$5(st[k].title || k)}</option>`;
   });
   const ut = _userTemplates();
   Object.keys(ut).sort().forEach((k) => {
     const v = `user_${k}`;
-    html += `<option value="${_escape$4(v)}" ${selected === v ? "selected" : ""}>[МОЙ] ${_escape$4(ut[k].title || k)}</option>`;
+    html += `<option value="${_escape$5(v)}" ${selected === v ? "selected" : ""}>[МОЙ] ${_escape$5(ut[k].title || k)}</option>`;
   });
   return html;
 }
@@ -1254,11 +1670,38 @@ function _floorLabel(locationId) {
   }
   return ((_d = (_c = loc == null ? void 0 : loc.getNode) == null ? void 0 : _c.call(loc, locationId)) == null ? void 0 : _d.displayName) || locationId;
 }
+function _locationNodeType(locationId) {
+  var _a, _b, _c, _d;
+  const loc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.locations;
+  return String(((_d = (_c = loc == null ? void 0 : loc.getNode) == null ? void 0 : _c.call(loc, locationId)) == null ? void 0 : _d.nodeType) || "");
+}
+function _listDefectsForLocation(locationId) {
+  const dSvc = _defects$1();
+  if (!dSvc) return [];
+  if (typeof dSvc.listForLocation === "function") return dSvc.listForLocation(locationId) || [];
+  if (typeof dSvc.list === "function") return dSvc.list({ locationId }) || [];
+  return [];
+}
 function _today() {
   const d = /* @__PURE__ */ new Date();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
+}
+function _acc$3() {
+  var _a, _b;
+  return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionAcceptance) || null;
+}
+function _defects$1() {
+  var _a, _b;
+  return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionDefects) || null;
+}
+function _zoneCenter(zone) {
+  if (!zone) return { x: 50, y: 50 };
+  return {
+    x: Number(zone.x) + Number(zone.w) / 2,
+    y: Number(zone.y) + Number(zone.h) / 2
+  };
 }
 function openCreateAcceptanceForm(ctx, onSave, onCancel) {
   var _a, _b, _c;
@@ -1268,37 +1711,43 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
     onCancel == null ? void 0 : onCancel();
     return;
   }
+  const isApartment = ctx.mode === "apartment" || _locationNodeType(ctx.locationId) === "apartment";
   const path = _floorLabel(ctx.locationId);
+  const zoneBadge = isApartment ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">Квартира</span>` : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">✅ Зона выделена</span>`;
+  const roomVolHtml = isApartment ? `<div>
+         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
+         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+       </div>` : `<div class="grid grid-cols-2 gap-2">
+         <div>
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Оси / Захватка</label>
+           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape$5(ctx.zone.room || "")}">
+         </div>
+         <div>
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
+           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+         </div>
+       </div>`;
   const html = `
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 bg-indigo-600 border-b border-indigo-700 flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase text-white">📝 Заявка на приемку (v2)</h3>
+          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? "📝 Приёмка квартиры (v2)" : "📝 Заявка на приемку (v2)"}</h3>
           <button type="button" data-c2-acc-close class="text-indigo-200 hover:text-white font-black text-lg leading-none">✕</button>
         </div>
         <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <div class="text-[10px] font-black text-indigo-500 uppercase mb-1 flex justify-between">
               <span>Локация</span>
-              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">✅ Зона выделена</span>
+              ${zoneBadge}
             </div>
-            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$4(path)}</div>
+            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$5(path)}</div>
           </div>
           <div>
             <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Вид работ *</label>
             <select id="c2-acc-work" class="input-base text-[12px] font-bold mb-2 border-indigo-300 w-full">
               ${_tmplOptions()}
             </select>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Оси / Захватка</label>
-                <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape$4(ctx.zone.room || "")}">
-              </div>
-              <div>
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
-                <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
-              </div>
-            </div>
+            ${roomVolHtml}
           </div>
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
             <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">Когда готовы сдать?</label>
@@ -1337,7 +1786,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
   (_c = modal.querySelector("[data-c2-acc-save]")) == null ? void 0 : _c.addEventListener("click", () => {
     var _a2, _b2, _c2, _d, _e, _f, _g, _h, _i;
     const workKey = ((_a2 = document.getElementById("c2-acc-work")) == null ? void 0 : _a2.value) || "";
-    const room = ((_c2 = (_b2 = document.getElementById("c2-acc-room")) == null ? void 0 : _b2.value) == null ? void 0 : _c2.trim()) || "";
+    const room = isApartment ? "" : ((_c2 = (_b2 = document.getElementById("c2-acc-room")) == null ? void 0 : _b2.value) == null ? void 0 : _c2.trim()) || "";
     const vol = ((_e = (_d = document.getElementById("c2-acc-vol")) == null ? void 0 : _d.value) == null ? void 0 : _e.trim()) || "";
     const dateStr = ((_f = document.getElementById("c2-acc-date")) == null ? void 0 : _f.value) || "";
     const timeStr = ((_g = document.getElementById("c2-acc-time")) == null ? void 0 : _g.value) || "";
@@ -1346,7 +1795,8 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
       return;
     }
     const engineerName = ((_i = window.syncConfig) == null ? void 0 : _i.engineerName) || "";
-    const zone = { ...ctx.zone, room: room || null };
+    const baseZone = isApartment ? { ...APARTMENT_FULL_ZONE } : { ...ctx.zone };
+    const zone = { ...baseZone, room: room || null };
     void Promise.resolve(
       onSave({
         locationId: ctx.locationId,
@@ -1366,6 +1816,9 @@ function openAcceptanceDetails(item, handlers) {
   const { isEngineer, role } = _roleInfo();
   const path = _floorLabel(item.locationId);
   const status = String(item.status || "pending");
+  const editable = isEngineer && status === "pending";
+  const defectsForLoc = _listDefectsForLocation(item.locationId);
+  const batchCandidates = listFailBatchCandidates(item, defectsForLoc);
   let actions = "";
   if (status === "pending") {
     if (isEngineer) {
@@ -1400,20 +1853,21 @@ function openAcceptanceDetails(item, handlers) {
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape$4(status)}</h3>
+          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape$5(status)}</h3>
           <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
         </div>
-        <div class="p-4 text-[12px] space-y-2">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape$4(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape$4(item.work_type || "—")}</div></div>
+        <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
+          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape$5(path)}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape$5(item.work_type || "—")}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape$4(item.volume || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape$4(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape$5(item.volume || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape$5(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape$4(item.requested_date || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape$4(item.requested_time || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape$5(item.requested_date || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape$5(item.requested_time || "—")}</div></div>
           </div>
+          ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}
         </div>
       </div>
@@ -1422,7 +1876,291 @@ function openAcceptanceDetails(item, handlers) {
   document.body.insertAdjacentHTML("beforeend", html);
   const modal = document.getElementById("c2-acc-details-modal");
   if (!modal) return;
+  let current = item;
   const close = () => modal.remove();
+  const openDefectFromChecklist = (meta) => {
+    var _a2;
+    const dSvc = _defects$1();
+    if (!dSvc) {
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "service.constructionDefects не загружен");
+      return;
+    }
+    const center = _zoneCenter(current.zone);
+    openCreateDefectForm(
+      { locationId: current.locationId, x: center.x, y: center.y },
+      async (input) => {
+        var _a3, _b2;
+        await dSvc.create({
+          locationId: input.locationId,
+          x: input.x,
+          y: input.y,
+          description: input.description,
+          category: input.category,
+          contractorId: input.contractorId,
+          deadline: input.deadline,
+          template_key: input.template_key,
+          item_id: input.item_id,
+          item_name: input.item_name,
+          norm_text: input.norm_text,
+          photos: input.photos,
+          status: "issued"
+        });
+        (_a3 = window.showToast) == null ? void 0 : _a3.call(window, "Замечание создано");
+        refreshChecklistUi(((_b2 = _acc$3()) == null ? void 0 : _b2.get(current.id)) || current);
+      },
+      void 0,
+      {
+        template_key: current.template_key || null,
+        item_id: meta.id || null,
+        item_name: meta.name || null,
+        norm_text: meta.norm || null,
+        description: meta.name || null
+      }
+    );
+  };
+  const createBatchFailDefects = async () => {
+    var _a2, _b2, _c2, _d2, _e2, _f;
+    const dSvc = _defects$1();
+    if (!dSvc) {
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "service.constructionDefects не загружен");
+      return;
+    }
+    const latest = ((_b2 = _acc$3()) == null ? void 0 : _b2.get(current.id)) || current;
+    const candidates = listFailBatchCandidates(latest, _listDefectsForLocation(latest.locationId));
+    if (!candidates.length) {
+      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, "Нет FAIL без активного замечания");
+      refreshChecklistUi(latest);
+      return;
+    }
+    if (!window.confirm(`Создать ${candidates.length} замечани(й) по FAIL без формы?`)) return;
+    const center = _zoneCenter(latest.zone);
+    let created = 0;
+    for (const c of candidates) {
+      try {
+        await dSvc.create({
+          locationId: latest.locationId,
+          x: center.x,
+          y: center.y,
+          description: c.name || c.id,
+          category: c.category,
+          contractorId: latest.contractorId || null,
+          deadline: null,
+          template_key: latest.template_key || null,
+          item_id: c.id,
+          item_name: c.name || null,
+          norm_text: c.norm || null,
+          photos: [],
+          status: "issued"
+        });
+        created += 1;
+      } catch (e) {
+        console.warn("[acceptance-form] batch fail create", e);
+      }
+    }
+    (_d2 = window.showToast) == null ? void 0 : _d2.call(window, created ? `Создано замечаний: ${created}` : "Не удалось создать замечания");
+    refreshChecklistUi(((_e2 = _acc$3()) == null ? void 0 : _e2.get(current.id)) || latest);
+    await ((_f = handlers.onChecklistChanged) == null ? void 0 : _f.call(handlers, current.id));
+  };
+  const refreshChecklistUi = (next) => {
+    current = next;
+    const section = modal.querySelector("[data-c2-cl-section]");
+    if (!section) return;
+    const batchN = listFailBatchCandidates(next, _listDefectsForLocation(next.locationId)).length;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = renderChecklistSectionHtml(next, { editable, batchFailCount: batchN });
+    const fresh = tmp.firstElementChild;
+    if (fresh) section.replaceWith(fresh);
+    bindChecklistActions(modal);
+  };
+  const openChecklistRunner = () => {
+    var _a2, _b2, _c2, _d2;
+    const runner = _checklistRunner();
+    if (!runner) {
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "ChecklistRunner не загружен");
+      return;
+    }
+    const tmplKey = String(current.template_key || ((_b2 = current.checklist_results) == null ? void 0 : _b2.template_key) || "");
+    if (!tmplKey) {
+      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, "Вид работ не выбран");
+      return;
+    }
+    const groups = resolveTemplateGroups(tmplKey);
+    if (!groups.length) {
+      (_d2 = window.showToast) == null ? void 0 : _d2.call(window, "Чек-лист шаблона пуст или не найден");
+      return;
+    }
+    const title = _workTitle(tmplKey) || current.work_type || "Чек-лист";
+    const rowOf = (id) => {
+      var _a3, _b3;
+      const latest = ((_a3 = _acc$3()) == null ? void 0 : _a3.get(current.id)) || current;
+      return (((_b3 = latest.checklist_results) == null ? void 0 : _b3.items) || []).find((it) => String(it.id) === String(id));
+    };
+    const persistItem = async (id, itemMeta, patch) => {
+      var _a3;
+      const acc = _acc$3();
+      if (!acc) throw new Error("service.constructionAcceptance не загружен");
+      const updated = await acc.setChecklistItem(current.id, {
+        id,
+        name: itemMeta.name || id,
+        group: itemMeta.group || null,
+        status: patch.status,
+        comment: patch.comment,
+        photos: patch.photos,
+        clearExtras: patch.clearExtras
+      });
+      current = updated;
+      await ((_a3 = handlers.onChecklistChanged) == null ? void 0 : _a3.call(handlers, current.id));
+      return updated;
+    };
+    const clearItem = async (id) => {
+      var _a3;
+      const acc = _acc$3();
+      if (!acc) throw new Error("service.constructionAcceptance не загружен");
+      const latest = acc.get(current.id) || current;
+      const prev = latest.checklist_results;
+      if (!prev) return;
+      const items = (prev.items || []).filter((it) => String(it.id) !== String(id));
+      const updated = await acc.setChecklistResults(current.id, {
+        template_key: prev.template_key,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString(),
+        items
+      });
+      current = updated;
+      await ((_a3 = handlers.onChecklistChanged) == null ? void 0 : _a3.call(handlers, current.id));
+    };
+    runner.open({
+      title,
+      templateKey: tmplKey,
+      groups,
+      features: {
+        na: true,
+        failAction: true,
+        batchFail: editable,
+        norms: true,
+        weightTag: true,
+        photos: true,
+        comments: true,
+        help: true,
+        escalate: true,
+        swipe: true,
+        collapse: true
+      },
+      getStatus: (id) => {
+        var _a3;
+        const st = (_a3 = rowOf(id)) == null ? void 0 : _a3.status;
+        if (st === "ok" || st === "fail" || st === "na" || st === "fail_escalated") return st;
+        return null;
+      },
+      getItemDetails: (id) => {
+        const row = rowOf(id);
+        return {
+          comment: (row == null ? void 0 : row.comment) || "",
+          photos: Array.isArray(row == null ? void 0 : row.photos) ? row.photos.slice() : []
+        };
+      },
+      setStatus: async (id, status2, itemMeta) => {
+        if (status2 == null || status2 === "") {
+          await clearItem(id);
+          return;
+        }
+        const st = status2;
+        if (st !== "ok" && st !== "fail" && st !== "na" && st !== "fail_escalated") {
+          throw new Error("Некорректный статус пункта");
+        }
+        const clearExtras = st === "ok" || st === "na";
+        await persistItem(id, itemMeta, {
+          status: st,
+          clearExtras: clearExtras || void 0,
+          // при переходе на fail сохраняем extras; при ok/na — clear
+          photos: clearExtras ? null : void 0,
+          comment: clearExtras ? null : void 0
+        });
+      },
+      setItemComment: async (id, comment, itemMeta) => {
+        const row = rowOf(id);
+        const st = row == null ? void 0 : row.status;
+        if (st !== "fail" && st !== "fail_escalated") {
+          throw new Error("Комментарий только для FAIL");
+        }
+        await persistItem(id, itemMeta, {
+          status: st,
+          comment: comment || null
+        });
+      },
+      addItemPhoto: async (id, itemMeta) => {
+        const row = rowOf(id);
+        const st = row == null ? void 0 : row.status;
+        if (st !== "ok" && st !== "fail" && st !== "fail_escalated") {
+          throw new Error("Сначала отметьте пункт OK или FAIL");
+        }
+        const added = await _pickAndSaveChecklistPhotos();
+        if (!added.length) return;
+        const photos = (Array.isArray(row == null ? void 0 : row.photos) ? row.photos.slice() : []).concat(added);
+        await persistItem(id, itemMeta, { status: st, photos });
+      },
+      removeItemPhoto: async (id, index2, itemMeta) => {
+        const row = rowOf(id);
+        const st = row == null ? void 0 : row.status;
+        if (!st) throw new Error("Пункт без статуса");
+        const photos = Array.isArray(row == null ? void 0 : row.photos) ? row.photos.slice() : [];
+        if (index2 < 0 || index2 >= photos.length) return;
+        photos.splice(index2, 1);
+        await persistItem(id, itemMeta, {
+          status: st,
+          photos: photos.length ? photos : null
+        });
+      },
+      onHelp: (id, event, itemMeta) => {
+        var _a3, _b3, _c3;
+        const openMenu = window.openItemHelpMenu;
+        if (typeof openMenu === "function") {
+          openMenu(id, event, { templateKey: tmplKey, checklist: groups });
+          return;
+        }
+        const svc = (_b3 = (_a3 = window.RBI) == null ? void 0 : _a3.services) == null ? void 0 : _b3.knowledge;
+        if (svc == null ? void 0 : svc.openItemHelp) {
+          svc.openItemHelp(id, event);
+          return;
+        }
+        (_c3 = window.showToast) == null ? void 0 : _c3.call(window, "База знаний недоступна");
+      },
+      onEscalate: async (id, itemMeta) => {
+        const row = rowOf(id);
+        const st = row == null ? void 0 : row.status;
+        if (st === "fail_escalated") {
+          await persistItem(id, itemMeta, { status: "fail" });
+        } else if (st === "fail") {
+          await persistItem(id, itemMeta, { status: "fail_escalated" });
+        }
+      },
+      onFailAction: (meta) => {
+        openDefectFromChecklist(meta);
+      },
+      onBatchFailAction: async () => {
+        await createBatchFailDefects();
+      },
+      onClose: () => {
+        var _a3;
+        const latest = ((_a3 = _acc$3()) == null ? void 0 : _a3.get(current.id)) || current;
+        refreshChecklistUi(latest);
+      }
+    });
+  };
+  const bindChecklistActions = (root) => {
+    root.querySelectorAll("[data-c2-cl-open]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        openChecklistRunner();
+      });
+    });
+    root.querySelectorAll("[data-c2-cl-batch-fail]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        void createBatchFailDefects();
+      });
+    });
+  };
+  bindChecklistActions(modal);
   modal.addEventListener("click", (ev) => {
     if (ev.target === modal) close();
   });
@@ -1434,9 +2172,14 @@ function openAcceptanceDetails(item, handlers) {
   });
   modal.querySelectorAll("[data-c2-acc-status]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      var _a2;
+      var _a2, _b2;
       const st = btn.getAttribute("data-c2-acc-status");
-      void Promise.resolve((_a2 = handlers.onChangeStatus) == null ? void 0 : _a2.call(handlers, item.id, st)).then(() => close());
+      const latest = ((_a2 = _acc$3()) == null ? void 0 : _a2.get(current.id)) || current;
+      if (st === "accepted") {
+        const warn = acceptGateWarning(latest);
+        if (warn && !window.confirm(warn)) return;
+      }
+      void Promise.resolve((_b2 = handlers.onChangeStatus) == null ? void 0 : _b2.call(handlers, item.id, st)).then(() => close());
     });
   });
   (_e = modal.querySelector("[data-c2-acc-revoke]")) == null ? void 0 : _e.addEventListener("click", () => {
@@ -1444,10 +2187,10 @@ function openAcceptanceDetails(item, handlers) {
     void Promise.resolve((_a2 = handlers.onSoftDelete) == null ? void 0 : _a2.call(handlers, item.id)).then(() => close());
   });
 }
-function _escape$3(s) {
+function _escape$4(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function _acc$1() {
+function _acc$2() {
   var _a, _b;
   return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionAcceptance) || null;
 }
@@ -1466,27 +2209,30 @@ function _objectIdForFloor(loc, floorId) {
 function _cardHtml(r, loc) {
   const path = loc.getPath(r.locationId).map((n) => n.displayName).join(" · ");
   const overdue = r.status === "pending" && r.requested_date && new Date(r.requested_date).setHours(0, 0, 0, 0) < (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0);
+  const progress = computeChecklistProgress(r.template_key, r.checklist_results);
+  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$4(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>` : "";
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
-         data-c2-acc-card="${_escape$3(r.id)}">
+         data-c2-acc-card="${_escape$4(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$3(r.work_type || "Без вида работ")}</div>
+        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$4(r.work_type || "Без вида работ")}</div>
         ${overdue ? '<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">просрочено</span>' : ""}
       </div>
-      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$3(path || r.locationId)}</div>
+      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$4(path || r.locationId)}</div>
       <div class="flex justify-between items-center text-[10px]">
-        <span class="font-bold text-slate-600">${_escape$3(r.requested_date || "—")} ${_escape$3(r.requested_time || "")}</span>
-        <button type="button" data-c2-acc-plan="${_escape$3(r.id)}"
+        <span class="font-bold text-slate-600">${_escape$4(r.requested_date || "—")} ${_escape$4(r.requested_time || "")}</span>
+        <button type="button" data-c2-acc-plan="${_escape$4(r.id)}"
           class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">План</button>
       </div>
-      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$3(r.volume)}</div>` : ""}
+      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$4(r.volume)}</div>` : ""}
+      ${progressHtml}
     </div>`;
 }
 function _column(title, color, items, loc) {
   return `
     <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700 p-2">
       <div class="flex items-center justify-between px-1 mb-2">
-        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape$3(title)}</span>
+        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape$4(title)}</span>
         <span class="bg-white dark:bg-slate-800 text-slate-600 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 text-[10px] font-bold">${items.length}</span>
       </div>
       <div class="max-h-[55vh] overflow-y-auto">
@@ -1495,7 +2241,7 @@ function _column(title, color, items, loc) {
     </div>`;
 }
 async function renderAcceptanceKanban(root) {
-  const acc = _acc$1();
+  const acc = _acc$2();
   const loc = _loc$2();
   if (!acc || !loc) {
     root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">constructionAcceptance / locations не загружены</div>`;
@@ -1505,7 +2251,7 @@ async function renderAcceptanceKanban(root) {
   await acc.init();
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
   const objOpts = `<option value="">Все объекты</option>` + objects.map(
-    (o) => `<option value="${_escape$3(o.id)}" ${_filterObjectId === o.id ? "selected" : ""}>${_escape$3(o.displayName)}</option>`
+    (o) => `<option value="${_escape$4(o.id)}" ${_filterObjectId === o.id ? "selected" : ""}>${_escape$4(o.displayName)}</option>`
   ).join("");
   let all = acc.list();
   if (_filterObjectId) {
@@ -1560,7 +2306,7 @@ function _bindOnce$2() {
       if (card) {
         const id = card.getAttribute("data-c2-acc-card");
         if (!id) return;
-        const acc = _acc$1();
+        const acc = _acc$2();
         const item = acc == null ? void 0 : acc.get(id);
         if (!item || !acc) return;
         openAcceptanceDetails(item, {
@@ -1578,6 +2324,10 @@ function _bindOnce$2() {
             (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "Заявка отозвана");
             const root = document.getElementById("construction-v2-root");
             if (root) await renderAcceptanceKanban(root);
+          },
+          onChecklistChanged: async () => {
+            const root = document.getElementById("construction-v2-root");
+            if (root) await renderAcceptanceKanban(root);
           }
         });
       }
@@ -1587,7 +2337,7 @@ function _bindOnce$2() {
 }
 function focusAcceptanceOnPlan(id) {
   var _a, _b, _c, _d;
-  const acc = _acc$1();
+  const acc = _acc$2();
   const item = acc == null ? void 0 : acc.get(id);
   if (!(item == null ? void 0 : item.locationId) || !item.zone) {
     (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Для этой заявки не была выделена зона на плане");
@@ -1617,7 +2367,7 @@ const UNIT_STATUS_LABELS_RU = {
   transferred: "Передана",
   shareholder_defects: "Замечания дольщика"
 };
-function _escape$2(s) {
+function _escape$3(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _pathLabel(loc, locationId) {
@@ -1635,7 +2385,7 @@ function closeUnitCard() {
   (_a = document.getElementById("c2-unit-card")) == null ? void 0 : _a.remove();
 }
 function openUnitCard(unit, deps) {
-  var _a, _b;
+  var _a, _b, _c;
   closeUnitCard();
   unit.id;
   const guest = deps.cb.isGuest();
@@ -1644,7 +2394,7 @@ function openUnitCard(unit, deps) {
   const status = String(unit.status || "not_inspected");
   const hasPdf = !!(unit.pdf_url && String(unit.pdf_url).startsWith("http"));
   const statusOpts = UNIT_STATUSES_V2.map(
-    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$2(UNIT_STATUS_LABELS_RU[st])}</option>`
+    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$3(UNIT_STATUS_LABELS_RU[st])}</option>`
   ).join("");
   const wrap = document.createElement("div");
   wrap.id = "c2-unit-card";
@@ -1654,17 +2404,17 @@ function openUnitCard(unit, deps) {
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
           <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Квартира</div>
-          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$2(unit.type || "КВ")} ${_escape$2(
+          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$3(unit.type || "КВ")} ${_escape$3(
     unit.name
   )}</div>
-          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$2(path)}</div>
+          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$3(path)}</div>
         </div>
         <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="Закрыть">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
           <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Статус передачи</span>
-          <select id="c2-unit-card-status" data-c2-unit-id="${_escape$2(unit.id)}"
+          <select id="c2-unit-card-status" data-c2-unit-id="${_escape$3(unit.id)}"
             class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
             ${guest ? "disabled" : ""}>
             ${statusOpts}
@@ -1672,20 +2422,23 @@ function openUnitCard(unit, deps) {
         </label>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">План квартиры (PDF)</div>
-          ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$2(
+          ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$3(
     unit.pdf_name || "plan.pdf"
-  )}${unit.pdf_size ? ` · ${_escape$2(String(unit.pdf_size))} B` : ""}</div>
+  )}${unit.pdf_size ? ` · ${_escape$3(String(unit.pdf_size))} B` : ""}</div>
                  <div class="flex flex-wrap gap-2">
-                   <a href="${_escape$2(String(unit.pdf_url))}" target="_blank" rel="noopener"
+                   <a href="${_escape$3(String(unit.pdf_url))}" target="_blank" rel="noopener"
                      class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">Открыть</a>
-                   <button type="button" data-c2-unit-apt-plan="${_escape$2(unit.id)}"
+                   <button type="button" data-c2-unit-apt-plan="${_escape$3(unit.id)}"
                      class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">Замечания на плане</button>
                  </div>` : `<div class="text-[11px] text-slate-400 font-bold">План не загружен</div>
                  <div class="text-[10px] text-slate-400 font-bold">Загрузка PDF — в Настройках → справочник локаций</div>
                  <button type="button" disabled
                    class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">Замечания на плане</button>`}
         </div>
-        ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$2(unit.id)}"
+        <button type="button" data-c2-unit-acceptance="${_escape$3(unit.id)}"
+          class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? "opacity-50 cursor-not-allowed" : ""}"
+          ${guest ? "disabled" : ""}>Приёмка</button>
+        ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$3(unit.id)}"
                 class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">Удалить помещение</button>` : ""}
       </div>
     </div>`;
@@ -1726,7 +2479,19 @@ function openUnitCard(unit, deps) {
     }
     void deps.cb.onOpenApartmentPlan(fresh);
   });
-  (_b = wrap.querySelector("[data-c2-unit-delete]")) == null ? void 0 : _b.addEventListener("click", (ev) => {
+  (_b = wrap.querySelector("[data-c2-unit-acceptance]")) == null ? void 0 : _b.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    if (guest) return;
+    const id = ev.currentTarget.getAttribute("data-c2-unit-acceptance");
+    if (!id) return;
+    const fresh = deps.units.get(id) || unit;
+    if (!deps.cb.onOpenAcceptance) {
+      deps.cb.toast("Приёмка недоступна");
+      return;
+    }
+    void deps.cb.onOpenAcceptance(fresh);
+  });
+  (_c = wrap.querySelector("[data-c2-unit-delete]")) == null ? void 0 : _c.addEventListener("click", (ev) => {
     ev.preventDefault();
     if (guest) return;
     const id = ev.currentTarget.getAttribute("data-c2-unit-delete");
@@ -1770,11 +2535,32 @@ function _units() {
   var _a, _b;
   return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionUnits) || null;
 }
+function _acc$1() {
+  var _a, _b;
+  return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionAcceptance) || null;
+}
+function _listAccForLocation(locationId) {
+  const a = _acc$1();
+  if (!a || !locationId) return [];
+  if (typeof a.listForLocation === "function") return a.listForLocation(locationId) || [];
+  return a.list({ locationId }) || [];
+}
+function _bForUnit(unit) {
+  var _a;
+  const latest = pickLatestAcceptanceForB(_listAccForLocation(unit.locationId));
+  if (!latest) return null;
+  const b = computeAcceptanceQualityB(
+    latest.template_key || ((_a = latest.checklist_results) == null ? void 0 : _a.template_key),
+    latest.checklist_results
+  );
+  if (!b) return null;
+  return { final: b.final, statusTxt: b.statusTxt };
+}
 function _permissions() {
   var _a, _b;
   return (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
 }
-function _escape$1(s) {
+function _escape$2(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _toast(msg) {
@@ -1834,7 +2620,7 @@ function _renderLegend() {
   return `
     <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
       ${items.map(
-    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$1(
+    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$2(
       UNIT_STATUS_LABELS_RU[it.st]
     )}</span></div>`
   ).join("")}
@@ -1856,7 +2642,7 @@ function _renderGrid(uSvc, loc) {
     const floorLabel = floor.displayName || floor.id;
     html += `
       <div class="flex items-center gap-2">
-        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$1(
+        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$2(
       floorLabel
     )}</div>
         <div class="flex gap-1.5 flex-1">`;
@@ -1866,12 +2652,21 @@ function _renderGrid(uSvc, loc) {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || "not_inspected"));
         const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : "";
+        const b = _bForUnit(u);
+        let bTint = "";
+        let bBadge = "";
+        if (b) {
+          const ring = b.final < 70 ? "ring-2 ring-red-400/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
+          bTint = ` ${ring}`;
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${b.final < 70 ? "bg-red-500/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$2(b.statusTxt)}">${_escape$2(String(b.final))}</span>`;
+        }
         html += `
-          <button type="button" data-c2-unit-cell="${_escape$1(u.id)}"
-            class="relative ${bg} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95">
+          <button type="button" data-c2-unit-cell="${_escape$2(u.id)}"
+            class="relative ${bg}${bTint} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
-            <span class="text-[12px] font-black">${_escape$1(u.name)}</span>
-            <span class="text-[8px] opacity-60 font-bold">${_escape$1(u.type || "КВ")}</span>
+            ${bBadge}
+            <span class="text-[12px] font-black">${_escape$2(u.name)}</span>
+            <span class="text-[8px] opacity-60 font-bold">${_escape$2(u.type || "КВ")}</span>
           </button>`;
       }
     }
@@ -1891,7 +2686,7 @@ function _selectorsHtml(loc) {
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
   let objOpts = `<option value="">— объект —</option>`;
   for (const o of objects) {
-    objOpts += `<option value="${_escape$1(o.id)}" ${_objectId === o.id ? "selected" : ""}>${_escape$1(
+    objOpts += `<option value="${_escape$2(o.id)}" ${_objectId === o.id ? "selected" : ""}>${_escape$2(
       o.displayName
     )}</option>`;
   }
@@ -1899,7 +2694,7 @@ function _selectorsHtml(loc) {
   if (_objectId) {
     const buildings = loc.getChildren(_objectId).filter((b) => !b.nodeType || b.nodeType === "building");
     for (const b of buildings) {
-      bldOpts += `<option value="${_escape$1(b.id)}" ${_buildingId === b.id ? "selected" : ""}>${_escape$1(
+      bldOpts += `<option value="${_escape$2(b.id)}" ${_buildingId === b.id ? "selected" : ""}>${_escape$2(
         b.displayName
       )}</option>`;
     }
@@ -1931,6 +2726,13 @@ async function renderTransferBoard(root) {
   }
   await loc.init();
   await uSvc.init();
+  const aSvc = _acc$1();
+  if (aSvc == null ? void 0 : aSvc.init) {
+    try {
+      await aSvc.init();
+    } catch (_) {
+    }
+  }
   if (_buildingId && typeof uSvc.migrateUnitsToApartmentNodes === "function") {
     try {
       await uSvc.migrateUnitsToApartmentNodes(_buildingId);
@@ -2006,6 +2808,9 @@ function _bindOnce$1() {
                   toast: _toast,
                   onChanged: _refreshBoard
                 });
+              },
+              onOpenAcceptance: async (unit) => {
+                await _openUnitAcceptance(unit);
               }
             }
           });
@@ -2013,6 +2818,68 @@ function _bindOnce$1() {
       }
     },
     true
+  );
+}
+async function _openUnitAcceptance(unit) {
+  if (_isGuest()) {
+    _toast("Гости не могут открывать приёмку");
+    return;
+  }
+  const aSvc = _acc$1();
+  const uSvc = _units();
+  if (!aSvc) {
+    _toast("service.constructionAcceptance не загружен");
+    return;
+  }
+  let fresh = unit;
+  if (uSvc == null ? void 0 : uSvc.ensureApartmentForUnit) {
+    try {
+      fresh = await uSvc.ensureApartmentForUnit(unit.id);
+    } catch (e) {
+      console.warn("[transfer-board] ensureApartmentForUnit", e);
+    }
+  }
+  const locationId = String(fresh.locationId || "").trim();
+  if (!locationId) {
+    _toast("У квартиры нет locationId");
+    return;
+  }
+  const list = _listAccForLocation(locationId).filter((a) => String(a.status) !== "rejected").slice().sort(
+    (a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""))
+  );
+  const pending = list.find((a) => String(a.status) === "pending");
+  const openItem = pending || list[0] || null;
+  const openDetails = (item) => {
+    closeUnitCard();
+    openAcceptanceDetails(item, {
+      onChangeStatus: async (rid, status) => {
+        await aSvc.changeStatus(rid, status);
+        _toast("✅ Статус обновлён");
+        await _refreshBoard();
+      },
+      onSoftDelete: async (rid) => {
+        await aSvc.softDelete(rid);
+        _toast("Заявка отозвана");
+        await _refreshBoard();
+      },
+      onChecklistChanged: async () => {
+        await _refreshBoard();
+      }
+    });
+  };
+  if (openItem) {
+    openDetails(openItem);
+    return;
+  }
+  closeUnitCard();
+  openCreateAcceptanceForm(
+    { locationId, zone: { ...APARTMENT_FULL_ZONE }, mode: "apartment" },
+    async (input) => {
+      const created = await aSvc.create(input);
+      _toast("✅ Приёмка создана");
+      await _refreshBoard();
+      openDetails(created);
+    }
   );
 }
 async function _onGenerate() {
@@ -2029,6 +2896,154 @@ async function _onGenerate() {
     console.warn("[transfer-board] generateGrid", e);
     _toast(`Ошибка: ${(e == null ? void 0 : e.message) || e}`);
   }
+}
+function _escape$1(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _statusLabel(s) {
+  const map = {
+    issued: "Выдано",
+    in_progress: "В работе",
+    fixed: "Устранено",
+    closed: "Закрыто",
+    rejected: "Отклонено",
+    open: "Выдано",
+    cancelled: "Отклонено"
+  };
+  return map[s] || s || "—";
+}
+function _categoryLabel(c) {
+  const v = String(c || "").toUpperCase();
+  if (v === "B1" || v === "MINOR") return "B1";
+  if (v === "B3" || v === "CRITICAL") return "B3";
+  if (v === "B2" || v === "MAJOR") return "B2";
+  return v || "—";
+}
+function _categoryBar(c) {
+  const v = String(c || "").toUpperCase();
+  if (v === "B1" || v === "MINOR") return "bg-blue-500";
+  if (v === "B3" || v === "CRITICAL") return "bg-red-600";
+  return "bg-orange-500";
+}
+function _isClosed(status) {
+  const st = String(status || "").toLowerCase();
+  return st === "closed" || st === "fixed" || st === "rejected" || st === "cancelled";
+}
+function _deadlineMeta(v) {
+  if (v == null || v === "") return { label: "без срока", overdue: false };
+  const m = String(v).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!m) return { label: String(v), overdue: false };
+  const [y, mo, d] = m[1].split("-");
+  const label = `${d}.${mo}.${y}`;
+  const end = /* @__PURE__ */ new Date(`${m[1]}T23:59:59`);
+  const today = /* @__PURE__ */ new Date();
+  today.setHours(0, 0, 0, 0);
+  return { label, overdue: end < today };
+}
+function _filterSeg(active, key, label) {
+  const on = active === key;
+  const cls = on ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700";
+  return `<button type="button" data-c2-def-filter="${key}"
+    class="flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${cls}">${label}</button>`;
+}
+function _statusChip(status) {
+  const st = String(status || "").toLowerCase();
+  let cls = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  if (st === "issued" || st === "open") cls = "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300";
+  else if (st === "in_progress") cls = "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+  else if (st === "fixed") cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
+  else if (st === "closed") cls = "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300";
+  else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
+  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape$1(
+    _statusLabel(st)
+  )}</span>`;
+}
+function filterDefects(list, filter) {
+  if (filter === "open") return list.filter((d) => !_isClosed(String(d.status)));
+  if (filter === "closed") return list.filter((d) => _isClosed(String(d.status)));
+  return list.slice();
+}
+function renderDefectsRegistry(host, opts) {
+  const { floorId, floorLabel, defects, filter, onFilterChange, cb } = opts;
+  if (!floorId) {
+    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
+      Выберите этаж слева, чтобы увидеть реестр замечаний
+    </div>`;
+    return;
+  }
+  const filtered = filterDefects(defects, filter);
+  const rows = filtered.length === 0 ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
+          Нет замечаний по выбранному фильтру
+        </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
+          ${filtered.map((d, i) => {
+    const desc = String(d.description || d.item_name || d.text || "Без описания").slice(0, 140);
+    const dl = _deadlineMeta(d.deadline);
+    const dlCls = dl.overdue && !_isClosed(String(d.status)) ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-400";
+    const bar = _categoryBar(String(d.category));
+    return `<li>
+                <div class="flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                  <div class="w-1 shrink-0 ${bar}"></div>
+                  <button type="button" data-c2-def-row="${_escape$1(d.id)}"
+                    class="flex-1 min-w-0 text-left px-3 py-2.5 flex items-start gap-2.5">
+                    <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300
+                                 flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
+                    <span class="min-w-0 flex-1">
+                      <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                        <span class="text-[10px] font-bold text-slate-500">${_escape$1(_categoryLabel(String(d.category)))}</span>
+                        ${_statusChip(String(d.status))}
+                        <span class="text-[10px] ${dlCls}">${_escape$1(dl.label)}${dl.overdue && !_isClosed(String(d.status)) ? " · просрочено" : ""}</span>
+                      </span>
+                      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$1(desc)}</span>
+                    </span>
+                  </button>
+                  <button type="button" data-c2-def-on-plan="${_escape$1(d.id)}" data-c2-def-loc="${_escape$1(d.locationId)}"
+                    class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                    title="Показать на плане">На плане</button>
+                </div>
+              </li>`;
+  }).join("")}
+        </ul>`;
+  host.innerHTML = `
+    <div class="flex flex-col h-full min-h-[320px]">
+      <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+            ${_escape$1(floorLabel || "Этаж")}
+          </div>
+          <div class="text-[10px] text-slate-400 shrink-0">${defects.length} всего</div>
+        </div>
+        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
+          ${_filterSeg(filter, "all", "Все")}
+          ${_filterSeg(filter, "open", "Открытые")}
+          ${_filterSeg(filter, "closed", "Закрытые")}
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto">${rows}</div>
+    </div>`;
+  host.querySelectorAll("[data-c2-def-filter]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const key = btn.getAttribute("data-c2-def-filter");
+      if (key === "all" || key === "open" || key === "closed") onFilterChange(key);
+    });
+  });
+  host.querySelectorAll("[data-c2-def-row]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.getAttribute("data-c2-def-row");
+      if (id) cb.onOpenDefect(id);
+    });
+  });
+  host.querySelectorAll("[data-c2-def-on-plan]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const el = btn;
+      const id = el.getAttribute("data-c2-def-on-plan");
+      const loc = el.getAttribute("data-c2-def-loc");
+      if (id && loc) cb.onShowOnPlan(id, loc);
+    });
+  });
 }
 function _loc() {
   var _a, _b;
@@ -2053,6 +3068,11 @@ let _zoneMode = false;
 let _mountedPdfUrl = null;
 let _subview = "plan";
 let _pendingFocusAccId = null;
+let _pendingHighlightDefectId = null;
+let _defectsFilter = "all";
+let _fsOpen = false;
+let _fsPlaceholder = null;
+let _fsEscHandler = null;
 function _root() {
   return document.getElementById("construction-v2-root");
 }
@@ -2096,9 +3116,29 @@ function _renderTree(svc) {
   html += "</ul>";
   return html;
 }
+function _zoomToolbarHtml(prefix) {
+  return `<div class="flex gap-1 shrink-0 items-center rounded-xl bg-black/20 p-0.5">
+    <button type="button" data-c2-zoom-out="${prefix}"
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Уменьшить">−</button>
+    <button type="button" data-c2-zoom-in="${prefix}"
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Увеличить">+</button>
+    <button type="button" data-c2-zoom-fit="${prefix}"
+      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="По размеру">Fit</button>
+  </div>`;
+}
+function _fullscreenIconBtn() {
+  return `<button type="button" data-c2-fullscreen
+    class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center
+           text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+    title="На весь экран" aria-label="На весь экран">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
+    </svg>
+  </button>`;
+}
 function _renderPlanChrome(svc) {
   if (!_selectedFloorId) {
-    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
       Выберите этаж слева
     </div>`;
   }
@@ -2108,35 +3148,70 @@ function _renderPlanChrome(svc) {
   if (!(plan == null ? void 0 : plan.pdf_url)) {
     return `<div class="p-6">
       <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape(path)}</div>
-      <div class="text-amber-600 font-black text-[12px] uppercase">Нет PDF-плана на этом этаже</div>
+      <div class="text-amber-600 font-bold text-[13px]">Нет PDF-плана на этом этаже</div>
       <p class="text-[11px] text-slate-500 mt-2">Загрузите план в Настройках → «Объекты и планы».</p>
     </div>`;
   }
-  const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-indigo-600 border-indigo-200";
-  const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-transparent text-emerald-700 border-emerald-200";
-  return `<div class="flex flex-col h-full min-h-[320px]">
+  const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
+  const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
+  return `<div class="flex flex-col h-full min-h-[320px]" id="c2-plan-chrome">
     <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
-      <div class="text-[11px] font-bold text-slate-600 min-w-0">
+      <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
         ${_escape(path || (floor == null ? void 0 : floor.displayName) || "")}
-        <span class="ml-2 text-slate-400 font-normal">${_escape(plan.pdf_name || "")}</span>
       </div>
-      <div class="flex gap-2 shrink-0">
+      <div class="flex gap-1.5 shrink-0 items-center">
         <button type="button" data-c2-zone-mode
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${zoneCls}">
-          ${_zoneMode ? "2 клика на план…" : "Зона приёмки"}
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+          ${_zoneMode ? "2 клика…" : "Зона"}
         </button>
         <button type="button" data-c2-add-mode
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${addCls}">
-          ${_addMode ? "Кликни на план…" : "+ Замечание"}
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+          ${_addMode ? "Кликни…" : "+ Замечание"}
         </button>
+        ${_fullscreenIconBtn()}
       </div>
     </div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
-    <div class="px-3 py-2 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-2">
-      <span>Маркеры — замечания; прямоугольники — зоны приёмки.</span>
+    <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
       <span id="c2-overlay-count"></span>
     </div>
   </div>`;
+}
+function _openViewDefect(id) {
+  const dSvc = _defects();
+  const d = dSvc == null ? void 0 : dSvc.get(id);
+  if (!d || !dSvc) return;
+  openViewDefectForm(
+    d,
+    async (defectId) => {
+      var _a;
+      await dSvc.softDelete(defectId);
+      (_a = window.showToast) == null ? void 0 : _a.call(window, "Замечание удалено");
+      await _afterDefectMutation();
+    },
+    async (defectId, patch) => {
+      var _a;
+      await dSvc.update(defectId, patch);
+      (_a = window.showToast) == null ? void 0 : _a.call(window, "Замечание обновлено");
+      await _afterDefectMutation();
+    },
+    async (defectId, input) => {
+      var _a;
+      await dSvc.changeStatus(defectId, input.status, {
+        comment: input.comment,
+        photos: input.photos
+      });
+      (_a = window.showToast) == null ? void 0 : _a.call(window, "✅ Статус обновлён");
+      await _afterDefectMutation();
+    }
+  );
+}
+async function _afterDefectMutation() {
+  if (_subview === "defects") {
+    await renderConstructionV2();
+    return;
+  }
+  await _refreshOverlaysOnly();
 }
 async function _mountViewerIfNeeded(svc) {
   const host = document.getElementById("c2-plan-host");
@@ -2196,33 +3271,7 @@ async function _mountViewerIfNeeded(svc) {
         );
       },
       onMarkerClick: (id) => {
-        const dSvc = _defects();
-        const d = dSvc == null ? void 0 : dSvc.get(id);
-        if (!d || !dSvc) return;
-        openViewDefectForm(
-          d,
-          async (defectId) => {
-            var _a;
-            await dSvc.softDelete(defectId);
-            (_a = window.showToast) == null ? void 0 : _a.call(window, "Замечание удалено");
-            await _refreshOverlaysOnly();
-          },
-          async (defectId, patch) => {
-            var _a;
-            await dSvc.update(defectId, patch);
-            (_a = window.showToast) == null ? void 0 : _a.call(window, "Замечание обновлено");
-            await _refreshOverlaysOnly();
-          },
-          async (defectId, input) => {
-            var _a;
-            await dSvc.changeStatus(defectId, input.status, {
-              comment: input.comment,
-              photos: input.photos
-            });
-            (_a = window.showToast) == null ? void 0 : _a.call(window, "✅ Статус обновлён");
-            await _refreshOverlaysOnly();
-          }
-        );
+        _openViewDefect(id);
       },
       onZoneDrawn: (zone) => {
         var _a;
@@ -2291,18 +3340,31 @@ async function _mountViewerIfNeeded(svc) {
     _viewer.setFocusZone(_pendingFocusAccId);
     _pendingFocusAccId = null;
   }
+  if (_pendingHighlightDefectId && _viewer) {
+    _viewer.highlightMarker(_pendingHighlightDefectId);
+    _pendingHighlightDefectId = null;
+  }
 }
 function _syncModeButtons() {
-  const addBtn = document.querySelector("[data-c2-add-mode]");
-  if (addBtn) {
-    addBtn.textContent = _addMode ? "Кликни на план…" : "+ Замечание";
-    addBtn.className = _addMode ? "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600" : "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200";
-  }
-  const zoneBtn = document.querySelector("[data-c2-zone-mode]");
-  if (zoneBtn) {
-    zoneBtn.textContent = _zoneMode ? "2 клика на план…" : "Зона приёмки";
-    zoneBtn.className = _zoneMode ? "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-emerald-600 text-white border-emerald-600" : "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-emerald-700 border-emerald-200";
-  }
+  const inFs = !!document.getElementById("c2-plan-fs");
+  document.querySelectorAll("[data-c2-add-mode]").forEach((el) => {
+    const btn = el;
+    btn.textContent = _addMode ? "Кликни…" : "+ Замечание";
+    if (inFs && btn.closest("#c2-plan-fs")) {
+      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
+    } else {
+      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
+    }
+  });
+  document.querySelectorAll("[data-c2-zone-mode]").forEach((el) => {
+    const btn = el;
+    btn.textContent = _zoneMode ? "2 клика…" : "Зона";
+    if (inFs && btn.closest("#c2-plan-fs")) {
+      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
+    } else {
+      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
+    }
+  });
 }
 async function _refreshOverlaysOnly() {
   const dSvc = _defects();
@@ -2316,21 +3378,110 @@ async function _refreshOverlaysOnly() {
   _viewer.setZones(zones);
   const countEl = document.getElementById("c2-overlay-count");
   if (countEl) countEl.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  const fsCount = document.getElementById("c2-fs-overlay-count");
+  if (fsCount) fsCount.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+}
+function _closePlanFullscreen() {
+  if (!_fsOpen) return;
+  const overlay = document.getElementById("c2-plan-fs");
+  const host = document.getElementById("c2-plan-host");
+  if (host && (_fsPlaceholder == null ? void 0 : _fsPlaceholder.parentNode)) {
+    _fsPlaceholder.parentNode.insertBefore(host, _fsPlaceholder);
+    _fsPlaceholder.remove();
+  }
+  _fsPlaceholder = null;
+  overlay == null ? void 0 : overlay.remove();
+  if (_fsEscHandler) {
+    document.removeEventListener("keydown", _fsEscHandler);
+    _fsEscHandler = null;
+  }
+  _fsOpen = false;
+}
+function _openPlanFullscreen() {
+  var _a, _b;
+  if (_fsOpen) return;
+  const host = document.getElementById("c2-plan-host");
+  if (!host || !_viewer) {
+    (_a = window.showToast) == null ? void 0 : _a.call(window, "Сначала откройте план этажа");
+    return;
+  }
+  const parent = host.parentNode;
+  if (!parent) return;
+  _fsPlaceholder = document.createComment("c2-plan-host-slot");
+  parent.insertBefore(_fsPlaceholder, host);
+  const overlay = document.createElement("div");
+  overlay.id = "c2-plan-fs";
+  overlay.className = "fixed inset-0 z-[92] flex flex-col bg-slate-900";
+  const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-white/10 text-white border-white/30";
+  const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-white/10 text-white border-white/30";
+  overlay.innerHTML = `
+    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-slate-950/90 flex-wrap">
+      <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
+        ${_zoomToolbarHtml("fs")}
+        <button type="button" data-c2-zone-mode
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+          ${_zoneMode ? "2 клика…" : "Зона"}
+        </button>
+        <button type="button" data-c2-add-mode
+          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+          ${_addMode ? "Кликни…" : "+ Замечание"}
+        </button>
+        <button type="button" data-c2-fs-close
+          class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+      </div>
+    </div>
+    <div id="c2-plan-fs-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
+  const fsHost = overlay.querySelector("#c2-plan-fs-host");
+  host.classList.add("h-full", "min-h-0");
+  fsHost.appendChild(host);
+  document.body.appendChild(overlay);
+  _fsOpen = true;
+  (_b = overlay.querySelector("[data-c2-fs-close]")) == null ? void 0 : _b.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    _closePlanFullscreen();
+  });
+  _fsEscHandler = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      _closePlanFullscreen();
+    }
+  };
+  document.addEventListener("keydown", _fsEscHandler);
+  void _refreshOverlaysOnly();
 }
 function setConstructionV2Subview(view) {
+  if (view !== "plan") _closePlanFullscreen();
   _subview = view;
 }
 function requestFocusAcceptance(id, locationId) {
   _subview = "plan";
   _selectedFloorId = locationId;
   _pendingFocusAccId = id;
+  if ((location.hash || "").replace(/^#/, "") !== "/construction-v2") {
+    location.hash = "#/construction-v2";
+  }
   renderConstructionV2().catch(() => {
   });
+}
+function focusDefectOnPlan(id, locationId) {
+  _closePlanFullscreen();
+  _subview = "plan";
+  _selectedFloorId = locationId;
+  _pendingHighlightDefectId = id;
+  if ((location.hash || "").replace(/^#/, "") !== "/construction-v2") {
+    location.hash = "#/construction-v2";
+  } else {
+    renderConstructionV2().catch(() => {
+    });
+  }
 }
 async function renderConstructionV2() {
   const root = _root();
   if (!root) return;
   if (_subview === "acceptance") {
+    _closePlanFullscreen();
     teardownTransferUi();
     _viewer == null ? void 0 : _viewer.destroy();
     _viewer = null;
@@ -2339,6 +3490,7 @@ async function renderConstructionV2() {
     return;
   }
   if (_subview === "transfer") {
+    _closePlanFullscreen();
     _viewer == null ? void 0 : _viewer.destroy();
     _viewer = null;
     _mountedPdfUrl = null;
@@ -2357,9 +3509,44 @@ async function renderConstructionV2() {
   if (dSvc) await dSvc.init();
   if (aSvc) await aSvc.init();
   const prevFloor = _selectedFloorId;
+  _closePlanFullscreen();
   _viewer == null ? void 0 : _viewer.destroy();
   _viewer = null;
   _mountedPdfUrl = null;
+  if (_subview === "defects") {
+    root.innerHTML = `
+      <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
+        <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+          <div id="c2-tree">${_renderTree(svc)}</div>
+          ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>` : ""}
+        </aside>
+        <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-defects-host"></main>
+      </div>`;
+    _bindOnce();
+    if (prevFloor) _selectedFloorId = prevFloor;
+    const host = document.getElementById("c2-defects-host");
+    if (!host) return;
+    const floor = _selectedFloorId ? svc.getNode(_selectedFloorId) : null;
+    const path = _selectedFloorId ? svc.getPath(_selectedFloorId).map((n) => n.displayName).join(" / ") : "";
+    const list = _selectedFloorId && dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+    renderDefectsRegistry(host, {
+      floorId: _selectedFloorId,
+      floorLabel: path || (floor == null ? void 0 : floor.displayName) || "",
+      defects: list,
+      filter: _defectsFilter,
+      onFilterChange: (f) => {
+        _defectsFilter = f;
+        renderConstructionV2().catch(() => {
+        });
+      },
+      cb: {
+        onOpenDefect: (id) => _openViewDefect(id),
+        onShowOnPlan: (id, locationId) => focusDefectOnPlan(id, locationId)
+      }
+    });
+    return;
+  }
   root.innerHTML = `
     <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
       <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
@@ -2382,7 +3569,7 @@ function _bindOnce() {
   document.addEventListener(
     "click",
     (ev) => {
-      var _a, _b, _c;
+      var _a, _b, _c, _d, _e, _f, _g;
       const t = ev.target;
       const floorBtn = (_a = t == null ? void 0 : t.closest) == null ? void 0 : _a.call(t, "[data-c2-floor]");
       if (floorBtn) {
@@ -2410,6 +3597,30 @@ function _bindOnce() {
         _viewer == null ? void 0 : _viewer.setZoneMode(_zoneMode);
         _viewer == null ? void 0 : _viewer.setAddMode(_addMode);
         _syncModeButtons();
+        return;
+      }
+      const fsBtn = (_d = t == null ? void 0 : t.closest) == null ? void 0 : _d.call(t, "[data-c2-fullscreen]");
+      if (fsBtn) {
+        ev.preventDefault();
+        _openPlanFullscreen();
+        return;
+      }
+      const zIn = (_e = t == null ? void 0 : t.closest) == null ? void 0 : _e.call(t, "[data-c2-zoom-in]");
+      if (zIn) {
+        ev.preventDefault();
+        _viewer == null ? void 0 : _viewer.zoomIn();
+        return;
+      }
+      const zOut = (_f = t == null ? void 0 : t.closest) == null ? void 0 : _f.call(t, "[data-c2-zoom-out]");
+      if (zOut) {
+        ev.preventDefault();
+        _viewer == null ? void 0 : _viewer.zoomOut();
+        return;
+      }
+      const zFit = (_g = t == null ? void 0 : t.closest) == null ? void 0 : _g.call(t, "[data-c2-zoom-fit]");
+      if (zFit) {
+        ev.preventDefault();
+        _viewer == null ? void 0 : _viewer.fit();
       }
     },
     true
@@ -2425,12 +3636,13 @@ function mountConstructionV2Shell() {
   section.className = "view-section hidden";
   section.innerHTML = `
     <div class="p-3 sm:p-4">
-      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <div>
-          <h2 class="text-[14px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2 (тест)</h2>
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Тестовый контур · основной СК не затронут</p>
+      <div class="flex items-center justify-between mb-3 gap-2">
+        <div class="min-w-0">
+          <h2 class="text-[14px] font-bold tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5">Тестовый контур · основной СК не затронут</p>
         </div>
-        <a href="#/construction/defects" class="text-[10px] font-black uppercase text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-xl">Открыть старый СК</a>
+        <a href="#/construction/defects"
+          class="shrink-0 text-[10px] font-bold text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-xl">Старый СК</a>
       </div>
       <div id="construction-v2-root"></div>
     </div>`;
@@ -2449,9 +3661,46 @@ async function refreshConstructionV2Markers() {
     if (root) await renderTransferBoard(root);
     return;
   }
+  if (_subview === "defects") {
+    await renderConstructionV2();
+    return;
+  }
   await _refreshOverlaysOnly();
 }
 let _inited = false;
+async function _syncChecklistOnDefectClosed(payload) {
+  var _a, _b, _c, _d, _e;
+  if ((payload == null ? void 0 : payload.reason) !== "changeStatus") return;
+  if (String(payload.status || "") !== "closed") return;
+  const defectId = String(payload.id || "").trim();
+  if (!defectId) return;
+  const dSvc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.constructionDefects;
+  const aSvc = (_d = (_c = window.RBI) == null ? void 0 : _c.services) == null ? void 0 : _d.constructionAcceptance;
+  if (!(dSvc == null ? void 0 : dSvc.get) || !(aSvc == null ? void 0 : aSvc.setChecklistItem)) return;
+  const defect = dSvc.get(defectId);
+  if (!defect || defect.is_deleted || defect._deleted) return;
+  const itemId = String(defect.item_id || "").trim();
+  const locationId = String(defect.locationId || payload.locationId || "").trim();
+  if (!itemId || !locationId) return;
+  const acceptances = (typeof aSvc.listForLocation === "function" ? aSvc.listForLocation(locationId) : aSvc.list({ locationId })) || [];
+  for (const acc of acceptances) {
+    if (!acc || acc.is_deleted || acc._deleted) continue;
+    if (String(acc.status) === "rejected") continue;
+    const row = (((_e = acc.checklist_results) == null ? void 0 : _e.items) || []).find((it) => String(it.id) === itemId);
+    if (!row) continue;
+    if (row.status !== "fail" && row.status !== "fail_escalated") continue;
+    try {
+      await aSvc.setChecklistItem(acc.id, {
+        id: itemId,
+        name: String(row.name || defect.item_name || itemId),
+        group: row.group ?? null,
+        status: "ok"
+      });
+    } catch (e) {
+      console.warn("[construction-v2] auto checklist OK on defect closed", e);
+    }
+  }
+}
 function _hashPath() {
   return (location.hash || "").replace(/^#/, "");
 }
@@ -2461,6 +3710,8 @@ function _applyHashSubview() {
     setConstructionV2Subview("acceptance");
   } else if (h.startsWith("/construction-v2/transfer")) {
     setConstructionV2Subview("transfer");
+  } else if (h.startsWith("/construction-v2/defects")) {
+    setConstructionV2Subview("defects");
   } else if (h.startsWith("/construction-v2")) {
     setConstructionV2Subview("plan");
   }
@@ -2482,15 +3733,25 @@ async function init(_ctx) {
       });
     }
   });
-  (_f = (_e = (_d = window.RBI) == null ? void 0 : _d.events) == null ? void 0 : _e.on) == null ? void 0 : _f.call(_e, "construction-defects:changed", () => {
+  (_f = (_e = (_d = window.RBI) == null ? void 0 : _d.events) == null ? void 0 : _e.on) == null ? void 0 : _f.call(_e, "construction-defects:changed", (payload) => {
     refreshConstructionV2Markers().catch(() => {
     });
     refreshApartmentPlanMarkers().catch(() => {
     });
+    const p = payload || {};
+    void _syncChecklistOnDefectClosed(p);
   });
   (_i = (_h = (_g = window.RBI) == null ? void 0 : _g.events) == null ? void 0 : _h.on) == null ? void 0 : _i.call(_h, "construction-acceptance:changed", () => {
     refreshConstructionV2Markers().catch(() => {
     });
+    const tab = document.getElementById("tab-construction-v2");
+    if (tab && !tab.classList.contains("hidden")) {
+      const transferRoot = document.getElementById("c2-transfer-grid");
+      if (transferRoot) {
+        renderConstructionV2().catch(() => {
+        });
+      }
+    }
   });
   (_l = (_k = (_j = window.RBI) == null ? void 0 : _j.events) == null ? void 0 : _k.on) == null ? void 0 : _l.call(_k, "construction-units:changed", () => {
     refreshConstructionV2Markers().catch(() => {
@@ -2546,6 +3807,7 @@ function _registerAppRouter() {
     router.addRoute("#/construction-v2", () => showTab());
     router.addRoute("#/construction-v2/acceptance", () => showTab());
     router.addRoute("#/construction-v2/transfer", () => showTab());
+    router.addRoute("#/construction-v2/defects", () => showTab());
   }
 }
 function registerModule() {

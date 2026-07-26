@@ -72,44 +72,12 @@ window.mergeCloudData = async function (newInspections, newProfiles, newTasks, n
 };
 
 // Принудительная отправка всех локальных объектов справочника в облако
+// C2b: no-op — SoT = locations; project_objects sync disabled
 window.forceSyncObjects = async function () {
-    if (!window.supabaseClient || !window.syncConfig.enabled) {
-        if (typeof showToast === 'function') showToast('❌ Облако не подключено');
-        return;
+    if (typeof showToast === 'function') {
+        showToast('ℹ️ C2b: sync project_objects отключён — объекты в справочнике локаций');
     }
-    if (window.isSyncing) {
-        if (typeof showToast === 'function') showToast('⏳ Синхронизация уже идет...');
-        return;
-    }
-    if (typeof showToast === 'function') showToast('🚀 Принудительная отправка объектов...');
-
-    try {
-        const objs = await dbGetAll('project_objects');
-        let sent = 0;
-        for (let obj of objs) {
-            if (obj.sync_status !== 'synced') {
-                obj.sync_status = 'not_synced';
-                obj.source = 'local';
-                obj.updatedAt = new Date().toISOString();
-                await dbPut('project_objects', obj);
-                try {
-                    const updated = await window.pushCloudObject('project_object', obj.id, obj, 'custom-assets');
-                    if (updated) {
-                        obj.sync_status = 'synced';
-                        obj.source = 'cloud';
-                        await dbPut('project_objects', obj);
-                        sent++;
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-        if (typeof showToast === 'function') showToast(`✅ Отправлено объектов: ${sent}`);
-        setTimeout(() => window.triggerSync('manual'), 1000);
-    } catch (e) {
-        if (typeof showToast === 'function') showToast('❌ Ошибка принудительной отправки');
-    }
+    console.log('[Sync] C2b: forceSyncObjects skipped');
 };
 
 // ============================================================================

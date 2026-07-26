@@ -156,7 +156,7 @@ window.loadObjectDirectoryToInspectionInput = async function () {
             };
         })();
 
-        // 1. Берём объекты из ObjectDirectory
+        // 1. Берём объекты из ObjectDirectory (C2b: проекция locations)
         if (
             typeof ObjectDirectory !== 'undefined' &&
             Array.isArray(ObjectDirectory.objects) &&
@@ -168,20 +168,19 @@ window.loadObjectDirectoryToInspectionInput = async function () {
                 .filter(Boolean);
         }
 
-        // 2. Если ObjectDirectory ещё не готов — берём из IndexedDB
-        if (objectNames.length === 0 && window.RBI && window.RBI.services && window.RBI.services.storage) {
+        // 2. C2b: если facade ещё пуст — locations first (не IDB project_objects)
+        if (objectNames.length === 0) {
             try {
-                const dirs = await window.RBI.services.storage.getAll('project_objects');
-                if (dirs) {
-                    objectNames = dirs
-                        .filter(o => !o._deleted && !o.is_deleted)
-                        .map(o => o.display_name || o.name || o.canonical_key)
-                        .filter(Boolean);
+                const locEarly = window.RBI && window.RBI.services && window.RBI.services.locations;
+                if (locEarly && typeof locEarly.listNodes === 'function') {
+                    (locEarly.listNodes({ nodeType: 'object', parentId: null }) || []).forEach(function (n) {
+                        if (n && n.displayName) objectNames.push(n.displayName);
+                    });
                 }
-            } catch (_idbErr) { /* store/key может отличаться — не блокируем merge locations */ }
+            } catch (_e0) { /* ignore */ }
         }
 
-        // 2b. Merge locations.objects (C1) — без дублей по clean-имени
+        // 2b. Merge locations.objects + synonyms — без дублей по clean-имени
         try {
             const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
             if (loc && typeof loc.listNodes === 'function') {

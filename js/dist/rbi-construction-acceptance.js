@@ -1,4 +1,16 @@
 const ACCEPTANCE_STATUSES_V2 = ["pending", "rejected", "accepted"];
+const CHECKLIST_ITEM_STATUSES = ["ok", "fail", "na", "fail_escalated"];
+function _normalizeItemPhotos(raw) {
+  if (raw == null) return void 0;
+  const arr = Array.isArray(raw) ? raw : typeof raw === "string" && raw ? [raw] : [];
+  const photos = arr.map((p) => String(p || "").trim()).filter(Boolean);
+  return photos.length ? photos : void 0;
+}
+function _normalizeItemComment(raw) {
+  if (raw == null) return void 0;
+  const s = String(raw).trim();
+  return s || void 0;
+}
 function _normalizeStatus(value, fallback = "pending") {
   const s = String(value || "").trim().toLowerCase();
   if (ACCEPTANCE_STATUSES_V2.includes(s)) return s;
@@ -26,6 +38,44 @@ function _normalizeDate(value) {
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : null;
 }
+function _normalizeItemStatus(value) {
+  const s = String(value || "").trim().toLowerCase();
+  if (CHECKLIST_ITEM_STATUSES.includes(s)) return s;
+  return null;
+}
+function normalizeChecklistResults(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw;
+  const template_key = String(r.template_key || "").trim();
+  if (!template_key) return null;
+  const itemsRaw = Array.isArray(r.items) ? r.items : [];
+  const items = [];
+  for (const it of itemsRaw) {
+    if (!it || typeof it !== "object") continue;
+    const row = it;
+    const id = String(row.id ?? "").trim();
+    const name = String(row.name || "").trim();
+    const status = _normalizeItemStatus(row.status);
+    if (!id || !name || !status) continue;
+    const comment = _normalizeItemComment(row.comment);
+    const photos = _normalizeItemPhotos(row.photos);
+    const next = {
+      id,
+      group: row.group != null ? String(row.group).trim() || null : null,
+      name,
+      status,
+      updated_at: row.updated_at != null ? String(row.updated_at) : void 0
+    };
+    if (comment) next.comment = comment;
+    if (photos) next.photos = photos;
+    items.push(next);
+  }
+  return {
+    template_key,
+    updated_at: String(r.updated_at || (/* @__PURE__ */ new Date()).toISOString()),
+    items
+  };
+}
 function normalizeConstructionAcceptanceV2(raw) {
   const d = raw || {};
   return {
@@ -33,6 +83,7 @@ function normalizeConstructionAcceptanceV2(raw) {
     locationId: String(d.locationId || d.location_id || ""),
     contractorId: d.contractorId || d.contractor_id || null,
     zone: _normalizeZone(d.zone),
+    checklist_results: normalizeChecklistResults(d.checklist_results),
     status: _normalizeStatus(d.status),
     requested_date: _normalizeDate(d.requested_date) ?? d.requested_date ?? null,
     is_deleted: d.is_deleted === true || d._deleted === true,
@@ -136,9 +187,18 @@ const ConstructionAcceptanceService = {
   get(id) {
     return _active().find((d) => d.id === id) || null;
   },
+  /** Активные заявки этажа (locationId = floor). */
   listForFloor(locationId) {
     return this.list({ locationId });
   },
+  /** Активные заявки локации (floor или apartment). Alias к list({locationId}). */
+  listForLocation(locationId) {
+    return this.list({ locationId });
+  },
+  /**
+   * Создание заявки. locationId = floor | apartment (тип узла не валидируется).
+   * Для квартиры UI передаёт zone full-rect {x:0,y:0,w:100,h:100}.
+   */
   async create(input) {
     var _a;
     const locationId = String(input.locationId || "").trim();
@@ -157,6 +217,7 @@ const ConstructionAcceptanceService = {
       requested_date: _normalizeDate(input.requested_date),
       requested_time: input.requested_time != null ? String(input.requested_time).trim() || null : null,
       contractorId: input.contractorId || null,
+      checklist_results: normalizeChecklistResults(input.checklist_results),
       status,
       created_by: ((_a = window.syncConfig) == null ? void 0 : _a.engineerName) || "",
       is_deleted: false,
@@ -189,6 +250,7 @@ const ConstructionAcceptanceService = {
       requested_date: patch.requested_date !== void 0 ? _normalizeDate(patch.requested_date) : cur.requested_date ?? null,
       requested_time: patch.requested_time !== void 0 ? patch.requested_time : cur.requested_time,
       contractorId: patch.contractorId !== void 0 ? patch.contractorId : cur.contractorId,
+      checklist_results: patch.checklist_results !== void 0 ? normalizeChecklistResults(patch.checklist_results) : cur.checklist_results ?? null,
       status,
       updated_at: _now(),
       version: (cur.version || 1) + 1,
@@ -202,6 +264,65 @@ const ConstructionAcceptanceService = {
   },
   async changeStatus(id, newStatus) {
     return this.update(id, { status: _normalizeStatus(newStatus) });
+  },
+  /**
+   * Заменить целиком checklist_results (или сбросить в null).
+   * template_key в results должен совпадать с заявкой (если у заявки ключ задан).
+   */
+  async setChecklistResults(id, results) {
+    const cur = _items.find((d) => d.id === id);
+    if (!cur || cur.is_deleted || cur._deleted) throw new Error("Заявка не найдена");
+    const normalized = normalizeChecklistResults(results);
+    if (normalized && cur.template_key && normalized.template_key !== cur.template_key) {
+      throw new Error("template_key чек-листа не совпадает с заявкой");
+    }
+    return this.update(id, { checklist_results: normalized });
+  },
+  /**
+   * Upsert одного пункта в checklist_results.
+   * Если results ещё нет — создаёт каркас из template_key заявки.
+   */
+  async setChecklistItem(id, item) {
+    var _a;
+    const cur = _items.find((d) => d.id === id);
+    if (!cur || cur.is_deleted || cur._deleted) throw new Error("Заявка не найдена");
+    const itemId = String(item.id || "").trim();
+    const name = String(item.name || "").trim();
+    const status = _normalizeItemStatus(item.status);
+    if (!itemId || !name || !status) throw new Error("id, name и status пункта обязательны");
+    const template_key = String(cur.template_key || ((_a = cur.checklist_results) == null ? void 0 : _a.template_key) || "").trim();
+    if (!template_key) throw new Error("У заявки нет template_key для чек-листа");
+    const now = _now();
+    const prev = normalizeChecklistResults(cur.checklist_results) || {
+      template_key,
+      items: []
+    };
+    const idx = prev.items.findIndex((x) => String(x.id) === itemId);
+    const existing = idx >= 0 ? prev.items[idx] : null;
+    const nextItem = {
+      id: itemId,
+      group: item.group !== void 0 ? item.group != null ? String(item.group).trim() || null : null : (existing == null ? void 0 : existing.group) ?? null,
+      name,
+      status,
+      updated_at: now
+    };
+    if (item.clearExtras) ;
+    else {
+      const comment = item.comment !== void 0 ? _normalizeItemComment(item.comment) : existing == null ? void 0 : existing.comment;
+      const photos = item.photos !== void 0 ? _normalizeItemPhotos(item.photos) : existing == null ? void 0 : existing.photos;
+      if (comment) nextItem.comment = comment;
+      if (photos) nextItem.photos = photos;
+    }
+    const items = prev.items.slice();
+    if (idx >= 0) items[idx] = nextItem;
+    else items.push(nextItem);
+    return this.update(id, {
+      checklist_results: {
+        template_key: prev.template_key || template_key,
+        updated_at: now,
+        items
+      }
+    });
   },
   async softDelete(id) {
     const cur = _items.find((d) => d.id === id);

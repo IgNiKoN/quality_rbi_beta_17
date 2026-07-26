@@ -37,6 +37,12 @@ window.uploadObjectFilesToCloud = async function (obj, bucketName, pathPrefix, t
 window.pushCloudObject = async function (objectType, id, data, bucketName = 'custom-assets') {
     if (!data || !id) return null;
 
+    // C2b: OD flat catalog sync disabled — SoT = locations; keep case branches for rollback
+    if (objectType === 'project_object' || objectType === 'object_alias') {
+        console.log('[Sync] C2b: skip pushCloudObject', objectType);
+        return null;
+    }
+
     const pCode = window.syncConfig.projectCode;
     const iName = window.syncConfig.engineerName;
 
@@ -406,6 +412,12 @@ window.pushCloudObject = async function (objectType, id, data, bucketName = 'cus
 };
 
 window.pullCloudObjects = async function (objectType, lastPullTimeStr = '', mode = 'silent') {
+    // C2b: OD flat catalog sync disabled — SoT = locations
+    if (objectType === 'project_object' || objectType === 'object_alias') {
+        console.log('[Sync] C2b: skip pullCloudObjects', objectType);
+        return [];
+    }
+
     const pCode = window.syncConfig.projectCode;
     const iName = window.syncConfig.engineerName || 'Инженер';
 

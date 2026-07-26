@@ -431,11 +431,19 @@ export const LocationsService = {
     return _bridge().createLocationFromOd(odCanonicalKey);
   },
 
+  listObjectsAsOdShape() {
+    return _bridge().listObjectsAsOdShape();
+  },
+
+  ensureObjectNode(opts: { canonical_key: string; displayName: string; synonyms?: string[] }) {
+    return _bridge().ensureObjectNode(opts);
+  },
+
   cleanObjectName(str: string) {
     return _bridge().cleanObjectName(str);
   },
 
-  /** C2: идемпотентная миграция OD → locations.object (+ synonyms). */
+  /** C2: идемпотентная миграция OD → locations.object (+ synonyms). C2b: leftover-only. */
   migrateOdCatalogToLocations(opts?: { dryRun?: boolean }): Promise<OdMigrateReport> {
     return runOdMigrate(
       {

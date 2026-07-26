@@ -50,7 +50,19 @@ var SettingsRender = {
                 </div>
             </div>
 
-            <div class="space-y-3">
+            <div id="settings-subnav" class="mb-3 flex flex-wrap gap-1.5 p-1 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" role="tablist" aria-label="Подразделы настроек">
+                <button type="button" data-settings-subsection="platform" role="tab"
+                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Платформа</button>
+                <button type="button" data-settings-subsection="directories" role="tab"
+                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Справочники</button>
+                <button type="button" data-settings-subsection="quality" role="tab"
+                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Качество</button>
+                <button type="button" data-settings-subsection="construction" role="tab"
+                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Стройконтроль</button>
+            </div>
+
+            <div class="settings-panels">
+            <div id="settings-panel-platform" data-settings-panel="platform" class="space-y-3">
                 <!-- СИНХРОНИЗАЦИЯ КОМАНДЫ -->
                 <details
                     class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden"
@@ -68,60 +80,6 @@ var SettingsRender = {
                         <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
                     </summary>
                     <div id="sync-settings-block"></div>
-                </details>
-
-                <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ (v2, параллельно legacy construction) -->
-                <details id="location-directory-section"
-                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-teal-700 dark:text-teal-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-teal-50 dark:bg-teal-900/20 transition-colors select-none group-open:border-b border-teal-200 dark:border-teal-800 rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                                </path>
-                            </svg>
-                            Объекты и планы
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-teal-400">▼</span>
-                    </summary>
-                    <div id="location-directory-root"></div>
-                </details>
-
-                <!-- СПРАВОЧНИК ПОДРЯДЧИКОВ -->
-                <details id="contractor-directory-section"
-                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                                </path>
-                            </svg>
-                            Справочник подрядчиков
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
-                    </summary>
-                    <div id="contractor-directory-root"></div>
-                </details>
-
-                <!-- МИГРАЦИЯ ДАННЫХ: backfill contractorId (только admin) -->
-                <details id="contractor-id-backfill-section"
-                    class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-amber-800 dark:text-amber-300 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 transition-colors select-none group-open:border-b border-amber-200 dark:border-amber-800 rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
-                                </path>
-                            </svg>
-                            Миграция данных
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-amber-400">▼</span>
-                    </summary>
-                    <div id="contractor-id-backfill-root"></div>
                 </details>
 
                 <!-- AI АССИСТЕНТ -->
@@ -231,7 +189,7 @@ var SettingsRender = {
                     </div>
                 </details>
 
-                <!-- БРЕНДИРОВАНИЕ И АВТО-ОТЧЕТЫ -->
+                <!-- БРЕНДИРОВАНИЕ -->
                 <details
                     class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
                     <summary
@@ -242,7 +200,7 @@ var SettingsRender = {
                                     d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01">
                                 </path>
                             </svg>
-                            Брендирование и Авто-Отчеты (PRO)
+                            Брендирование (PRO)
                         </span>
                         <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
                     </summary>
@@ -276,54 +234,6 @@ var SettingsRender = {
                             </div>
                             <!-- УПРАВЛЕНИЕ КОРПОРАТИВНЫМ СТИЛЕМ -->
                             <div id="corp-branding-controls" class="mt-3"></div>
-                        </div>
-                        <!-- НОВАЯ КНОПКА: КОНСТРУКТОР ШАБЛОНОВ -->
-                        <div
-                            class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10">
-                            <div>
-                                <div class="font-bold text-sm text-indigo-800 dark:text-indigo-300">Шаблоны отчетов
-                                    (PDF)</div>
-                                <div class="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1">Настройка блоков и
-                                    дизайна</div>
-                            </div>
-
-                            <button data-reports-action="openPdfTemplateModal"
-                                class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center gap-1.5">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
-                                    </path>
-                                </svg> Настроить
-                            </button>
-                        </div>
-                        <div class="p-4 bg-[var(--hover-bg)] rounded-b-2xl">
-                            <div class="flex justify-between items-center mb-3">
-                                <div>
-                                    <div class="font-bold text-sm text-indigo-700 dark:text-indigo-400">Фоновые отчеты
-                                    </div>
-                                    <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто-генерация без зависаний
-                                    </div>
-                                </div>
-                                <label class="toggle-switch"><input type="checkbox" id="set-auto-report"
-                                        data-settings-action="toggleSetting" data-settings-action-key="autoReportEnabled" data-settings-action-val-type="element" data-action-event="change"><span
-                                        class="toggle-slider"></span></label>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 mt-3">
-                                <div>
-                                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">День месяца</div>
-                                    <input type="number" id="set-auto-report-day" class="input-base text-center !py-2"
-                                        min="1" max="28" data-settings-action="toggleSetting" data-settings-action-key="autoReportDay" data-settings-action-val-type="element" data-action-event="change">
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Тип отчета</div>
-                                    <select id="set-auto-report-type" class="input-base !py-2 text-[11px]"
-                                        data-settings-action="toggleSetting" data-settings-action-key="autoReportType" data-settings-action-val-type="element" data-action-event="change">
-                                        <option value="global_onepager">По Компании</option>
-                                        <option value="onepager">По Объектам</option>
-                                    </select>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </details>
@@ -482,250 +392,6 @@ var SettingsRender = {
                             <label class="toggle-switch"><input type="checkbox" id="set-fast"
                                     data-settings-action="toggleSetting" data-settings-action-key="fastMode" data-settings-action-val-type="element" data-action-event="change"><span
                                     class="toggle-slider"></span></label>
-                        </div>
-                    </div>
-                </details>
-
-                <!-- БАЗА ЗНАНИЙ -->
-                <details
-                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                            База знаний
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
-                    </summary>
-                    <div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">TWI</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
-                            </div>
-                            <select id="set-kb-view-twi" class="input-base w-36"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeTwi" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Нормативы (НД)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
-                            </div>
-                            <select id="set-kb-view-docs" class="input-base w-36"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeDocs" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Узлы</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
-                            </div>
-                            <select id="set-kb-view-nodes" class="input-base w-36"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeNodes" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Практики</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
-                            </div>
-                            <select id="set-kb-view-practices" class="input-base w-36"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModePractices" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                        <div class="p-4 flex justify-between items-center rounded-b-2xl">
-                            <div>
-                                <div class="font-bold text-sm">Отчёты</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
-                            </div>
-                            <select id="set-kb-view-reports" class="input-base w-36"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeReports" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                    </div>
-                </details>
-
-                <!-- ОТОБРАЖЕНИЕ АРХИВОВ (Совещания / FMEA) -->
-                <details
-                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M4 6h16M4 10h16M4 14h10M4 18h10"></path>
-                            </svg>
-                            Отображение архивов
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
-                    </summary>
-                    <div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
-                            <div class="min-w-0">
-                                <div class="font-bold text-sm">Совещания</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список по умолчанию</div>
-                            </div>
-                            <select id="set-kb-view-meetings" class="input-base w-36 shrink-0"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeMeetings" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                        <div class="p-4 flex justify-between items-center gap-3 rounded-b-2xl">
-                            <div class="min-w-0">
-                                <div class="font-bold text-sm">FMEA</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список по умолчанию</div>
-                            </div>
-                            <select id="set-kb-view-fmea" class="input-base w-36 shrink-0"
-                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeFmea" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="cards">Карточки</option>
-                                <option value="list">Список</option>
-                            </select>
-                        </div>
-                    </div>
-                </details>
-
-                <!-- АНАЛИТИКА И ОТЧЕТЫ -->
-                <details
-                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                                </path>
-                            </svg>
-                            Визуализация Аналитики
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
-                    </summary>
-                    <div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">AI-Анализ (Детализация)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Отображать смарт-заключение</div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-ai"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngAi" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Галереи фото (Детализация)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Ленты эталонов и брака</div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-photos"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngPhotos" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Графики Парето</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Причины брака и структура</div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-pareto"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngPareto" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Топ-5 Дефектов (Сводка)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Антирейтинг нарушений B2 и B3
-                                </div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-top"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpTopDefects" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Тренд объекта (Сводка)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Глобальный график УрК</div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-trend"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpTrend" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="p-4 flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-sm">Лидеры / Аутсайдеры (Сводка)</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Блоки зон риска и качества</div>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox" id="set-ana-leader"
-                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpLeader" data-settings-action-val-type="element" data-action-event="change"><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                    </div>
-                </details>
-
-
-                <!-- РАСПИСАНИЕ ЗАДАЧ -->
-                <details
-                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
-                    <summary
-                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            Расписание рутинных задач
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
-                    </summary>
-                    <div>
-                        <div
-                            class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)]">
-                            <div>
-                                <div class="font-bold text-sm">Совещание (Мемо)</div>
-                            </div>
-                            <select id="set-task-meeting" class="input-base w-32"
-                                data-settings-action="toggleSetting" data-settings-action-key="taskMeetingDay" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="1">Понедельник</option>
-                                <option value="2">Вторник</option>
-                                <option value="3">Среда</option>
-                                <option value="4">Четверг</option>
-                                <option value="5">Пятница</option>
-                            </select>
-                        </div>
-                        <div
-                            class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)]">
-                            <div>
-                                <div class="font-bold text-sm">FMEA и Плакаты</div>
-                            </div>
-                            <select id="set-task-fmea" class="input-base w-32"
-                                data-settings-action="toggleSetting" data-settings-action-key="taskFmeaDay" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="1">Понедельник</option>
-                                <option value="4">Четверг</option>
-                                <option value="5">Пятница</option>
-                            </select>
-                        </div>
-                        <div class="p-4 flex justify-between items-center bg-[var(--hover-bg)] rounded-b-2xl">
-                            <div>
-                                <div class="font-bold text-sm">Ежемесячный отчет</div>
-                            </div>
-                            <select id="set-task-month" class="input-base w-32"
-                                data-settings-action="toggleSetting" data-settings-action-key="taskMonthReportDay" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="1">1-е число</option>
-                                <option value="5">5-е число</option>
-                                <option value="10">10-е число</option>
-                            </select>
                         </div>
                     </div>
                 </details>
@@ -1035,6 +701,7 @@ var SettingsRender = {
                         </div>
                     </div>
                 </details>
+
                 <!-- ОБРАТНАЯ СВЯЗЬ (ФИДБЕК И ИДЕИ) -->
                 <details
                     class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
@@ -1136,6 +803,24 @@ var SettingsRender = {
                     </button>
                 </div>
 
+                <!-- МИГРАЦИЯ ДАННЫХ: backfill contractorId (только admin) -->
+                <details id="contractor-id-backfill-section"
+                    class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-amber-800 dark:text-amber-300 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 transition-colors select-none group-open:border-b border-amber-200 dark:border-amber-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
+                                </path>
+                            </svg>
+                            Миграция данных
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-amber-400">▼</span>
+                    </summary>
+                    <div id="contractor-id-backfill-root"></div>
+                </details>
+
                 <div class="flex flex-col gap-3 items-center mt-4 mb-6">
                     <button data-shell-action="checkForUpdates"
                         class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 border border-indigo-200 transition-colors uppercase shadow-sm flex items-center gap-1.5">
@@ -1156,6 +841,376 @@ var SettingsRender = {
                         </svg> О приложении и Безопасности</button><br>
                     RBI Platform PWA<br>Developed by Igor Kondratiev
                 </div>
+            </div>
+            <div id="settings-panel-directories" data-settings-panel="directories" class="space-y-3" hidden>
+                <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ (v2, параллельно legacy construction) -->
+                <details id="location-directory-section"
+                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-teal-700 dark:text-teal-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-teal-50 dark:bg-teal-900/20 transition-colors select-none group-open:border-b border-teal-200 dark:border-teal-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                                </path>
+                            </svg>
+                            Объекты и планы
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-teal-400">▼</span>
+                    </summary>
+                    <div id="location-directory-root"></div>
+                </details>
+
+                <!-- СПРАВОЧНИК ПОДРЯДЧИКОВ -->
+                <details id="contractor-directory-section"
+                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                            Справочник подрядчиков
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
+                    </summary>
+                    <div id="contractor-directory-root"></div>
+                </details>
+            </div>
+            <div id="settings-panel-quality" data-settings-panel="quality" class="space-y-3" hidden>
+                <!-- БАЗА ЗНАНИЙ -->
+                <details
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            База знаний
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
+                    </summary>
+                    <div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">TWI</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
+                            </div>
+                            <select id="set-kb-view-twi" class="input-base w-36"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeTwi" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Нормативы (НД)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
+                            </div>
+                            <select id="set-kb-view-docs" class="input-base w-36"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeDocs" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Узлы</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
+                            </div>
+                            <select id="set-kb-view-nodes" class="input-base w-36"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeNodes" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Практики</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
+                            </div>
+                            <select id="set-kb-view-practices" class="input-base w-36"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModePractices" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                        <div class="p-4 flex justify-between items-center rounded-b-2xl">
+                            <div>
+                                <div class="font-bold text-sm">Отчёты</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список</div>
+                            </div>
+                            <select id="set-kb-view-reports" class="input-base w-36"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeReports" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- ОТОБРАЖЕНИЕ АРХИВОВ (Совещания / FMEA) -->
+                <details
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 6h16M4 10h16M4 14h10M4 18h10"></path>
+                            </svg>
+                            Отображение архивов
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
+                    </summary>
+                    <div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
+                            <div class="min-w-0">
+                                <div class="font-bold text-sm">Совещания</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список по умолчанию</div>
+                            </div>
+                            <select id="set-kb-view-meetings" class="input-base w-36 shrink-0"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeMeetings" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                        <div class="p-4 flex justify-between items-center gap-3 rounded-b-2xl">
+                            <div class="min-w-0">
+                                <div class="font-bold text-sm">FMEA</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Карточки или список по умолчанию</div>
+                            </div>
+                            <select id="set-kb-view-fmea" class="input-base w-36 shrink-0"
+                                data-settings-action="toggleSetting" data-settings-action-key="knowledgeViewModeFmea" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="cards">Карточки</option>
+                                <option value="list">Список</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- АНАЛИТИКА И ОТЧЕТЫ -->
+                <details
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                </path>
+                            </svg>
+                            Визуализация Аналитики
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
+                    </summary>
+                    <div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">AI-Анализ (Детализация)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Отображать смарт-заключение</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-ai"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngAi" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Галереи фото (Детализация)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Ленты эталонов и брака</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-photos"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngPhotos" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Графики Парето</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Причины брака и структура</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-pareto"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaEngPareto" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Топ-5 Дефектов (Сводка)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Антирейтинг нарушений B2 и B3
+                                </div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-top"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpTopDefects" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Тренд объекта (Сводка)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Глобальный график УрК</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-trend"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpTrend" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="p-4 flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-sm">Лидеры / Аутсайдеры (Сводка)</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Блоки зон риска и качества</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="set-ana-leader"
+                                    data-settings-action="toggleSetting" data-settings-action-key="anaOpLeader" data-settings-action-val-type="element" data-action-event="change"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- РАСПИСАНИЕ ЗАДАЧ -->
+                <details
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
+                    <summary
+                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            Расписание рутинных задач
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-slate-400">▼</span>
+                    </summary>
+                    <div>
+                        <div
+                            class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)]">
+                            <div>
+                                <div class="font-bold text-sm">Совещание (Мемо)</div>
+                            </div>
+                            <select id="set-task-meeting" class="input-base w-32"
+                                data-settings-action="toggleSetting" data-settings-action-key="taskMeetingDay" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="1">Понедельник</option>
+                                <option value="2">Вторник</option>
+                                <option value="3">Среда</option>
+                                <option value="4">Четверг</option>
+                                <option value="5">Пятница</option>
+                            </select>
+                        </div>
+                        <div
+                            class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)]">
+                            <div>
+                                <div class="font-bold text-sm">FMEA и Плакаты</div>
+                            </div>
+                            <select id="set-task-fmea" class="input-base w-32"
+                                data-settings-action="toggleSetting" data-settings-action-key="taskFmeaDay" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="1">Понедельник</option>
+                                <option value="4">Четверг</option>
+                                <option value="5">Пятница</option>
+                            </select>
+                        </div>
+                        <div class="p-4 flex justify-between items-center bg-[var(--hover-bg)] rounded-b-2xl">
+                            <div>
+                                <div class="font-bold text-sm">Ежемесячный отчет</div>
+                            </div>
+                            <select id="set-task-month" class="input-base w-32"
+                                data-settings-action="toggleSetting" data-settings-action-key="taskMonthReportDay" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="1">1-е число</option>
+                                <option value="5">5-е число</option>
+                                <option value="10">10-е число</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- АВТО-ОТЧЕТЫ (Качество) -->
+                <details
+                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
+                    <summary
+                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Авто-отчеты (PRO)
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
+                    </summary>
+                        <div class="p-4 bg-[var(--hover-bg)] rounded-b-2xl">
+                            <div class="flex justify-between items-center mb-3">
+                                <div>
+                                    <div class="font-bold text-sm text-indigo-700 dark:text-indigo-400">Фоновые отчеты
+                                    </div>
+                                    <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто-генерация без зависаний
+                                    </div>
+                                </div>
+                                <label class="toggle-switch"><input type="checkbox" id="set-auto-report"
+                                        data-settings-action="toggleSetting" data-settings-action-key="autoReportEnabled" data-settings-action-val-type="element" data-action-event="change"><span
+                                        class="toggle-slider"></span></label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 mt-3">
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">День месяца</div>
+                                    <input type="number" id="set-auto-report-day" class="input-base text-center !py-2"
+                                        min="1" max="28" data-settings-action="toggleSetting" data-settings-action-key="autoReportDay" data-settings-action-val-type="element" data-action-event="change">
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Тип отчета</div>
+                                    <select id="set-auto-report-type" class="input-base !py-2 text-[11px]"
+                                        data-settings-action="toggleSetting" data-settings-action-key="autoReportType" data-settings-action-val-type="element" data-action-event="change">
+                                        <option value="global_onepager">По Компании</option>
+                                        <option value="onepager">По Объектам</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                </details>
+
+                <!-- КНОПКА КОНСТРУКТОРА PDF (Качество) -->
+                <div class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm mb-3 overflow-hidden">
+                    <!-- НОВАЯ КНОПКА: КОНСТРУКТОР ШАБЛОНОВ -->
+                    <div
+                        class="p-4 flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10">
+                        <div>
+                            <div class="font-bold text-sm text-indigo-800 dark:text-indigo-300">Шаблоны отчетов
+                                (PDF)</div>
+                            <div class="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1">Настройка блоков и
+                                дизайна</div>
+                        </div>
+
+                        <button data-reports-action="openPdfTemplateModal"
+                            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                                </path>
+                            </svg> Настроить
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+            <div id="settings-panel-construction" data-settings-panel="construction" class="space-y-3" hidden>
+                <!-- СТРОЙКОНТРОЛЬ: пока нет отдельных настроек -->
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm p-5 mb-3">
+                    <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight mb-2">Стройконтроль</div>
+                    <p class="text-[12px] text-[var(--text-muted)] leading-relaxed mb-4">
+                        Отдельных настроек модуля стройконтроля пока нет. Справочник объектов и планов — общий для платформы.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" data-settings-subsection-goto="directories"
+                            class="text-[10px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 px-3 py-2 rounded-lg active:scale-95 transition-transform">
+                            Объекты и планы →
+                        </button>
+                        <a href="#/construction-v2"
+                            class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 px-3 py-2 rounded-lg active:scale-95 transition-transform">
+                            Открыть стройконтроль
+                        </a>
+                    </div>
+                </div>
+            </div>
+            </div>
             </div>
             <!-- === КОНСТРУКТОР PDF-ШАБЛОНОВ (PRO) === -->
             <div id="pdf-template-modal"
@@ -1342,7 +1397,61 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         }
         return window.appSettings ? window.appSettings[key] : undefined;
     }
+
+    var SETTINGS_SUBSECTION_KEY = 'rbi.settings.subsection';
+    var SETTINGS_SUBSECTIONS = ['platform', 'directories', 'quality', 'construction'];
+
+    function _getSettingsSubsection() {
+        try {
+            var v = sessionStorage.getItem(SETTINGS_SUBSECTION_KEY);
+            if (SETTINGS_SUBSECTIONS.indexOf(v) !== -1) return v;
+        } catch (e) { /* ignore */ }
+        return 'platform';
+    }
+
+    function _setSettingsSubsection(key) {
+        if (SETTINGS_SUBSECTIONS.indexOf(key) === -1) key = 'platform';
+        try { sessionStorage.setItem(SETTINGS_SUBSECTION_KEY, key); } catch (e) { /* ignore */ }
+        var root = document.getElementById('tab-settings');
+        if (!root) return;
+        SETTINGS_SUBSECTIONS.forEach(function (id) {
+            var panel = root.querySelector('[data-settings-panel="' + id + '"]');
+            if (panel) panel.hidden = id !== key;
+        });
+        root.querySelectorAll('[data-settings-subsection]').forEach(function (btn) {
+            var active = btn.getAttribute('data-settings-subsection') === key;
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            btn.classList.toggle('bg-indigo-600', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('bg-transparent', !active);
+            btn.classList.toggle('text-slate-600', !active);
+            btn.classList.toggle('dark:text-slate-300', !active);
+        });
+    }
+
+    function _bindSettingsSubsectionNav() {
+        var root = document.getElementById('tab-settings');
+        if (!root || root.dataset.subsectionNavBound === '1') return;
+        root.dataset.subsectionNavBound = '1';
+        root.addEventListener('click', function (ev) {
+            var btn = ev.target.closest('[data-settings-subsection]');
+            if (btn && root.contains(btn)) {
+                ev.preventDefault();
+                _setSettingsSubsection(btn.getAttribute('data-settings-subsection'));
+                return;
+            }
+            var gotoBtn = ev.target.closest('[data-settings-subsection-goto]');
+            if (gotoBtn && root.contains(gotoBtn)) {
+                ev.preventDefault();
+                _setSettingsSubsection(gotoBtn.getAttribute('data-settings-subsection-goto'));
+            }
+        });
+    }
+
     function _renderSettingsTab() {
+        _bindSettingsSubsectionNav();
+        _setSettingsSubsection(_getSettingsSubsection());
         // 1. Базовые селекторы оформления
         if (document.getElementById('set-theme')) document.getElementById('set-theme').value = _getSetting('theme') || 'auto';
         if (document.getElementById('set-fontsize')) document.getElementById('set-fontsize').value = _getSetting('fontSize') || 'medium';
@@ -1580,7 +1689,10 @@ console.log('[SettingsRender] settings.render.js markup mounted');
 
         var _permSvc2 = (SettingsActions._ctx && SettingsActions._ctx.permissions) || window.RBI.services.permissions;
         if (typeof _permSvc2 !== 'undefined') _permSvc2.applyUIConstraints();
-        if (typeof window.ObjectDirectory !== 'undefined') window.ObjectDirectory.initUI();
+        if (typeof window.ObjectDirectory !== 'undefined') {
+            // C2b: initUI для suggestions/заявок; плоский OD CRUD скрыт в renderManagerPanel
+            window.ObjectDirectory.initUI();
+        }
 
         var themeSelect = document.getElementById('set-theme');
         if (themeSelect && themeSelect.value !== (_getSetting('theme') || 'auto')) {

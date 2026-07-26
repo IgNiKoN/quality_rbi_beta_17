@@ -606,7 +606,7 @@
     <!-- === МОДАЛКА СПИСКА ИНСТРУКЦИЙ ДЛЯ ПУНКТА === -->
     <!-- item-help-modal-overlay: перенесено в js/modules/quality/features/knowledge/knowledge.module.js (JS-рендер, mount в #app-modals) -->
     <!-- === МОДАЛКА ИСТОРИИ ИЗМЕНЕНИЙ (CHANGELOG) === -->
-    <!-- changelog-modal-overlay: перенесено в js/modules/quality/features/settings/features/changelog.js (JS-рендер, mount в #app-modals) -->
+    <!-- changelog-modal-overlay: перенесено в js/modules/settings/features/changelog.js (JS-рендер, mount в #app-modals) -->
     <!-- === ПОЛНОЦЕННЫЙ КАЛЕНДАРЬ ЗАДАЧ === -->
     <!-- task-calendar-modal: перенесено в js/modules/quality/features/tasks/tasks.module.js (JS-рендер, mount в #app-modals) -->
     <!-- === МОДАЛКА МУЛЬТИ-ФИЛЬТРА === -->
@@ -697,8 +697,8 @@
     <script>
         window.RBI_APP_VERSION = {
             app: '18.57.0',
-            sw: '18.57.342',
-            buildDate: '2026-07-25'
+            sw: '18.57.354',
+            buildDate: '2026-07-26'
         };
     </script>
     <!-- === ПОДКЛЮЧЕНИЕ МОДУЛЕЙ JS === -->
@@ -790,6 +790,7 @@
     <script type="module" src="js/shared/touch-gestures.utils.js"></script>
     <script type="module" src="js/shared/ui-motion.utils.js"></script>
     <script type="module" src="js/shared/snake-game.utils.js"></script>
+    <script type="module" src="js/shared/checklist-runner.js"></script>
     <script type="module" src="js/modules/quality/features/engineer/engineer.module.js"></script>
     <script type="module" src="js/modules/quality/features/schedule/schedule.module.js"></script>
     <script type="module" src="js/modules/quality/features/meetings/meetings.module.js"></script>
@@ -804,14 +805,14 @@
     <script type="module" src="js/modules/quality/quality.module.js"></script>
     <script type="module" src="js/modules/quality/features/gamification/game.module.js"></script>
     <script type="module" src="js/modules/quality/features/sk/sk.module.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/features/changelog.js"></script>
+    <script type="module" src="js/modules/settings/features/changelog.js"></script>
     <script type="module" src="js/modules/quality/features/knowledge/knowledge.module.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/features/feedback.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/features/app-mode-utils.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/features/tutorial.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/settings.render.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/settings.actions.js"></script>
-    <script type="module" src="js/modules/quality/features/settings/settings.module.js"></script>
+    <script type="module" src="js/modules/settings/features/feedback.js"></script>
+    <script type="module" src="js/modules/settings/features/app-mode-utils.js"></script>
+    <script type="module" src="js/modules/settings/features/tutorial.js"></script>
+    <script type="module" src="js/modules/settings/settings.render.js"></script>
+    <script type="module" src="js/modules/settings/settings.actions.js"></script>
+    <script type="module" src="js/modules/settings/settings.module.js"></script>
 
     <!-- Фаза 34 — единая точка инициализации модулей платформы -->
     <script type="module" src="js/core/app.entry.js"></script>
@@ -851,7 +852,7 @@
         <span class="text-[10px] font-black uppercase tracking-wider">Выйти из демо</span>
     </button>
 
-    <!-- tutorial-overlay + tutorial-tooltip перенесено в js/modules/quality/features/settings/features/tutorial.js -->
+    <!-- tutorial-overlay + tutorial-tooltip перенесено в js/modules/settings/features/tutorial.js -->
     <!-- print-content перенесено в js/modules/quality/features/reports/reports.render.js (прямой потомок body) -->
     <!-- etalon-constructor-view перенесено в js/modules/quality/features/etalon/etalon.render.js -->
 
