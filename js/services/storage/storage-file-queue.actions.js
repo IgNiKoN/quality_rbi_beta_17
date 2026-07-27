@@ -310,16 +310,9 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                             return;
                         }
 
-                        // Мета говорит «кэш есть» (после eviction статус cloud_only) —
-                        // не поднимаем PDF из IDB только ради skip.
-                        const repStatus = repObj.cache_status || repObj.cacheStatus || '';
-                        const metaSize = Number(repObj.file_size || repObj.fileSize || 0) || 0;
-                        if (repStatus === 'cached_cloud' && metaSize > 0) {
-                            alreadyCachedCount++;
-                            settleUrl(url, metaSize || plannedByUrl.get(url) || 0);
-                            return;
-                        }
-
+                        // Только реальное наличие file_blob в IDB. Мета cache_status
+                        // часто врёт (sync/eviction) — из‑за этого UI «закэшировано»,
+                        // а openReport не находит локальный PDF.
                         let idbRow = null;
                         try {
                             idbRow = await dbGet(STORES.REPORTS, repObj.id);
@@ -337,6 +330,12 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                             // Не копируем blob в reportsArray.
                             settleUrl(url, sz);
                             return;
+                        }
+
+                        // Мета врала — чиним статус до скачивания.
+                        if ((repObj.cache_status || repObj.cacheStatus) === 'cached_cloud') {
+                            repObj.cache_status = 'cloud_only';
+                            repObj.cacheStatus = 'cloud_only';
                         }
 
                         const res = await rbiFetchCloudFileNoBrowserCache(url);

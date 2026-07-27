@@ -1431,7 +1431,31 @@ window.rbiOpenPdfInTwiViewer = async function (pdfData, title, subtitle, fileNam
 
         let pdfArrayBuffer = null;
         const raw = pdfData == null ? '' : String(pdfData);
-        const httpsUrl = raw.indexOf('http') === 0 ? raw : '';
+        let httpsUrl = raw.indexOf('http') === 0 ? raw : '';
+
+        async function bufferFromPhotoCache(urlOrKey) {
+            if (!urlOrKey) return null;
+            try {
+                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
+                    const localU = await PhotoManager.getAsyncUrl(urlOrKey);
+                    if (localU && String(localU).indexOf('blob:') === 0) {
+                        const res = await fetch(localU);
+                        if (res.ok) return await res.arrayBuffer();
+                    }
+                }
+            } catch (_) { /* ignore */ }
+            try {
+                if (typeof dbGet === 'function' && window.STORES && STORES.PHOTOS) {
+                    const row = await dbGet(STORES.PHOTOS, urlOrKey);
+                    if (row && row.data) {
+                        if (row.data instanceof ArrayBuffer) return row.data.slice(0);
+                        if (row.data instanceof Blob) return await row.data.arrayBuffer();
+                        return row.data;
+                    }
+                }
+            } catch (_) { /* ignore */ }
+            return null;
+        }
 
         if (raw.indexOf('local://') === 0 || raw.indexOf('cloud://') === 0) {
             const pdfBase64 = await PhotoManager.getBase64(pdfData);
@@ -1439,28 +1463,39 @@ window.rbiOpenPdfInTwiViewer = async function (pdfData, title, subtitle, fileNam
         } else if (raw.indexOf('data:application/pdf') === 0) {
             pdfArrayBuffer = await base64ToArrayBuffer(pdfData);
         } else if (httpsUrl) {
-            // Онлайн: opener откроет https; blob подтянем только если offline или для Share.
-            if (navigator.onLine === false) {
-                const res = await (typeof rbiFetchCloudFileNoBrowserCache === 'function'
-                    ? rbiFetchCloudFileNoBrowserCache(pdfData)
-                    : fetch(pdfData, { cache: 'no-store' }));
-                if (!res.ok) throw new Error('PDF не скачался');
-                pdfArrayBuffer = await res.arrayBuffer();
+            pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
+            if (!pdfArrayBuffer && navigator.onLine === false) {
+                throw new Error('PDF не кэширован офлайн');
+            }
+            if (!pdfArrayBuffer && navigator.onLine !== false) {
+                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.downloadForOffline === 'function') {
+                    try {
+                        await PhotoManager.downloadForOffline(httpsUrl, { skipMemoryCache: true });
+                        pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
+                    } catch (_) { /* ignore */ }
+                }
+                if (!pdfArrayBuffer) {
+                    const res = await (typeof rbiFetchCloudFileNoBrowserCache === 'function'
+                        ? rbiFetchCloudFileNoBrowserCache(httpsUrl)
+                        : fetch(httpsUrl, { cache: 'no-store' }));
+                    if (!res.ok) throw new Error('PDF не скачался');
+                    pdfArrayBuffer = await res.arrayBuffer();
+                }
             }
         } else {
-            const realUrl = await PhotoManager.getAsyncUrl(pdfData) || pdfData;
-            if (String(realUrl).indexOf('http') === 0 && navigator.onLine !== false) {
-                if (typeof window.rbiOpenPdfDocument !== 'function') {
-                    return showToast('PDF opener недоступен');
+            pdfArrayBuffer = await bufferFromPhotoCache(pdfData);
+            if (!pdfArrayBuffer) {
+                const realUrl = await PhotoManager.getAsyncUrl(pdfData) || pdfData;
+                if (String(realUrl).indexOf('http') === 0) {
+                    httpsUrl = realUrl;
+                    pdfArrayBuffer = await bufferFromPhotoCache(realUrl);
                 }
-                return window.rbiOpenPdfDocument({
-                    title: title || 'PDF документ',
-                    fileName: fileName || 'document.pdf',
-                    httpsUrl: realUrl
-                });
+                if (!pdfArrayBuffer) {
+                    const res = await fetch(realUrl, { cache: 'no-store' });
+                    if (!res.ok) throw new Error('PDF не скачался');
+                    pdfArrayBuffer = await res.arrayBuffer();
+                }
             }
-            const res = await fetch(realUrl, { cache: 'no-store' });
-            pdfArrayBuffer = await res.arrayBuffer();
         }
 
         if (typeof window.rbiOpenPdfDocument !== 'function') {

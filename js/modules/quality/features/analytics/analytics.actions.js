@@ -873,17 +873,35 @@ export const AnalyticsActions = {
             } catch (_) { /* ignore */ }
         }
 
-        // 1c. Иногда PDF лежит в PHOTOS по file_url (общий файловый кэш)
-        if (r.file_url && typeof dbGet === 'function' && window.STORES?.PHOTOS) {
+        // Мета «cached_cloud» без blob — ложный статус (баг skip автокэша).
+        if ((r.cache_status || r.cacheStatus) === 'cached_cloud') {
+            r.cache_status = 'cloud_only';
+            r.cacheStatus = 'cloud_only';
+        }
+
+        // 1c. PHOTOS / PhotoManager по file_url
+        if (r.file_url && String(r.file_url).startsWith('http')) {
             try {
-                const photoRow = await dbGet(STORES.PHOTOS, r.file_url);
-                if (photoRow && photoRow.data) {
-                    const mime = photoRow.mimeType || photoRow.mime_type || 'application/pdf';
-                    const fromPhotos = photoRow.data instanceof Blob
-                        ? photoRow.data
-                        : new Blob([photoRow.data], { type: mime });
-                    await openBlob(fromPhotos);
-                    return;
+                if (typeof dbGet === 'function' && window.STORES?.PHOTOS) {
+                    const photoRow = await dbGet(STORES.PHOTOS, r.file_url);
+                    if (photoRow && photoRow.data) {
+                        const mime = photoRow.mimeType || photoRow.mime_type || 'application/pdf';
+                        const fromPhotos = photoRow.data instanceof Blob
+                            ? photoRow.data
+                            : new Blob([photoRow.data], { type: mime });
+                        await openBlob(fromPhotos);
+                        return;
+                    }
+                }
+                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
+                    const localU = await PhotoManager.getAsyncUrl(r.file_url);
+                    if (localU && String(localU).startsWith('blob:')) {
+                        const res = await fetch(localU);
+                        if (res.ok) {
+                            await openBlob(await res.blob());
+                            return;
+                        }
+                    }
                 }
             } catch (_) { /* ignore */ }
         }
@@ -920,7 +938,14 @@ export const AnalyticsActions = {
                 return;
             } catch (e) {
                 console.error("Ошибка скачивания отчета", e);
-                // ПРИОРИТЕТ 3 (Фолбэк): Просто открываем ссылку в новой вкладке
+                if (typeof window.rbiOpenPdfDocument === 'function') {
+                    await window.rbiOpenPdfDocument({
+                        title: r.title || 'PDF',
+                        fileName: downloadName,
+                        httpsUrl: r.file_url
+                    });
+                    return;
+                }
                 window.open(r.file_url, '_blank');
                 return;
             }
