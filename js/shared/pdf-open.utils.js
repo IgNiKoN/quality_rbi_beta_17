@@ -152,7 +152,8 @@
         var fileName = opts.fileName || 'document.pdf';
         var httpsUrl = opts.httpsUrl || '';
         var blobUrl = opts.blobUrl || '';
-        var openUrl = (httpsUrl && isOnline()) ? httpsUrl : (blobUrl || httpsUrl);
+        // Сначала локальный blob (IDB), https — только если локального нет.
+        var openUrl = blobUrl || httpsUrl || '';
 
         modal.dataset.title = title;
         modal.dataset.fileName = fileName;
@@ -195,25 +196,21 @@
             return { ok: false, mode: 'empty' };
         }
 
-        // Онлайн + https на desktop: сразу вкладка. На iPhone после await жест мёртв — сразу sheet.
-        if (httpsUrl && isOnline() && !isAppleTouch()) {
-            if (openUrlSync(httpsUrl)) {
-                return { ok: true, mode: 'https' };
-            }
-        }
-
         var blobUrl = blob ? URL.createObjectURL(blob) : '';
         var file = blob
             ? new File([blob], fileName, { type: 'application/pdf' })
             : null;
 
-        // Desktop / не-touch: сразу blob-вкладка; если popup blocked — sheet.
-        if (!isAppleTouch() && blobUrl) {
-            if (openUrlSync(blobUrl)) {
+        // Desktop: сначала локальный blob, иначе https. iPhone — sheet (sync open на кнопке).
+        if (!isAppleTouch()) {
+            if (blobUrl && openUrlSync(blobUrl)) {
                 setTimeout(function () {
                     try { URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
                 }, 60000);
                 return { ok: true, mode: 'blob-tab' };
+            }
+            if (httpsUrl && isOnline() && openUrlSync(httpsUrl)) {
+                return { ok: true, mode: 'https' };
             }
         }
 
