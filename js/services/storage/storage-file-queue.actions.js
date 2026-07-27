@@ -158,6 +158,13 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
         window.rbiBeginOfflineCacheSyncPause('downloadMissingCloudFiles:' + (scope || 'all'));
     }
 
+    // Не перекрывать тост синхронизации (ручная / 1-я полная).
+    if (!silent && window.rbiSyncProgress && typeof window.rbiSyncProgress.whenHidden === 'function') {
+        try {
+            await window.rbiSyncProgress.whenHidden(9000);
+        } catch (_) { /* ignore */ }
+    }
+
     const resolvedScope = scope || 'all';
     const concurrency = window.RBI_OFFLINE_CACHE_CONCURRENCY || 4;
     const batchPauseMs = window.RBI_OFFLINE_CACHE_BATCH_PAUSE_MS ?? 60;

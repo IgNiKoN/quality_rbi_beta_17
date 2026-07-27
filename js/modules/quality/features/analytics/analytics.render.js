@@ -1057,6 +1057,19 @@ export const AnalyticsRender = {
                 && !!(window.isSyncing || window._rbiDeferActiveViewFullRender))) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
+            // Явный статус вместо «пустого» экрана на время sync-defer.
+            const activeTab = AnalyticsState.activeSubTab || 'sub-contractors';
+            const skeletonTargets = {
+                'sub-contractors': 'contractors-list-container',
+                'sub-onepager': 'onepager-content-container',
+                'sub-history': 'history-list'
+            };
+            const elId = skeletonTargets[activeTab];
+            const el = elId ? document.getElementById(elId) : null;
+            if (el && typeof window.rbiShowContentSkeleton === 'function'
+                && !(el.querySelector && el.querySelector('.rbi-skeleton-wrap'))) {
+                window.rbiShowContentSkeleton(el, { cards: 3, label: 'Идёт синхронизация…' });
+            }
             return;
         }
 
@@ -1146,6 +1159,10 @@ export const AnalyticsRender = {
             if (window.syncDirtyFlags && window.syncDirtyFlags.history) {
                 window.syncDirtyFlags.history = false;
                 if (window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
+                    const histEl = document.getElementById('history-list');
+                    if (histEl && typeof window.rbiShowContentSkeleton === 'function') {
+                        window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка истории…' });
+                    }
                     Promise.resolve(window.HistoryActions.loadRecords()).then(function () {
                         renderHistoryTab();
                         initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');

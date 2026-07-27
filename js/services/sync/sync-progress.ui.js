@@ -276,6 +276,28 @@
             }, (opts && opts.hideAfterMs) || 3400);
         },
 
+        /** Ждёт скрытия тоста sync — чтобы кэш-тост не перекрывал. */
+        whenHidden: function (timeoutMs) {
+            const limit = typeof timeoutMs === 'number' ? timeoutMs : 8000;
+            const started = Date.now();
+            return new Promise(function (resolve) {
+                function tick() {
+                    const root = document.getElementById('mini-sync-toast');
+                    const visible = !!(root && !root.classList.contains('hidden'));
+                    if (!active && !visible) {
+                        resolve();
+                        return;
+                    }
+                    if (Date.now() - started > limit) {
+                        resolve();
+                        return;
+                    }
+                    setTimeout(tick, 120);
+                }
+                tick();
+            });
+        },
+
         fail: function (opts) {
             const root = document.getElementById('mini-sync-toast') || ensureToast();
             if (!active && !root) return;

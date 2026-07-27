@@ -34,15 +34,22 @@
     }
 
     function showContentSkeleton(el, opts) {
-        if (!el || !isMotionEnabled()) return;
+        if (!el) return;
         opts = opts || {};
         var cards = opts.cards != null ? opts.cards : 4;
-        var html = '<div class="rbi-skeleton-wrap" aria-hidden="true">';
-        for (var i = 0; i < cards; i++) {
-            html += '<div class="rbi-skeleton-card"></div>';
+        var label = opts.label || 'Загрузка…';
+        var motion = isMotionEnabled();
+        var html = '<div class="rbi-skeleton-wrap py-4" role="status" aria-live="polite">';
+        html += '<div class="text-center text-[12px] font-black text-slate-500 dark:text-slate-400 mb-3 tracking-wide">' + label + '</div>';
+        if (motion) {
+            for (var i = 0; i < cards; i++) {
+                html += '<div class="rbi-skeleton-card"></div>';
+            }
+            html += '<div class="rbi-skeleton-line" style="width:72%"></div>';
+            html += '<div class="rbi-skeleton-line" style="width:48%"></div>';
+        } else {
+            html += '<div class="flex justify-center py-6"><div class="w-7 h-7 rounded-full border-2 border-slate-300 border-t-indigo-500 animate-spin"></div></div>';
         }
-        html += '<div class="rbi-skeleton-line" style="width:72%"></div>';
-        html += '<div class="rbi-skeleton-line" style="width:48%"></div>';
         html += '</div>';
         el.innerHTML = html;
     }

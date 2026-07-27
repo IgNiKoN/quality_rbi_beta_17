@@ -460,38 +460,41 @@ export const AnalyticsActions = {
         // Обновляем кнопку FAB
         if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
 
-        // Скелетон только если рендер реально пойдёт.
-        // Важно: при возврате на уже отрисованную подвкладку (Подрядчики↔Сводка)
-        // скелетон ЗАЧИЩАЛ готовый DOM → B4 не мог reuse → полная дозагрузка
-        // на несколько секунд. Не ставим скелетон, если paint можно переиспользовать.
+        // Скелетон / «Загрузка…» — и при sync-defer (раньше молча пусто),
+        // и когда paint нельзя reuse. Текст всегда, даже если motion выключен.
         const deferring = typeof window.shouldDeferFullRender === 'function'
             && window.shouldDeferFullRender('analytics');
         const canReuse = typeof window.analyticsTabCanReusePaint === 'function'
             && window.analyticsTabCanReusePaint(tabId);
-        if (!deferring && !canReuse && typeof window.rbiShowContentSkeleton === 'function') {
-            // ПК СК: живой #sk-view-dashboard не затираем скелетоном — sk_renderMainTab
-            // обновит dashboard in-place (фильтры/период). Иначе каждый заход снова
-            // «Чтение базы…» и полный rebuild ~сотен KB HTML.
+        const skeletonTargets = {
+            'sub-contractors': 'contractors-list-container',
+            'sub-onepager': 'onepager-content-container',
+            'sub-history': 'history-list',
+            'sub-schedule': 'schedule-container',
+            'sub-sk': 'sk-main-container'
+        };
+        if ((!canReuse || deferring) && typeof window.rbiShowContentSkeleton === 'function') {
             const skShellAlive = tabId === 'sub-sk' && !!document.getElementById('sk-view-dashboard');
             if (!skShellAlive) {
-                const skeletonTargets = {
-                    'sub-contractors': 'contractors-list-container',
-                    'sub-onepager': 'onepager-content-container',
-                    'sub-history': 'history-list',
-                    'sub-schedule': 'schedule-container',
-                    'sub-sk': 'sk-main-container'
-                };
                 const elId = skeletonTargets[tabId];
                 const el = elId ? document.getElementById(elId) : null;
-                if (el) window.rbiShowContentSkeleton(el, { cards: tabId === 'sub-history' ? 5 : 4 });
+                if (el) {
+                    window.rbiShowContentSkeleton(el, {
+                        cards: tabId === 'sub-history' ? 5 : 4,
+                        label: deferring ? 'Идёт синхронизация…' : 'Загрузка…'
+                    });
+                }
             }
         }
 
-        // Единый безопасный рендер активной подвкладки аналитики.
-        // ПК СК должен запускаться через renderCurrentAnalyticsTab(), т.к. там
-        // sk_renderMainTab() вызывается гарантированно.
+        // Дать браузеру отрисовать «Загрузка…», иначе тяжёлый sync-render
+        // блокирует main thread и экран остаётся пустым/старым.
         if (typeof window.renderCurrentAnalyticsTab === 'function') {
-            window.renderCurrentAnalyticsTab();
+            requestAnimationFrame(function () {
+                setTimeout(function () {
+                    window.renderCurrentAnalyticsTab();
+                }, 0);
+            });
         }
     },
 
