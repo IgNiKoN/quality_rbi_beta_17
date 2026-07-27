@@ -840,8 +840,8 @@ export const AnalyticsActions = {
 
             const openPdfInApp = () => {
                 let modal = document.getElementById('rbi-pdf-report-modal');
-                // Старая разметка без зума — пересоздаём.
-                if (modal && !document.getElementById('rbi-pdf-report-zoom-in')) {
+                // Старая разметка без нормального pinch — пересоздаём.
+                if (modal && modal.dataset.pdfZoomUi !== 'v2') {
                     try {
                         const oldUrl = modal.dataset.blobUrl;
                         if (oldUrl) URL.revokeObjectURL(oldUrl);
@@ -852,42 +852,66 @@ export const AnalyticsActions = {
                 if (!modal) {
                     modal = document.createElement('div');
                     modal.id = 'rbi-pdf-report-modal';
+                    modal.dataset.pdfZoomUi = 'v2';
                     modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
                     modal.dataset.zoom = '1';
                     modal.innerHTML = `
                         <div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0">
                             <div id="rbi-pdf-report-title" class="font-bold text-sm truncate flex-1 min-w-0">PDF</div>
-                            <button type="button" id="rbi-pdf-report-zoom-out" data-pdf-report-action="zoom-out" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Мельче">−</button>
+                            <button type="button" data-pdf-report-action="zoom-out" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Мельче">−</button>
                             <span id="rbi-pdf-report-zoom-label" class="text-[11px] tabular-nums text-slate-300 w-10 text-center shrink-0">100%</span>
-                            <button type="button" id="rbi-pdf-report-zoom-in" data-pdf-report-action="zoom-in" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Крупнее">+</button>
+                            <button type="button" data-pdf-report-action="zoom-in" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Крупнее">+</button>
                             <a id="rbi-pdf-report-download" class="px-2.5 py-1.5 rounded-lg bg-orange-500/90 text-white text-[10px] font-semibold shrink-0" download>Скачать</a>
                             <button type="button" data-pdf-report-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>
                         </div>
                         <div id="rbi-pdf-report-scroll" class="flex-1 min-h-0 overflow-auto bg-slate-900 overscroll-contain" style="-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
-                            <div id="rbi-pdf-report-stage" class="bg-white origin-top-left" style="width:100%;height:100%;min-height:100%;transform-origin:0 0;">
-                                <iframe id="rbi-pdf-report-frame" class="w-full border-0 bg-white block" style="height:100%;min-height:85vh;" title="PDF"></iframe>
+                            <div id="rbi-pdf-report-zoom-space" style="position:relative;width:100%;height:100%;min-height:85vh;">
+                                <div id="rbi-pdf-report-stage" class="bg-white" style="position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:0 0;transform:scale(1);">
+                                    <iframe id="rbi-pdf-report-frame" class="w-full h-full border-0 bg-white block" title="PDF"></iframe>
+                                </div>
                             </div>
                         </div>`;
                     (document.getElementById('app-modals') || document.body).appendChild(modal);
 
-                    const applyZoom = (next) => {
-                        const z = Math.min(3, Math.max(1, Math.round(next * 100) / 100));
-                        modal.dataset.zoom = String(z);
+                    const MIN_Z = 0.5;
+                    const MAX_Z = 4;
+
+                    const applyZoom = (next, pivotClient) => {
+                        const scroll = document.getElementById('rbi-pdf-report-scroll');
+                        const space = document.getElementById('rbi-pdf-report-zoom-space');
                         const stage = document.getElementById('rbi-pdf-report-stage');
                         const label = document.getElementById('rbi-pdf-report-zoom-label');
-                        const frame = document.getElementById('rbi-pdf-report-frame');
-                        if (stage) {
-                            // Увеличиваем layout-коробку, чтобы работал скролл/пан пальцем.
-                            stage.style.width = (100 * z) + '%';
-                            stage.style.height = (100 * z) + '%';
-                            stage.style.minHeight = (85 * z) + 'vh';
-                            stage.style.transform = 'none';
-                        }
-                        if (frame) {
-                            frame.style.height = (85 * z) + 'vh';
-                            frame.style.minHeight = (85 * z) + 'vh';
-                        }
+                        if (!scroll || !space || !stage) return;
+
+                        const prev = Number(modal.dataset.zoom) || 1;
+                        const z = Math.min(MAX_Z, Math.max(MIN_Z, Number(next) || 1));
+                        const rect = scroll.getBoundingClientRect();
+                        const pivotX = pivotClient
+                            ? (pivotClient.x - rect.left)
+                            : (scroll.clientWidth / 2);
+                        const pivotY = pivotClient
+                            ? (pivotClient.y - rect.top)
+                            : (scroll.clientHeight / 2);
+
+                        // Точка контента под пальцами до смены масштаба.
+                        const contentX = (scroll.scrollLeft + pivotX) / prev;
+                        const contentY = (scroll.scrollTop + pivotY) / prev;
+
+                        const baseW = Math.max(1, scroll.clientWidth);
+                        const baseH = Math.max(1, scroll.clientHeight);
+
+                        stage.style.width = baseW + 'px';
+                        stage.style.height = baseH + 'px';
+                        stage.style.transform = 'scale(' + z + ')';
+                        space.style.width = Math.round(baseW * z) + 'px';
+                        space.style.height = Math.round(baseH * z) + 'px';
+                        space.style.minHeight = Math.round(baseH * z) + 'px';
+
+                        modal.dataset.zoom = String(z);
                         if (label) label.textContent = Math.round(z * 100) + '%';
+
+                        scroll.scrollLeft = contentX * z - pivotX;
+                        scroll.scrollTop = contentY * z - pivotY;
                     };
                     modal._rbiApplyPdfZoom = applyZoom;
 
@@ -905,42 +929,50 @@ export const AnalyticsActions = {
                             return;
                         }
                         if (action !== 'close') return;
-                        const prev = modal.dataset.blobUrl;
+                        const prevUrl = modal.dataset.blobUrl;
                         modal.classList.add('hidden');
                         modal.classList.remove('flex');
                         const frame = document.getElementById('rbi-pdf-report-frame');
                         if (frame) frame.removeAttribute('src');
                         applyZoom(1);
-                        if (prev) {
-                            try { URL.revokeObjectURL(prev); } catch (_) { /* ignore */ }
+                        if (prevUrl) {
+                            try { URL.revokeObjectURL(prevUrl); } catch (_) { /* ignore */ }
                             delete modal.dataset.blobUrl;
                         }
                     });
 
-                    // Pinch-to-zoom внутри модалки (viewport страницы запрещает scale).
-                    let pinchStartDist = 0;
-                    let pinchStartZoom = 1;
-                    const dist = (t) => {
-                        const a = t[0];
-                        const b = t[1];
-                        const dx = a.clientX - b.clientX;
-                        const dy = a.clientY - b.clientY;
-                        return Math.hypot(dx, dy);
+                    // Pinch: увеличение и уменьшение (viewport страницы с user-scalable=no).
+                    let pinch = null;
+                    const touchDist = (t) => {
+                        const dx = t[0].clientX - t[1].clientX;
+                        const dy = t[0].clientY - t[1].clientY;
+                        return Math.hypot(dx, dy) || 1;
                     };
+                    const touchMid = (t) => ({
+                        x: (t[0].clientX + t[1].clientX) / 2,
+                        y: (t[0].clientY + t[1].clientY) / 2
+                    });
+
                     modal.addEventListener('touchstart', (e) => {
                         if (!e.touches || e.touches.length !== 2) return;
-                        pinchStartDist = dist(e.touches);
-                        pinchStartZoom = Number(modal.dataset.zoom) || 1;
+                        pinch = {
+                            dist: touchDist(e.touches),
+                            zoom: Number(modal.dataset.zoom) || 1
+                        };
                     }, { passive: true });
+
                     modal.addEventListener('touchmove', (e) => {
-                        if (!e.touches || e.touches.length !== 2 || !pinchStartDist) return;
+                        if (!pinch || !e.touches || e.touches.length !== 2) return;
                         e.preventDefault();
-                        const ratio = dist(e.touches) / pinchStartDist;
-                        applyZoom(pinchStartZoom * ratio);
+                        const ratio = touchDist(e.touches) / pinch.dist;
+                        applyZoom(pinch.zoom * ratio, touchMid(e.touches));
                     }, { passive: false });
-                    modal.addEventListener('touchend', () => {
-                        pinchStartDist = 0;
-                    }, { passive: true });
+
+                    const endPinch = (e) => {
+                        if (!e.touches || e.touches.length < 2) pinch = null;
+                    };
+                    modal.addEventListener('touchend', endPinch, { passive: true });
+                    modal.addEventListener('touchcancel', endPinch, { passive: true });
                 }
 
                 const prev = modal.dataset.blobUrl;
@@ -957,12 +989,14 @@ export const AnalyticsActions = {
                     dl.download = downloadName;
                 }
                 const frame = document.getElementById('rbi-pdf-report-frame');
-                // Без #view=FitH — на iOS фит иногда мешает дальнейшему зуму.
                 if (frame) frame.src = url;
-                if (typeof modal._rbiApplyPdfZoom === 'function') modal._rbiApplyPdfZoom(1);
 
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+                // После показа — базовый размер под экран.
+                requestAnimationFrame(() => {
+                    if (typeof modal._rbiApplyPdfZoom === 'function') modal._rbiApplyPdfZoom(1);
+                });
             };
 
             if (isAppleTouch) {
