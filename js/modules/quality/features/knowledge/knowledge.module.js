@@ -1421,118 +1421,63 @@ window._rbiDestroyActivePdfDoc = async function () {
 };
 
 window.rbiOpenPdfInTwiViewer = async function (pdfData, title, subtitle, fileName, fileSize) {
-    const overlay = document.getElementById('twi-viewer-overlay');
-    const content = document.getElementById('viewer-twi-content');
-    const titleEl = document.getElementById('viewer-twi-title');
-    const badgeEl = document.getElementById('viewer-twi-badge');
-    const infoPanel = document.getElementById('viewer-twi-info-panel');
-    const footer = document.getElementById('viewer-twi-footer');
-
-    if (!overlay || !content) return showToast('Окно PDF не найдено');
-
     await window._rbiDestroyActivePdfDoc();
 
-    if (content.dataset.blobUrl && content.dataset.blobUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(content.dataset.blobUrl);
-    }
-
-    content.dataset.blobUrl = '';
-    content.innerHTML = '';
-    content.className = 'flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900 p-0';
-
-    if (titleEl) titleEl.innerText = title || 'PDF документ';
-
-    if (badgeEl) {
-        badgeEl.innerText = 'PDF';
-        badgeEl.className = 'bg-red-500 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest shadow-sm';
-    }
-
-    if (infoPanel) infoPanel.classList.add('hidden');
-    if (footer) footer.classList.add('hidden');
-
+    // Старый TWI-overlay с all-pages canvas больше не используем для PDF (OOM на iPhone).
     try {
-        let pdfBase64 = null;
-        let pdfArrayBuffer = null;
+        if (typeof window.rbiClosePdfDocumentSheet === 'function') {
+            window.rbiClosePdfDocumentSheet();
+        }
 
-        if (String(pdfData).startsWith('local://') || String(pdfData).startsWith('cloud://')) {
-            pdfBase64 = await PhotoManager.getBase64(pdfData);
+        let pdfArrayBuffer = null;
+        const raw = pdfData == null ? '' : String(pdfData);
+        const httpsUrl = raw.indexOf('http') === 0 ? raw : '';
+
+        if (raw.indexOf('local://') === 0 || raw.indexOf('cloud://') === 0) {
+            const pdfBase64 = await PhotoManager.getBase64(pdfData);
             pdfArrayBuffer = await base64ToArrayBuffer(pdfBase64);
-        } else if (String(pdfData).startsWith('data:application/pdf')) {
-            pdfBase64 = pdfData;
+        } else if (raw.indexOf('data:application/pdf') === 0) {
             pdfArrayBuffer = await base64ToArrayBuffer(pdfData);
-        } else if (String(pdfData).startsWith('http')) {
-            const res = await rbiFetchCloudFileNoBrowserCache(pdfData);
-            if (!res.ok) throw new Error('PDF не скачался');
-            pdfArrayBuffer = await res.arrayBuffer();
+        } else if (httpsUrl) {
+            // Онлайн: opener откроет https; blob подтянем только если offline или для Share.
+            if (navigator.onLine === false) {
+                const res = await (typeof rbiFetchCloudFileNoBrowserCache === 'function'
+                    ? rbiFetchCloudFileNoBrowserCache(pdfData)
+                    : fetch(pdfData, { cache: 'no-store' }));
+                if (!res.ok) throw new Error('PDF не скачался');
+                pdfArrayBuffer = await res.arrayBuffer();
+            }
         } else {
             const realUrl = await PhotoManager.getAsyncUrl(pdfData) || pdfData;
+            if (String(realUrl).indexOf('http') === 0 && navigator.onLine !== false) {
+                if (typeof window.rbiOpenPdfDocument !== 'function') {
+                    return showToast('PDF opener недоступен');
+                }
+                return window.rbiOpenPdfDocument({
+                    title: title || 'PDF документ',
+                    fileName: fileName || 'document.pdf',
+                    httpsUrl: realUrl
+                });
+            }
             const res = await fetch(realUrl, { cache: 'no-store' });
             pdfArrayBuffer = await res.arrayBuffer();
         }
 
-        const blob = new Blob([pdfArrayBuffer.slice(0)], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-        content.dataset.blobUrl = blobUrl;
-
-        content.innerHTML = `
-            <div class="sticky top-0 z-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 p-2 text-[10px] font-bold flex justify-between items-center border-b border-indigo-100 dark:border-indigo-800">
-                <span class="truncate pr-2">${subtitle || 'PDF документ'}</span>
-                <div class="flex gap-2 shrink-0">
-    <button onclick="window.open('${blobUrl}', '_blank')"
-        class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg active:scale-95 shadow-sm uppercase tracking-widest">
-        Открыть стандартно
-    </button>
-
-    <a href="${blobUrl}" target="_blank" download="${fileName || 'document.pdf'}"
-       class="bg-slate-700 text-white px-3 py-1.5 rounded-lg active:scale-95 shadow-sm uppercase tracking-widest">
-       Скачать
-    </a>
-</div>
-            </div>
-            <div id="rbi-pdf-pages" class="p-3 space-y-3"></div>
-        `;
-
-        overlay.style.display = 'flex';
-        document.body.classList.add('modal-open');
-        setTimeout(() => overlay.classList.remove('opacity-0'), 10);
-
-        const pagesRoot = document.getElementById('rbi-pdf-pages');
-        const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
-        window._rbiActivePdfDoc = pdf;
-
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-
-            const containerWidth = Math.min(window.innerWidth - 24, 1100);
-            const baseViewport = page.getViewport({ scale: 1 });
-            const scale = containerWidth / baseViewport.width;
-            const viewport = page.getViewport({ scale });
-
-            const canvas = document.createElement('canvas');
-            canvas.className = 'w-full bg-white rounded-xl shadow-sm border border-slate-200';
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            pagesRoot.appendChild(canvas);
-
-            const ctx = canvas.getContext('2d');
-            await page.render({
-                canvasContext: ctx,
-                viewport
-            }).promise;
+        if (typeof window.rbiOpenPdfDocument !== 'function') {
+            return showToast('PDF opener недоступен');
         }
 
+        return window.rbiOpenPdfDocument({
+            title: title || 'PDF документ',
+            fileName: fileName || 'document.pdf',
+            httpsUrl: httpsUrl || undefined,
+            arrayBuffer: pdfArrayBuffer || undefined
+        });
     } catch (e) {
         console.error('[Universal PDF Viewer]', e);
-        content.innerHTML = `
-            <div class="p-6 text-center">
-                <div class="text-red-600 font-black text-[13px] mb-2">PDF не удалось открыть</div>
-                <div class="text-slate-500 text-[11px]">Попробуйте синхронизировать файлы или открыть документ повторно.</div>
-            </div>
-        `;
-        overlay.style.display = 'flex';
-        document.body.classList.add('modal-open');
-        setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+        if (typeof showToast === 'function') {
+            showToast('PDF не удалось открыть. Синхронизируйте файлы или попробуйте снова.');
+        }
     }
 };
 window.closeTwiViewer = function () {

@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.371';
+const SW_VERSION = '18.57.372';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -65,6 +65,7 @@ const urlsToCache = [
   './js/shared/smart-input.utils.js',
   './js/shared/photo-editor.utils.js',
   './js/shared/photo-viewer-zoom.utils.js',
+  './js/shared/pdf-open.utils.js',
   './js/shared/splash-screen.utils.js',
   './js/shared/pwa-update.utils.js',
   './js/shared/fab-export.utils.js',
