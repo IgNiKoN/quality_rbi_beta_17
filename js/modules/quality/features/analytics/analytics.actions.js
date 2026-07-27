@@ -827,9 +827,85 @@ export const AnalyticsActions = {
                 showToast('PPTX скачан — откройте в PowerPoint');
                 return;
             }
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+            // PDF: на iPhone/iPad window.open(blob:) после async IDB не открывает вкладку.
+            // Показываем встроенный просмотр (object/iframe), на ПК — новая вкладка с fallback.
+            const pdfBlob = (blob && blob.type === 'application/pdf')
+                ? blob
+                : new Blob([blob], { type: 'application/pdf' });
+            const url = URL.createObjectURL(pdfBlob);
+
+            const isAppleTouch = /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+                || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
+
+            const openPdfInApp = () => {
+                let modal = document.getElementById('rbi-pdf-report-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'rbi-pdf-report-modal';
+                    modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
+                    modal.innerHTML = `
+                        <div class="bg-slate-800 text-white px-4 py-3 flex items-center gap-3 shadow-md shrink-0">
+                            <div id="rbi-pdf-report-title" class="font-bold text-sm truncate flex-1">PDF</div>
+                            <a id="rbi-pdf-report-download" class="px-3 py-1.5 rounded-lg bg-orange-500/90 text-white text-xs font-semibold shrink-0" download>Скачать</a>
+                            <button type="button" data-pdf-report-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>
+                        </div>
+                        <div class="flex-1 min-h-0 bg-slate-900">
+                            <object id="rbi-pdf-report-object" type="application/pdf" class="w-full h-full border-0 bg-white">
+                                <iframe id="rbi-pdf-report-frame" class="w-full h-full border-0 bg-white" title="PDF"></iframe>
+                            </object>
+                        </div>`;
+                    (document.getElementById('app-modals') || document.body).appendChild(modal);
+                    modal.addEventListener('click', (e) => {
+                        const btn = e.target && e.target.closest ? e.target.closest('[data-pdf-report-action="close"]') : null;
+                        if (!btn) return;
+                        const prev = modal.dataset.blobUrl;
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                        const obj = document.getElementById('rbi-pdf-report-object');
+                        const frame = document.getElementById('rbi-pdf-report-frame');
+                        if (obj) obj.removeAttribute('data');
+                        if (frame) frame.removeAttribute('src');
+                        if (prev) {
+                            try { URL.revokeObjectURL(prev); } catch (_) { /* ignore */ }
+                            delete modal.dataset.blobUrl;
+                        }
+                    });
+                }
+
+                const prev = modal.dataset.blobUrl;
+                if (prev && prev !== url) {
+                    try { URL.revokeObjectURL(prev); } catch (_) { /* ignore */ }
+                }
+                modal.dataset.blobUrl = url;
+
+                const titleEl = document.getElementById('rbi-pdf-report-title');
+                if (titleEl) titleEl.textContent = r.title || 'PDF';
+                const dl = document.getElementById('rbi-pdf-report-download');
+                if (dl) {
+                    dl.href = url;
+                    dl.download = downloadName;
+                }
+                const obj = document.getElementById('rbi-pdf-report-object');
+                const frame = document.getElementById('rbi-pdf-report-frame');
+                if (obj) obj.setAttribute('data', url + '#view=FitH');
+                if (frame) frame.src = url + '#view=FitH';
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            };
+
+            if (isAppleTouch) {
+                openPdfInApp();
+                return;
+            }
+
+            const win = window.open(url, '_blank');
+            if (!win || win.closed) {
+                openPdfInApp();
+                return;
+            }
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
         };
 
         // 1. ПРИОРИТЕТ 1: Blob уже в RAM (локальный не залитый)
