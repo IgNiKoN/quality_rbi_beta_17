@@ -1240,7 +1240,6 @@ if (window.RbiStorageManager) {
                     }
 
                     console.log(`[Sync] ${cType.type}: получено ${objects.length}`);
-                    if (_syncProg()) _syncProg().addPulled(objects.length);
                     if (cType.type === 'practice') pulledPracticesChanged = true;
                     if (cType.type === 'etalon') pulledEtalonsChanged = true;
                     for (const obj of objects) {
@@ -3695,10 +3694,6 @@ if (window.RbiStorageManager) {
         const totalPushed = pushedChecks + actuallyPushedTasks + actuallyPushedProfiles;
         const hasChanges = pulledChecks > 0 || totalPushed > 0;
 
-        if (_syncProg()) {
-            _syncProg().addPushed(totalPushed);
-        }
-
         // Включаем флаги "Грязных данных", чтобы вкладки обновились при переходе на них
         window.syncDirtyFlags.templates = true;
         window.syncDirtyFlags.history = true;
@@ -3856,14 +3851,15 @@ if (window.RbiStorageManager) {
         }
         // Итог только в #mini-sync-toast (manual / 1-я полная). Отдельный safeToast и B3 — нет.
         if (_syncProg()) {
-            const summary = hasChanges
-                ? `Готово · ↑${totalPushed} ↓${pulledChecks}`
-                : 'Готово · нет изменений';
+            const detail = hasChanges
+                ? ('Получено проверок: ' + pulledChecks + ' · Отправлено записей: ' + totalPushed)
+                : 'Новых изменений не было';
             _syncProg().done({
-                summary,
+                summary: 'Синхронизация завершена',
+                detail: detail,
                 pulled: pulledChecks,
                 pushed: totalPushed,
-                hideAfterMs: 2500
+                hideAfterMs: 3400
             });
         }
 
@@ -3888,7 +3884,7 @@ if (window.RbiStorageManager) {
         pushErrors++;
         const errMsg = e.message ? e.message.substring(0, 80) : 'Сбой сети';
         if (_syncProg()) {
-            _syncProg().fail({ summary: 'Ошибка · ' + errMsg, hideAfterMs: 3000 });
+            _syncProg().fail({ summary: 'Ошибка синхронизации', detail: errMsg, hideAfterMs: 3500 });
         } else if (mode === 'manual') {
             safeToast('❌ Ошибка: ' + errMsg);
         } // <-- ВОТ ЭТОЙ СКОБКИ НЕ ХВАТАЛО
