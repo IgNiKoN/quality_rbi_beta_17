@@ -15,6 +15,17 @@
             || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
     }
 
+    /** Safari (Mac/iOS): отдельный IDB от Chrome; window.open после await часто врёт. */
+    function isSafari() {
+        var ua = navigator.userAgent || '';
+        return /Safari/i.test(ua) && !/Chrome|CriOS|Chromium|Edg|OPR|Firefox|Android/i.test(ua);
+    }
+
+    /** После async всегда sheet на Safari/iPhone — только sync-клик открывает вкладку. */
+    function preferSheet() {
+        return isAppleTouch() || isSafari();
+    }
+
     function isOnline() {
         return navigator.onLine !== false;
     }
@@ -43,10 +54,27 @@
         modal.classList.remove('flex');
     }
 
+    /** Sync open: <a target=_blank> надёжнее window.open(blob) в Safari. */
     function openUrlSync(url) {
         if (!url) return false;
-        var win = window.open(url, '_blank');
-        return !!(win && !win.closed);
+        try {
+            var a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            return true;
+        } catch (_) {
+            try {
+                var win = window.open(url, '_blank');
+                return !!(win && !win.closed);
+            } catch (e2) {
+                return false;
+            }
+        }
     }
 
     function triggerDownload(url, fileName) {
@@ -86,9 +114,7 @@
             '<div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden" data-pdf-open-panel>' +
             '  <div class="px-4 pt-4 pb-2">' +
             '    <div id="rbi-pdf-open-title" class="text-sm font-bold text-slate-900 dark:text-white truncate">PDF</div>' +
-            '    <div id="rbi-pdf-open-hint" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">' +
-            '      Откройте в браузере или сохраните файл. Предпросмотр внутри приложения отключён — так стабильнее на телефоне.' +
-            '    </div>' +
+            '    <div id="rbi-pdf-open-hint" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug"></div>' +
             '  </div>' +
             '  <div class="p-3 flex flex-col gap-2">' +
             '    <button type="button" data-pdf-open-action="open" class="w-full py-3 rounded-xl bg-indigo-600 text-white text-[12px] font-black uppercase tracking-wide active:scale-[0.98]">Открыть стандартно</button>' +
@@ -116,7 +142,6 @@
                 return;
             }
             if (action === 'open') {
-                // Синхронно на клике — живой user gesture (iOS).
                 if (!openUrlSync(openUrl)) {
                     toast('Не удалось открыть вкладку. Попробуйте «Скачать» или «Поделиться».');
                 }
@@ -152,7 +177,7 @@
         var fileName = opts.fileName || 'document.pdf';
         var httpsUrl = opts.httpsUrl || '';
         var blobUrl = opts.blobUrl || '';
-        // Сначала локальный blob (IDB), https — только если локального нет.
+        var fromLocal = !!blobUrl;
         var openUrl = blobUrl || httpsUrl || '';
 
         modal.dataset.title = title;
@@ -163,6 +188,13 @@
 
         var titleEl = document.getElementById('rbi-pdf-open-title');
         if (titleEl) titleEl.textContent = title;
+
+        var hintEl = document.getElementById('rbi-pdf-open-hint');
+        if (hintEl) {
+            hintEl.textContent = fromLocal
+                ? 'Файл с устройства (кэш). Откроется локально, без загрузки из сети.'
+                : 'Локальной копии в этом браузере нет — откроется ссылка из интернета. Кэш Chrome и Safari раздельный.';
+        }
 
         var shareBtn = modal.querySelector('[data-pdf-open-action="share"]');
         if (shareBtn) {
@@ -201,10 +233,10 @@
             ? new File([blob], fileName, { type: 'application/pdf' })
             : null;
 
-        // Локальный файл есть — никогда не уходим на https (Safari после await
-        // часто блокирует window.open(blob) и раньше открывал сеть «успешно»).
+        // Есть локальный файл — https не используем никогда.
         if (blobUrl) {
-            if (!isAppleTouch() && openUrlSync(blobUrl)) {
+            // Chrome desktop: можно сразу вкладку. Safari/iPhone — только sheet (живой жест).
+            if (!preferSheet() && openUrlSync(blobUrl)) {
                 setTimeout(function () {
                     try { URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
                 }, 60000);
@@ -217,11 +249,11 @@
                 blobUrl: blobUrl,
                 file: file
             });
-            return { ok: true, mode: 'sheet' };
+            return { ok: true, mode: 'sheet-local' };
         }
 
-        // Локального нет — только сеть.
-        if (httpsUrl && isOnline() && !isAppleTouch() && openUrlSync(httpsUrl)) {
+        // Нет локального — сеть. На Safari никогда не auto-open после await.
+        if (httpsUrl && isOnline() && !preferSheet() && openUrlSync(httpsUrl)) {
             return { ok: true, mode: 'https' };
         }
 
@@ -232,7 +264,7 @@
             blobUrl: '',
             file: null
         });
-        return { ok: true, mode: 'sheet' };
+        return { ok: true, mode: 'sheet-network' };
     };
 
     window.rbiClosePdfDocumentSheet = closeSheet;

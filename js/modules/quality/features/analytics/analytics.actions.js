@@ -873,6 +873,21 @@ export const AnalyticsActions = {
             } catch (_) { /* ignore */ }
         }
 
+        // 1c. Иногда PDF лежит в PHOTOS по file_url (общий файловый кэш)
+        if (r.file_url && typeof dbGet === 'function' && window.STORES?.PHOTOS) {
+            try {
+                const photoRow = await dbGet(STORES.PHOTOS, r.file_url);
+                if (photoRow && photoRow.data) {
+                    const mime = photoRow.mimeType || photoRow.mime_type || 'application/pdf';
+                    const fromPhotos = photoRow.data instanceof Blob
+                        ? photoRow.data
+                        : new Blob([photoRow.data], { type: mime });
+                    await openBlob(fromPhotos);
+                    return;
+                }
+            } catch (_) { /* ignore */ }
+        }
+
         // 2. ПРИОРИТЕТ 2: Файла локально нет — скачать по ссылке в IDB (не держать в RAM списка)
         if (r.file_url && r.file_url.startsWith('http')) {
             if (!navigator.onLine) {
