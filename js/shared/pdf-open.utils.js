@@ -84,7 +84,24 @@
             modal._rbiPdfDoc = null;
         }
         var pages = document.getElementById('rbi-pdf-preview-pages');
-        if (pages) pages.innerHTML = '';
+        if (pages) {
+            // Сбрасываем bitmap canvas до удаления DOM — иначе iOS долго держит GPU/RAM.
+            try {
+                var canvases = pages.querySelectorAll('canvas');
+                for (var i = 0; i < canvases.length; i++) {
+                    var c = canvases[i];
+                    try {
+                        var ctx = c.getContext('2d');
+                        if (ctx) ctx.clearRect(0, 0, c.width || 0, c.height || 0);
+                    } catch (_) { /* ignore */ }
+                    c.width = 0;
+                    c.height = 0;
+                }
+            } catch (_) { /* ignore */ }
+            pages.innerHTML = '';
+        }
+        var scrollEl = document.getElementById('rbi-pdf-preview-scroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
     }
 
     function revokeOwnedUrl(modal) {
@@ -94,6 +111,7 @@
             try { URL.revokeObjectURL(url); } catch (_) { /* ignore */ }
         }
         delete modal.dataset.blobUrl;
+        delete modal.dataset.openUrl;
         modal._rbiPdfFile = null;
         modal._rbiPdfBuffer = null;
     }
@@ -110,14 +128,18 @@
 
     function ensureSheet() {
         var modal = document.getElementById(MODAL_ID);
-        if (modal && modal.dataset.pdfUi === 'preview-v1') return modal;
+        if (modal && modal.dataset.pdfUi === 'preview-v2') return modal;
         if (modal) {
-            try { modal.remove(); } catch (_) { /* ignore */ }
+            try {
+                destroyPreview(modal);
+                revokeOwnedUrl(modal);
+                modal.remove();
+            } catch (_) { /* ignore */ }
         }
 
         modal = document.createElement('div');
         modal.id = MODAL_ID;
-        modal.dataset.pdfUi = 'preview-v1';
+        modal.dataset.pdfUi = 'preview-v2';
         modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
         modal.innerHTML =
             '<div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0 z-10">' +
@@ -127,7 +149,7 @@
             '  <button type="button" data-pdf-open-action="download" class="px-2.5 py-1.5 rounded-lg bg-orange-500/90 text-[10px] font-semibold shrink-0">Скачать</button>' +
             '  <button type="button" data-pdf-open-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>' +
             '</div>' +
-            '<div id="rbi-pdf-open-hint" class="bg-slate-800/80 text-slate-300 text-[10px] px-3 py-1.5 shrink-0 border-b border-slate-700"></div>' +
+            '<div id="rbi-pdf-open-hint" class="shrink-0 px-3 py-2.5 text-center text-[12px] font-bold leading-snug bg-amber-400 text-slate-900 border-b border-amber-500"></div>' +
             '<div id="rbi-pdf-preview-scroll" class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-700">' +
             '  <div id="rbi-pdf-preview-pages" class="p-3 space-y-3 max-w-3xl mx-auto"></div>' +
             '</div>';
@@ -293,8 +315,8 @@
         var hintEl = document.getElementById('rbi-pdf-open-hint');
         if (hintEl) {
             hintEl.textContent = fromLocal
-                ? 'Предпросмотр с устройства. Для нативного зума — «В браузере».'
-                : 'Локальной копии нет — «В браузере» откроет ссылку из сети. Предпросмотр появится после загрузки в кэш.';
+                ? 'Для масштабирования откройте файл по кнопке «В браузере».'
+                : 'Локальной копии нет. Для просмотра и масштабирования нажмите «В браузере».';
         }
 
         var shareBtn = modal.querySelector('[data-pdf-open-action="share"]');
