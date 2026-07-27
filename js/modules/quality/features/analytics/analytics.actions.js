@@ -860,7 +860,7 @@ export const AnalyticsActions = {
 
             const openPdfInApp = async () => {
                 let modal = document.getElementById('rbi-pdf-report-modal');
-                if (modal && modal.dataset.pdfZoomUi !== 'v3') {
+                if (modal && modal.dataset.pdfZoomUi !== 'v4') {
                     destroyReportPdfUi(modal);
                     try {
                         const oldUrl = modal.dataset.blobUrl;
@@ -873,19 +873,19 @@ export const AnalyticsActions = {
                 if (!modal) {
                     modal = document.createElement('div');
                     modal.id = 'rbi-pdf-report-modal';
-                    modal.dataset.pdfZoomUi = 'v3';
+                    modal.dataset.pdfZoomUi = 'v4';
                     modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
                     modal.innerHTML = `
                         <div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0 z-10">
                             <div id="rbi-pdf-report-title" class="font-bold text-sm truncate flex-1 min-w-0">PDF</div>
                             <button type="button" data-pdf-report-action="zoom-out" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Мельче">−</button>
-                            <span id="rbi-pdf-report-zoom-label" class="text-[11px] tabular-nums text-slate-300 w-10 text-center shrink-0">100%</span>
+                            <span id="rbi-pdf-report-zoom-label" class="text-[11px] tabular-nums text-slate-300 w-12 text-center shrink-0">100%</span>
                             <button type="button" data-pdf-report-action="zoom-in" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Крупнее">+</button>
                             <a id="rbi-pdf-report-download" class="px-2.5 py-1.5 rounded-lg bg-orange-500/90 text-white text-[10px] font-semibold shrink-0" download>Скачать</a>
                             <button type="button" data-pdf-report-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>
                         </div>
-                        <div id="rbi-pdf-report-viewport" class="flex-1 min-h-0 overflow-hidden relative bg-slate-700">
-                            <div id="rbi-pdf-report-pages" class="absolute left-0 top-0 p-2 space-y-2 will-change-transform"></div>
+                        <div id="rbi-pdf-report-viewport" class="flex-1 min-h-0 overflow-hidden relative bg-slate-700 touch-none">
+                            <div id="rbi-pdf-report-pages" class="absolute left-0 top-0 will-change-transform" style="padding:8px;"></div>
                         </div>`;
                     (document.getElementById('app-modals') || document.body).appendChild(modal);
 
@@ -955,9 +955,17 @@ export const AnalyticsActions = {
                     modal._rbiPdfDoc = pdf;
                     if (!pagesRoot) return;
                     pagesRoot.innerHTML = '';
-
                     const maxW = Math.max(280, Math.min(window.innerWidth - 16, 900));
+                    pagesRoot.style.width = maxW + 'px';
+
                     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    const gap = document.createElement('div');
+                    gap.style.display = 'flex';
+                    gap.style.flexDirection = 'column';
+                    gap.style.gap = '8px';
+                    gap.style.alignItems = 'center';
+                    gap.style.width = maxW + 'px';
+                    pagesRoot.appendChild(gap);
 
                     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                         const page = await pdf.getPage(pageNum);
@@ -969,23 +977,30 @@ export const AnalyticsActions = {
                         canvas.height = viewport.height;
                         canvas.style.width = Math.round(viewport.width / dpr) + 'px';
                         canvas.style.height = Math.round(viewport.height / dpr) + 'px';
-                        canvas.className = 'bg-white rounded-lg shadow block mx-auto';
-                        pagesRoot.appendChild(canvas);
+                        canvas.style.display = 'block';
+                        canvas.style.background = '#fff';
+                        canvas.style.borderRadius = '8px';
+                        canvas.style.boxShadow = '0 1px 3px rgba(0,0,0,.25)';
+                        gap.appendChild(canvas);
                         const ctx = canvas.getContext('2d');
                         await page.render({ canvasContext: ctx, viewport }).promise;
                     }
 
                     if (typeof window.Panzoom === 'function' && pagesRoot && viewportEl) {
+                        // contain: 'outside' зажимал минимум (~165%) — нельзя уменьшить документ.
                         modal._rbiPanzoom = window.Panzoom(pagesRoot, {
                             maxScale: 5,
-                            minScale: 0.4,
-                            step: 0.2,
-                            contain: 'outside',
+                            minScale: 0.5,
+                            startScale: 1,
+                            step: 0.15,
                             cursor: 'grab',
-                            touchAction: 'none'
+                            touchAction: 'none',
+                            animate: true
                         });
+                        modal._rbiPanzoom.zoom(1, { animate: false });
                         viewportEl.addEventListener('wheel', modal._rbiPanzoom.zoomWithWheel, { passive: false });
                         pagesRoot.addEventListener('panzoomzoom', modal._rbiSyncPdfZoomLabel);
+                        pagesRoot.addEventListener('panzoomchange', modal._rbiSyncPdfZoomLabel);
                         if (typeof modal._rbiSyncPdfZoomLabel === 'function') modal._rbiSyncPdfZoomLabel();
                     } else if (document.getElementById('rbi-pdf-report-zoom-label')) {
                         document.getElementById('rbi-pdf-report-zoom-label').textContent = '—';
