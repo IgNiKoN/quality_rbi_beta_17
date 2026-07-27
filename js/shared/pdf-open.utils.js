@@ -1,4 +1,4 @@
-/* js/shared/pdf-open.utils.js — лёгкое открытие PDF без all-pages canvas (OOM-safe) */
+/* js/shared/pdf-open.utils.js — предпросмотр PDF + «Открыть в браузере» (OOM-safe lazy pages) */
 (function () {
     'use strict';
 
@@ -8,22 +8,6 @@
 
     function toast(msg) {
         if (typeof window.showToast === 'function') window.showToast(msg);
-    }
-
-    function isAppleTouch() {
-        return /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
-            || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
-    }
-
-    /** Safari (Mac/iOS): отдельный IDB от Chrome; window.open после await часто врёт. */
-    function isSafari() {
-        var ua = navigator.userAgent || '';
-        return /Safari/i.test(ua) && !/Chrome|CriOS|Chromium|Edg|OPR|Firefox|Android/i.test(ua);
-    }
-
-    /** После async всегда sheet на Safari/iPhone — только sync-клик открывает вкладку. */
-    function preferSheet() {
-        return isAppleTouch() || isSafari();
     }
 
     function isOnline() {
@@ -36,25 +20,6 @@
         return new Blob([blob], { type: 'application/pdf' });
     }
 
-    function revokeOwnedUrl(modal) {
-        if (!modal) return;
-        var url = modal.dataset.blobUrl;
-        if (url && url.indexOf('blob:') === 0) {
-            try { URL.revokeObjectURL(url); } catch (_) { /* ignore */ }
-        }
-        delete modal.dataset.blobUrl;
-        modal._rbiPdfFile = null;
-    }
-
-    function closeSheet() {
-        var modal = document.getElementById(MODAL_ID);
-        if (!modal) return;
-        revokeOwnedUrl(modal);
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    /** Sync open: <a target=_blank> надёжнее window.open(blob) в Safari. */
     function openUrlSync(url) {
         if (!url) return false;
         try {
@@ -103,34 +68,73 @@
         return false;
     }
 
+    function destroyPreview(modal) {
+        if (!modal) return;
+        modal._rbiPdfGen = (modal._rbiPdfGen || 0) + 1;
+        if (modal._rbiPdfIo) {
+            try { modal._rbiPdfIo.disconnect(); } catch (_) { /* ignore */ }
+            modal._rbiPdfIo = null;
+        }
+        if (modal._rbiPdfDoc) {
+            try {
+                if (typeof modal._rbiPdfDoc.destroy === 'function') {
+                    modal._rbiPdfDoc.destroy();
+                }
+            } catch (_) { /* ignore */ }
+            modal._rbiPdfDoc = null;
+        }
+        var pages = document.getElementById('rbi-pdf-preview-pages');
+        if (pages) pages.innerHTML = '';
+    }
+
+    function revokeOwnedUrl(modal) {
+        if (!modal) return;
+        var url = modal.dataset.blobUrl;
+        if (url && url.indexOf('blob:') === 0) {
+            try { URL.revokeObjectURL(url); } catch (_) { /* ignore */ }
+        }
+        delete modal.dataset.blobUrl;
+        modal._rbiPdfFile = null;
+        modal._rbiPdfBuffer = null;
+    }
+
+    function closeSheet() {
+        var modal = document.getElementById(MODAL_ID);
+        if (!modal) return;
+        destroyPreview(modal);
+        revokeOwnedUrl(modal);
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.classList.remove('modal-open');
+    }
+
     function ensureSheet() {
         var modal = document.getElementById(MODAL_ID);
-        if (modal) return modal;
+        if (modal && modal.dataset.pdfUi === 'preview-v1') return modal;
+        if (modal) {
+            try { modal.remove(); } catch (_) { /* ignore */ }
+        }
 
         modal = document.createElement('div');
         modal.id = MODAL_ID;
-        modal.className = 'fixed inset-0 z-[9999] hidden flex-col items-center justify-end sm:justify-center bg-slate-900/70 p-4';
+        modal.dataset.pdfUi = 'preview-v1';
+        modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
         modal.innerHTML =
-            '<div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden" data-pdf-open-panel>' +
-            '  <div class="px-4 pt-4 pb-2">' +
-            '    <div id="rbi-pdf-open-title" class="text-sm font-bold text-slate-900 dark:text-white truncate">PDF</div>' +
-            '    <div id="rbi-pdf-open-hint" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug"></div>' +
-            '  </div>' +
-            '  <div class="p-3 flex flex-col gap-2">' +
-            '    <button type="button" data-pdf-open-action="open" class="w-full py-3 rounded-xl bg-indigo-600 text-white text-[12px] font-black uppercase tracking-wide active:scale-[0.98]">Открыть стандартно</button>' +
-            '    <button type="button" data-pdf-open-action="share" class="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-[12px] font-bold active:scale-[0.98]">Поделиться</button>' +
-            '    <button type="button" data-pdf-open-action="download" class="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-[12px] font-bold active:scale-[0.98]">Скачать</button>' +
-            '    <button type="button" data-pdf-open-action="close" class="w-full py-2.5 rounded-xl text-slate-500 text-[11px] font-semibold">Закрыть</button>' +
-            '  </div>' +
+            '<div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0 z-10">' +
+            '  <div id="rbi-pdf-open-title" class="font-bold text-sm truncate flex-1 min-w-0">PDF</div>' +
+            '  <button type="button" data-pdf-open-action="open" class="px-2.5 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wide shrink-0">В браузере</button>' +
+            '  <button type="button" data-pdf-open-action="share" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-[10px] font-bold shrink-0">Поделиться</button>' +
+            '  <button type="button" data-pdf-open-action="download" class="px-2.5 py-1.5 rounded-lg bg-orange-500/90 text-[10px] font-semibold shrink-0">Скачать</button>' +
+            '  <button type="button" data-pdf-open-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>' +
+            '</div>' +
+            '<div id="rbi-pdf-open-hint" class="bg-slate-800/80 text-slate-300 text-[10px] px-3 py-1.5 shrink-0 border-b border-slate-700"></div>' +
+            '<div id="rbi-pdf-preview-scroll" class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-700">' +
+            '  <div id="rbi-pdf-preview-pages" class="p-3 space-y-3 max-w-3xl mx-auto"></div>' +
             '</div>';
 
         (document.getElementById('app-modals') || document.body).appendChild(modal);
 
         modal.addEventListener('click', function (e) {
-            if (e.target === modal) {
-                closeSheet();
-                return;
-            }
             var btn = e.target && e.target.closest ? e.target.closest('[data-pdf-open-action]') : null;
             if (!btn || !modal.contains(btn)) return;
             var action = btn.getAttribute('data-pdf-open-action');
@@ -142,8 +146,9 @@
                 return;
             }
             if (action === 'open') {
+                // Sync на клике — нативный viewer Safari/Chrome.
                 if (!openUrlSync(openUrl)) {
-                    toast('Не удалось открыть вкладку. Попробуйте «Скачать» или «Поделиться».');
+                    toast('Не удалось открыть вкладку. Попробуйте «Скачать».');
                 }
                 return;
             }
@@ -169,8 +174,103 @@
         return modal;
     }
 
-    function showSheet(opts) {
+    async function renderLazyPreview(modal, arrayBuffer) {
+        var pagesRoot = document.getElementById('rbi-pdf-preview-pages');
+        if (!pagesRoot) return;
+
+        destroyPreview(modal);
+        pagesRoot.innerHTML = '<div class="text-white/90 text-center p-8 text-sm font-semibold">Загрузка предпросмотра…</div>';
+
+        if (!window.pdfjsLib || typeof window.pdfjsLib.getDocument !== 'function') {
+            pagesRoot.innerHTML =
+                '<div class="text-amber-200 text-center p-6 text-sm font-semibold">' +
+                'Предпросмотр недоступен. Нажмите «В браузере».</div>';
+            return;
+        }
+
+        var gen = modal._rbiPdfGen;
+        try {
+            var dataCopy = arrayBuffer.slice ? arrayBuffer.slice(0) : arrayBuffer;
+            var pdf = await window.pdfjsLib.getDocument({ data: dataCopy }).promise;
+            if (gen !== modal._rbiPdfGen) {
+                try { pdf.destroy(); } catch (_) { /* ignore */ }
+                return;
+            }
+            modal._rbiPdfDoc = pdf;
+            pagesRoot.innerHTML = '';
+
+            var scrollEl = document.getElementById('rbi-pdf-preview-scroll');
+            var maxW = Math.max(280, Math.min((scrollEl && scrollEl.clientWidth) || window.innerWidth, 900) - 24);
+
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    var slot = entry.target;
+                    if (!slot || slot.dataset.rendered === '1') return;
+                    slot.dataset.rendered = '1';
+                    io.unobserve(slot);
+                    renderOnePage(modal, pdf, slot, gen, maxW);
+                });
+            }, {
+                root: scrollEl || null,
+                rootMargin: '200px 0px',
+                threshold: 0.01
+            });
+            modal._rbiPdfIo = io;
+
+            for (var pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                var slot = document.createElement('div');
+                slot.className = 'bg-white rounded-lg shadow overflow-hidden';
+                slot.style.minHeight = Math.round(maxW * 1.35) + 'px';
+                slot.dataset.pageNum = String(pageNum);
+                slot.innerHTML =
+                    '<div class="text-slate-400 text-center text-[11px] font-semibold py-10">Стр. ' +
+                    pageNum + '…</div>';
+                pagesRoot.appendChild(slot);
+                io.observe(slot);
+            }
+        } catch (e) {
+            console.error('[rbiOpenPdfDocument] preview', e);
+            pagesRoot.innerHTML =
+                '<div class="text-red-300 text-center p-6 text-sm font-semibold">' +
+                'Не удалось построить предпросмотр. Откройте в браузере.</div>';
+        }
+    }
+
+    async function renderOnePage(modal, pdf, slot, gen, maxW) {
+        if (!slot || gen !== modal._rbiPdfGen) return;
+        var pageNum = parseInt(slot.dataset.pageNum || '0', 10);
+        if (!pageNum) return;
+        try {
+            var page = await pdf.getPage(pageNum);
+            if (gen !== modal._rbiPdfGen) return;
+            var base = page.getViewport({ scale: 1 });
+            // Превью лёгкое: dpr=1, без HiDPI — меньше RAM, зум — в браузере.
+            var fit = maxW / base.width;
+            var viewport = page.getViewport({ scale: fit });
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
+            canvas.style.display = 'block';
+            var ctx = canvas.getContext('2d', { alpha: false });
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            if (gen !== modal._rbiPdfGen) return;
+            slot.innerHTML = '';
+            slot.style.minHeight = '';
+            slot.appendChild(canvas);
+        } catch (e) {
+            if (gen !== modal._rbiPdfGen) return;
+            slot.innerHTML =
+                '<div class="text-red-500 text-center text-[11px] font-semibold py-8">Стр. ' +
+                pageNum + ': ошибка</div>';
+        }
+    }
+
+    function showViewer(opts) {
         var modal = ensureSheet();
+        destroyPreview(modal);
         revokeOwnedUrl(modal);
 
         var title = opts.title || 'PDF';
@@ -185,6 +285,7 @@
         modal.dataset.openUrl = openUrl || '';
         if (blobUrl) modal.dataset.blobUrl = blobUrl;
         modal._rbiPdfFile = opts.file || null;
+        modal._rbiPdfBuffer = opts.arrayBuffer || null;
 
         var titleEl = document.getElementById('rbi-pdf-open-title');
         if (titleEl) titleEl.textContent = title;
@@ -192,17 +293,29 @@
         var hintEl = document.getElementById('rbi-pdf-open-hint');
         if (hintEl) {
             hintEl.textContent = fromLocal
-                ? 'Файл с устройства (кэш). Откроется локально, без загрузки из сети.'
-                : 'Локальной копии в этом браузере нет — откроется ссылка из интернета. Кэш Chrome и Safari раздельный.';
+                ? 'Предпросмотр с устройства. Для нативного зума — «В браузере».'
+                : 'Локальной копии нет — «В браузере» откроет ссылку из сети. Предпросмотр появится после загрузки в кэш.';
         }
 
         var shareBtn = modal.querySelector('[data-pdf-open-action="share"]');
-        if (shareBtn) {
-            shareBtn.classList.toggle('hidden', !modal._rbiPdfFile);
+        if (shareBtn) shareBtn.classList.toggle('hidden', !modal._rbiPdfFile);
+
+        var pagesRoot = document.getElementById('rbi-pdf-preview-pages');
+        if (!opts.arrayBuffer) {
+            if (pagesRoot) {
+                pagesRoot.innerHTML =
+                    '<div class="text-white/90 text-center p-8 text-sm font-semibold">' +
+                    'Нет локального файла для предпросмотра.<br>Нажмите «В браузере».</div>';
+            }
         }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        document.body.classList.add('modal-open');
+
+        if (opts.arrayBuffer) {
+            renderLazyPreview(modal, opts.arrayBuffer);
+        }
     }
 
     /**
@@ -219,8 +332,16 @@
             : '';
 
         var blob = ensurePdfBlob(opts.blob || null);
-        if (!blob && opts.arrayBuffer) {
-            blob = new Blob([opts.arrayBuffer], { type: 'application/pdf' });
+        var arrayBuffer = opts.arrayBuffer || null;
+        if (!blob && arrayBuffer) {
+            blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+        }
+        if (blob && !arrayBuffer) {
+            try {
+                arrayBuffer = await blob.arrayBuffer();
+            } catch (_) {
+                arrayBuffer = null;
+            }
         }
 
         if (!blob && !httpsUrl) {
@@ -233,38 +354,21 @@
             ? new File([blob], fileName, { type: 'application/pdf' })
             : null;
 
-        // Есть локальный файл — https не используем никогда.
-        if (blobUrl) {
-            // Chrome desktop: можно сразу вкладку. Safari/iPhone — только sheet (живой жест).
-            if (!preferSheet() && openUrlSync(blobUrl)) {
-                setTimeout(function () {
-                    try { URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
-                }, 60000);
-                return { ok: true, mode: 'blob-tab' };
-            }
-            showSheet({
-                title: title,
-                fileName: fileName,
-                httpsUrl: '',
-                blobUrl: blobUrl,
-                file: file
-            });
-            return { ok: true, mode: 'sheet-local' };
-        }
-
-        // Нет локального — сеть. На Safari никогда не auto-open после await.
-        if (httpsUrl && isOnline() && !preferSheet() && openUrlSync(httpsUrl)) {
-            return { ok: true, mode: 'https' };
-        }
-
-        showSheet({
+        // Всегда сначала предпросмотр; браузер — по кнопке (живой жест).
+        // https только если нет локального blob.
+        showViewer({
             title: title,
             fileName: fileName,
-            httpsUrl: httpsUrl,
-            blobUrl: '',
-            file: null
+            httpsUrl: blobUrl ? '' : httpsUrl,
+            blobUrl: blobUrl,
+            file: file,
+            arrayBuffer: arrayBuffer
         });
-        return { ok: true, mode: 'sheet-network' };
+
+        return {
+            ok: true,
+            mode: arrayBuffer ? 'preview-local' : 'preview-network'
+        };
     };
 
     window.rbiClosePdfDocumentSheet = closeSheet;
