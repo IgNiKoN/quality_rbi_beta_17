@@ -828,8 +828,8 @@ export const AnalyticsActions = {
                 return;
             }
 
-            // PDF: на iPhone/iPad window.open(blob:) после async IDB не открывает вкладку.
-            // Показываем встроенный просмотр (object/iframe), на ПК — новая вкладка с fallback.
+            // PDF: на iPhone iframe+CSS масштабирует рамку, не страницы.
+            // Рендер через pdf.js (canvas) + Panzoom — реальный зум/щипок по документу.
             const pdfBlob = (blob && blob.type === 'application/pdf')
                 ? blob
                 : new Blob([blob], { type: 'application/pdf' });
@@ -838,10 +838,30 @@ export const AnalyticsActions = {
             const isAppleTouch = /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
                 || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
 
-            const openPdfInApp = () => {
+            const destroyReportPdfUi = (modal) => {
+                if (!modal) return;
+                if (modal._rbiPanzoom) {
+                    try {
+                        const vp = document.getElementById('rbi-pdf-report-viewport');
+                        if (vp && modal._rbiPanzoom.zoomWithWheel) {
+                            vp.removeEventListener('wheel', modal._rbiPanzoom.zoomWithWheel);
+                        }
+                        modal._rbiPanzoom.destroy();
+                    } catch (_) { /* ignore */ }
+                    modal._rbiPanzoom = null;
+                }
+                if (modal._rbiPdfDoc) {
+                    try { modal._rbiPdfDoc.destroy(); } catch (_) { /* ignore */ }
+                    modal._rbiPdfDoc = null;
+                }
+                const pages = document.getElementById('rbi-pdf-report-pages');
+                if (pages) pages.innerHTML = '';
+            };
+
+            const openPdfInApp = async () => {
                 let modal = document.getElementById('rbi-pdf-report-modal');
-                // Старая разметка без нормального pinch — пересоздаём.
-                if (modal && modal.dataset.pdfZoomUi !== 'v2') {
+                if (modal && modal.dataset.pdfZoomUi !== 'v3') {
+                    destroyReportPdfUi(modal);
                     try {
                         const oldUrl = modal.dataset.blobUrl;
                         if (oldUrl) URL.revokeObjectURL(oldUrl);
@@ -849,14 +869,14 @@ export const AnalyticsActions = {
                     modal.remove();
                     modal = null;
                 }
+
                 if (!modal) {
                     modal = document.createElement('div');
                     modal.id = 'rbi-pdf-report-modal';
-                    modal.dataset.pdfZoomUi = 'v2';
+                    modal.dataset.pdfZoomUi = 'v3';
                     modal.className = 'fixed inset-0 z-[9999] hidden flex-col bg-slate-900/95';
-                    modal.dataset.zoom = '1';
                     modal.innerHTML = `
-                        <div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0">
+                        <div class="bg-slate-800 text-white px-3 py-2.5 flex items-center gap-2 shadow-md shrink-0 z-10">
                             <div id="rbi-pdf-report-title" class="font-bold text-sm truncate flex-1 min-w-0">PDF</div>
                             <button type="button" data-pdf-report-action="zoom-out" class="w-8 h-8 rounded-lg bg-slate-700 text-sm font-black shrink-0" aria-label="Мельче">−</button>
                             <span id="rbi-pdf-report-zoom-label" class="text-[11px] tabular-nums text-slate-300 w-10 text-center shrink-0">100%</span>
@@ -864,120 +884,47 @@ export const AnalyticsActions = {
                             <a id="rbi-pdf-report-download" class="px-2.5 py-1.5 rounded-lg bg-orange-500/90 text-white text-[10px] font-semibold shrink-0" download>Скачать</a>
                             <button type="button" data-pdf-report-action="close" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0 font-bold" aria-label="Закрыть">✕</button>
                         </div>
-                        <div id="rbi-pdf-report-scroll" class="flex-1 min-h-0 overflow-auto bg-slate-900 overscroll-contain" style="-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
-                            <div id="rbi-pdf-report-zoom-space" style="position:relative;width:100%;height:100%;min-height:85vh;">
-                                <div id="rbi-pdf-report-stage" class="bg-white" style="position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:0 0;transform:scale(1);">
-                                    <iframe id="rbi-pdf-report-frame" class="w-full h-full border-0 bg-white block" title="PDF"></iframe>
-                                </div>
-                            </div>
+                        <div id="rbi-pdf-report-viewport" class="flex-1 min-h-0 overflow-hidden relative bg-slate-700">
+                            <div id="rbi-pdf-report-pages" class="absolute left-0 top-0 p-2 space-y-2 will-change-transform"></div>
                         </div>`;
                     (document.getElementById('app-modals') || document.body).appendChild(modal);
 
-                    const MIN_Z = 0.5;
-                    const MAX_Z = 4;
-
-                    const applyZoom = (next, pivotClient) => {
-                        const scroll = document.getElementById('rbi-pdf-report-scroll');
-                        const space = document.getElementById('rbi-pdf-report-zoom-space');
-                        const stage = document.getElementById('rbi-pdf-report-stage');
+                    const syncZoomLabel = () => {
                         const label = document.getElementById('rbi-pdf-report-zoom-label');
-                        if (!scroll || !space || !stage) return;
-
-                        const prev = Number(modal.dataset.zoom) || 1;
-                        const z = Math.min(MAX_Z, Math.max(MIN_Z, Number(next) || 1));
-                        const rect = scroll.getBoundingClientRect();
-                        const pivotX = pivotClient
-                            ? (pivotClient.x - rect.left)
-                            : (scroll.clientWidth / 2);
-                        const pivotY = pivotClient
-                            ? (pivotClient.y - rect.top)
-                            : (scroll.clientHeight / 2);
-
-                        // Точка контента под пальцами до смены масштаба.
-                        const contentX = (scroll.scrollLeft + pivotX) / prev;
-                        const contentY = (scroll.scrollTop + pivotY) / prev;
-
-                        const baseW = Math.max(1, scroll.clientWidth);
-                        const baseH = Math.max(1, scroll.clientHeight);
-
-                        stage.style.width = baseW + 'px';
-                        stage.style.height = baseH + 'px';
-                        stage.style.transform = 'scale(' + z + ')';
-                        space.style.width = Math.round(baseW * z) + 'px';
-                        space.style.height = Math.round(baseH * z) + 'px';
-                        space.style.minHeight = Math.round(baseH * z) + 'px';
-
-                        modal.dataset.zoom = String(z);
-                        if (label) label.textContent = Math.round(z * 100) + '%';
-
-                        scroll.scrollLeft = contentX * z - pivotX;
-                        scroll.scrollTop = contentY * z - pivotY;
+                        if (!label || !modal._rbiPanzoom) return;
+                        label.textContent = Math.round(modal._rbiPanzoom.getScale() * 100) + '%';
                     };
-                    modal._rbiApplyPdfZoom = applyZoom;
+                    modal._rbiSyncPdfZoomLabel = syncZoomLabel;
 
                     modal.addEventListener('click', (e) => {
                         const btn = e.target && e.target.closest ? e.target.closest('[data-pdf-report-action]') : null;
                         if (!btn || !modal.contains(btn)) return;
                         const action = btn.getAttribute('data-pdf-report-action');
-                        const cur = Number(modal.dataset.zoom) || 1;
-                        if (action === 'zoom-in') {
-                            applyZoom(cur + 0.25);
+                        if (action === 'zoom-in' && modal._rbiPanzoom) {
+                            modal._rbiPanzoom.zoomIn();
+                            syncZoomLabel();
                             return;
                         }
-                        if (action === 'zoom-out') {
-                            applyZoom(cur - 0.25);
+                        if (action === 'zoom-out' && modal._rbiPanzoom) {
+                            modal._rbiPanzoom.zoomOut();
+                            syncZoomLabel();
                             return;
                         }
                         if (action !== 'close') return;
                         const prevUrl = modal.dataset.blobUrl;
+                        destroyReportPdfUi(modal);
                         modal.classList.add('hidden');
                         modal.classList.remove('flex');
-                        const frame = document.getElementById('rbi-pdf-report-frame');
-                        if (frame) frame.removeAttribute('src');
-                        applyZoom(1);
                         if (prevUrl) {
                             try { URL.revokeObjectURL(prevUrl); } catch (_) { /* ignore */ }
                             delete modal.dataset.blobUrl;
                         }
                     });
-
-                    // Pinch: увеличение и уменьшение (viewport страницы с user-scalable=no).
-                    let pinch = null;
-                    const touchDist = (t) => {
-                        const dx = t[0].clientX - t[1].clientX;
-                        const dy = t[0].clientY - t[1].clientY;
-                        return Math.hypot(dx, dy) || 1;
-                    };
-                    const touchMid = (t) => ({
-                        x: (t[0].clientX + t[1].clientX) / 2,
-                        y: (t[0].clientY + t[1].clientY) / 2
-                    });
-
-                    modal.addEventListener('touchstart', (e) => {
-                        if (!e.touches || e.touches.length !== 2) return;
-                        pinch = {
-                            dist: touchDist(e.touches),
-                            zoom: Number(modal.dataset.zoom) || 1
-                        };
-                    }, { passive: true });
-
-                    modal.addEventListener('touchmove', (e) => {
-                        if (!pinch || !e.touches || e.touches.length !== 2) return;
-                        e.preventDefault();
-                        const ratio = touchDist(e.touches) / pinch.dist;
-                        applyZoom(pinch.zoom * ratio, touchMid(e.touches));
-                    }, { passive: false });
-
-                    const endPinch = (e) => {
-                        if (!e.touches || e.touches.length < 2) pinch = null;
-                    };
-                    modal.addEventListener('touchend', endPinch, { passive: true });
-                    modal.addEventListener('touchcancel', endPinch, { passive: true });
                 }
 
-                const prev = modal.dataset.blobUrl;
-                if (prev && prev !== url) {
-                    try { URL.revokeObjectURL(prev); } catch (_) { /* ignore */ }
+                destroyReportPdfUi(modal);
+                if (modal.dataset.blobUrl && modal.dataset.blobUrl !== url) {
+                    try { URL.revokeObjectURL(modal.dataset.blobUrl); } catch (_) { /* ignore */ }
                 }
                 modal.dataset.blobUrl = url;
 
@@ -988,25 +935,77 @@ export const AnalyticsActions = {
                     dl.href = url;
                     dl.download = downloadName;
                 }
-                const frame = document.getElementById('rbi-pdf-report-frame');
-                if (frame) frame.src = url;
+
+                const pagesRoot = document.getElementById('rbi-pdf-report-pages');
+                const viewportEl = document.getElementById('rbi-pdf-report-viewport');
+                if (pagesRoot) {
+                    pagesRoot.innerHTML = '<div class="text-white/90 text-center p-8 text-sm font-semibold">Загрузка PDF…</div>';
+                    pagesRoot.style.transform = '';
+                }
 
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
-                // После показа — базовый размер под экран.
-                requestAnimationFrame(() => {
-                    if (typeof modal._rbiApplyPdfZoom === 'function') modal._rbiApplyPdfZoom(1);
-                });
+
+                try {
+                    if (!window.pdfjsLib || typeof window.pdfjsLib.getDocument !== 'function') {
+                        throw new Error('pdfjsLib недоступен');
+                    }
+                    const buf = await pdfBlob.arrayBuffer();
+                    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+                    modal._rbiPdfDoc = pdf;
+                    if (!pagesRoot) return;
+                    pagesRoot.innerHTML = '';
+
+                    const maxW = Math.max(280, Math.min(window.innerWidth - 16, 900));
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const base = page.getViewport({ scale: 1 });
+                        const fit = maxW / base.width;
+                        const viewport = page.getViewport({ scale: fit * dpr });
+                        const canvas = document.createElement('canvas');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        canvas.style.width = Math.round(viewport.width / dpr) + 'px';
+                        canvas.style.height = Math.round(viewport.height / dpr) + 'px';
+                        canvas.className = 'bg-white rounded-lg shadow block mx-auto';
+                        pagesRoot.appendChild(canvas);
+                        const ctx = canvas.getContext('2d');
+                        await page.render({ canvasContext: ctx, viewport }).promise;
+                    }
+
+                    if (typeof window.Panzoom === 'function' && pagesRoot && viewportEl) {
+                        modal._rbiPanzoom = window.Panzoom(pagesRoot, {
+                            maxScale: 5,
+                            minScale: 0.4,
+                            step: 0.2,
+                            contain: 'outside',
+                            cursor: 'grab',
+                            touchAction: 'none'
+                        });
+                        viewportEl.addEventListener('wheel', modal._rbiPanzoom.zoomWithWheel, { passive: false });
+                        pagesRoot.addEventListener('panzoomzoom', modal._rbiSyncPdfZoomLabel);
+                        if (typeof modal._rbiSyncPdfZoomLabel === 'function') modal._rbiSyncPdfZoomLabel();
+                    } else if (document.getElementById('rbi-pdf-report-zoom-label')) {
+                        document.getElementById('rbi-pdf-report-zoom-label').textContent = '—';
+                    }
+                } catch (e) {
+                    console.error('[Reports PDF viewer]', e);
+                    if (pagesRoot) {
+                        pagesRoot.innerHTML = '<div class="text-red-300 text-center p-6 text-sm font-semibold">Не удалось открыть PDF. Попробуйте «Скачать».</div>';
+                    }
+                }
             };
 
             if (isAppleTouch) {
-                openPdfInApp();
+                await openPdfInApp();
                 return;
             }
 
             const win = window.open(url, '_blank');
             if (!win || win.closed) {
-                openPdfInApp();
+                await openPdfInApp();
                 return;
             }
             setTimeout(() => URL.revokeObjectURL(url), 60000);
