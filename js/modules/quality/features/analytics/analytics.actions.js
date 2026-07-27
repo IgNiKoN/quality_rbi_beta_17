@@ -832,26 +832,60 @@ export const AnalyticsActions = {
             setTimeout(() => URL.revokeObjectURL(url), 5000);
         };
 
-        // 1. ПРИОРИТЕТ 1: Файл физически кэширован в браузере (Blob)
+        // 1. ПРИОРИТЕТ 1: Blob уже в RAM (локальный не залитый)
         if (r.file_blob) {
             await openBlob(r.file_blob);
             return;
         }
 
-        // 2. ПРИОРИТЕТ 2: Файла локально нет (очистили кэш), пытаемся скачать по ссылке и сохранить
+        // 1b. IDB (офлайн-кэш без удержания PDF в reportsArray)
+        if (window.RBI?.services?.reports?.getLocalBlob) {
+            try {
+                const localBlob = await window.RBI.services.reports.getLocalBlob(r.id);
+                if (localBlob) {
+                    await openBlob(localBlob);
+                    return;
+                }
+            } catch (e) {
+                console.warn('[Reports] IDB blob read failed', e);
+            }
+        } else if (typeof dbGet === 'function' && window.STORES?.REPORTS) {
+            try {
+                const row = await dbGet(STORES.REPORTS, r.id);
+                if (row && row.file_blob) {
+                    await openBlob(row.file_blob);
+                    return;
+                }
+            } catch (_) { /* ignore */ }
+        }
+
+        // 2. ПРИОРИТЕТ 2: Файла локально нет — скачать по ссылке в IDB (не держать в RAM списка)
         if (r.file_url && r.file_url.startsWith('http')) {
             if (!navigator.onLine) {
                 return showToast('❌ Отчет не кэширован на устройстве. Нужен интернет для скачивания.');
             }
-            showToast('⏳ Скачиваем файл из облака в память...');
+            showToast('⏳ Скачиваем файл из облака...');
             try {
                 const response = await fetch(r.file_url);
                 if (!response.ok) throw new Error("Не удалось скачать файл");
                 const blob = await response.blob();
 
-                // Сохраняем в кэш навсегда
-                r.file_blob = blob;
-                await _storage().put(_storage().stores().REPORTS, r);
+                const toSave = {
+                    ...r,
+                    file_blob: blob,
+                    file_size: blob.size || 0,
+                    cache_status: 'cached_cloud',
+                    cacheStatus: 'cached_cloud',
+                    updatedAt: new Date().toISOString()
+                };
+                toSave.updated_at = toSave.updatedAt;
+                await _storage().put(_storage().stores().REPORTS, toSave);
+
+                // В списке — без blob.
+                r.file_blob = null;
+                r.file_size = blob.size || 0;
+                r.cache_status = 'cached_cloud';
+                r.cacheStatus = 'cached_cloud';
 
                 await openBlob(blob);
                 return;
@@ -873,12 +907,17 @@ export const AnalyticsActions = {
         try {
             let fileToShare = null;
 
-            // Если файл есть локально
+            // Если файл есть локально (RAM)
             if (r.file_blob) {
                 fileToShare = new File([r.file_blob], r.title + '.pdf', { type: 'application/pdf' });
+            } else if (window.RBI?.services?.reports?.getLocalBlob) {
+                const localBlob = await window.RBI.services.reports.getLocalBlob(r.id);
+                if (localBlob) {
+                    fileToShare = new File([localBlob], r.title + '.pdf', { type: localBlob.type || 'application/pdf' });
+                }
             }
             // Если файла локально нет, но есть ссылка (прилетел из облака)
-            else if (r.file_url && r.file_url.startsWith('http')) {
+            if (!fileToShare && r.file_url && r.file_url.startsWith('http')) {
                 showToast('⏳ Скачиваем файл из облака для отправки...');
                 const response = await fetch(r.file_url);
                 if (!response.ok) throw new Error("Не удалось скачать файл");

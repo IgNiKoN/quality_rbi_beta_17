@@ -86,6 +86,48 @@
             return Array.isArray(window.reportsArray) ? window.reportsArray : [];
         },
 
+        /**
+         * Облачные отчёты: file_blob остаётся только в IDB, из RAM снимаем.
+         * Локальные ещё не залитые в облако (нет http file_url) — blob в памяти
+         * оставляем, иначе push не найдёт файл.
+         */
+        detachCloudBlobsInMemory: function (list) {
+            var arr = Array.isArray(list) ? list : this.getAllSync();
+            for (var i = 0; i < arr.length; i++) {
+                var r = arr[i];
+                if (!r) continue;
+                var url = r.file_url || r.fileUrl || '';
+                if (r.file_blob && typeof url === 'string' && url.indexOf('http') === 0) {
+                    r.file_blob = null;
+                }
+            }
+            return arr;
+        },
+
+        /** Достать PDF/PPTX blob из IDB по id (без записи в reportsArray). */
+        getLocalBlob: async function (id) {
+            if (!id || !window.RBI.services.storage) return null;
+            try {
+                var row = await window.RBI.services.storage.get(getReportsStore(), id);
+                return (row && row.file_blob) ? row.file_blob : null;
+            } catch (e) {
+                console.warn('[RBI.reports] getLocalBlob:', e);
+                return null;
+            }
+        },
+
+        /** Есть ли локальный blob в RAM или IDB. */
+        hasLocalBlob: async function (reportOrId) {
+            var r = reportOrId;
+            if (typeof reportOrId === 'string') {
+                r = this.getAllSync().find(function (x) { return x && x.id === reportOrId; }) || { id: reportOrId };
+            }
+            if (!r) return false;
+            if (r.file_blob) return true;
+            var blob = await this.getLocalBlob(r.id);
+            return !!blob;
+        },
+
         upsertSync: function (record) {
             var arr = this.getAllSync();
             var idx = arr.findIndex(function (r) { return r.id === record.id; });

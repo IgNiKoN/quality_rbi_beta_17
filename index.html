@@ -424,22 +424,29 @@
                     <!-- Скрытое поле Инспектора (оставляем для логики JS, но прячем от глаз) -->
                     <input type="hidden" id="inp-inspector" value="">
 
-                    <!-- Подрядчик и Объект теперь делят экран пополам -->
-                    <div class="relative"><input type="text" id="inp-contractor" class="input-base text-center"
-                            placeholder="Подрядчик *" autocomplete="off"></div>
-                    <div class="relative">
-                        <input type="text" id="inp-project" class="input-base text-center transition-colors"
-                            placeholder="Объект *" autocomplete="off">
+                    <!-- Подрядчик / Объект / кнопка «на плане» -->
+                    <div class="col-span-2 flex items-center gap-1.5">
+                        <div class="relative flex-1 min-w-0"><input type="text" id="inp-contractor" class="input-base text-center"
+                                placeholder="Подрядчик *" autocomplete="off"></div>
+                        <div class="relative flex-1 min-w-0">
+                            <input type="text" id="inp-project" class="input-base text-center transition-colors"
+                                placeholder="Объект *" autocomplete="off">
 
-                        <span id="lock-inp-project"
-                            class="absolute right-2 top-1/2 -translate-y-1/2 text-white hidden pointer-events-none">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z">
-                                </path>
-                            </svg>
-                        </span>
+                            <span id="lock-inp-project"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-white hidden pointer-events-none">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z">
+                                    </path>
+                                </svg>
+                            </span>
+                        </div>
+                        <button type="button" id="btn-quality-plan-pin"
+                            class="shrink-0 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700
+                                   text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-200 hover:bg-indigo-100 transition-colors">
+                            📍 на плане
+                        </button>
                     </div>
 
                     <div class="col-span-2 grid grid-cols-3 gap-1.5 mt-1">
@@ -451,11 +458,6 @@
                                 placeholder="Оси/Пом.*" autocomplete="off"></div>
                     </div>
                     <div class="col-span-2 flex items-center gap-2 mt-1.5">
-                        <button type="button" id="btn-quality-plan-pin"
-                            class="shrink-0 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700
-                                   text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-200 hover:bg-indigo-100 transition-colors">
-                            📍 на плане
-                        </button>
                         <div id="quality-plan-pin-indicator"
                             class="hidden flex-1 items-center gap-2 min-w-0 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
                             <span class="text-[10px] font-bold text-emerald-800 dark:text-emerald-200 truncate">● Точка на плане</span>
@@ -697,8 +699,8 @@
     <script>
         window.RBI_APP_VERSION = {
             app: '18.57.0',
-            sw: '18.57.354',
-            buildDate: '2026-07-26'
+            sw: '18.57.366',
+            buildDate: '2026-07-27'
         };
     </script>
     <!-- === ПОДКЛЮЧЕНИЕ МОДУЛЕЙ JS === -->
@@ -712,6 +714,7 @@
     <script type="module" src="js/services/sync/sync-ui.render.js"></script>
     <script type="module" src="js/services/sync/sync-connection.actions.js"></script>
     <script type="module" src="js/services/sync/sync-push-pull.core.js"></script>
+    <script type="module" src="js/services/sync/sync-progress.ui.js"></script>
     <script type="module" src="js/services/sync/sync-engine.core.js"></script>
     <script type="module" src="js/services/sync/sync-post-actions.js"></script>
     <script type="module" src="js/services/sync.service.js"></script>
@@ -744,6 +747,7 @@
     <script type="module" src="js/services/storage/storage-db.core.js"></script>
     <script type="module" src="js/services/storage/storage-converters.utils.js"></script>
     <script type="module" src="js/services/storage/storage-cache-manager.js"></script>
+    <script type="module" src="js/services/storage/storage-offline-cache.utils.js"></script>
     <script type="module" src="js/services/storage/storage-diagnostics.render.js"></script>
     <script type="module" src="js/services/storage/storage-photo-manager.js"></script>
     <script type="module" src="js/services/storage/storage-file-queue.actions.js"></script>

@@ -263,10 +263,10 @@ window.UniversalPdfViewer = {
 
             // Рендерим точки дефектов
             if (this.currentFloorId) {
-                window.ConstDefectForm.renderAllPins(this.currentFloorId, {
-                    status: window.ConstManager.currentFilterStatus,
-                    category: window.ConstManager.currentFilterCategory
-                }, initialScale, highlightDefectId);
+                const filters = (window.ConstManager && typeof window.ConstManager.getPinFilters === 'function')
+                    ? window.ConstManager.getPinFilters()
+                    : {};
+                window.ConstDefectForm.renderAllPins(this.currentFloorId, filters, initialScale, highlightDefectId);
             }
 
             // --- ОБРАБОТЧИК ЗУМА ДЛЯ КЛАСТЕРОВ ---
@@ -281,10 +281,10 @@ window.UniversalPdfViewer = {
                 zoomTimeout = setTimeout(() => {
                     const currentScale = e.detail.scale;
                     if (this.currentFloorId) {
-                        window.ConstDefectForm.renderAllPins(this.currentFloorId, {
-                            status: window.ConstManager.currentFilterStatus,
-                            category: window.ConstManager.currentFilterCategory
-                        }, currentScale, highlightDefectId);
+                        const filters = (window.ConstManager && typeof window.ConstManager.getPinFilters === 'function')
+                            ? window.ConstManager.getPinFilters()
+                            : {};
+                        window.ConstDefectForm.renderAllPins(this.currentFloorId, filters, currentScale, highlightDefectId);
                     }
                 }, 30);
             };
@@ -492,10 +492,11 @@ window.UniversalPdfViewer = {
         window.ConstManager.defects.push(newDefect);
         await _storage().put(_storage().stores().CONST_DEFECTS, newDefect);
         
-        window.ConstDefectForm.renderAllPins(window.ConstManager.currentFlrId, {
-            status: window.ConstManager.currentFilterStatus,
-            category: window.ConstManager.currentFilterCategory
-        }, this.panzoomInstance ? this.panzoomInstance.getScale() : 1);
+        window.ConstDefectForm.renderAllPins(
+            window.ConstManager.currentFlrId,
+            window.ConstManager.getPinFilters ? window.ConstManager.getPinFilters() : {},
+            this.panzoomInstance ? this.panzoomInstance.getScale() : 1
+        );
         
         if (navigator.vibrate) navigator.vibrate(30);
     },

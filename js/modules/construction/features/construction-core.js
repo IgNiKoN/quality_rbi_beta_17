@@ -94,19 +94,171 @@ window.ConstManager = {
     activeStatusFilters: [], // Пустой массив = выбраны все
     currentFilterCategory: 'ALL',
 
+    /** Фильтры булавок: единый контракт для renderAllPins (statuses[], category). */
+    getPinFilters() {
+        const statuses = (this.activeStatusFilters && this.activeStatusFilters.length > 0)
+            ? this.activeStatusFilters.slice()
+            : null; // null = все статусы
+        return {
+            statuses: statuses || undefined,
+            category: this.currentFilterCategory || 'ALL'
+        };
+    },
+
+    /**
+     * Сопоставить этаж справочника локаций (quality planPin.locationId)
+     * с этажом иерархии СК v1 (CONST_FLOORS).
+     */
+    resolveFloorIdFromLocation(locationFloorId) {
+        if (!locationFloorId) return null;
+        const locId = String(locationFloorId);
+        const floors = this.floors || [];
+        if (floors.some((f) => String(f.id) === locId)) return locId;
+
+        const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+        if (!loc || typeof loc.getNode !== 'function') return null;
+
+        const floorNode = loc.getNode(locId);
+        if (!floorNode || floorNode._deleted || floorNode.is_deleted) return null;
+
+        // 1) Тот же PDF
+        try {
+            const plan = typeof loc.getPlanForFloor === 'function' ? loc.getPlanForFloor(locId) : null;
+            const pdfUrl = plan && (plan.pdf_url || plan.pdfUrl);
+            if (pdfUrl) {
+                const byPdf = floors.find((f) => f.pdf_url && String(f.pdf_url) === String(pdfUrl));
+                if (byPdf) return byPdf.id;
+            }
+        } catch (_e) { /* ignore */ }
+
+        // 2) Имя этажа + объект
+        const floorName = String(floorNode.displayName || floorNode.name || '').trim().toLowerCase();
+        if (!floorName) return null;
+        let candidates = floors.filter((f) => String(f.name || '').trim().toLowerCase() === floorName);
+        if (!candidates.length) return null;
+
+        if (candidates.length > 1 && typeof loc.getPath === 'function') {
+            const path = loc.getPath(locId) || [];
+            const objNode = path.find((n) => n && n.nodeType === 'object');
+            const objKey = objNode
+                ? String(objNode.canonical_key || objNode.id || '')
+                : '';
+            if (objKey) {
+                const narrowed = candidates.filter((f) => {
+                    const bld = (this.buildings || []).find((b) => b.id === f.building_id);
+                    return bld && String(bld.object_id) === objKey;
+                });
+                if (narrowed.length) candidates = narrowed;
+            }
+        }
+        return candidates[0] ? candidates[0].id : null;
+    },
+
+    /** Починить дефекты без валидного floorId (locationFloorId / прямое совпадение). */
+    async healDefectFloorLinks() {
+        const floors = this.floors || [];
+        const floorIds = new Set(floors.map((f) => String(f.id)));
+        let changed = 0;
+        for (const d of (this.defects || [])) {
+            if (!d || d._deleted) continue;
+            const ok = d.floorId && floorIds.has(String(d.floorId));
+            if (ok) continue;
+            let resolved = null;
+            if (d.locationFloorId) {
+                resolved = this.resolveFloorIdFromLocation(d.locationFloorId);
+            }
+            if (!resolved && d.floorId) {
+                // floorId мог быть id локации, а не CONST_FLOORS
+                resolved = this.resolveFloorIdFromLocation(d.floorId);
+            }
+            if (!resolved) continue;
+            d.floorId = resolved;
+            d.updated_at = new Date().toISOString();
+            changed += 1;
+            try {
+                if (_storage().stores().CONST_DEFECTS) {
+                    await _storage().put(_storage().stores().CONST_DEFECTS, d);
+                }
+            } catch (_e) { /* ignore persist */ }
+        }
+        if (changed) {
+            console.log('[ConstManager] healDefectFloorLinks:', changed);
+        }
+        return changed;
+    },
+
+    // C2b: каталог объектов = locations (ObjectDirectory facade), не сырой project_objects.
+    async _loadObjectsFromCatalog() {
+        const mapOd = (o) => ({
+            id: o.canonical_key || o.id,
+            name: o.display_name || o.name || o.canonical_key || o.id
+        });
+        const mapLoc = (n) => ({
+            id: n.canonical_key || n.id,
+            name: n.displayName || n.display_name || n.name || n.canonical_key || n.id
+        });
+        const alive = (o) => o && !o._deleted && !o.is_deleted;
+
+        // 1) ObjectDirectory (проекция locations + leftover)
+        try {
+            if (typeof ObjectDirectory !== 'undefined') {
+                if (
+                    (!Array.isArray(ObjectDirectory.objects) || ObjectDirectory.objects.length === 0) &&
+                    typeof ObjectDirectory.rebuildFromLocations === 'function'
+                ) {
+                    await ObjectDirectory.rebuildFromLocations();
+                }
+                const fromOd = (ObjectDirectory.objects || []).filter(alive).map(mapOd).filter((o) => o.id && o.name);
+                const leftover = (ObjectDirectory.leftoverObjects || []).filter(alive).map(mapOd).filter((o) => o.id && o.name);
+                if (fromOd.length || leftover.length) {
+                    const seen = new Set();
+                    return [...fromOd, ...leftover].filter((o) => {
+                        if (seen.has(o.id)) return false;
+                        seen.add(o.id);
+                        return true;
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('[ConstManager] ObjectDirectory catalog failed:', e);
+        }
+
+        // 2) locations напрямую
+        try {
+            const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+            if (loc) {
+                if (typeof loc.init === 'function') {
+                    try { await loc.init(); } catch (_e) { /* ignore */ }
+                }
+                if (typeof loc.listNodes === 'function') {
+                    const nodes = (loc.listNodes({ nodeType: 'object', parentId: null }) || [])
+                        .filter(alive)
+                        .map(mapLoc)
+                        .filter((o) => o.id && o.name);
+                    if (nodes.length) return nodes;
+                }
+            }
+        } catch (e) {
+            console.warn('[ConstManager] locations catalog failed:', e);
+        }
+
+        // 3) Legacy IDB fallback
+        try {
+            const storedObjs = await _storage().getAll('project_objects');
+            return (storedObjs || []).filter(alive).map(mapOd).filter((o) => o.id && o.name);
+        } catch (e) {
+            console.warn('[ConstManager] project_objects fallback failed:', e);
+            return [];
+        }
+    },
+
     // 1. Инициализация (загрузка данных из БД)
     async init() {
         console.log('[ConstManager] Загрузка иерархии планов...');
         try {
             // Грузим из локальной IndexedDB
             if (typeof dbGetAll !== 'undefined') {
-                // ЕДИНЫЙ СПРАВОЧНИК ОБЪЕКТОВ (Интеграция со всем приложением)
-                const storedObjs = await _storage().getAll('project_objects');
-                const validObjs = (storedObjs || []).filter(o => !o._deleted && !o.is_deleted);
-                this.objects = validObjs.map(obj => ({
-                    id: obj.canonical_key,
-                    name: obj.display_name
-                }));
+                this.objects = await this._loadObjectsFromCatalog();
 
                 const b = await _storage().getAll(_storage().stores().CONST_BUILDINGS);
                 this.buildings = (b || []).filter(x => !x._deleted);
@@ -138,9 +290,25 @@ window.ConstManager = {
 
                     _session().setPhotoRaw(def.id, def.photo);
                 }
+
+                await this.healDefectFloorLinks();
             }
         } catch (e) {
             console.error('[ConstManager] Ошибка загрузки БД:', e);
+        }
+
+        if (!window.__constManagerLocationsListenerBound) {
+            window.__constManagerLocationsListenerBound = true;
+            document.addEventListener('locations:changed', function () {
+                if (!window.ConstManager || typeof window.ConstManager._loadObjectsFromCatalog !== 'function') return;
+                window.ConstManager._loadObjectsFromCatalog().then(function (objs) {
+                    window.ConstManager.objects = objs || [];
+                    window.ConstManager.renderSelectors();
+                    if (window.ConstAdmin && typeof window.ConstAdmin.renderTree === 'function') {
+                        try { window.ConstAdmin.renderTree(); } catch (_e) { /* ignore */ }
+                    }
+                }).catch(function () { /* ignore */ });
+            });
         }
 
         this.renderAdminPanel();
@@ -336,16 +504,16 @@ window.ConstManager = {
         
         // Перерисовываем точки с учетом нового слоя
         if (this.currentFlrId) {
-            window.ConstDefectForm.renderAllPins(this.currentFlrId, {
-                status: this.currentFilterStatus,
-                category: this.currentFilterCategory
-            });
+            window.ConstDefectForm.renderAllPins(this.currentFlrId, this.getPinFilters());
         }
     },
     // 5. Логика отображения PDF
     clearPdfView() {
+        this._pdfLoadToken = (this._pdfLoadToken || 0) + 1;
         const placeholder = document.getElementById('const-plan-placeholder');
         const renderArea = document.getElementById('const-pdf-render-area');
+        const oldBtn = document.getElementById('interactive-plan-btn');
+        if (oldBtn) oldBtn.remove();
 
         if (placeholder) placeholder.classList.remove('hidden');
         if (renderArea) {
@@ -360,12 +528,16 @@ window.ConstManager = {
 
         if (!placeholder || !renderArea) return;
 
-        const floor = this.floors.find(f => f.id === floorId);
+        const floor = this.floors.find(f => String(f.id) === String(floorId));
         if (!floor || !floor.pdf_url) {
             this.clearPdfView();
             if (typeof showToast === 'function') showToast('⚠️ У этого этажа нет загруженного плана');
             return;
         }
+
+        // Токен против гонки: быстрое переключение этажей не должно рисовать чужие булавки
+        const loadToken = (this._pdfLoadToken = (this._pdfLoadToken || 0) + 1);
+        const isStale = () => this._pdfLoadToken !== loadToken || String(this.currentFlrId || '') !== String(floorId);
 
         // Показываем лоадер и разрешаем скролл
         placeholder.innerHTML = `<div class="animate-pulse">Загрузка PDF плана...</div>`;
@@ -373,12 +545,14 @@ window.ConstManager = {
         renderArea.classList.add('hidden');
         renderArea.innerHTML = '';
         renderArea.classList.remove('touch-none'); // Разрешаем скроллить план пальцем!
+        this.currentFlrId = floorId;
 
         try {
             // 1. Достаем файл (из кэша или скачиваем)
             let pdfArrayBuffer = null;
             if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
                 const cachedUrl = await PhotoManager.getAsyncUrl(floor.pdf_url);
+                if (isStale()) return;
                 if (cachedUrl && cachedUrl.startsWith('blob:')) {
                     const res = await fetch(cachedUrl);
                     pdfArrayBuffer = await res.arrayBuffer();
@@ -390,10 +564,12 @@ window.ConstManager = {
                 if (!res.ok) throw new Error('Не удалось скачать файл');
                 pdfArrayBuffer = await res.arrayBuffer();
             }
+            if (isStale()) return;
 
             // 2. Рендерим PDF
             const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
             const page = await pdf.getPage(1);
+            if (isStale()) return;
 
             const containerWidth = renderArea.clientWidth || window.innerWidth - 40;
             const baseViewport = page.getViewport({ scale: 1 });
@@ -411,6 +587,7 @@ window.ConstManager = {
             canvas.height = viewport.height;
             const ctx = canvas.getContext('2d');
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            if (isStale()) return;
 
             wrapperDiv.appendChild(canvas);
 
@@ -418,17 +595,11 @@ window.ConstManager = {
             const pinsContainer = document.createElement('div');
             pinsContainer.id = 'preview-pdf-pins';
             pinsContainer.className = 'absolute top-0 left-0 w-full h-full pointer-events-none';
+            pinsContainer.dataset.floorId = String(floorId);
             wrapperDiv.appendChild(pinsContainer);
 
             // 3. Добавляем всё это в область рендера
             renderArea.appendChild(wrapperDiv);
-
-            // 3.5. Отрисовываем уже существующие на этом этаже точки (с небольшой задержкой)
-            window.ConstManager.currentFlrId = floorId;
-            setTimeout(() => window.ConstDefectForm.renderAllPins(floorId, {
-                status: this.currentFilterStatus,
-                category: this.currentFilterCategory
-            }), 100);
 
             // 4. Плавающая кнопка Интерактивного плана
             const safeName = floor.name.replace(/'/g, "\\'");
@@ -449,11 +620,15 @@ window.ConstManager = {
             // Добавляем кнопку к главному контейнеру
             document.getElementById('const-plan-container').insertAdjacentHTML('beforeend', btnHtml);
 
-            // 5. Показываем результат
+            // 5. Показываем результат, затем булавки (контейнер уже в DOM и видим)
             placeholder.classList.add('hidden');
             renderArea.classList.remove('hidden');
+            if (window.ConstDefectForm && typeof window.ConstDefectForm.renderAllPins === 'function') {
+                window.ConstDefectForm.renderAllPins(floorId, this.getPinFilters());
+            }
 
         } catch (e) {
+            if (isStale()) return;
             console.error('[ConstManager] Ошибка рендера PDF:', e);
             placeholder.innerHTML = `<div class="text-red-500 font-bold text-[10px] uppercase text-center p-4">❌ Ошибка загрузки PDF<br><span class="text-slate-500 lowercase normal-case font-normal mt-1 block">${e.message}</span></div>`;
         }
@@ -475,10 +650,7 @@ window.ConstManager = {
             listCont.classList.add('hidden');
             // Перерисовываем точки на плане с учетом фильтров
             if (this.currentFlrId && window.ConstDefectForm && typeof window.ConstDefectForm.renderAllPins === 'function') {
-                window.ConstDefectForm.renderAllPins(this.currentFlrId, {
-                    status: this.currentFilterStatus,
-                    category: this.currentFilterCategory
-                });
+                window.ConstDefectForm.renderAllPins(this.currentFlrId, this.getPinFilters());
             }
         } else {
             btnList.className = "flex-1 sm:flex-none px-4 py-1.5 rounded-md text-[11px] font-black uppercase transition-all bg-white dark:bg-slate-800 text-indigo-600 shadow-sm";
@@ -495,10 +667,7 @@ window.ConstManager = {
 
         if (this.currentView === 'plan') {
             if (this.currentFlrId && window.ConstDefectForm && typeof window.ConstDefectForm.renderAllPins === 'function') {
-                window.ConstDefectForm.renderAllPins(this.currentFlrId, {
-                    statuses: this.activeStatusFilters.length > 0 ? this.activeStatusFilters : ['issued', 'in_progress', 'fixed', 'closed', 'rejected'],
-                    category: this.currentFilterCategory
-                });
+                window.ConstDefectForm.renderAllPins(this.currentFlrId, this.getPinFilters());
             }
         } else {
             this.renderDefectsList();
@@ -613,22 +782,22 @@ window.ConstManager = {
 
         // Если выбран этаж - показываем только этот этаж
         if (this.currentFlrId) {
-            filtered = filtered.filter(d => d.floorId === this.currentFlrId);
-            const flrName = this.floors.find(f => f.id === this.currentFlrId)?.name || 'Этаж';
+            filtered = filtered.filter(d => String(d.floorId) === String(this.currentFlrId));
+            const flrName = this.floors.find(f => String(f.id) === String(this.currentFlrId))?.name || 'Этаж';
             locationTitle = `Уровень: ${flrName}`;
         } 
         // Если выбран только корпус - показываем все этажи корпуса
         else if (this.currentBldId) {
-            const bldFloors = this.floors.filter(f => f.building_id === this.currentBldId).map(f => f.id);
-            filtered = filtered.filter(d => bldFloors.includes(d.floorId));
+            const bldFloors = this.floors.filter(f => f.building_id === this.currentBldId).map(f => String(f.id));
+            filtered = filtered.filter(d => bldFloors.includes(String(d.floorId)));
             const bldName = this.buildings.find(b => b.id === this.currentBldId)?.name || 'Корпус';
             locationTitle = `Уровень: ${bldName} (Все этажи)`;
         } 
         // Если выбран только объект - показываем все корпуса объекта
         else if (this.currentObjId) {
             const objBuildings = this.buildings.filter(b => b.object_id === this.currentObjId).map(b => b.id);
-            const objFloors = this.floors.filter(f => objBuildings.includes(f.building_id)).map(f => f.id);
-            filtered = filtered.filter(d => objFloors.includes(d.floorId));
+            const objFloors = this.floors.filter(f => objBuildings.includes(f.building_id)).map(f => String(f.id));
+            filtered = filtered.filter(d => objFloors.includes(String(d.floorId)));
             const objName = this.objects.find(o => o.id === this.currentObjId)?.name || 'Объект';
             locationTitle = `Уровень: ${objName} (Весь объект)`;
         }
@@ -661,7 +830,7 @@ window.ConstManager = {
 
         // Сортировка: Сначала красные (B3), потом новые
         // Вычисляем порядковые номера (от самых старых к новым), чтобы они совпадали с планом
-        const allDefectsForFloor = this.defects.filter(d => d.floorId === this.currentFlrId);
+        const allDefectsForFloor = this.defects.filter(d => String(d.floorId) === String(this.currentFlrId));
         const originalIndexes = new Map();
         allDefectsForFloor.forEach((d, i) => originalIndexes.set(d.id, i + 1));
         filtered.sort((a, b) => {
@@ -765,14 +934,14 @@ window.ConstManager = {
         // 1. Собираем базу дефектов по текущей иерархии
         let baseDefects = this.defects;
         if (this.currentFlrId) {
-            baseDefects = baseDefects.filter(d => d.floorId === this.currentFlrId);
+            baseDefects = baseDefects.filter(d => String(d.floorId) === String(this.currentFlrId));
         } else if (this.currentBldId) {
-            const bldFloors = this.floors.filter(f => f.building_id === this.currentBldId).map(f => f.id);
-            baseDefects = baseDefects.filter(d => bldFloors.includes(d.floorId));
+            const bldFloors = this.floors.filter(f => f.building_id === this.currentBldId).map(f => String(f.id));
+            baseDefects = baseDefects.filter(d => bldFloors.includes(String(d.floorId)));
         } else if (this.currentObjId) {
             const objBuildings = this.buildings.filter(b => b.object_id === this.currentObjId).map(b => b.id);
-            const objFloors = this.floors.filter(f => objBuildings.includes(f.building_id)).map(f => f.id);
-            baseDefects = baseDefects.filter(d => objFloors.includes(d.floorId));
+            const objFloors = this.floors.filter(f => objBuildings.includes(f.building_id)).map(f => String(f.id));
+            baseDefects = baseDefects.filter(d => objFloors.includes(String(d.floorId)));
         }
 
         // Если применен фильтр категорий (B1/B2/B3), учитываем его в счетчиках

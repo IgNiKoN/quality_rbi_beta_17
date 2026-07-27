@@ -1,19 +1,17 @@
-/* Файл: js/services/storage/storage-file-queue.actions.js — перенесено из js/storage.js без изменения логики */
-// === RBI FILE CACHE QUEUE v17.8.205 ===
+/* Файл: js/services/storage/storage-file-queue.actions.js — очередь офлайн-кэша + scopes */
+// === RBI FILE CACHE QUEUE v18.57.355 ===
 window.rbiFileCacheQueueLock = false;
 
 async function rbiUpsertFileCacheQueueItem(url, status = 'pending', extra = {}) {
     if (!url || !STORES.FILE_REGISTRY) return;
 
     const now = new Date().toISOString();
-    const all = await dbGetAll(STORES.FILE_REGISTRY) || [];
+    const sm = window.RbiStorageManager;
+    const index = sm && typeof sm.ensureFileRegistryIndex === 'function'
+        ? await sm.ensureFileRegistryIndex()
+        : null;
 
-    let item = all.find(f =>
-        f.public_url === url ||
-        f.publicUrl === url ||
-        f.local_key === url ||
-        f.localKey === url
-    );
+    let item = index ? index.get(url) : null;
 
     if (!item) {
         item = {
@@ -44,21 +42,34 @@ async function rbiUpsertFileCacheQueueItem(url, status = 'pending', extra = {}) 
     item.updated_at = now;
     item.updatedAt = now;
 
+    if (extra.size_bytes > 0) {
+        item.size_bytes = extra.size_bytes;
+        item.sizeBytes = extra.size_bytes;
+    }
+
     await dbPut(STORES.FILE_REGISTRY, item);
+    if (sm && typeof sm._indexRegistryItem === 'function') {
+        sm._indexRegistryItem(item);
+    } else if (index) {
+        index.set(url, item);
+    }
 }
 
 async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
     if (!url || !String(url).startsWith('http')) {
-        return { status: 'skipped' };
+        return { status: 'skipped', bytes: 0, fetched: false };
     }
 
     const nowMs = Date.now();
-    const registry = await dbGetAll(STORES.FILE_REGISTRY) || [];
-    const item = registry.find(f => f.public_url === url || f.publicUrl === url);
+    const sm = window.RbiStorageManager;
+    const index = sm && typeof sm.ensureFileRegistryIndex === 'function'
+        ? await sm.ensureFileRegistryIndex()
+        : null;
+    const item = index ? index.get(url) : null;
 
     const retryAt = item?.next_cache_retry_at || item?.nextCacheRetryAt;
     if (retryAt && new Date(retryAt).getTime() > nowMs) {
-        return { status: 'postponed' };
+        return { status: 'postponed', bytes: 0, fetched: false };
     }
 
     let attempts = item?.cache_attempts || item?.cacheAttempts || 0;
@@ -70,17 +81,42 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
                 last_cache_error: ''
             });
 
-            await PhotoManager.downloadForOffline(url);
+            const dl = await PhotoManager.downloadForOffline(url, { skipMemoryCache: true });
+            const fetched = !!(dl && dl.fetched);
+            const bytes = (dl && dl.bytes) || 0;
 
-            const cached = await dbGet(STORES.PHOTOS, url);
-            if (cached && cached.data) {
+            // Уже было в IDB — не считаем сетевым скачиванием.
+            if (dl && dl.ok && !fetched) {
                 await rbiUpsertFileCacheQueueItem(url, 'cached_cloud', {
                     cache_attempts: i + 1,
                     last_cache_error: '',
-                    next_cache_retry_at: null
+                    next_cache_retry_at: null,
+                    size_bytes: bytes
                 });
+                return { status: 'already', bytes, fetched: false };
+            }
 
-                return { status: 'cached' };
+            if (dl && dl.ok && fetched && bytes > 0) {
+                await rbiUpsertFileCacheQueueItem(url, 'cached_cloud', {
+                    cache_attempts: i + 1,
+                    last_cache_error: '',
+                    next_cache_retry_at: null,
+                    size_bytes: bytes
+                });
+                return { status: 'cached', bytes, fetched: true };
+            }
+
+            // Fallback: проверить IDB (на случай старого downloadForOffline без return).
+            const cached = await dbGet(STORES.PHOTOS, url);
+            if (cached && cached.data) {
+                const b = cached.size_bytes || cached.sizeBytes || cached.data.byteLength || 0;
+                await rbiUpsertFileCacheQueueItem(url, 'cached_cloud', {
+                    cache_attempts: i + 1,
+                    last_cache_error: '',
+                    next_cache_retry_at: null,
+                    size_bytes: b
+                });
+                return { status: 'already', bytes: b, fetched: false };
             }
 
             throw new Error('Файл не сохранился в IndexedDB');
@@ -96,250 +132,369 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
             });
 
             if (i + 1 >= maxAttempts) {
-                return { status: 'failed' };
+                return { status: 'failed', bytes: 0, fetched: false };
             }
         }
     }
 
-    return { status: 'failed' };
+    return { status: 'failed', bytes: 0, fetched: false };
 }
+
 window.rbiFileCacheQueueLock = false;
-window.downloadMissingCloudFiles = async function (silent = false) {
+
+/**
+ * Докачка облачных файлов в IDB.
+ * @param {boolean} silent — не показывать toast «уже выполняется»; прогресс в mini-toast всё равно виден
+ * @param {'all'|'days30'|'knowledge'|'reports'} scope
+ */
+window.downloadMissingCloudFiles = async function (silent = false, scope = 'all') {
     if (window.rbiFileCacheQueueLock) {
         if (!silent && typeof showToast === 'function') showToast('⏳ Докачка файлов уже выполняется');
         return;
     }
 
     window.rbiFileCacheQueueLock = true;
+    if (typeof window.rbiBeginOfflineCacheSyncPause === 'function') {
+        window.rbiBeginOfflineCacheSyncPause('downloadMissingCloudFiles:' + (scope || 'all'));
+    }
+
+    const resolvedScope = scope || 'all';
+    const concurrency = window.RBI_OFFLINE_CACHE_CONCURRENCY || 4;
+    const batchPauseMs = window.RBI_OFFLINE_CACHE_BATCH_PAUSE_MS ?? 60;
 
     let miniCacheToast = document.getElementById('mini-cache-toast');
+    const toastNeedsRebuild = !miniCacheToast || !miniCacheToast.querySelector('#mini-cache-toast-dl');
 
-    if (!miniCacheToast) {
+    if (toastNeedsRebuild) {
+        if (miniCacheToast) miniCacheToast.remove();
         miniCacheToast = document.createElement('div');
         miniCacheToast.id = 'mini-cache-toast';
-        miniCacheToast.className = 'fixed left-1/2 bottom-24 z-[9000] bg-slate-900/90 text-white rounded-2xl shadow-xl px-5 py-4 text-[12px] font-bold hidden border border-white/10 backdrop-blur-md max-w-[300px] -translate-x-1/2 text-center';
+        // Фиксированная ширина + tabular-nums — тост не прыгает при смене цифр.
+        miniCacheToast.className = 'fixed left-1/2 bottom-24 z-[9000] w-[280px] bg-slate-900/95 text-white rounded-2xl shadow-xl px-4 py-3 text-[11px] font-bold hidden border border-white/10 backdrop-blur-md -translate-x-1/2';
         miniCacheToast.innerHTML = `
-            <div class="flex items-center justify-center gap-2">
-                <span class="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0"></span>
-                <span id="mini-cache-toast-text">Кэширование файлов...</span>
+            <div class="flex items-center gap-2 mb-1.5">
+                <span id="mini-cache-toast-spin" class="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0"></span>
+                <span id="mini-cache-toast-status" class="flex-1 truncate tracking-wide uppercase text-[10px] text-white/80">Кэширование</span>
+                <span id="mini-cache-toast-count" class="tabular-nums shrink-0 text-white">— / —</span>
+            </div>
+            <div id="mini-cache-toast-body">
+                <div class="h-1.5 w-full rounded-full bg-white/15 overflow-hidden mb-2">
+                    <div id="mini-cache-toast-bar" class="h-full bg-indigo-400 rounded-full transition-[width] duration-200" style="width:0%"></div>
+                </div>
+                <div class="flex justify-between gap-2 tabular-nums text-[10px] text-white/75 font-semibold">
+                    <span>скачано <span id="mini-cache-toast-dl" class="text-white">0.0</span> МБ</span>
+                    <span>ост. ~<span id="mini-cache-toast-left" class="text-white">0.0</span> МБ</span>
+                </div>
             </div>
         `;
         document.body.appendChild(miniCacheToast);
     }
 
-    const miniText = document.getElementById('mini-cache-toast-text');
+    const applyProgress = typeof window.rbiApplyCacheProgressToDom === 'function'
+        ? window.rbiApplyCacheProgressToDom
+        : null;
+
+    const setProgress = (payload) => {
+        miniCacheToast.classList.remove('hidden');
+        if (applyProgress) {
+            applyProgress(miniCacheToast, payload);
+            return;
+        }
+        const statusEl = miniCacheToast.querySelector('#mini-cache-toast-status');
+        if (statusEl && typeof window.rbiFormatCacheProgress === 'function') {
+            statusEl.textContent = window.rbiFormatCacheProgress(payload);
+        }
+    };
 
     try {
-        const showProgress = silent !== true;
+        setProgress({ phase: 'prepare', done: 0, total: 0, downloadedBytes: 0, remainingBytes: 0 });
 
-        if (showProgress) {
-            miniCacheToast.classList.remove('hidden');
-            if (miniText) miniText.innerText = 'Подготовка файлов...';
+        if (window.RbiStorageManager && typeof window.RbiStorageManager.ensureFileRegistryIndex === 'function') {
+            await window.RbiStorageManager.ensureFileRegistryIndex(true);
         }
+        const registryByUrl = (window.RbiStorageManager && window.RbiStorageManager._registryByUrl)
+            ? window.RbiStorageManager._registryByUrl
+            : new Map();
 
-        const urlsToDownload = new Set();
-
-        // TWI steps.photo / photos[itemId] могут быть строкой ИЛИ массивом —
-        // .startsWith на массиве валил всю докачку (TypeError).
-        const addCloudUrls = (value) => {
-            const list = typeof window.normalizeItemPhotos === 'function'
-                ? window.normalizeItemPhotos(value)
-                : (Array.isArray(value) ? value : (value != null && value !== '' ? [value] : []));
-
-            list.forEach((url) => {
-                if (typeof url !== 'string') return;
-                if (url.startsWith('http') || url.startsWith('cloud://')) {
-                    urlsToDownload.add(url);
-                }
-            });
-        };
-
-        if (typeof contractorArray !== 'undefined') {
-            contractorArray.forEach(check => {
-                if (check.photos) {
-                    Object.values(check.photos).forEach(addCloudUrls);
-                }
-            });
-        }
-
-        if (typeof customTwiCards !== 'undefined') {
-            customTwiCards.forEach(twi => {
-                addCloudUrls(twi.photoGood);
-                addCloudUrls(twi.photoBad);
-                addCloudUrls(twi.pdfData);
-
-                if (Array.isArray(twi.steps)) {
-                    twi.steps.forEach(step => {
-                        if (!step) return;
-                        addCloudUrls(step.photo);
-                        addCloudUrls(step.photoGood);
-                        addCloudUrls(step.photoBad);
-                    });
-                }
-            });
-        }
-
-        if (typeof customNodes !== 'undefined') {
-            customNodes.forEach(node => {
-                addCloudUrls(node.img);
-
-                if (Array.isArray(node.attachments)) {
-                    node.attachments.forEach(att => {
-                        addCloudUrls(att && (att.url || att.data || att.file_url || ''));
-                    });
-                }
-            });
-        }
-
-        if (typeof customDocs !== 'undefined') {
-            customDocs.forEach(doc => {
-                addCloudUrls(doc.pdfData);
-            });
-        }
-
-        if (typeof window.rbi_meetingsData !== 'undefined') {
-            window.rbi_meetingsData.forEach(m => {
-                addCloudUrls(m.qDayPhoto);
-            });
-        }
-
-        if (typeof window.rbi_practicesData !== 'undefined') {
-            window.rbi_practicesData.forEach(p => {
-                addCloudUrls(p.photoBefore);
-                addCloudUrls(p.photoAfter);
-            });
-        }
-
-        if (typeof reportsArray !== 'undefined') {
-            reportsArray.forEach(rep => {
-                if (rep.file_url && typeof rep.file_url === 'string' && rep.file_url.startsWith('http') && !rep.file_blob) {
-                    urlsToDownload.add(rep.file_url);
-                }
-            });
-        }
+        const collect = typeof window.rbiCollectOfflineCacheUrls === 'function'
+            ? window.rbiCollectOfflineCacheUrls
+            : () => [];
+        const entries = collect(resolvedScope);
+        const urlArray = entries.map((e) => e.url);
+        const total = urlArray.length;
 
         let downloadedCount = 0;
         let alreadyCachedCount = 0;
         let failedCount = 0;
+        let downloadedBytes = 0;
+        // Сколько байт уже «закрыто» по оценке очереди (скачано + skip + fail).
+        let settledEstimateBytes = 0;
+        // Для уточнения дефолтной оценки неизвестных файлов.
+        let knownBytesSum = 0;
+        let knownBytesN = 0;
 
-        const urlArray = Array.from(urlsToDownload);
-        const total = urlArray.length;
-        const BATCH_SIZE = 3;
+        const estimateBytes = typeof window.rbiEstimateUrlBytes === 'function'
+            ? window.rbiEstimateUrlBytes
+            : () => (window.RBI_OFFLINE_CACHE_DEFAULT_FILE_BYTES || 200 * 1024);
+
+        const avgKnown = () => (knownBytesN > 0 ? (knownBytesSum / knownBytesN) : 0);
+        const est = (url) => estimateBytes(url, registryByUrl, avgKnown());
+
+        // Плановый размер каждого URL фиксируем на старте — иначе «осталось» плывёт
+        // после появления среднего avg по уже скачанным.
+        const plannedByUrl = new Map();
+        urlArray.forEach((url) => plannedByUrl.set(url, est(url)));
+        let totalEstimateBytes = 0;
+        plannedByUrl.forEach((v) => { totalEstimateBytes += v; });
 
         if (total === 0) {
-            if (showProgress && miniText) {
-                miniText.innerText = 'Нет файлов для загрузки';
-                setTimeout(() => miniCacheToast.classList.add('hidden'), 1800);
-            }
+            setProgress({ phase: 'empty', done: 0, total: 0, downloadedBytes: 0, remainingBytes: 0 });
+            setTimeout(() => miniCacheToast.classList.add('hidden'), 1800);
             return;
         }
 
-        for (let i = 0; i < total; i += BATCH_SIZE) {
-            const batch = urlArray.slice(i, i + BATCH_SIZE);
+        const noteKnownSize = (bytes) => {
+            const b = Number(bytes) || 0;
+            if (b <= 0) return;
+            knownBytesSum += b;
+            knownBytesN += 1;
+        };
 
-            if (showProgress && miniText) {
-                miniText.innerText = `Кэширование: ${downloadedCount + alreadyCachedCount}/${total}`;
+        const settleUrl = (url, actualBytes) => {
+            const planned = plannedByUrl.get(url) || est(url);
+            settledEstimateBytes += planned;
+            const actual = Number(actualBytes) || 0;
+            if (actual > 0) {
+                // Уточняем общий прогноз: факт вместо плана.
+                totalEstimateBytes += (actual - planned);
+                noteKnownSize(actual);
             }
+        };
+
+        const updateUi = () => {
+            const done = downloadedCount + alreadyCachedCount;
+            const remainingBytes = Math.max(0, totalEstimateBytes - settledEstimateBytes);
+            setProgress({
+                done,
+                total,
+                downloadedBytes,
+                remainingBytes,
+                fetchedCount: downloadedCount,
+                skippedCount: alreadyCachedCount
+            });
+        };
+
+        updateUi();
+
+        for (let i = 0; i < total; i += concurrency) {
+            const batch = urlArray.slice(i, i + concurrency);
 
             const promises = batch.map(async (url) => {
                 try {
                     if (url.includes('/reports/')) {
-                        const repObj = reportsArray.find(r => r.file_url === url);
+                        const repObj = (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray))
+                            ? reportsArray.find(r => r.file_url === url)
+                            : null;
 
-                        if (repObj && repObj.file_blob) {
-                            alreadyCachedCount++;
+                        if (!repObj) {
+                            failedCount++;
+                            settleUrl(url, 0);
                             return;
                         }
 
-                        if (repObj && !repObj.file_blob) {
-                            const res = await rbiFetchCloudFileNoBrowserCache(url);
+                        // Уже в RAM (локальный не залитый) — skip.
+                        if (repObj.file_blob) {
+                            alreadyCachedCount++;
+                            const sz = repObj.file_blob.size || plannedByUrl.get(url) || 0;
+                            settleUrl(url, sz);
+                            return;
+                        }
 
-                            if (res.ok) {
-                                const reportBlob = await res.blob();
+                        // Мета говорит «кэш есть» (после eviction статус cloud_only) —
+                        // не поднимаем PDF из IDB только ради skip.
+                        const repStatus = repObj.cache_status || repObj.cacheStatus || '';
+                        const metaSize = Number(repObj.file_size || repObj.fileSize || 0) || 0;
+                        if (repStatus === 'cached_cloud' && metaSize > 0) {
+                            alreadyCachedCount++;
+                            settleUrl(url, metaSize || plannedByUrl.get(url) || 0);
+                            return;
+                        }
 
-                                repObj.file_blob = reportBlob;
-                                repObj.cache_status = 'cached_cloud';
-                                repObj.cacheStatus = 'cached_cloud';
-                                repObj.updatedAt = new Date().toISOString();
-                                repObj.updated_at = repObj.updatedAt;
+                        let idbRow = null;
+                        try {
+                            idbRow = await dbGet(STORES.REPORTS, repObj.id);
+                        } catch (_) { /* ignore */ }
 
-                                await dbPut(STORES.REPORTS, repObj);
+                        if (idbRow && idbRow.file_blob) {
+                            alreadyCachedCount++;
+                            const sz = idbRow.file_blob.size
+                                || idbRow.file_size
+                                || plannedByUrl.get(url)
+                                || 0;
+                            repObj.file_size = sz;
+                            repObj.cache_status = 'cached_cloud';
+                            repObj.cacheStatus = 'cached_cloud';
+                            // Не копируем blob в reportsArray.
+                            settleUrl(url, sz);
+                            return;
+                        }
 
-                                if (window.RbiStorageManager && typeof window.RbiStorageManager.markCloudFileCached === 'function') {
-                                    await window.RbiStorageManager.markCloudFileCached(
-                                        url,
-                                        reportBlob.size || 0,
-                                        reportBlob.type || 'application/pdf'
-                                    );
-                                }
+                        const res = await rbiFetchCloudFileNoBrowserCache(url);
 
-                                downloadedCount++;
-                            } else {
-                                failedCount++;
+                        if (res.ok) {
+                            const reportBlob = await res.blob();
+                            const now = new Date().toISOString();
+
+                            // IDB — с blob; память — только метаданные.
+                            const idbRecord = {
+                                ...(idbRow || repObj),
+                                ...repObj,
+                                file_blob: reportBlob,
+                                file_size: reportBlob.size || 0,
+                                cache_status: 'cached_cloud',
+                                cacheStatus: 'cached_cloud',
+                                updatedAt: now,
+                                updated_at: now
+                            };
+                            await dbPut(STORES.REPORTS, idbRecord);
+
+                            repObj.file_blob = null;
+                            repObj.file_size = reportBlob.size || 0;
+                            repObj.cache_status = 'cached_cloud';
+                            repObj.cacheStatus = 'cached_cloud';
+                            repObj.updatedAt = now;
+                            repObj.updated_at = now;
+
+                            if (window.RbiStorageManager && typeof window.RbiStorageManager.markCloudFileCached === 'function') {
+                                await window.RbiStorageManager.markCloudFileCached(
+                                    url,
+                                    reportBlob.size || 0,
+                                    reportBlob.type || 'application/pdf'
+                                );
                             }
+
+                            downloadedCount++;
+                            downloadedBytes += reportBlob.size || 0;
+                            settleUrl(url, reportBlob.size || 0);
+                        } else {
+                            failedCount++;
+                            settleUrl(url, 0);
                         }
 
                         return;
                     }
 
+                    // Skip только если blob реально на устройстве (RAM или IDB-ключ).
+                    // cache_status в registry сам по себе не считается доказательством
+                    // (после eviction/sync флаг часто врёт → раньше «Скачать всё» мгновенно
+                    // пропускало дыры).
                     if (PhotoManager.cache[url]) {
                         alreadyCachedCount++;
-                        return;
-                    }
-
-                    const alreadyInDb = await dbGet(STORES.PHOTOS, url);
-                    if (alreadyInDb && alreadyInDb.data) {
-                        alreadyCachedCount++;
+                        settleUrl(url, plannedByUrl.get(url) || 0);
                         return;
                     }
 
                     if (url.startsWith('cloud://')) {
                         alreadyCachedCount++;
+                        settleUrl(url, 0);
+                        return;
+                    }
+
+                    const hasKey = typeof window.dbHasKey === 'function'
+                        ? (key) => window.dbHasKey(STORES.PHOTOS, key)
+                        : async (key) => !!(await dbGet(STORES.PHOTOS, key))?.data;
+
+                    let hasIdbBlob = await hasKey(url);
+                    if (!hasIdbBlob) {
+                        const regItem = registryByUrl.get(url);
+                        const lk = regItem && (regItem.local_key || regItem.localKey);
+                        if (lk && lk !== url) hasIdbBlob = await hasKey(lk);
+                    }
+                    if (hasIdbBlob) {
+                        alreadyCachedCount++;
+                        settleUrl(url, plannedByUrl.get(url) || 0);
                         return;
                     }
 
                     const result = await rbiDownloadFileWithRetry(url, 3);
 
-                    if (result.status === 'cached') {
+                    if (result.status === 'cached' && result.fetched) {
+                        // Реально ушло в сеть в этом прогоне.
                         downloadedCount++;
+                        downloadedBytes += result.bytes || 0;
+                        settleUrl(url, result.bytes || 0);
+                    } else if (result.status === 'already' || result.status === 'cached') {
+                        // Уже было в IDB / registry — не в «скачано».
+                        alreadyCachedCount++;
+                        settleUrl(url, result.bytes || plannedByUrl.get(url) || 0);
                     } else if (result.status === 'postponed' || result.status === 'skipped') {
                         alreadyCachedCount++;
+                        settleUrl(url, plannedByUrl.get(url) || 0);
                     } else {
                         failedCount++;
+                        settleUrl(url, 0);
                     }
 
                 } catch (e) {
                     failedCount++;
+                    settleUrl(url, 0);
                     console.warn('[Cache] Пропущен файл:', String(url).substring(0, 80), e);
                 }
             });
 
             await Promise.all(promises);
+            updateUi();
 
-            if (miniText) {
-                miniText.innerText = `Кэширование: ${downloadedCount + alreadyCachedCount}/${total}`;
+            if (i + concurrency < total && batchPauseMs > 0) {
+                await new Promise((resolve) => setTimeout(resolve, batchPauseMs));
             }
         }
 
-        if (miniText) {
-            if (failedCount > 0) {
-                miniText.innerText = `Готово: ${downloadedCount} загружено, ${failedCount} пропущено`;
-            } else if (downloadedCount > 0) {
-                miniText.innerText = `Готово: загружено ${downloadedCount}`;
-            } else {
-                miniText.innerText = 'Все файлы уже сохранены';
-            }
+        const done = downloadedCount + alreadyCachedCount;
+        if (failedCount > 0) {
+            setProgress({
+                phase: 'done_fail',
+                done: downloadedCount,
+                total: done,
+                downloadedBytes,
+                remainingBytes: 0,
+                fetchedCount: downloadedCount,
+                skippedCount: alreadyCachedCount
+            });
+        } else if (downloadedCount > 0) {
+            setProgress({
+                phase: 'done_ok',
+                done: downloadedCount,
+                total: done,
+                downloadedBytes,
+                remainingBytes: 0,
+                fetchedCount: downloadedCount,
+                skippedCount: alreadyCachedCount
+            });
+        } else {
+            setProgress({
+                phase: 'done_skip',
+                done,
+                total,
+                downloadedBytes,
+                remainingBytes: 0,
+                fetchedCount: 0,
+                skippedCount: alreadyCachedCount
+            });
         }
 
-        if (showProgress) {
-            setTimeout(() => miniCacheToast.classList.add('hidden'), 3000);
-        }
+        setTimeout(() => miniCacheToast.classList.add('hidden'), 3000);
 
     } finally {
         window.rbiFileCacheQueueLock = false;
 
         if (typeof updateStorageInfo === 'function') {
             updateStorageInfo();
+        }
+
+        // Снять паузу sync (если снаружи ещё держится FullOfflineCacheProcessing — flush позже).
+        if (typeof window.rbiEndOfflineCacheSyncPause === 'function') {
+            window.rbiEndOfflineCacheSyncPause();
         }
     }
 };

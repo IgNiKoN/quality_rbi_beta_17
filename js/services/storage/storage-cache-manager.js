@@ -83,7 +83,16 @@ window.RbiStorageManager = {
         }
     },
 
-    async getStorageSnapshot() {
+    /**
+     * Снимок квоты/режима очистки.
+     * По умолчанию — лёгкий путь: estimate + сумма size_bytes из FILE_REGISTRY
+     * (без dbGetAll(PHOTOS) — иначе автокэш поднимает все blob в RAM).
+     * Полный обход PHOTOS/REPORTS — только `{ detailed: true }` (диагностика UI).
+     */
+    async getStorageSnapshot(options = {}) {
+        const opts = (options === true) ? { detailed: true } : (options || {});
+        const detailed = opts.detailed === true;
+
         if (!navigator.storage || !navigator.storage.estimate) {
             return {
                 supported: false,
@@ -94,7 +103,8 @@ window.RbiStorageManager = {
                 quotaMB: 0,
                 freeMB: 0,
                 usagePercent: 0,
-                mode: 'unknown'
+                mode: 'unknown',
+                detailed: false
             };
         }
 
@@ -104,19 +114,27 @@ window.RbiStorageManager = {
         // полезная нагрузка файлов; нужен как нижняя граница, если estimate занижен.
         let realBytes = 0;
         try {
-            const files = await dbGetAll(STORES.PHOTOS);
-            if (files) {
-                files.forEach(f => {
-                    if (!f || !f.data) return;
-                    realBytes += this.payloadBytes(f.data, f);
+            if (detailed) {
+                const files = await dbGetAll(STORES.PHOTOS);
+                if (files) {
+                    files.forEach(f => {
+                        if (!f || !f.data) return;
+                        realBytes += this.payloadBytes(f.data, f);
+                    });
+                }
+                const reports = STORES.REPORTS ? (await dbGetAll(STORES.REPORTS) || []) : [];
+                reports.forEach(rep => {
+                    if (!rep || !rep.file_blob) return;
+                    realBytes += this.payloadBytes(rep.file_blob, rep);
+                });
+            } else if (STORES.FILE_REGISTRY) {
+                const registry = await dbGetAll(STORES.FILE_REGISTRY) || [];
+                registry.forEach((r) => {
+                    if (!r) return;
+                    realBytes += Number(r.size_bytes || r.sizeBytes || 0) || 0;
                 });
             }
-            const reports = STORES.REPORTS ? (await dbGetAll(STORES.REPORTS) || []) : [];
-            reports.forEach(rep => {
-                if (!rep || !rep.file_blob) return;
-                realBytes += this.payloadBytes(rep.file_blob, rep);
-            });
-        } catch (e) { }
+        } catch (e) { /* ignore */ }
 
         const usageBytes = Math.max(realBytes, estimate.usage || 0);
         const quotaBytes = estimate.quota || 0;
@@ -163,8 +181,39 @@ window.RbiStorageManager = {
             quotaMB,
             freeMB,
             usagePercent,
-            mode
+            mode,
+            detailed
         };
+    },
+
+    /** Индекс FILE_REGISTRY по URL — один dbGetAll на сессию автокэша, не на каждый файл. */
+    _registryByUrl: null,
+
+    invalidateFileRegistryIndex() {
+        this._registryByUrl = null;
+    },
+
+    async ensureFileRegistryIndex(force = false) {
+        if (this._registryByUrl && !force) return this._registryByUrl;
+        const map = new Map();
+        if (STORES.FILE_REGISTRY) {
+            const all = await dbGetAll(STORES.FILE_REGISTRY) || [];
+            all.forEach((f) => {
+                if (!f) return;
+                [f.public_url, f.publicUrl, f.local_key, f.localKey].forEach((k) => {
+                    if (k) map.set(k, f);
+                });
+            });
+        }
+        this._registryByUrl = map;
+        return map;
+    },
+
+    _indexRegistryItem(item) {
+        if (!item || !this._registryByUrl) return;
+        [item.public_url, item.publicUrl, item.local_key, item.localKey].forEach((k) => {
+            if (k) this._registryByUrl.set(k, item);
+        });
     },
 
     async getRecoverableCacheStats() {
@@ -405,14 +454,31 @@ window.RbiStorageManager = {
             const pCode = window.syncConfig.projectCode || '';
             if (!pCode) return 0;
 
-            const { data, error } = await window.supabaseClient
-                .from('file_registry')
-                .select('*')
-                .eq('project_code', pCode)
-                .eq('is_deleted', false)
-                .limit(5000);
+            // Постранично (как остальные pull) — без жёсткого limit(5000).
+            const pullFn = typeof window.rbiPullAllRows === 'function'
+                ? window.rbiPullAllRows
+                : null;
 
-            if (error) throw error;
+            let data = [];
+            if (pullFn) {
+                data = await pullFn((from, to) => window.supabaseClient
+                    .from('file_registry')
+                    .select('*')
+                    .eq('project_code', pCode)
+                    .eq('is_deleted', false)
+                    .order('id', { ascending: true })
+                    .range(from, to), 500);
+            } else {
+                const res = await window.supabaseClient
+                    .from('file_registry')
+                    .select('*')
+                    .eq('project_code', pCode)
+                    .eq('is_deleted', false)
+                    .order('id', { ascending: true })
+                    .range(0, 499);
+                if (res.error) throw res.error;
+                data = res.data || [];
+            }
 
             let count = 0;
 
@@ -689,14 +755,8 @@ window.RbiStorageManager = {
             if (!url || !STORES.FILE_REGISTRY) return;
 
             const now = new Date().toISOString();
-            const all = await dbGetAll(STORES.FILE_REGISTRY) || [];
-
-            const found = all.find(f =>
-                f.public_url === url ||
-                f.publicUrl === url ||
-                f.local_key === url ||
-                f.localKey === url
-            );
+            const index = await this.ensureFileRegistryIndex();
+            const found = index.get(url);
 
             if (!found) return;
 
@@ -724,6 +784,7 @@ window.RbiStorageManager = {
             }
 
             await dbPut(STORES.FILE_REGISTRY, found);
+            this._indexRegistryItem(found);
         } catch (e) {
             console.warn('[StorageManager] Не удалось обновить статус кэша файла:', e);
         }
@@ -732,13 +793,8 @@ window.RbiStorageManager = {
         try {
             if (!url || !STORES.FILE_REGISTRY) return false;
 
-            const all = await dbGetAll(STORES.FILE_REGISTRY) || [];
-            const found = all.find(f =>
-                f.public_url === url ||
-                f.publicUrl === url ||
-                f.local_key === url ||
-                f.localKey === url
-            );
+            const index = await this.ensureFileRegistryIndex();
+            const found = index.get(url);
 
             if (!found) return false;
 
@@ -794,6 +850,7 @@ window.RbiStorageManager = {
             found.updatedAt = now;
 
             await dbPut(STORES.FILE_REGISTRY, found);
+            this._indexRegistryItem(found);
 
             if (window.supabaseClient && window.syncConfig?.enabled && found.bucket && found.storage_path) {
                 try {

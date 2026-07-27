@@ -219,6 +219,18 @@
         if (typeof window.showToast === 'function') window.showToast('Настройки сброшены!');
     }
 
+    /** Scope: all | days30 | knowledge | reports → downloadMissingCloudFiles(false, scope) */
+    function _downloadOfflineCacheScope(scope) {
+        var resolved = scope || 'all';
+        if (typeof window.downloadMissingCloudFiles !== 'function') {
+            if (typeof window.showToast === 'function') {
+                window.showToast('⚠️ Офлайн-кэш недоступен');
+            }
+            return;
+        }
+        return window.downloadMissingCloudFiles(false, resolved);
+    }
+
     async function _clearPdfCache() {
         var ok = confirm(
             'Очистить локальный кэш файлов?\n\n' +
@@ -568,6 +580,7 @@
         applySettingsToUI: function () { if (typeof window.applySettingsToUI === 'function') return window.applySettingsToUI(); },
         clearPdfCache: _clearPdfCache,
         previewStorageCleanup: _previewStorageCleanup,
+        downloadOfflineCacheScope: _downloadOfflineCacheScope,
         rbiGetSavedThemePreference: _rbiGetSavedThemePreference,
         rbiSaveThemePreference: _rbiSaveThemePreference
     };
@@ -589,6 +602,7 @@
     window.resetSettingsToDefault = _resetSettingsToDefault;
     window.clearPdfCache = _clearPdfCache;
     window.previewStorageCleanup = _previewStorageCleanup;
+    window.downloadOfflineCacheScope = _downloadOfflineCacheScope;
     window.rbiGetSavedThemePreference = _rbiGetSavedThemePreference;
     window.rbiSaveThemePreference = _rbiSaveThemePreference;
     window.showAboutApp = _showAboutApp;

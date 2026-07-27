@@ -724,7 +724,10 @@
 
             var newDefect = {
               id: newDefectId,
-              x: 50, y: 50,
+              x: hasPlanPin ? Number(planPin.x) : 50,
+              y: hasPlanPin ? Number(planPin.y) : 50,
+              locationFloorId: hasPlanPin ? String(planPin.locationId) : null,
+              floorId: null,
               templateKey: AuditState.currentTemplateKey,
               itemId: String(itemId),
               itemName: itemInfo.n,

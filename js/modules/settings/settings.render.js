@@ -440,6 +440,23 @@ var SettingsRender = {
                                         class="toggle-slider"></span></label>
                             </div>
 
+                            <div id="offline-cache-progress" class="hidden mb-3 text-[10px] font-bold text-slate-500 dark:text-slate-400"></div>
+
+                            <div class="grid grid-cols-1 gap-2 mb-3">
+                                <button type="button" data-settings-action="downloadOfflineCacheScope" data-action-arg="days30"
+                                    class="w-full bg-slate-50 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 py-2.5 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-colors">
+                                    Скачать последние 30 дней
+                                </button>
+                                <button type="button" data-settings-action="downloadOfflineCacheScope" data-action-arg="knowledge"
+                                    class="w-full bg-slate-50 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 py-2.5 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-colors">
+                                    Скачать только базу знаний
+                                </button>
+                                <button type="button" data-settings-action="downloadOfflineCacheScope" data-action-arg="reports"
+                                    class="w-full bg-slate-50 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 py-2.5 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-colors">
+                                    Скачать отчёты на устройство
+                                </button>
+                            </div>
+
                             <div class="grid grid-cols-3 gap-2 mb-3">
                                 <button data-settings-action="clearPdfCache"
                                     class="bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200 dark:border-slate-600 active:scale-95 transition-colors flex items-center justify-center gap-2">
@@ -543,7 +560,7 @@ var SettingsRender = {
                                 </div>
                             </div>
 
-                            <button onclick="downloadMissingCloudFiles()"
+                            <button data-settings-action="downloadOfflineCacheScope" data-action-arg="all"
                                 class="w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 py-3 rounded-xl font-black text-[11px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2 mb-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                     stroke-width="2">

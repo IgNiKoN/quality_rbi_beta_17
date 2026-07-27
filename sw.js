@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.354';
+const SW_VERSION = '18.57.366';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -49,11 +49,13 @@ const urlsToCache = [
   './js/services/sync/sync-ui.render.js',
   './js/services/sync/sync-connection.actions.js',
   './js/services/sync/sync-push-pull.core.js',
+  './js/services/sync/sync-progress.ui.js',
   './js/services/sync/sync-engine.core.js',
   './js/services/sync/sync-post-actions.js',
   './js/services/storage/storage-db.core.js',
   './js/services/storage/storage-converters.utils.js',
   './js/services/storage/storage-cache-manager.js',
+  './js/services/storage/storage-offline-cache.utils.js',
   './js/services/storage/storage-diagnostics.render.js',
   './js/services/storage/storage-photo-manager.js',
   './js/services/storage/storage-file-queue.actions.js',

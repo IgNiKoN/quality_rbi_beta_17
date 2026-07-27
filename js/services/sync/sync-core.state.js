@@ -60,6 +60,57 @@ function safeToast(msg) {
 window.rbiBgCacheQueue = window.rbiBgCacheQueue || [];
 window.rbiBgCacheProcessing = false;
 window.rbiFullOfflineCacheProcessing = false;
+/** Пауза sync на время полного автокэша / «скачать всё» (не лёгкая bg-очередь). */
+window.rbiOfflineCacheBlocksSync = false;
+
+function rbiIsOfflineCacheBlockingSync() {
+    return !!(
+        window.rbiOfflineCacheBlocksSync ||
+        window.rbiFileCacheQueueLock ||
+        window.rbiFullOfflineCacheProcessing
+    );
+}
+
+function rbiBeginOfflineCacheSyncPause(reason) {
+    window.rbiOfflineCacheBlocksSync = true;
+    if (reason) {
+        console.log('[OfflineCache] Sync на паузе до конца докачки:', reason);
+    }
+}
+
+/**
+ * Снять паузу sync. Если был отложенный triggerSync — один раз запустить после паузы.
+ * Не флашит, пока ещё держится lock / FullOfflineCacheProcessing.
+ */
+function rbiEndOfflineCacheSyncPause() {
+    window.rbiOfflineCacheBlocksSync = false;
+
+    if (window.rbiFileCacheQueueLock || window.rbiFullOfflineCacheProcessing) return;
+    if (window.isSyncing) return;
+    if (!window._rbiPendingSyncRetryMode) return;
+    if (typeof window.triggerSync !== 'function') return;
+
+    const retryMode = window._rbiPendingSyncRetryMode;
+    window._rbiPendingSyncRetryMode = null;
+    console.log('[OfflineCache] Пауза sync снята, отложенный sync:', retryMode);
+    setTimeout(() => {
+        if (rbiIsOfflineCacheBlockingSync()) {
+            window._rbiPendingSyncRetryMode =
+                (retryMode === 'manual' || window._rbiPendingSyncRetryMode === 'manual')
+                    ? 'manual'
+                    : (window._rbiPendingSyncRetryMode || retryMode);
+            return;
+        }
+        if (!window.isSyncing) window.triggerSync(retryMode);
+    }, 400);
+}
+
+function rbiDeferSyncForOfflineCache(mode) {
+    window._rbiPendingSyncRetryMode =
+        (mode === 'manual' || window._rbiPendingSyncRetryMode === 'manual')
+            ? 'manual'
+            : (window._rbiPendingSyncRetryMode || mode || 'silent');
+}
 
 function rbiEnqueueCloudFilesForCache(urls, source = 'unknown') {
     if (!Array.isArray(urls) || urls.length === 0) return;
@@ -98,14 +149,10 @@ async function rbiProcessBgCacheQueue(options = {}) {
     if (typeof PhotoManager === 'undefined') return;
     if (typeof PhotoManager.downloadForOffline !== 'function') return;
 
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
-
-    // Ускорение:
-    // Safari/iOS держим осторожнее, Edge/Chrome можно быстрее.
-    const concurrency = options.concurrency || (isSafari || isIOS ? 2 : 5);
-    const maxPerRun = options.maxPerRun || (isSafari || isIOS ? 30 : 100);
-    const pauseBetweenRounds = options.pauseBetweenRounds ?? (isSafari || isIOS ? 1200 : 500);
+    // Единая политика для всех устройств (без Safari/iOS split).
+    const concurrency = options.concurrency || window.RBI_OFFLINE_CACHE_CONCURRENCY || 4;
+    const maxPerRun = options.maxPerRun || 80;
+    const pauseBetweenRounds = options.pauseBetweenRounds ?? (window.RBI_OFFLINE_CACHE_BATCH_PAUSE_MS ?? 60);
 
     window.rbiBgCacheProcessing = true;
 
@@ -124,7 +171,7 @@ async function rbiProcessBgCacheQueue(options = {}) {
                 if (!item || !item.url) continue;
 
                 try {
-                    await PhotoManager.downloadForOffline(item.url);
+                    await PhotoManager.downloadForOffline(item.url, { skipMemoryCache: true });
                     done++;
                 } catch (e) {
                     console.warn('[Cache] Не удалось закэшировать файл:', item.source, e);
@@ -209,23 +256,29 @@ function rbiScheduleFullOfflineCacheIfEnabled(delayMs = 800) {
     if (typeof window.downloadMissingCloudFiles !== 'function') return;
     if (window.rbiFullOfflineCacheProcessing || window.rbiFileCacheQueueLock) return;
 
-    setTimeout(async () => {
-        if (!rbiIsAutoCacheEnabled() || !navigator.onLine) return;
-        if (window.rbiFullOfflineCacheProcessing || window.rbiFileCacheQueueLock) return;
+    rbiBeginOfflineCacheSyncPause('schedule_full_offline_cache');
 
-        window.rbiFullOfflineCacheProcessing = true;
+    setTimeout(async () => {
         try {
-            console.log('[OfflineCache] Запуск докачки после очистки/запроса.');
-            await window.downloadMissingCloudFiles(true);
-            window.rbiBgCacheQueue = [];
-            localStorage.setItem('rbi_first_full_offline_cache_done', '1');
-            localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
-            localStorage.removeItem('rbi_need_full_offline_cache');
-        } catch (e) {
-            console.warn('[OfflineCache] Ошибка докачки после запроса:', e);
-            localStorage.removeItem('rbi_first_full_offline_cache_done');
+            if (!rbiIsAutoCacheEnabled() || !navigator.onLine) return;
+            if (window.rbiFullOfflineCacheProcessing || window.rbiFileCacheQueueLock) return;
+
+            window.rbiFullOfflineCacheProcessing = true;
+            try {
+                console.log('[OfflineCache] Запуск докачки после очистки/запроса.');
+                await window.downloadMissingCloudFiles(false, 'all');
+                window.rbiBgCacheQueue = [];
+                localStorage.setItem('rbi_first_full_offline_cache_done', '1');
+                localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
+                localStorage.removeItem('rbi_need_full_offline_cache');
+            } catch (e) {
+                console.warn('[OfflineCache] Ошибка докачки после запроса:', e);
+                localStorage.removeItem('rbi_first_full_offline_cache_done');
+            } finally {
+                window.rbiFullOfflineCacheProcessing = false;
+            }
         } finally {
-            window.rbiFullOfflineCacheProcessing = false;
+            rbiEndOfflineCacheSyncPause();
         }
     }, delayMs);
 }
@@ -321,6 +374,10 @@ window.rbiIsRemotePollDue = rbiIsRemotePollDue;
 window.rbiIsAutoCacheEnabled = rbiIsAutoCacheEnabled;
 window.rbiRequestFullOfflineCache = rbiRequestFullOfflineCache;
 window.rbiScheduleFullOfflineCacheIfEnabled = rbiScheduleFullOfflineCacheIfEnabled;
+window.rbiIsOfflineCacheBlockingSync = rbiIsOfflineCacheBlockingSync;
+window.rbiBeginOfflineCacheSyncPause = rbiBeginOfflineCacheSyncPause;
+window.rbiEndOfflineCacheSyncPause = rbiEndOfflineCacheSyncPause;
+window.rbiDeferSyncForOfflineCache = rbiDeferSyncForOfflineCache;
 window.rbiPullAllRows = rbiPullAllRows;
 window.rbiPullRowsByInspectionIds = rbiPullRowsByInspectionIds;
 window.rbiUpsertBatches = rbiUpsertBatches;

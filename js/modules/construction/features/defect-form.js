@@ -624,10 +624,10 @@ window.ConstDefectForm = {
 
         // Обновляем булавки на плане (чтобы сменить цвет)
         if (window.ConstManager.currentView === 'plan') {
-            window.ConstDefectForm.renderAllPins(window.ConstManager.currentFlrId, {
-                status: window.ConstManager.currentFilterStatus,
-                category: window.ConstManager.currentFilterCategory
-            });
+            window.ConstDefectForm.renderAllPins(
+                window.ConstManager.currentFlrId,
+                window.ConstManager.getPinFilters ? window.ConstManager.getPinFilters() : {}
+            );
         } else {
             window.ConstManager.renderDefectsList();
         }
@@ -768,10 +768,11 @@ window.ConstDefectForm = {
         }
 
         // Перерисовываем точки с правильным масштабом
-        this.renderAllPins(floorId, {
-            status: window.ConstManager.currentFilterStatus,
-            category: window.ConstManager.currentFilterCategory
-        }, currentScale);
+        this.renderAllPins(
+            floorId,
+            window.ConstManager.getPinFilters ? window.ConstManager.getPinFilters() : {},
+            currentScale
+        );
         
         // Если был открыт реестр (хотя мы ставим точки на плане, но вдруг)
         if (window.ConstManager.currentView === 'list') {
@@ -803,10 +804,10 @@ window.ConstDefectForm = {
         window.UniversalPdfViewer.setCopyMode(true, orig);
     },
 
-    // --- Отрисовать все булавки на текущем плане ---
     // --- Отрисовать все булавки на текущем плане с учётом фильтров ---
     renderAllPins(floorId, filters = {}, currentScale = 1, highlightDefectId = null) {
         if (!floorId) return;
+        const floorKey = String(floorId);
         
         // 1. Сначала скрываем ВСЕ нарисованные зоны приемок (если они были)
         document.querySelectorAll('.zone-marker-layer').forEach(el => el.remove());
@@ -821,8 +822,10 @@ window.ConstDefectForm = {
             // Если выбран слой зон приемки, дефекты СМР мы вообще не показываем!
             defects = []; 
         } else {
-            // Берем дефекты этажа
-            defects = window.ConstManager.defects.filter(d => d.floorId === floorId);
+            // Берем дефекты этажа (строгое сравнение id как строк)
+            defects = (window.ConstManager.defects || []).filter(d =>
+                d && !d._deleted && String(d.floorId || '') === floorKey
+            );
 
             // Фильтр по слою ОТ и ПБ (Ищем ключевые слова в названии чеклиста)
             if (layer === 'OT') {
@@ -839,13 +842,30 @@ window.ConstDefectForm = {
             }
 
             // Умные фильтры по массиву статусов (из чипсов)
-            if (filters.statuses && filters.statuses.length > 0) {
-                defects = defects.filter(d => filters.statuses.includes(d.status));
+            // Поддержка legacy-ключа filters.status (строка)
+            let statusList = null;
+            if (Array.isArray(filters.statuses) && filters.statuses.length > 0) {
+                statusList = filters.statuses;
+            } else if (filters.status && filters.status !== 'ALL') {
+                statusList = [filters.status];
+            }
+            if (statusList) {
+                defects = defects.filter(d => statusList.includes(d.status));
             }
             if (filters.category && filters.category !== 'ALL') {
                 defects = defects.filter(d => d.category === filters.category);
             }
         }
+
+        // Координаты: без валидных x/y булавку некуда ставить — ставим в центр, чтобы не «терять» дефект
+        defects = defects.map(d => {
+            const x = Number(d.x);
+            const y = Number(d.y);
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+                return { ...d, x, y };
+            }
+            return { ...d, x: 50, y: 50 };
+        });
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -954,14 +974,18 @@ window.ConstDefectForm = {
         const universalPinsContainer = document.getElementById('universal-pdf-pins');
         if (universalPinsContainer) universalPinsContainer.innerHTML = pinsHtml;
 
-        const previewRenderArea = document.getElementById('const-pdf-render-area');
-        if (previewRenderArea && !previewRenderArea.classList.contains('hidden')) {
-            let previewPinsContainer = document.getElementById('preview-pdf-pins');
-            if (previewPinsContainer) previewPinsContainer.innerHTML = pinsHtml;
+        // Preview-план: рисуем всегда, если контейнер есть и принадлежит этому этажу
+        // (раньше требовали !hidden у renderArea — из-за гонки булавки могли не появиться)
+        const previewPinsContainer = document.getElementById('preview-pdf-pins');
+        if (previewPinsContainer) {
+            const pinnedTo = previewPinsContainer.dataset.floorId;
+            if (!pinnedTo || String(pinnedTo) === floorKey) {
+                previewPinsContainer.innerHTML = pinsHtml;
+            }
         }
         // --- 4. ОТРИСОВКА ЗОН ПРИЕМОК (ЕСЛИ СЛОЙ ALL ИЛИ ZONES) ---
         if (layer === 'ALL' || layer === 'ZONES') {
-            const reqs = window.ConstAcceptance?.requests?.filter(r => r.floorId === floorId && r.zone) || [];
+            const reqs = window.ConstAcceptance?.requests?.filter(r => String(r.floorId) === floorKey && r.zone) || [];
             
             const zonesHtml = reqs.map(req => {
                 const z = req.zone;
@@ -981,9 +1005,11 @@ window.ConstDefectForm = {
             }).join('');
 
             if (universalPinsContainer) universalPinsContainer.insertAdjacentHTML('afterbegin', zonesHtml);
-            if (previewRenderArea && !previewRenderArea.classList.contains('hidden')) {
-                const previewPinsContainer = document.getElementById('preview-pdf-pins');
-                if (previewPinsContainer) previewPinsContainer.insertAdjacentHTML('afterbegin', zonesHtml);
+            if (previewPinsContainer) {
+                const pinnedTo = previewPinsContainer.dataset.floorId;
+                if (!pinnedTo || String(pinnedTo) === floorKey) {
+                    previewPinsContainer.insertAdjacentHTML('afterbegin', zonesHtml);
+                }
             }
         }
     },

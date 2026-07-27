@@ -358,6 +358,25 @@ async function dbGet(storeName, key) {
     });
 }
 
+/** Есть ли ключ в store без чтения value (не поднимает blob в RAM). */
+async function dbHasKey(storeName, key) {
+    if (key == null || key === '') return false;
+    const db = await openAppDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        if (typeof store.getKey === 'function') {
+            const req = store.getKey(key);
+            req.onsuccess = () => resolve(req.result !== undefined);
+            req.onerror = () => reject(req.error);
+            return;
+        }
+        const req = store.count(IDBKeyRange.only(key));
+        req.onsuccess = () => resolve((req.result || 0) > 0);
+        req.onerror = () => reject(req.error);
+    });
+}
+
 async function dbGetAll(storeName) {
     const db = await openAppDb();
     return new Promise((resolve, reject) => {
@@ -537,6 +556,7 @@ async function dbClear(storeName) {
 
 window.dbPut = dbPut;
 window.dbGet = dbGet;
+window.dbHasKey = dbHasKey;
 window.dbGetAll = dbGetAll;
 window.dbGetPageByIndex = dbGetPageByIndex;
 window.dbDelete = dbDelete;

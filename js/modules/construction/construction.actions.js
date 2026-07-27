@@ -59,9 +59,44 @@ const ConstructionActions = {
 
     handleDefectsCreated: function (defects) {
       if (!window.ConstManager || !Array.isArray(defects) || defects.length === 0) return;
+      var cm = window.ConstManager;
       defects.forEach(function (def) {
-        def.floorId = window.ConstManager.currentFlrId || null;
-        window.ConstManager.defects.push(def);
+        if (!def) return;
+
+        // Координаты с planPin осмотра (если переданы)
+        var x = Number(def.x);
+        var y = Number(def.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          x = 50;
+          y = 50;
+        }
+        def.x = x;
+        def.y = y;
+
+        // floorId: явный → resolve из locationFloorId/planPin → текущий этаж СК
+        var floorId = def.floorId || null;
+        if (floorId && cm.floors && !cm.floors.some(function (f) { return String(f.id) === String(floorId); })) {
+          // Возможно это id этажа из locations
+          if (typeof cm.resolveFloorIdFromLocation === 'function') {
+            floorId = cm.resolveFloorIdFromLocation(floorId) || floorId;
+          }
+        }
+        if (!floorId && def.locationFloorId && typeof cm.resolveFloorIdFromLocation === 'function') {
+          floorId = cm.resolveFloorIdFromLocation(def.locationFloorId);
+        }
+        if (!floorId && cm.currentFlrId) {
+          floorId = cm.currentFlrId;
+        }
+        def.floorId = floorId || null;
+
+        // Не плодим дубликаты по id
+        var exists = (cm.defects || []).some(function (d) { return d && d.id === def.id; });
+        if (!exists) {
+          cm.defects.push(def);
+        } else {
+          var idx = cm.defects.findIndex(function (d) { return d && d.id === def.id; });
+          if (idx !== -1) cm.defects[idx] = Object.assign({}, cm.defects[idx], def);
+        }
         if (_storage().stores().CONST_DEFECTS) {
           _storage().put(_storage().stores().CONST_DEFECTS, def);
         }
@@ -69,9 +104,12 @@ const ConstructionActions = {
       if (typeof showToast === 'function') {
         showToast(`🏗️ В реестр Стройконтроля автоматически добавлено ${defects.length} дефектов!`);
       }
-      if (window.ConstManager.currentView === 'list' && typeof window.ConstManager.renderDefectsList === 'function') {
-        window.ConstManager.renderDefectsList();
+      if (cm.currentView === 'list' && typeof cm.renderDefectsList === 'function') {
+        cm.renderDefectsList();
+      } else if (cm.currentFlrId && window.ConstDefectForm && typeof window.ConstDefectForm.renderAllPins === 'function') {
+        window.ConstDefectForm.renderAllPins(cm.currentFlrId, cm.getPinFilters ? cm.getPinFilters() : {});
       }
+      if (typeof cm.updateStatusChips === 'function') cm.updateStatusChips();
     },
 
     handleAcceptanceStatusChanged: function (requestId, status) {

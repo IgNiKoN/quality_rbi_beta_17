@@ -47,6 +47,22 @@ window.triggerSync = async function (mode = 'silent') {
     ) {
         return;
     }
+
+    // Полный автокэш / «скачать всё»: не стартуем второй круг sync параллельно.
+    // Запрос откладываем и подхватим в rbiEndOfflineCacheSyncPause.
+    if (typeof window.rbiIsOfflineCacheBlockingSync === 'function' && window.rbiIsOfflineCacheBlockingSync()) {
+        if (mode === 'manual') {
+            safeToast('⏳ Идёт докачка файлов для офлайна. Синхронизация запустится после…');
+        }
+        if (typeof window.rbiDeferSyncForOfflineCache === 'function') {
+            window.rbiDeferSyncForOfflineCache(mode);
+        } else {
+            window._rbiPendingSyncRetryMode =
+                (mode === 'manual' || window._rbiPendingSyncRetryMode === 'manual') ? 'manual' : (window._rbiPendingSyncRetryMode || 'silent');
+        }
+        return;
+    }
+
     let pushErrors = 0;
     let pullErrors = 0;
     let referencePullErrors = 0;
@@ -56,7 +72,14 @@ window.triggerSync = async function (mode = 'silent') {
     if (typeof window.rbiBeginSyncUiDefer === 'function') window.rbiBeginSyncUiDefer();
     else window._rbiDeferActiveViewFullRender = true;
     window.syncChannel.postMessage('sync_started');
-    let hasNewCriticalData = false;
+
+    // Прогресс-тост: только 1-я полная или ручной запуск (silent после первой — без UI).
+    const showSyncProgress =
+        mode === 'manual' ||
+        hasNeverPulled ||
+        forcePullRequested === true;
+    const _syncProg = () => (showSyncProgress && window.rbiSyncProgress) ? window.rbiSyncProgress : null;
+    if (_syncProg()) _syncProg().begin();
 
     // RBI FIX: отслеживаем, что из облака пришли практики/эталоны,
     // чтобы обновить интерфейс без перезагрузки страницы.
@@ -71,6 +94,7 @@ window.triggerSync = async function (mode = 'silent') {
         if (typeof window.rbiEndSyncUiDefer === 'function') window.rbiEndSyncUiDefer(0);
         else window._rbiDeferActiveViewFullRender = false;
         window.renderSyncUI();
+        if (_syncProg()) _syncProg().fail();
         safeToast("⚠️ Синхронизация прервана (слабый интернет). Попробуйте позже.");
         console.log("[Sync] Timeout. Снята блокировка.");
     }, 90000);
@@ -657,7 +681,11 @@ if (window.RbiStorageManager) {
     }
 
     try {
-        if (mode === 'manual') safeToast('🔄 Синхронизация...');
+        if (showSyncProgress) {
+            if (_syncProg()) _syncProg().setStep(1);
+        } else if (mode === 'manual') {
+            safeToast('🔄 Синхронизация...');
+        }
 
         // =====================================================
         // 1. ВСЕГДА ТЯНЕМ РЕЙТИНГ ИНЖЕНЕРОВ
@@ -722,6 +750,7 @@ if (window.RbiStorageManager) {
         // =====================================================
         // 2. PULL: проверки из новой нормальной архитектуры
         // =====================================================
+        if (_syncProg()) _syncProg().setStep(2);
 
         // --- НОВОЕ: Фильтрация PULL по ролям (по dataScope, не по буквальной роли) ---
         const role = window.RBI.services.permissions ? window.RBI.services.permissions.getCurrentRole() : 'guest';
@@ -798,6 +827,7 @@ if (window.RbiStorageManager) {
         };
 
         const cloudInspections = await rbiPullAllRows(buildInspectionsQuery, 500);
+        if (_syncProg() && cloudInspections) _syncProg().addPulled(cloudInspections.length);
 
         if (cloudInspections && cloudInspections.length > 0) {
             const ids = cloudInspections.map(x => x.id);
@@ -931,10 +961,6 @@ if (window.RbiStorageManager) {
                 if (!window._tempHistoryBatch) window._tempHistoryBatch = [];
                 window._tempHistoryBatch.push(localItem);
 
-                // Ловим новые критические дефекты
-                if (mode === 'silent' && localItem.metrics && localItem.metrics.n_B3_fail > 0) {
-                    hasNewCriticalData = true;
-                }
             }
 
             // МАССОВОЕ СОХРАНЕНИЕ ПРОВЕРОК
@@ -1029,6 +1055,7 @@ if (window.RbiStorageManager) {
         // =====================================================
         // 4. PULL: задачи и эталоны
         // =====================================================
+        if (_syncProg()) _syncProg().setStep(3);
         try {
             // auto + manual: единый план инженера на телефоне/ПК/у админа
             let taskQuery = window.supabaseClient
@@ -1159,6 +1186,7 @@ if (window.RbiStorageManager) {
         // =====================================================
         // 4.1. PULL: прочие модули через rbi_cloud_objects
         // =====================================================
+        if (_syncProg()) _syncProg().setStep(4);
         try {
             // Единый массив всех независимых таблиц (И проектные, и общие справочники)
             const cloudTypes = [
@@ -1212,6 +1240,7 @@ if (window.RbiStorageManager) {
                     }
 
                     console.log(`[Sync] ${cType.type}: получено ${objects.length}`);
+                    if (_syncProg()) _syncProg().addPulled(objects.length);
                     if (cType.type === 'practice') pulledPracticesChanged = true;
                     if (cType.type === 'etalon') pulledEtalonsChanged = true;
                     for (const obj of objects) {
@@ -1266,6 +1295,13 @@ if (window.RbiStorageManager) {
             if (typeof dbGetAll === 'function') {
                 if (typeof reportsArray !== 'undefined') {
                     window.reportsArray = (await dbGetAll('app_reports') || []).filter(x => !x._deleted && !x.is_deleted);
+                    if (window.RBI?.services?.reports?.detachCloudBlobsInMemory) {
+                        window.RBI.services.reports.detachCloudBlobsInMemory(window.reportsArray);
+                    } else {
+                        (window.reportsArray || []).forEach((r) => {
+                            if (r && r.file_blob && r.file_url && String(r.file_url).startsWith('http')) r.file_blob = null;
+                        });
+                    }
                 }
 
                 if (typeof userReportTemplates !== 'undefined') {
@@ -1290,6 +1326,7 @@ if (window.RbiStorageManager) {
             // =====================================================
             // PULL ПК СК: новая модель через public.sk_records
             // =====================================================
+            if (_syncProg()) _syncProg().setStep(5);
             if (window.supabaseClient && typeof dbGetAll === 'function') {
                 try {
                     const pCode = window.syncConfig.projectCode;
@@ -1813,6 +1850,7 @@ if (window.RbiStorageManager) {
         // =====================================================
         // 5. PUSH: локальная история в новую архитектуру (ОПТИМИЗИРОВАНО)
         // =====================================================
+        if (_syncProg()) _syncProg().setStep(6);
         if (canPush) {
             currentHistory = typeof dbGetAll === 'function' ? (await dbGetAll('app_history') || []) : [];
 
@@ -2710,10 +2748,14 @@ if (window.RbiStorageManager) {
                             rep.updatedAt = rep.updated_at; // Дублируем ключ для верности
                             await dbPut(STORES.REPORTS, rep);
 
-                            // Обновляем массив в оперативной памяти
+                            // Обновляем массив в оперативной памяти (без PDF в RAM для облачных)
                             if (typeof reportsArray !== 'undefined') {
                                 const idx = reportsArray.findIndex(x => x.id === rep.id);
-                                if (idx !== -1) reportsArray[idx] = rep;
+                                if (idx !== -1) {
+                                    const mem = { ...rep };
+                                    if (mem.file_url && String(mem.file_url).startsWith('http')) mem.file_blob = null;
+                                    reportsArray[idx] = mem;
+                                }
                             }
 
                             // Заставляем интерфейс перерисовать экран отчетов мгновенно!
@@ -3369,6 +3411,7 @@ if (window.RbiStorageManager) {
         // =====================================================
         // 9. ЗАВЕРШЕНИЕ СИНХРОНИЗАЦИИ И ОБНОВЛЕНИЕ UI
         // =====================================================
+        if (_syncProg()) _syncProg().setStep(7);
         const doneAt = new Date().toISOString();
 
         const wasFirstFullPullForOfflineCache =
@@ -3567,45 +3610,57 @@ if (window.RbiStorageManager) {
                 // ВАЖНО:
                 // После первой полной синхронизации нужно кэшировать ВСЁ,
                 // а не только лёгкую очередь из 12-30 файлов.
+                // Старт ПОСЛЕ sync (setTimeout) — не блокирует UI завершения sync / pull таблиц.
+                // Сразу ставим паузу sync, чтобы за 1.5s delay не ушёл второй круг.
                 localStorage.setItem('rbi_first_full_offline_cache_started_at', String(Date.now()));
+                if (typeof window.rbiBeginOfflineCacheSyncPause === 'function') {
+                    window.rbiBeginOfflineCacheSyncPause('post_sync_full_offline_cache');
+                }
 
                 setTimeout(async () => {
-                    if (window.rbiFullOfflineCacheProcessing) return;
-
-                    window.rbiFullOfflineCacheProcessing = true;
-
                     try {
-                        console.log(
-                            needFullOfflineCache
-                                ? '[OfflineCache] Запрошено повторное полное копирование для офлайна.'
-                                : '[OfflineCache] Первая полная синхронизация завершена. Запускаем полное копирование файлов для офлайна.'
-                        );
+                        if (window.rbiFullOfflineCacheProcessing) return;
 
-                        await window.downloadMissingCloudFiles(needFullOfflineCache === true);
+                        window.rbiFullOfflineCacheProcessing = true;
 
-                        window.rbiBgCacheQueue = [];
+                        try {
+                            console.log(
+                                needFullOfflineCache
+                                    ? '[OfflineCache] Запрошено повторное полное копирование для офлайна.'
+                                    : '[OfflineCache] Первая полная синхронизация завершена. Запускаем полное копирование файлов для офлайна.'
+                            );
 
-                        localStorage.setItem('rbi_first_full_offline_cache_done', '1');
-                        localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
-                        localStorage.removeItem('rbi_need_full_offline_cache');
+                            // Прогресс N/M+МБ в mini-toast; не await внутри pull.
+                            await window.downloadMissingCloudFiles(false, 'all');
 
-                        if (typeof window.rbi_reloadReferenceMemory === 'function') {
-                            await window.rbi_reloadReferenceMemory();
+                            window.rbiBgCacheQueue = [];
+
+                            localStorage.setItem('rbi_first_full_offline_cache_done', '1');
+                            localStorage.setItem('rbi_last_bg_cache_at', String(Date.now()));
+                            localStorage.removeItem('rbi_need_full_offline_cache');
+
+                            if (typeof window.rbi_reloadReferenceMemory === 'function') {
+                                await window.rbi_reloadReferenceMemory();
+                            }
+
+                            if (window.syncDirtyFlags) {
+                                window.syncDirtyFlags.reference = true;
+                                window.syncDirtyFlags.history = true;
+                                window.syncDirtyFlags.analytics = true;
+                                window.syncDirtyFlags.tasks = true;
+                            }
+
+                            console.log('[OfflineCache] Первичное полное копирование для офлайна завершено.');
+                        } catch (e) {
+                            console.warn('[OfflineCache] Ошибка первичного полного копирования:', e);
+                            localStorage.removeItem('rbi_first_full_offline_cache_done');
+                        } finally {
+                            window.rbiFullOfflineCacheProcessing = false;
                         }
-
-                        if (window.syncDirtyFlags) {
-                            window.syncDirtyFlags.reference = true;
-                            window.syncDirtyFlags.history = true;
-                            window.syncDirtyFlags.analytics = true;
-                            window.syncDirtyFlags.tasks = true;
-                        }
-
-                        console.log('[OfflineCache] Первичное полное копирование для офлайна завершено.');
-                    } catch (e) {
-                        console.warn('[OfflineCache] Ошибка первичного полного копирования:', e);
-                        localStorage.removeItem('rbi_first_full_offline_cache_done');
                     } finally {
-                        window.rbiFullOfflineCacheProcessing = false;
+                        if (typeof window.rbiEndOfflineCacheSyncPause === 'function') {
+                            window.rbiEndOfflineCacheSyncPause();
+                        }
                     }
                 }, 1500);
             } else {
@@ -3621,15 +3676,12 @@ if (window.RbiStorageManager) {
 
                     setTimeout(() => {
                         if (typeof window.rbiProcessBgCacheQueue === 'function') {
-                            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
-                            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
-
+                            const concurrency = window.RBI_OFFLINE_CACHE_CONCURRENCY || 4;
+                            const pause = window.RBI_OFFLINE_CACHE_BATCH_PAUSE_MS ?? 60;
                             window.rbiProcessBgCacheQueue({
-                                maxPerRun: mode === 'manual'
-                                    ? (isSafari || isIOS ? 60 : 180)
-                                    : (isSafari || isIOS ? 30 : 100),
-                                concurrency: isSafari || isIOS ? 2 : 5,
-                                pauseBetweenRounds: isSafari || isIOS ? 1200 : 500
+                                maxPerRun: mode === 'manual' ? 120 : 80,
+                                concurrency,
+                                pauseBetweenRounds: pause
                             });
                         }
                     }, 1000);
@@ -3642,6 +3694,10 @@ if (window.RbiStorageManager) {
 
         const totalPushed = pushedChecks + actuallyPushedTasks + actuallyPushedProfiles;
         const hasChanges = pulledChecks > 0 || totalPushed > 0;
+
+        if (_syncProg()) {
+            _syncProg().addPushed(totalPushed);
+        }
 
         // Включаем флаги "Грязных данных", чтобы вкладки обновились при переходе на них
         window.syncDirtyFlags.templates = true;
@@ -3797,16 +3853,18 @@ if (window.RbiStorageManager) {
                 window.syncDirtyFlags.history = true;
             }
 
-            if (hasChanges) {
-                safeToast(`✅ Успешно! Отправлено: ${totalPushed}, загружено: ${pulledChecks}.`);
-            } else {
-                safeToast('✅ Синхронизировано. Новых данных нет.');
-            }
-        } else {
-            // Тихий режим: НИЧЕГО НЕ ПЕРЕРИСОВЫВАЕМ! Только уведомления о критическом
-            if (hasNewCriticalData) {
-                safeToast("⚠️ В фоне загружены новые аварии (B3). Обновите вкладку для просмотра.");
-            }
+        }
+        // Итог только в #mini-sync-toast (manual / 1-я полная). Отдельный safeToast и B3 — нет.
+        if (_syncProg()) {
+            const summary = hasChanges
+                ? `Готово · ↑${totalPushed} ↓${pulledChecks}`
+                : 'Готово · нет изменений';
+            _syncProg().done({
+                summary,
+                pulled: pulledChecks,
+                pushed: totalPushed,
+                hideAfterMs: 2500
+            });
         }
 
         // sync:completed — оба канала (EventBus + document). Payload включает
@@ -3828,14 +3886,22 @@ if (window.RbiStorageManager) {
     } catch (e) {
         console.error("[Sync] Ошибка:", e);
         pushErrors++;
-        if (mode === 'manual') {
-            safeToast('❌ Ошибка: ' + (e.message ? e.message.substring(0, 80) : 'Сбой сети'));
+        const errMsg = e.message ? e.message.substring(0, 80) : 'Сбой сети';
+        if (_syncProg()) {
+            _syncProg().fail({ summary: 'Ошибка · ' + errMsg, hideAfterMs: 3000 });
+        } else if (mode === 'manual') {
+            safeToast('❌ Ошибка: ' + errMsg);
         } // <-- ВОТ ЭТОЙ СКОБКИ НЕ ХВАТАЛО
     } finally {
         if (window.syncTimeout) clearTimeout(window.syncTimeout);
         window.isSyncing = false;
         window.syncChannel.postMessage('sync_done');
         window.renderSyncUI();
+
+        // Safety: если done/fail не вызвали (ранний выход) — спрятать тост.
+        if (_syncProg() && _syncProg().isActive && _syncProg().isActive()) {
+            _syncProg().hide();
+        }
 
         // Снимаем defer после тика: sync:completed-хендлеры и late UI уже отработали.
         if (typeof window.rbiEndSyncUiDefer === 'function') window.rbiEndSyncUiDefer(400);
@@ -3845,10 +3911,17 @@ if (window.RbiStorageManager) {
 
         // Если во время этого цикла sync был запрошен повторно (и отброшен из-за isSyncing),
         // не теряем его — запускаем отложенный повторный проход.
+        // Но не во время полного автокэша: иначе второй sync уйдёт параллельно с докачкой.
         if (window._rbiPendingSyncRetryMode) {
-            const retryMode = window._rbiPendingSyncRetryMode;
-            window._rbiPendingSyncRetryMode = null;
-            setTimeout(() => window.triggerSync(retryMode), 300);
+            const cacheBlocks = typeof window.rbiIsOfflineCacheBlockingSync === 'function'
+                && window.rbiIsOfflineCacheBlockingSync();
+            if (cacheBlocks) {
+                console.log('[Sync] Отложенный sync ждёт конца автокэша:', window._rbiPendingSyncRetryMode);
+            } else {
+                const retryMode = window._rbiPendingSyncRetryMode;
+                window._rbiPendingSyncRetryMode = null;
+                setTimeout(() => window.triggerSync(retryMode), 300);
+            }
         }
     }
 };

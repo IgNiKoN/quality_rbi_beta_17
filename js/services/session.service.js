@@ -119,6 +119,13 @@
         // Загружаем сохраненные PDF-отчеты
         const reports = await dbGetAll(STORES.REPORTS);
         window.reportsArray = (reports || []).filter(i => !i._deleted);
+        if (window.RBI?.services?.reports?.detachCloudBlobsInMemory) {
+            window.RBI.services.reports.detachCloudBlobsInMemory(window.reportsArray);
+        } else {
+            (window.reportsArray || []).forEach((r) => {
+                if (r && r.file_blob && r.file_url && String(r.file_url).startsWith('http')) r.file_blob = null;
+            });
+        }
 
         // НОВОЕ: Инициализируем кэш и запускаем миграцию
         await PhotoManager.init();

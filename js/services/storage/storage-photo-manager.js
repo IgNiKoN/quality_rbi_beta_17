@@ -486,23 +486,51 @@ const PhotoManager = {
         }
     },
 
-    async downloadForOffline(url) {
-        if (!url || !String(url).startsWith('http') || this.cache[url]) {
-            if (this.cache[url]) this._touchLru(url);
-            return;
+    async downloadForOffline(url, opts = {}) {
+        // skipMemoryCache=true по умолчанию: автокэш пишет только в IDB, без ObjectURL в RAM.
+        // UI, которому нужен blob:-URL сразу, передаёт { skipMemoryCache: false }.
+        // Возвращает { ok, bytes, fetched } — fetched=true только после реального сетевого скачивания.
+        const skipMemoryCache = opts.skipMemoryCache !== false;
+
+        if (!url || !String(url).startsWith('http')) {
+            return { ok: false, bytes: 0, fetched: false };
+        }
+        if (this.cache[url]) {
+            this._touchLru(url);
+            return { ok: true, bytes: 0, fetched: false };
         }
 
         try {
-            if (window.RbiStorageManager) {
+            // Квоту проверяем редко лёгким snapshot — не на каждый файл.
+            this._downloadsSinceQuotaCheck = (this._downloadsSinceQuotaCheck || 0) + 1;
+            if (
+                this._downloadsSinceQuotaCheck >= 25 &&
+                window.RbiStorageManager &&
+                typeof window.RbiStorageManager.getStorageSnapshot === 'function'
+            ) {
+                this._downloadsSinceQuotaCheck = 0;
                 const snap = await window.RbiStorageManager.getStorageSnapshot();
-
-                if (snap.mode === 'normal_cleanup' || snap.mode === 'critical_cleanup') {
+                if (
+                    snap.mode === 'critical_cleanup' &&
+                    typeof window.RbiStorageManager.runAdaptiveStorageCleanup === 'function'
+                ) {
                     await window.RbiStorageManager.runAdaptiveStorageCleanup('before_download');
                 }
             }
 
             const cached = await dbGet(STORES.PHOTOS, url);
-            if (cached && cached.data) return;
+            if (cached && cached.data) {
+                const existingBytes = cached.size_bytes || cached.sizeBytes || cached.data.byteLength || 0;
+                if (!skipMemoryCache) {
+                    const mime = cached.mimeType || cached.mime_type || 'application/octet-stream';
+                    const blob = cached.data instanceof Blob
+                        ? cached.data
+                        : new Blob([cached.data], { type: mime });
+                    const localUrl = URL.createObjectURL(blob);
+                    this._rememberObjectUrl(url, localUrl);
+                }
+                return { ok: true, bytes: existingBytes, fetched: false };
+            }
 
             const res = await rbiFetchCloudFileNoBrowserCache(url);
             if (!res.ok) throw new Error("Файл недоступен");
@@ -538,10 +566,14 @@ const PhotoManager = {
                     blob.type || 'application/octet-stream'
                 );
             }
-            const localUrl = URL.createObjectURL(blob);
-            this._rememberObjectUrl(url, localUrl);
+            if (!skipMemoryCache) {
+                const localUrl = URL.createObjectURL(blob);
+                this._rememberObjectUrl(url, localUrl);
+            }
+            return { ok: true, bytes: buffer.byteLength, fetched: true };
         } catch (e) {
             console.warn('[PhotoManager] downloadForOffline error:', e);
+            return { ok: false, bytes: 0, fetched: false };
         }
     }
 };
