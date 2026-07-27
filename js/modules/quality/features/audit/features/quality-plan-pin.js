@@ -469,19 +469,24 @@ async function _openPlanViewer(floorId) {
   try {
     let buf = null;
     const pdfUrl = plan.pdf_url;
-    if (window.PhotoManager && typeof window.PhotoManager.getAsyncUrl === 'function') {
-      try {
-        const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
-        if (cached && String(cached).startsWith('blob:')) {
-          const res = await fetch(cached);
-          buf = await res.arrayBuffer();
-        }
-      } catch (_e) { /* fall through */ }
-    }
-    if (!buf) {
-      const res = await fetch(pdfUrl);
-      if (!res.ok) throw new Error('Не удалось скачать PDF');
-      buf = await res.arrayBuffer();
+    if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
+      buf = await window.rbiLoadCloudPdfArrayBuffer(pdfUrl);
+    } else {
+      if (window.PhotoManager && typeof window.PhotoManager.getAsyncUrl === 'function') {
+        try {
+          const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
+          if (cached && String(cached).startsWith('blob:')) {
+            const res = await fetch(cached);
+            buf = await res.arrayBuffer();
+          }
+        } catch (_e) { /* fall through */ }
+      }
+      if (!buf) {
+        if (navigator.onLine === false) throw new Error('PDF не кэширован офлайн');
+        const res = await fetch(pdfUrl);
+        if (!res.ok) throw new Error('Не удалось скачать PDF');
+        buf = await res.arrayBuffer();
+      }
     }
     if (!document.getElementById('quality-plan-pin-overlay')) return;
 

@@ -10,7 +10,15 @@ import { focusAcceptanceOnPlan, renderAcceptanceKanban } from './acceptance-kanb
 import { PlanViewer } from './plan-viewer';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
 import { renderTransferBoard, teardownTransferUi } from './transfer-board';
-import { type DefectsFilter, renderDefectsRegistry } from './defects-registry';
+import { renderDefectsRegistry } from './defects-registry';
+import {
+  type PinCategory,
+  filterDefectsByPins,
+  paintPinFilterHosts,
+  pinFiltersState,
+  setCategoryFilter,
+  toggleStatusFilter
+} from './pin-filters';
 
 type LocSvc = {
   init: () => Promise<boolean>;
@@ -84,7 +92,6 @@ let _mountedPdfUrl: string | null = null;
 let _subview: ConstructionV2Subview = 'plan';
 let _pendingFocusAccId: string | null = null;
 let _pendingHighlightDefectId: string | null = null;
-let _defectsFilter: DefectsFilter = 'all';
 let _fsOpen = false;
 let _fsPlaceholder: Comment | null = null;
 let _fsEscHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -202,6 +209,7 @@ function _renderPlanChrome(svc: LocSvc): string {
         ${_fullscreenIconBtn()}
       </div>
     </div>
+    <div class="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700" data-c2-pin-filters-host="plan"></div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
     <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
       <span id="c2-overlay-count"></span>
@@ -410,14 +418,25 @@ async function _refreshOverlaysOnly(): Promise<void> {
   if (!_viewer || !_selectedFloorId) return;
   if (dSvc) await dSvc.init();
   if (aSvc) await aSvc.init();
-  const defects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const allDefects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const filtered = filterDefectsByPins(allDefects, pinFiltersState);
   const zones = aSvc ? aSvc.listForFloor(_selectedFloorId) : [];
-  _viewer.setMarkers(defects);
+  paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
+  _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
+  const label = `Показано ${filtered.length} из ${allDefects.length} · Зон: ${zones.length}`;
   const countEl = document.getElementById('c2-overlay-count');
-  if (countEl) countEl.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  if (countEl) countEl.textContent = label;
   const fsCount = document.getElementById('c2-fs-overlay-count');
-  if (fsCount) fsCount.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  if (fsCount) fsCount.textContent = label;
+}
+
+async function _onPinFiltersChanged(): Promise<void> {
+  if (_subview === 'defects') {
+    await renderConstructionV2();
+    return;
+  }
+  await _refreshOverlaysOnly();
 }
 
 function _closePlanFullscreen(): void {
@@ -460,22 +479,25 @@ function _openPlanFullscreen(): void {
     ? 'bg-emerald-600 text-white border-emerald-600'
     : 'bg-white/10 text-white border-white/30';
   overlay.innerHTML = `
-    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-slate-950/90 flex-wrap">
-      <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
-        ${_zoomToolbarHtml('fs')}
-        <button type="button" data-c2-zone-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-          ${_zoneMode ? '2 клика…' : 'Зона'}
-        </button>
-        <button type="button" data-c2-add-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-          ${_addMode ? 'Кликни…' : '+ Замечание'}
-        </button>
-        <button type="button" data-c2-fs-close
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-white/10 bg-slate-950/90">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
+          ${_zoomToolbarHtml('fs')}
+          <button type="button" data-c2-zone-mode
+            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+            ${_zoneMode ? '2 клика…' : 'Зона'}
+          </button>
+          <button type="button" data-c2-add-mode
+            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+            ${_addMode ? 'Кликни…' : '+ Замечание'}
+          </button>
+          <button type="button" data-c2-fs-close
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+        </div>
       </div>
+      <div data-c2-pin-filters-host="fs"></div>
     </div>
     <div id="c2-plan-fs-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
 
@@ -606,11 +628,7 @@ export async function renderConstructionV2(): Promise<void> {
       floorId: _selectedFloorId,
       floorLabel: path || floor?.displayName || '',
       defects: list,
-      filter: _defectsFilter,
-      onFilterChange: (f) => {
-        _defectsFilter = f;
-        renderConstructionV2().catch(() => {});
-      },
+      filters: pinFiltersState,
       cb: {
         onOpenDefect: (id) => _openViewDefect(id),
         onShowOnPlan: (id, locationId) => focusDefectOnPlan(id, locationId)
@@ -703,6 +721,27 @@ function _bindOnce() {
       if (zFit) {
         ev.preventDefault();
         _viewer?.fit();
+        return;
+      }
+      const statusChip = t?.closest?.('[data-c2-pin-status]') as HTMLElement | null;
+      if (statusChip) {
+        // План квартиры слушает сам (свой host) — не двойной toggle
+        if (t?.closest?.('#c2-apartment-plan')) return;
+        ev.preventDefault();
+        const key = statusChip.getAttribute('data-c2-pin-status');
+        if (!key) return;
+        toggleStatusFilter(pinFiltersState, key);
+        void _onPinFiltersChanged();
+        return;
+      }
+      const catBtn = t?.closest?.('[data-c2-pin-category]') as HTMLElement | null;
+      if (catBtn) {
+        if (t?.closest?.('#c2-apartment-plan')) return;
+        ev.preventDefault();
+        const key = catBtn.getAttribute('data-c2-pin-category') as PinCategory | null;
+        if (!key) return;
+        setCategoryFilter(pinFiltersState, key);
+        void _onPinFiltersChanged();
       }
     },
     true

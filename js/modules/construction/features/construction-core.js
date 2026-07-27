@@ -548,9 +548,11 @@ window.ConstManager = {
         this.currentFlrId = floorId;
 
         try {
-            // 1. Достаем файл (из кэша или скачиваем)
+            // 1. Достаем файл (единый офлайн-стор PhotoManager / IDB)
             let pdfArrayBuffer = null;
-            if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
+            if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
+                pdfArrayBuffer = await window.rbiLoadCloudPdfArrayBuffer(floor.pdf_url);
+            } else if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
                 const cachedUrl = await PhotoManager.getAsyncUrl(floor.pdf_url);
                 if (isStale()) return;
                 if (cachedUrl && cachedUrl.startsWith('blob:')) {

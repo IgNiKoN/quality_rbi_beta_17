@@ -51,6 +51,38 @@ function arrayBufferToBlob(buffer, mimeType = 'image/webp') {
     return new Blob([buffer], { type: mimeType });
 }
 
+/**
+ * Отчёты в IDB: на iOS PWA Blob в IndexedDB часто «умирает» после перезапуска,
+ * поэтому пишем ArrayBuffer (как PhotoManager). Читатели принимают оба формата.
+ */
+function rbiReportPayloadBytes(payload) {
+    if (!payload) return 0;
+    try {
+        if (typeof payload.byteLength === 'number' && payload.byteLength > 0) return payload.byteLength;
+        if (typeof payload.size === 'number' && payload.size > 0) return payload.size;
+    } catch (_) { /* ignore */ }
+    return 0;
+}
+
+function rbiReportPayloadToBlob(payload, mimeType) {
+    if (!payload) return null;
+    const mime = mimeType || 'application/pdf';
+    if (typeof Blob !== 'undefined' && payload instanceof Blob) {
+        return payload.size > 0 ? payload : null;
+    }
+    if (payload instanceof ArrayBuffer) {
+        return payload.byteLength > 0 ? new Blob([payload], { type: mime }) : null;
+    }
+    if (ArrayBuffer.isView && ArrayBuffer.isView(payload)) {
+        return payload.byteLength > 0 ? new Blob([payload], { type: mime }) : null;
+    }
+    return null;
+}
+
+function rbiHasReportPayload(payload) {
+    return rbiReportPayloadBytes(payload) > 0;
+}
+
 async function base64ToArrayBuffer(base64) {
     const mimeType = base64.match(/data:(.*?);/)[1] || 'image/webp';
     const blob = base64ToBlob(base64, mimeType);
@@ -125,5 +157,8 @@ window.rbiFetchCloudFileNoBrowserCache = rbiFetchCloudFileNoBrowserCache;
 window.arrayBufferToBlob = arrayBufferToBlob;
 window.base64ToArrayBuffer = base64ToArrayBuffer;
 window.arrayBufferToBase64 = arrayBufferToBase64;
+window.rbiReportPayloadBytes = rbiReportPayloadBytes;
+window.rbiReportPayloadToBlob = rbiReportPayloadToBlob;
+window.rbiHasReportPayload = rbiHasReportPayload;
 window.exportToCSV = exportToCSV;
 window.downloadFile = downloadFile;

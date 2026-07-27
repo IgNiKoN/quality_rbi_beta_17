@@ -110,6 +110,18 @@ function rbiNormalizeCloudUrlList(value) {
     return list.filter((url) => typeof url === 'string' && (url.startsWith('http') || url.startsWith('cloud://')));
 }
 
+/**
+ * В офлайн-кэш берём только наш Storage (Supabase).
+ * Внешние URL (w3.org dummy.pdf и т.п.) дают CORS и только шумят в консоли.
+ */
+function rbiIsOfflineCacheableUrl(url) {
+    const s = String(url || '');
+    if (!s) return false;
+    if (s.startsWith('cloud://') || s.startsWith('local://')) return true;
+    if (!s.startsWith('http')) return false;
+    return s.includes('/storage/v1/object/');
+}
+
 function rbiRecordDateMs(record) {
     if (!record || typeof record !== 'object') return 0;
     const raw = record.date || record.updatedAt || record.updated_at || record.createdAt || record.created_at || 0;
@@ -130,6 +142,7 @@ function rbiCollectOfflineCacheUrls(scope = 'all') {
     const add = (url, sortTs, kind) => {
         if (!url || seen.has(url)) return;
         if (!(url.startsWith('http') || url.startsWith('cloud://'))) return;
+        if (url.startsWith('http') && !rbiIsOfflineCacheableUrl(url)) return;
         seen.add(url);
         items.push({ url, sortTs: sortTs || 0, kind: kind || 'file' });
     };
@@ -210,6 +223,32 @@ function rbiCollectOfflineCacheUrls(scope = 'all') {
             if (row && row.attachments) addMany(row.attachments, ts, 'assistant_kb_file');
             if (row && row.photos) Object.values(row.photos).forEach((v) => addMany(v, ts, 'assistant_kb_file'));
         });
+
+        // Эталоны: вложенный PDF + фото узлов / v18 — раньше не попадали в «Скачать всё».
+        const etalonActs = (typeof window.etalonActsArray !== 'undefined' && Array.isArray(window.etalonActsArray))
+            ? window.etalonActsArray
+            : [];
+        etalonActs.forEach((act) => {
+            if (!act || act._deleted === true || act.is_deleted === true) return;
+            const ts = rbiRecordDateMs(act);
+            const d = act.details || {};
+            addMany(d.pdfData, ts, 'etalon_file');
+            if (Array.isArray(d.elements)) {
+                d.elements.forEach((el) => {
+                    if (!el) return;
+                    addMany(el.photo, ts, 'etalon_file');
+                    addMany(el.photos, ts, 'etalon_file');
+                });
+            }
+            const v18 = d.actV18 || d.v18 || null;
+            if (v18 && Array.isArray(v18.photos)) {
+                v18.photos.forEach((p) => addMany(p && p.photo, ts, 'etalon_file'));
+            }
+            // Любые другие storage-URL внутри акта (лимит выше — у эталона много вложений).
+            if (typeof window.rbiCollectCloudStorageUrls === 'function') {
+                window.rbiCollectCloudStorageUrls(act, 120).forEach((url) => add(url, ts, 'etalon_file'));
+            }
+        });
     }
 
     if (wantReports && typeof reportsArray !== 'undefined' && Array.isArray(reportsArray)) {
@@ -221,9 +260,56 @@ function rbiCollectOfflineCacheUrls(scope = 'all') {
         });
     }
 
+    // Планы СК (legacy ConstManager) — в sync-collect; v2 floors/units добирает async в downloadMissingCloudFiles.
+    if (scoped === 'all') {
+        const floors = (window.ConstManager && Array.isArray(window.ConstManager.floors))
+            ? window.ConstManager.floors
+            : [];
+        floors.forEach((flr) => {
+            if (!flr || flr._deleted === true || flr.is_deleted === true) return;
+            addMany(flr.pdf_url || flr.pdfUrl, rbiRecordDateMs(flr), 'construction_plan_pdf');
+        });
+    }
+
     if (scoped === 'all' || scoped === 'days30') {
         items.sort((a, b) => (b.sortTs || 0) - (a.sortTs || 0));
     }
+
+    return items;
+}
+
+/**
+ * Планы СК из IDB: construction_floors + floors_v2 + units_v2 (pdf_url).
+ * Async — вызывается из downloadMissingCloudFiles и дополняет sync-collect.
+ * @returns {Promise<{ url: string, sortTs: number, kind: string }[]>}
+ */
+async function rbiCollectConstructionPlanPdfUrls() {
+    const items = [];
+    const seen = new Set();
+    const add = (url, sortTs) => {
+        if (!url || typeof url !== 'string' || !url.startsWith('http') || seen.has(url)) return;
+        if (!rbiIsOfflineCacheableUrl(url)) return;
+        seen.add(url);
+        items.push({ url, sortTs: sortTs || 0, kind: 'construction_plan_pdf' });
+    };
+
+    const pullStore = async (storeName) => {
+        if (!storeName || typeof dbGetAll !== 'function') return;
+        try {
+            const rows = await dbGetAll(storeName) || [];
+            rows.forEach((row) => {
+                if (!row || row._deleted === true || row.is_deleted === true) return;
+                add(row.pdf_url || row.pdfUrl || '', rbiRecordDateMs(row));
+            });
+        } catch (e) {
+            console.warn('[OfflineCache] collect construction store failed', storeName, e);
+        }
+    };
+
+    const stores = (typeof STORES !== 'undefined') ? STORES : {};
+    await pullStore(stores.CONST_FLOORS || 'construction_floors');
+    await pullStore(stores.CONST_FLOORS_V2 || 'construction_floors_v2');
+    await pullStore(stores.CONST_UNITS_V2 || 'construction_units_v2');
 
     return items;
 }
@@ -256,5 +342,7 @@ window.rbiFormatBytesMb = rbiFormatBytesMb;
 window.rbiFormatCacheProgress = rbiFormatCacheProgress;
 window.rbiApplyCacheProgressToDom = rbiApplyCacheProgressToDom;
 window.rbiCollectOfflineCacheUrls = rbiCollectOfflineCacheUrls;
+window.rbiCollectConstructionPlanPdfUrls = rbiCollectConstructionPlanPdfUrls;
+window.rbiIsOfflineCacheableUrl = rbiIsOfflineCacheableUrl;
 window.rbiEstimateUrlBytes = rbiEstimateUrlBytes;
 window.rbiIsRegistryCached = rbiIsRegistryCached;

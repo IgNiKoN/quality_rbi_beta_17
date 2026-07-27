@@ -495,6 +495,10 @@ const PhotoManager = {
         if (!url || !String(url).startsWith('http')) {
             return { ok: false, bytes: 0, fetched: false };
         }
+        // Чужие домены (CORS / demo PDF) в офлайн-кэш не тащим.
+        if (typeof window.rbiIsOfflineCacheableUrl === 'function' && !window.rbiIsOfflineCacheableUrl(url)) {
+            return { ok: false, bytes: 0, fetched: false };
+        }
         if (this.cache[url]) {
             this._touchLru(url);
             return { ok: true, bytes: 0, fetched: false };

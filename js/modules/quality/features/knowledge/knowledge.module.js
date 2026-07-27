@@ -1463,23 +1463,32 @@ window.rbiOpenPdfInTwiViewer = async function (pdfData, title, subtitle, fileNam
         } else if (raw.indexOf('data:application/pdf') === 0) {
             pdfArrayBuffer = await base64ToArrayBuffer(pdfData);
         } else if (httpsUrl) {
-            pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
-            if (!pdfArrayBuffer && navigator.onLine === false) {
-                throw new Error('PDF не кэширован офлайн');
-            }
-            if (!pdfArrayBuffer && navigator.onLine !== false) {
-                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.downloadForOffline === 'function') {
-                    try {
-                        await PhotoManager.downloadForOffline(httpsUrl, { skipMemoryCache: true });
-                        pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
-                    } catch (_) { /* ignore */ }
+            if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
+                pdfArrayBuffer = await window.rbiLoadCloudPdfArrayBuffer(httpsUrl);
+            } else {
+                pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
+                if (!pdfArrayBuffer && navigator.onLine === false) {
+                    throw new Error('PDF не кэширован офлайн');
                 }
-                if (!pdfArrayBuffer) {
-                    const res = await (typeof rbiFetchCloudFileNoBrowserCache === 'function'
-                        ? rbiFetchCloudFileNoBrowserCache(httpsUrl)
-                        : fetch(httpsUrl, { cache: 'no-store' }));
-                    if (!res.ok) throw new Error('PDF не скачался');
-                    pdfArrayBuffer = await res.arrayBuffer();
+                if (!pdfArrayBuffer && navigator.onLine !== false) {
+                    if (typeof window.rbiCacheCloudPdf === 'function') {
+                        try {
+                            await window.rbiCacheCloudPdf(httpsUrl, { skipMemoryCache: true });
+                            pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
+                        } catch (_) { /* ignore */ }
+                    } else if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.downloadForOffline === 'function') {
+                        try {
+                            await PhotoManager.downloadForOffline(httpsUrl, { skipMemoryCache: true });
+                            pdfArrayBuffer = await bufferFromPhotoCache(httpsUrl);
+                        } catch (_) { /* ignore */ }
+                    }
+                    if (!pdfArrayBuffer) {
+                        const res = await (typeof rbiFetchCloudFileNoBrowserCache === 'function'
+                            ? rbiFetchCloudFileNoBrowserCache(httpsUrl)
+                            : fetch(httpsUrl, { cache: 'no-store' }));
+                        if (!res.ok) throw new Error('PDF не скачался');
+                        pdfArrayBuffer = await res.arrayBuffer();
+                    }
                 }
             }
         } else {

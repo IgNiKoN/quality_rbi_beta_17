@@ -395,10 +395,154 @@
 
     window.rbiClosePdfDocumentSheet = closeSheet;
 
+    /**
+     * Единое сохранение/докачка облачного PDF в офлайн-стор (PhotoManager → app_photos ArrayBuffer).
+     * Фото осмотров и прочие не-PDF по-прежнему через PhotoManager.downloadForOffline напрямую.
+     * @param {string} url
+     * @param {{ skipMemoryCache?: boolean }} [opts]
+     * @returns {Promise<{ ok: boolean, bytes: number, fetched: boolean }>}
+     */
+    window.rbiCacheCloudPdf = async function rbiCacheCloudPdf(url, opts) {
+        opts = opts || {};
+        if (!url || typeof url !== 'string' || url.indexOf('http') !== 0) {
+            return { ok: false, bytes: 0, fetched: false };
+        }
+        if (typeof window.rbiIsOfflineCacheableUrl === 'function' && !window.rbiIsOfflineCacheableUrl(url)) {
+            return { ok: false, bytes: 0, fetched: false };
+        }
+        if (typeof PhotoManager === 'undefined' || typeof PhotoManager.downloadForOffline !== 'function') {
+            console.warn('[rbiCacheCloudPdf] PhotoManager недоступен');
+            return { ok: false, bytes: 0, fetched: false };
+        }
+        try {
+            var dl = await PhotoManager.downloadForOffline(url, {
+                skipMemoryCache: opts.skipMemoryCache !== false
+            });
+            return {
+                ok: !!(dl && dl.ok),
+                bytes: (dl && dl.bytes) || 0,
+                fetched: !!(dl && dl.fetched)
+            };
+        } catch (e) {
+            console.warn('[rbiCacheCloudPdf]', e);
+            return { ok: false, bytes: 0, fetched: false };
+        }
+    };
+
+    /** URL похож на PDF (для очереди кэша: PDF → rbiCacheCloudPdf, остальное → PhotoManager). */
+    window.rbiIsCloudPdfUrl = function rbiIsCloudPdfUrl(url) {
+        var s = String(url || '').toLowerCase();
+        if (!s || s.indexOf('http') !== 0) return false;
+        if (/\.pdf(\?|#|$)/.test(s)) return true;
+        if (s.indexOf('/reports/') !== -1) return true;
+        if (s.indexOf('construction-plans') !== -1) return true;
+        if (s.indexOf('library-docs') !== -1) return true;
+        return false;
+    };
+
+    /**
+     * Единая загрузка облачного PDF: IDB/PhotoManager → (online) rbiCacheCloudPdf → fetch.
+     * @param {string} url
+     * @returns {Promise<ArrayBuffer>}
+     */
+    window.rbiLoadCloudPdfArrayBuffer = async function rbiLoadCloudPdfArrayBuffer(url) {
+        if (!url || typeof url !== 'string') {
+            throw new Error('Нет ссылки на PDF');
+        }
+
+        async function fromPhotoCache(key) {
+            if (!key) return null;
+            try {
+                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
+                    const localU = await PhotoManager.getAsyncUrl(key);
+                    if (localU && String(localU).indexOf('blob:') === 0) {
+                        const res = await fetch(localU);
+                        if (res.ok) return await res.arrayBuffer();
+                    }
+                }
+            } catch (_) { /* ignore */ }
+            try {
+                if (typeof dbGet === 'function' && window.STORES && STORES.PHOTOS) {
+                    const row = await dbGet(STORES.PHOTOS, key);
+                    if (row && row.data) {
+                        if (row.data instanceof ArrayBuffer) return row.data.slice(0);
+                        if (typeof Blob !== 'undefined' && row.data instanceof Blob) {
+                            return await row.data.arrayBuffer();
+                        }
+                        if (ArrayBuffer.isView && ArrayBuffer.isView(row.data)) {
+                            return row.data.buffer.slice(
+                                row.data.byteOffset,
+                                row.data.byteOffset + row.data.byteLength
+                            );
+                        }
+                    }
+                }
+            } catch (_) { /* ignore */ }
+            return null;
+        }
+
+        var buf = await fromPhotoCache(url);
+        if (buf) return buf;
+
+        if (navigator.onLine === false) {
+            throw new Error('PDF не кэширован офлайн. Нужен интернет или «Скачать всё».');
+        }
+
+        try {
+            await window.rbiCacheCloudPdf(url, { skipMemoryCache: true });
+            buf = await fromPhotoCache(url);
+            if (buf) return buf;
+        } catch (_) { /* ignore */ }
+
+        var res = typeof rbiFetchCloudFileNoBrowserCache === 'function'
+            ? await rbiFetchCloudFileNoBrowserCache(url)
+            : await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Не удалось скачать PDF');
+        buf = await res.arrayBuffer();
+        // После network fetch — положить в стандартный стор (best-effort).
+        try {
+            if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.downloadForOffline === 'function') {
+                // Уже скачали: повторный downloadForOffline найдёт сеть снова —
+                // пишем напрямую в IDB если есть buffer API через cache call after put.
+                // Проще: rbiCacheCloudPdf снова сходит в сеть; skip — put buffer manually.
+                if (typeof dbPut === 'function' && window.STORES && STORES.PHOTOS && buf) {
+                    var now = new Date().toISOString();
+                    await dbPut(STORES.PHOTOS, {
+                        id: url,
+                        data: buf.slice ? buf.slice(0) : buf,
+                        mimeType: 'application/pdf',
+                        mime_type: 'application/pdf',
+                        sizeBytes: buf.byteLength,
+                        size_bytes: buf.byteLength,
+                        createdAt: now,
+                        created_at: now,
+                        cachedAt: now,
+                        cached_at: now,
+                        lastAccessedAt: now,
+                        last_accessed_at: now,
+                        sourceUrl: url,
+                        source_url: url,
+                        cacheStatus: 'cached_cloud',
+                        cache_status: 'cached_cloud',
+                        entityType: 'cloud_pdf',
+                        entity_type: 'cloud_pdf'
+                    });
+                    if (window.RbiStorageManager && typeof window.RbiStorageManager.markCloudFileCached === 'function') {
+                        await window.RbiStorageManager.markCloudFileCached(url, buf.byteLength, 'application/pdf');
+                    }
+                }
+            }
+        } catch (_) { /* ignore */ }
+        return buf;
+    };
+
     window.RBI = window.RBI || {};
     window.RBI.utils = window.RBI.utils || {};
     window.RBI.utils.pdfOpen = {
         open: window.rbiOpenPdfDocument,
-        close: closeSheet
+        close: closeSheet,
+        cacheCloud: window.rbiCacheCloudPdf,
+        loadCloudArrayBuffer: window.rbiLoadCloudPdfArrayBuffer,
+        isCloudPdfUrl: window.rbiIsCloudPdfUrl
     };
 }());

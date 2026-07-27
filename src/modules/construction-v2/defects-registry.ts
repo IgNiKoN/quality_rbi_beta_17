@@ -1,14 +1,23 @@
 /**
  * Реестр замечаний этажа (construction-v2 subview `defects`).
+ * Фильтр — тот же PinFilters, что на плане (chips статусов + категория).
  */
 
 import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
+import {
+  type PinFilters,
+  filterDefectsByPins,
+  pinFiltersState,
+  renderPinFiltersHtml
+} from './pin-filters';
 
+/** @deprecated — оставлен для совместимости импортов; фильтр теперь PinFilters. */
 export type DefectsFilter = 'all' | 'open' | 'closed';
 
 export type DefectsRegistryCallbacks = {
   onOpenDefect: (id: string) => void;
   onShowOnPlan: (id: string, locationId: string) => void;
+  onFiltersChanged?: () => void;
 };
 
 function _escape(s: string) {
@@ -64,15 +73,6 @@ function _deadlineMeta(v: unknown): { label: string; overdue: boolean } {
   return { label, overdue: end < today };
 }
 
-function _filterSeg(active: DefectsFilter, key: DefectsFilter, label: string): string {
-  const on = active === key;
-  const cls = on
-    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700';
-  return `<button type="button" data-c2-def-filter="${key}"
-    class="flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${cls}">${label}</button>`;
-}
-
 function _statusChip(status: string): string {
   const st = String(status || '').toLowerCase();
   let cls = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
@@ -86,10 +86,12 @@ function _statusChip(status: string): string {
   )}</span>`;
 }
 
-export function filterDefects(list: ConstructionDefectV2[], filter: DefectsFilter): ConstructionDefectV2[] {
-  if (filter === 'open') return list.filter((d) => !_isClosed(String(d.status)));
-  if (filter === 'closed') return list.filter((d) => _isClosed(String(d.status)));
-  return list.slice();
+/** Фильтрация по PinFilters (общий контракт с планом). */
+export function filterDefects(
+  list: ConstructionDefectV2[],
+  filters: PinFilters = pinFiltersState
+): ConstructionDefectV2[] {
+  return filterDefectsByPins(list, filters);
 }
 
 export function renderDefectsRegistry(
@@ -98,12 +100,12 @@ export function renderDefectsRegistry(
     floorId: string | null;
     floorLabel?: string;
     defects: ConstructionDefectV2[];
-    filter: DefectsFilter;
-    onFilterChange: (f: DefectsFilter) => void;
+    filters?: PinFilters;
     cb: DefectsRegistryCallbacks;
   }
 ): void {
-  const { floorId, floorLabel, defects, filter, onFilterChange, cb } = opts;
+  const { floorId, floorLabel, defects, cb } = opts;
+  const filters = opts.filters || pinFiltersState;
 
   if (!floorId) {
     host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
@@ -112,7 +114,7 @@ export function renderDefectsRegistry(
     return;
   }
 
-  const filtered = filterDefects(defects, filter);
+  const filtered = filterDefectsByPins(defects, filters);
   const rows =
     filtered.length === 0
       ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
@@ -123,9 +125,10 @@ export function renderDefectsRegistry(
             .map((d, i) => {
               const desc = String(d.description || d.item_name || d.text || 'Без описания').slice(0, 140);
               const dl = _deadlineMeta(d.deadline);
-              const dlCls = dl.overdue && !_isClosed(String(d.status))
-                ? 'text-red-600 dark:text-red-400 font-semibold'
-                : 'text-slate-400';
+              const dlCls =
+                dl.overdue && !_isClosed(String(d.status))
+                  ? 'text-red-600 dark:text-red-400 font-semibold'
+                  : 'text-slate-400';
               const bar = _categoryBar(String(d.category));
               return `<li>
                 <div class="flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -159,24 +162,12 @@ export function renderDefectsRegistry(
           <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
             ${_escape(floorLabel || 'Этаж')}
           </div>
-          <div class="text-[10px] text-slate-400 shrink-0">${defects.length} всего</div>
+          <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
         </div>
-        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
-          ${_filterSeg(filter, 'all', 'Все')}
-          ${_filterSeg(filter, 'open', 'Открытые')}
-          ${_filterSeg(filter, 'closed', 'Закрытые')}
-        </div>
+        <div data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>
     </div>`;
-
-  host.querySelectorAll('[data-c2-def-filter]').forEach((btn) => {
-    btn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const key = (btn as HTMLElement).getAttribute('data-c2-def-filter') as DefectsFilter | null;
-      if (key === 'all' || key === 'open' || key === 'closed') onFilterChange(key);
-    });
-  });
 
   host.querySelectorAll('[data-c2-def-row]').forEach((btn) => {
     btn.addEventListener('click', (ev) => {

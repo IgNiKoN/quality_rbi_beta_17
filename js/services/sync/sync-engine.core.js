@@ -1287,13 +1287,38 @@ if (window.RbiStorageManager) {
                                 await dbDelete(cType.store, obj.id);
                                 window[cType.memory] = window[cType.memory].filter(x => String(x.id) !== String(obj.id));
                             } else {
+                                // Отчёты: облако без file_blob — не затираем локальный офлайн-кэш PDF.
+                                if (
+                                    cType.type === 'report' &&
+                                    localExisting &&
+                                    (typeof window.rbiHasReportPayload === 'function'
+                                        ? window.rbiHasReportPayload(localExisting.file_blob)
+                                        : !!localExisting.file_blob)
+                                ) {
+                                    obj.file_blob = localExisting.file_blob;
+                                    obj.file_size = localExisting.file_size || obj.file_size || 0;
+                                    obj.mime_type = localExisting.mime_type || localExisting.mimeType || obj.mime_type || 'application/pdf';
+                                    obj.mimeType = obj.mime_type;
+                                    const localCache = localExisting.cache_status || localExisting.cacheStatus;
+                                    if (localCache === 'cached_cloud' || localCache === 'local_only') {
+                                        obj.cache_status = localCache;
+                                        obj.cacheStatus = localCache;
+                                    } else {
+                                        obj.cache_status = 'cached_cloud';
+                                        obj.cacheStatus = 'cached_cloud';
+                                    }
+                                }
+
                                 await dbPut(cType.store, obj);
 
                                 // RBI FIX: не скачиваем файлы прямо во время синхронизации.
                                 // Только ставим ссылки в лёгкую фоновую очередь.
-                                if (['practice', 'etalon', 'custom_twi_card', 'custom_node', 'custom_doc', 'user_template'].includes(cType.type)) {
-                                    const urls = rbiCollectCloudStorageUrls(obj, 60);
+                                if (['practice', 'etalon', 'custom_twi_card', 'custom_node', 'custom_doc', 'user_template', 'const_floor'].includes(cType.type)) {
+                                    const urls = rbiCollectCloudStorageUrls(obj, cType.type === 'etalon' ? 120 : 60);
                                     rbiEnqueueCloudFilesForCache(urls, cType.type);
+                                }
+                                if (cType.type === 'report' && obj.file_url && String(obj.file_url).startsWith('http')) {
+                                    rbiEnqueueCloudFilesForCache([obj.file_url], 'report');
                                 }
 
                                 const idx = window[cType.memory].findIndex(x => String(x.id) === String(obj.id));
@@ -1715,6 +1740,10 @@ if (window.RbiStorageManager) {
                                     sync_status: 'synced',
                                     updatedAt: p.updated_at || new Date().toISOString()
                                 });
+                                const planPdf = p.pdf_url || p.pdfUrl;
+                                if (planPdf && String(planPdf).startsWith('http') && typeof window.rbiEnqueueCloudFilesForCache === 'function') {
+                                    rbiEnqueueCloudFilesForCache([planPdf], 'construction_plan');
+                                }
                             }
                         }
                     }
@@ -1818,6 +1847,10 @@ if (window.RbiStorageManager) {
                                     sync_status: 'synced',
                                     updatedAt: u.updated_at || new Date().toISOString()
                                 });
+                                const unitPdf = u.pdf_url || u.pdfUrl;
+                                if (unitPdf && String(unitPdf).startsWith('http') && typeof window.rbiEnqueueCloudFilesForCache === 'function') {
+                                    rbiEnqueueCloudFilesForCache([unitPdf], 'construction_plan');
+                                }
                             }
                         }
                     }

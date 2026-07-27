@@ -851,8 +851,13 @@ export const AnalyticsActions = {
 
         // 1. ПРИОРИТЕТ 1: Blob уже в RAM (локальный не залитый)
         if (r.file_blob) {
-            await openBlob(r.file_blob);
-            return;
+            const ramBlob = (typeof window.rbiReportPayloadToBlob === 'function')
+                ? window.rbiReportPayloadToBlob(r.file_blob, r.mime_type || r.mimeType || 'application/pdf')
+                : (r.file_blob instanceof Blob ? r.file_blob : null);
+            if (ramBlob) {
+                await openBlob(ramBlob);
+                return;
+            }
         }
 
         // 1b. IDB (офлайн-кэш без удержания PDF в reportsArray)
@@ -869,8 +874,11 @@ export const AnalyticsActions = {
         } else if (typeof dbGet === 'function' && window.STORES?.REPORTS) {
             try {
                 const row = await dbGet(STORES.REPORTS, r.id);
-                if (row && row.file_blob) {
-                    await openBlob(row.file_blob);
+                const fromIdb = (typeof window.rbiReportPayloadToBlob === 'function')
+                    ? window.rbiReportPayloadToBlob(row && row.file_blob, (row && (row.mime_type || row.mimeType)) || 'application/pdf')
+                    : (row && row.file_blob);
+                if (fromIdb) {
+                    await openBlob(fromIdb);
                     return;
                 }
             } catch (_) { /* ignore */ }
@@ -922,8 +930,12 @@ export const AnalyticsActions = {
 
                 const toSave = {
                     ...r,
-                    file_blob: blob,
+                    file_blob: (typeof blobToArrayBuffer === 'function')
+                        ? await blobToArrayBuffer(blob)
+                        : blob,
                     file_size: blob.size || 0,
+                    mime_type: blob.type || (isPptx ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/pdf'),
+                    mimeType: blob.type || (isPptx ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/pdf'),
                     cache_status: 'cached_cloud',
                     cacheStatus: 'cached_cloud',
                     updatedAt: new Date().toISOString()

@@ -386,10 +386,12 @@ window.RbiStorageManager = {
         const s = String(url || '').toLowerCase();
 
         if (s.includes('/reports/')) return 'report_pdf';
+        if (s.includes('construction-plans') || s.includes('construction_plans')) return 'construction_plan_pdf';
+        if (s.includes('etalon') || s.includes('library-etalons')) return 'etalon_file';
         if (s.includes('inspection') || s.includes('inspection-photos')) return 'inspection_photo';
         if (s.includes('twi')) return 'twi_photo';
-        if (s.includes('node')) return 'node_file';
-        if (s.includes('practice')) return 'practice_file';
+        if (s.includes('node') || s.includes('library-nodes')) return 'node_file';
+        if (s.includes('practice') || s.includes('library-practices')) return 'practice_file';
         if (s.includes('doc') || s.includes('library-docs')) return 'custom_doc_pdf';
         if (s.includes('assistant') || s.includes('kb')) return 'assistant_kb_file';
 

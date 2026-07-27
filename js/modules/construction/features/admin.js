@@ -522,9 +522,10 @@ window.ConstAdmin = {
 
             const publicUrl = urlData.publicUrl;
 
-            // 4. Локально кэшируем файл (чтобы работал офлайн)
-            // Возьмем существующий функционал PhotoManager для локального кэша
-            if (typeof PhotoManager !== 'undefined') {
+            // 4. Локально кэшируем PDF (единый путь rbiCacheCloudPdf → PhotoManager)
+            if (typeof window.rbiCacheCloudPdf === 'function') {
+                await window.rbiCacheCloudPdf(publicUrl);
+            } else if (typeof PhotoManager !== 'undefined') {
                 await PhotoManager.downloadForOffline(publicUrl);
             }
 

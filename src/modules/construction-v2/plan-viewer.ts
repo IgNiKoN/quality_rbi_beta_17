@@ -5,6 +5,7 @@
 
 import type { AcceptanceZoneV2, ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
 import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
+import { clusterDefects, spiderPositions } from './pin-clusters';
 
 export type PlanViewerHandlers = {
   onPlanClick?: (xPercent: number, yPercent: number) => void;
@@ -12,6 +13,11 @@ export type PlanViewerHandlers = {
   /** Завершение zone-mode: 2 клика → прямоугольник %. */
   onZoneDrawn?: (zone: AcceptanceZoneV2) => void;
   onZoneClick?: (acceptanceId: string) => void;
+};
+
+export type SetMarkersOpts = {
+  /** Порог кластеризации в % плана. 0 = без кластеров. Default 2.5. */
+  clusterThreshold?: number;
 };
 
 type PdfjsLib = {
@@ -95,6 +101,10 @@ export class PlanViewer {
   private pdfUrl = '';
   private panzoom: PanzoomInstance | null = null;
   private _onWheelBound: ((e: WheelEvent) => void) | null = null;
+  /** Последний набор дефектов для setMarkers (для collapse expand). */
+  private _lastMarkers: ConstructionDefectV2[] = [];
+  private _lastClusterThreshold = 2.5;
+  private _expandedClusterKey: string | null = null;
 
   constructor(host: HTMLElement, handlers: PlanViewerHandlers = {}) {
     this.host = host;
@@ -222,21 +232,26 @@ export class PlanViewer {
     if (!pdfjs?.getDocument) throw new Error('pdfjsLib недоступен');
 
     let buf: ArrayBuffer | null = null;
-    if (window.PhotoManager?.getAsyncUrl) {
-      try {
-        const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
-        if (cached && cached.startsWith('blob:')) {
-          const res = await fetch(cached);
-          buf = await res.arrayBuffer();
+    if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
+      buf = await window.rbiLoadCloudPdfArrayBuffer(pdfUrl);
+    } else {
+      if (window.PhotoManager?.getAsyncUrl) {
+        try {
+          const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
+          if (cached && cached.startsWith('blob:')) {
+            const res = await fetch(cached);
+            buf = await res.arrayBuffer();
+          }
+        } catch {
+          /* fall through */
         }
-      } catch {
-        /* fall through */
       }
-    }
-    if (!buf) {
-      const res = await fetch(pdfUrl);
-      if (!res.ok) throw new Error('Не удалось скачать PDF');
-      buf = await res.arrayBuffer();
+      if (!buf) {
+        if (navigator.onLine === false) throw new Error('PDF не кэширован офлайн');
+        const res = await fetch(pdfUrl);
+        if (!res.ok) throw new Error('Не удалось скачать PDF');
+        buf = await res.arrayBuffer();
+      }
     }
 
     if (this.destroyed) return;
@@ -263,27 +278,115 @@ export class PlanViewer {
     this._syncCursor();
   }
 
-  setMarkers(defects: ConstructionDefectV2[]) {
+  setMarkers(defects: ConstructionDefectV2[], opts?: SetMarkersOpts) {
     if (!this.pins) return;
-    // Как legacy: номер по порядку на этаже (1…N), круг w-6 + белая обводка + hover scale
-    const html = defects
-      .map((d, i) => {
-        const x = Number(d.x);
-        const y = Number(d.y);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
-        const bg = _pinBg(String(d.category), String(d.status));
-        const title = _escapeAttr(String(d.description || '').slice(0, 80));
-        const num = i + 1;
-        return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
-          class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
-                 flex items-center justify-center text-white text-[10px] font-black
-                 cursor-pointer hover:scale-125 transition-transform z-20
-                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-          style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
-      })
-      .join('');
-    this.pins.innerHTML = html;
+    this._lastMarkers = defects.slice();
+    const thr =
+      opts?.clusterThreshold !== undefined ? opts.clusterThreshold : this._lastClusterThreshold;
+    this._lastClusterThreshold = thr;
+
+    const items = thr <= 0 ? null : clusterDefects(defects, thr);
+    const parts: string[] = [];
+
+    if (!items) {
+      defects.forEach((d, i) => {
+        const pin = this._singlePinHtml(d, i + 1, Number(d.x), Number(d.y));
+        if (pin) parts.push(pin);
+      });
+    } else {
+      const expandKey = this._expandedClusterKey;
+      for (const item of items) {
+        if (item.kind === 'single') {
+          const pin = this._singlePinHtml(item.defects[0], item.num, item.x, item.y);
+          if (pin) parts.push(pin);
+          continue;
+        }
+        const key = item.defects
+          .map((d) => d.id)
+          .sort()
+          .join(',');
+        if (expandKey && expandKey === key) {
+          const spider = spiderPositions(item.x, item.y, item.defects.length);
+          item.defects.forEach((d, i) => {
+            const pos = spider[i] || { x: item.x, y: item.y };
+            const idx = defects.findIndex((x) => x.id === d.id);
+            const num = idx >= 0 ? idx + 1 : i + 1;
+            const pin = this._singlePinHtml(d, num, pos.x, pos.y);
+            if (pin) parts.push(pin);
+          });
+          // Центр-кнопка «свернуть»
+          parts.push(`<button type="button" data-c2-cluster-collapse="${_escapeAttr(key)}"
+            class="absolute w-5 h-5 rounded-full bg-slate-800/80 text-white text-[8px] font-black
+                   border border-white shadow z-25 flex items-center justify-center
+                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
+            style="left:${item.x}%;top:${item.y}%;" title="Свернуть">×</button>`);
+        } else {
+          parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
+        }
+      }
+    }
+
+    this.pins.innerHTML = parts.join('');
     this._applyHighlight();
+  }
+
+  private _singlePinHtml(
+    d: ConstructionDefectV2,
+    num: number,
+    x: number,
+    y: number
+  ): string {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
+    const bg = _pinBg(String(d.category), String(d.status));
+    const title = _escapeAttr(String(d.description || '').slice(0, 80));
+    return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
+      class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
+             flex items-center justify-center text-white text-[10px] font-black
+             cursor-pointer hover:scale-125 transition-transform z-20
+             transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
+  }
+
+  private _clusterBubbleHtml(
+    x: number,
+    y: number,
+    defects: ConstructionDefectV2[],
+    key: string
+  ): string {
+    const total = defects.length;
+    let red = 0;
+    let orange = 0;
+    let blue = 0;
+    let green = 0;
+    for (const d of defects) {
+      const st = String(d.status || '').toLowerCase();
+      if (st === 'closed' || st === 'fixed') green++;
+      else {
+        const c = String(d.category || '').toLowerCase();
+        if (c === 'critical' || c === 'b3') red++;
+        else if (c === 'major' || c === 'b2') orange++;
+        else blue++;
+      }
+    }
+    const cRed = (red / total) * 360;
+    const cOrange = cRed + (orange / total) * 360;
+    const cBlue = cOrange + (blue / total) * 360;
+    const grad = `conic-gradient(from 0deg, #ef4444 0deg ${cRed}deg, #f97316 ${cRed}deg ${cOrange}deg, #3b82f6 ${cOrange}deg ${cBlue}deg, #22c55e ${cBlue}deg 360deg)`;
+    const ids = defects.map((d) => d.id).join(',');
+    return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
+      class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
+             cursor-pointer z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto
+             panzoom-exclude transition-transform hover:scale-110"
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;" title="Замечаний: ${total}">
+      <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
+                   text-[11px] font-black border border-slate-200">${total}</span>
+    </button>`;
+  }
+
+  collapseClusterExpand() {
+    if (!this._expandedClusterKey) return;
+    this._expandedClusterKey = null;
+    this.setMarkers(this._lastMarkers, { clusterThreshold: this._lastClusterThreshold });
   }
 
   setZones(items: ConstructionAcceptanceV2[]) {
@@ -438,10 +541,32 @@ export class PlanViewer {
       if (id) this.handlers.onZoneClick?.(id);
       return;
     }
+    const collapseBtn = t?.closest?.('[data-c2-cluster-collapse]') as HTMLElement | null;
+    if (collapseBtn && !this.zoneMode) {
+      this.collapseClusterExpand();
+      return;
+    }
+    const clusterBtn = t?.closest?.('[data-c2-cluster]') as HTMLElement | null;
+    if (clusterBtn && !this.zoneMode && !this.addMode) {
+      const key = clusterBtn.getAttribute('data-c2-cluster');
+      if (key) {
+        this._expandedClusterKey = key;
+        this.setMarkers(this._lastMarkers, { clusterThreshold: this._lastClusterThreshold });
+      }
+      return;
+    }
     const pin = t?.closest?.('[data-c2-pin]') as HTMLElement | null;
     if (pin && !this.zoneMode) {
       const id = pin.getAttribute('data-c2-pin');
-      if (id) this.handlers.onMarkerClick?.(id);
+      if (id) {
+        this._expandedClusterKey = null;
+        this.handlers.onMarkerClick?.(id);
+      }
+      return;
+    }
+    // Клик мимо — свернуть spider (не запускать add/zone в том же клике)
+    if (this._expandedClusterKey && !this.addMode && !this.zoneMode) {
+      this.collapseClusterExpand();
       return;
     }
     if (!this.stage) return;

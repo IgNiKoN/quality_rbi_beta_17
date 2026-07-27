@@ -59,6 +59,9 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
     if (!url || !String(url).startsWith('http')) {
         return { status: 'skipped', bytes: 0, fetched: false };
     }
+    if (typeof window.rbiIsOfflineCacheableUrl === 'function' && !window.rbiIsOfflineCacheableUrl(url)) {
+        return { status: 'skipped', bytes: 0, fetched: false };
+    }
 
     const nowMs = Date.now();
     const sm = window.RbiStorageManager;
@@ -81,7 +84,10 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
                 last_cache_error: ''
             });
 
-            const dl = await PhotoManager.downloadForOffline(url, { skipMemoryCache: true });
+            const dl = (typeof window.rbiIsCloudPdfUrl === 'function' && window.rbiIsCloudPdfUrl(url)
+                && typeof window.rbiCacheCloudPdf === 'function')
+                ? await window.rbiCacheCloudPdf(url, { skipMemoryCache: true })
+                : await PhotoManager.downloadForOffline(url, { skipMemoryCache: true });
             const fetched = !!(dl && dl.fetched);
             const bytes = (dl && dl.bytes) || 0;
 
@@ -226,8 +232,28 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
         const collect = typeof window.rbiCollectOfflineCacheUrls === 'function'
             ? window.rbiCollectOfflineCacheUrls
             : () => [];
-        const entries = collect(resolvedScope);
+        const entries = collect(resolvedScope) || [];
+
+        // Планы СК (floors / floors_v2 / units_v2) — добираем из IDB (RAM ConstManager уже в collect).
+        if ((resolvedScope === 'all' || !resolvedScope) && typeof window.rbiCollectConstructionPlanPdfUrls === 'function') {
+            try {
+                const planEntries = await window.rbiCollectConstructionPlanPdfUrls();
+                const seen = new Set(entries.map((e) => e && e.url).filter(Boolean));
+                (planEntries || []).forEach((e) => {
+                    if (!e || !e.url || seen.has(e.url)) return;
+                    seen.add(e.url);
+                    entries.push(e);
+                });
+            } catch (e) {
+                console.warn('[Cache] collect construction plans failed', e);
+            }
+        }
+
         const urlArray = entries.map((e) => e.url);
+        const kindByUrl = new Map();
+        entries.forEach((e) => {
+            if (e && e.url) kindByUrl.set(e.url, e.kind || 'file');
+        });
         const total = urlArray.length;
 
         let downloadedCount = 0;
@@ -298,26 +324,51 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
 
             const promises = batch.map(async (url) => {
                 try {
-                    if (url.includes('/reports/')) {
-                        const repObj = (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray))
-                            ? reportsArray.find(r => r.file_url === url)
-                            : null;
+                    const entryKind = kindByUrl.get(url) || '';
+                    const repObj = (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray))
+                        ? reportsArray.find((r) => r && (r.file_url === url || r.fileUrl === url))
+                        : null;
+                    // Не только path /reports/ — kind из collect + поиск в reportsArray.
+                    const isReportFile = entryKind === 'report_pdf'
+                        || !!repObj
+                        || (typeof url === 'string' && (
+                            url.includes('/object/public/reports/')
+                            || url.includes('/storage/v1/object/public/reports/')
+                            || /\/reports\/[^/?#]+\.(pdf|pptx)(\?|$)/i.test(url)
+                        ));
 
+                    if (isReportFile) {
                         if (!repObj) {
-                            failedCount++;
-                            settleUrl(url, 0);
+                            // Нет метаданных в RAM — всё равно качаем в PHOTOS (openReport читает и оттуда).
+                            const result = await rbiDownloadFileWithRetry(url, 3);
+                            if (result.status === 'cached' && result.fetched) {
+                                downloadedCount++;
+                                downloadedBytes += result.bytes || 0;
+                                settleUrl(url, result.bytes || 0);
+                            } else if (result.status === 'already' || result.status === 'cached'
+                                || result.status === 'postponed' || result.status === 'skipped') {
+                                alreadyCachedCount++;
+                                settleUrl(url, result.bytes || plannedByUrl.get(url) || 0);
+                            } else {
+                                failedCount++;
+                                settleUrl(url, 0);
+                            }
                             return;
                         }
 
                         // Уже в RAM (локальный не залитый) — skip.
-                        if (repObj.file_blob) {
+                        if (typeof window.rbiHasReportPayload === 'function'
+                            ? window.rbiHasReportPayload(repObj.file_blob)
+                            : !!repObj.file_blob) {
                             alreadyCachedCount++;
-                            const sz = repObj.file_blob.size || plannedByUrl.get(url) || 0;
+                            const sz = (typeof window.rbiReportPayloadBytes === 'function'
+                                ? window.rbiReportPayloadBytes(repObj.file_blob)
+                                : (repObj.file_blob.size || 0)) || plannedByUrl.get(url) || 0;
                             settleUrl(url, sz);
                             return;
                         }
 
-                        // Только реальное наличие file_blob в IDB. Мета cache_status
+                        // Только реальное наличие payload в IDB. Мета cache_status
                         // часто врёт (sync/eviction) — из‑за этого UI «закэшировано»,
                         // а openReport не находит локальный PDF.
                         let idbRow = null;
@@ -325,9 +376,13 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                             idbRow = await dbGet(STORES.REPORTS, repObj.id);
                         } catch (_) { /* ignore */ }
 
-                        if (idbRow && idbRow.file_blob) {
+                        if (idbRow && (typeof window.rbiHasReportPayload === 'function'
+                            ? window.rbiHasReportPayload(idbRow.file_blob)
+                            : !!idbRow.file_blob)) {
                             alreadyCachedCount++;
-                            const sz = idbRow.file_blob.size
+                            const sz = (typeof window.rbiReportPayloadBytes === 'function'
+                                ? window.rbiReportPayloadBytes(idbRow.file_blob)
+                                : 0)
                                 || idbRow.file_size
                                 || plannedByUrl.get(url)
                                 || 0;
@@ -349,14 +404,24 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
 
                         if (res.ok) {
                             const reportBlob = await res.blob();
+                            const reportBuffer = (typeof blobToArrayBuffer === 'function')
+                                ? await blobToArrayBuffer(reportBlob)
+                                : null;
+                            const payload = reportBuffer || reportBlob;
+                            const payloadBytes = (typeof window.rbiReportPayloadBytes === 'function')
+                                ? window.rbiReportPayloadBytes(payload)
+                                : (reportBlob.size || 0);
                             const now = new Date().toISOString();
+                            const mime = reportBlob.type || 'application/pdf';
 
-                            // IDB — с blob; память — только метаданные.
+                            // IDB — ArrayBuffer (iOS-safe); память — только метаданные.
                             const idbRecord = {
                                 ...(idbRow || repObj),
                                 ...repObj,
-                                file_blob: reportBlob,
-                                file_size: reportBlob.size || 0,
+                                file_blob: payload,
+                                file_size: payloadBytes,
+                                mime_type: mime,
+                                mimeType: mime,
                                 cache_status: 'cached_cloud',
                                 cacheStatus: 'cached_cloud',
                                 updatedAt: now,
@@ -364,8 +429,37 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                             };
                             await dbPut(STORES.REPORTS, idbRecord);
 
+                            // Дубль в PHOTOS — запасной путь openReport (1c) на случай
+                            // битой записи app_reports после sync/cleanup.
+                            try {
+                                if (typeof dbPut === 'function' && STORES.PHOTOS && reportBuffer) {
+                                    await dbPut(STORES.PHOTOS, {
+                                        id: url,
+                                        data: reportBuffer,
+                                        mimeType: mime,
+                                        mime_type: mime,
+                                        sizeBytes: payloadBytes,
+                                        size_bytes: payloadBytes,
+                                        createdAt: now,
+                                        created_at: now,
+                                        cachedAt: now,
+                                        cached_at: now,
+                                        lastAccessedAt: now,
+                                        last_accessed_at: now,
+                                        sourceUrl: url,
+                                        source_url: url,
+                                        cacheStatus: 'cached_cloud',
+                                        cache_status: 'cached_cloud',
+                                        entityType: 'report_pdf',
+                                        entity_type: 'report_pdf'
+                                    });
+                                }
+                            } catch (dupErr) {
+                                console.warn('[Cache] PHOTOS mirror for report failed', dupErr);
+                            }
+
                             repObj.file_blob = null;
-                            repObj.file_size = reportBlob.size || 0;
+                            repObj.file_size = payloadBytes;
                             repObj.cache_status = 'cached_cloud';
                             repObj.cacheStatus = 'cached_cloud';
                             repObj.updatedAt = now;
@@ -374,14 +468,14 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                             if (window.RbiStorageManager && typeof window.RbiStorageManager.markCloudFileCached === 'function') {
                                 await window.RbiStorageManager.markCloudFileCached(
                                     url,
-                                    reportBlob.size || 0,
-                                    reportBlob.type || 'application/pdf'
+                                    payloadBytes,
+                                    mime
                                 );
                             }
 
                             downloadedCount++;
-                            downloadedBytes += reportBlob.size || 0;
-                            settleUrl(url, reportBlob.size || 0);
+                            downloadedBytes += payloadBytes;
+                            settleUrl(url, payloadBytes);
                         } else {
                             failedCount++;
                             settleUrl(url, 0);

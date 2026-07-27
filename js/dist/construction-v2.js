@@ -697,6 +697,70 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     });
   });
 }
+function _xy(d) {
+  const x = Number(d.x);
+  const y = Number(d.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+function clusterDefects(defects, thresholdPct = 2.5) {
+  const indexed = [];
+  defects.forEach((d, i) => {
+    const p = _xy(d);
+    if (!p) return;
+    indexed.push({ d, num: i + 1, x: p.x, y: p.y });
+  });
+  const remaining = indexed.slice();
+  const out = [];
+  while (remaining.length > 0) {
+    const base = remaining.shift();
+    const group = [base];
+    let i = 0;
+    while (i < remaining.length) {
+      const p = remaining[i];
+      const dist = Math.hypot(base.x - p.x, base.y - p.y);
+      if (dist < thresholdPct) {
+        group.push(p);
+        remaining.splice(i, 1);
+      } else {
+        i++;
+      }
+    }
+    if (group.length === 1) {
+      out.push({
+        kind: "single",
+        x: group[0].x,
+        y: group[0].y,
+        defects: [group[0].d],
+        num: group[0].num
+      });
+    } else {
+      const n = group.length;
+      const avgX = group.reduce((s, g) => s + g.x, 0) / n;
+      const avgY = group.reduce((s, g) => s + g.y, 0) / n;
+      out.push({
+        kind: "cluster",
+        x: avgX,
+        y: avgY,
+        defects: group.map((g) => g.d),
+        num: n
+      });
+    }
+  }
+  return out;
+}
+function spiderPositions(centerX, centerY, count, radiusPct = 5) {
+  if (count <= 0) return [];
+  if (count === 1) return [{ x: centerX, y: centerY }];
+  const pts = [];
+  for (let i = 0; i < count; i++) {
+    const angle = Math.PI * 2 * i / count - Math.PI / 2;
+    const x = Math.min(98, Math.max(2, centerX + Math.cos(angle) * radiusPct));
+    const y = Math.min(98, Math.max(2, centerY + Math.sin(angle) * radiusPct));
+    pts.push({ x, y });
+  }
+  return pts;
+}
 function _pdfjs() {
   return window.pdfjsLib || null;
 }
@@ -736,6 +800,9 @@ class PlanViewer {
     this.pdfUrl = "";
     this.panzoom = null;
     this._onWheelBound = null;
+    this._lastMarkers = [];
+    this._lastClusterThreshold = 2.5;
+    this._expandedClusterKey = null;
     this.host = host;
     this.handlers = handlers;
   }
@@ -847,20 +914,25 @@ class PlanViewer {
     const pdfjs = _pdfjs();
     if (!(pdfjs == null ? void 0 : pdfjs.getDocument)) throw new Error("pdfjsLib недоступен");
     let buf = null;
-    if ((_a = window.PhotoManager) == null ? void 0 : _a.getAsyncUrl) {
-      try {
-        const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
-        if (cached && cached.startsWith("blob:")) {
-          const res = await fetch(cached);
-          buf = await res.arrayBuffer();
+    if (typeof window.rbiLoadCloudPdfArrayBuffer === "function") {
+      buf = await window.rbiLoadCloudPdfArrayBuffer(pdfUrl);
+    } else {
+      if ((_a = window.PhotoManager) == null ? void 0 : _a.getAsyncUrl) {
+        try {
+          const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
+          if (cached && cached.startsWith("blob:")) {
+            const res = await fetch(cached);
+            buf = await res.arrayBuffer();
+          }
+        } catch {
         }
-      } catch {
       }
-    }
-    if (!buf) {
-      const res = await fetch(pdfUrl);
-      if (!res.ok) throw new Error("Не удалось скачать PDF");
-      buf = await res.arrayBuffer();
+      if (!buf) {
+        if (navigator.onLine === false) throw new Error("PDF не кэширован офлайн");
+        const res = await fetch(pdfUrl);
+        if (!res.ok) throw new Error("Не удалось скачать PDF");
+        buf = await res.arrayBuffer();
+      }
     }
     if (this.destroyed) return;
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
@@ -881,24 +953,93 @@ class PlanViewer {
     this._initPanzoom();
     this._syncCursor();
   }
-  setMarkers(defects) {
+  setMarkers(defects, opts) {
     if (!this.pins) return;
-    const html = defects.map((d, i) => {
-      const x = Number(d.x);
-      const y = Number(d.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
-      const bg = _pinBg(String(d.category), String(d.status));
-      const title = _escapeAttr(String(d.description || "").slice(0, 80));
-      const num = i + 1;
-      return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
-          class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
-                 flex items-center justify-center text-white text-[10px] font-black
-                 cursor-pointer hover:scale-125 transition-transform z-20
-                 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-          style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
-    }).join("");
-    this.pins.innerHTML = html;
+    this._lastMarkers = defects.slice();
+    const thr = (opts == null ? void 0 : opts.clusterThreshold) !== void 0 ? opts.clusterThreshold : this._lastClusterThreshold;
+    this._lastClusterThreshold = thr;
+    const items = thr <= 0 ? null : clusterDefects(defects, thr);
+    const parts = [];
+    if (!items) {
+      defects.forEach((d, i) => {
+        const pin = this._singlePinHtml(d, i + 1, Number(d.x), Number(d.y));
+        if (pin) parts.push(pin);
+      });
+    } else {
+      const expandKey = this._expandedClusterKey;
+      for (const item of items) {
+        if (item.kind === "single") {
+          const pin = this._singlePinHtml(item.defects[0], item.num, item.x, item.y);
+          if (pin) parts.push(pin);
+          continue;
+        }
+        const key = item.defects.map((d) => d.id).sort().join(",");
+        if (expandKey && expandKey === key) {
+          const spider = spiderPositions(item.x, item.y, item.defects.length);
+          item.defects.forEach((d, i) => {
+            const pos = spider[i] || { x: item.x, y: item.y };
+            const idx = defects.findIndex((x) => x.id === d.id);
+            const num = idx >= 0 ? idx + 1 : i + 1;
+            const pin = this._singlePinHtml(d, num, pos.x, pos.y);
+            if (pin) parts.push(pin);
+          });
+          parts.push(`<button type="button" data-c2-cluster-collapse="${_escapeAttr(key)}"
+            class="absolute w-5 h-5 rounded-full bg-slate-800/80 text-white text-[8px] font-black
+                   border border-white shadow z-25 flex items-center justify-center
+                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
+            style="left:${item.x}%;top:${item.y}%;" title="Свернуть">×</button>`);
+        } else {
+          parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
+        }
+      }
+    }
+    this.pins.innerHTML = parts.join("");
     this._applyHighlight();
+  }
+  _singlePinHtml(d, num, x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
+    const bg = _pinBg(String(d.category), String(d.status));
+    const title = _escapeAttr(String(d.description || "").slice(0, 80));
+    return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
+      class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
+             flex items-center justify-center text-white text-[10px] font-black
+             cursor-pointer hover:scale-125 transition-transform z-20
+             transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
+  }
+  _clusterBubbleHtml(x, y, defects, key) {
+    const total = defects.length;
+    let red = 0;
+    let orange = 0;
+    let blue = 0;
+    for (const d of defects) {
+      const st = String(d.status || "").toLowerCase();
+      if (st === "closed" || st === "fixed") ;
+      else {
+        const c = String(d.category || "").toLowerCase();
+        if (c === "critical" || c === "b3") red++;
+        else if (c === "major" || c === "b2") orange++;
+        else blue++;
+      }
+    }
+    const cRed = red / total * 360;
+    const cOrange = cRed + orange / total * 360;
+    const cBlue = cOrange + blue / total * 360;
+    const grad = `conic-gradient(from 0deg, #ef4444 0deg ${cRed}deg, #f97316 ${cRed}deg ${cOrange}deg, #3b82f6 ${cOrange}deg ${cBlue}deg, #22c55e ${cBlue}deg 360deg)`;
+    const ids = defects.map((d) => d.id).join(",");
+    return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
+      class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
+             cursor-pointer z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto
+             panzoom-exclude transition-transform hover:scale-110"
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;" title="Замечаний: ${total}">
+      <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
+                   text-[11px] font-black border border-slate-200">${total}</span>
+    </button>`;
+  }
+  collapseClusterExpand() {
+    if (!this._expandedClusterKey) return;
+    this._expandedClusterKey = null;
+    this.setMarkers(this._lastMarkers, { clusterThreshold: this._lastClusterThreshold });
   }
   setZones(items) {
     if (!this.zonesEl) return;
@@ -1034,7 +1175,7 @@ class PlanViewer {
     }
   }
   _onClick(ev) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
     const t = ev.target;
     const zoneBtn = (_a = t == null ? void 0 : t.closest) == null ? void 0 : _a.call(t, "[data-c2-zone]");
     if (zoneBtn && !this.zoneMode && !this.addMode) {
@@ -1042,10 +1183,31 @@ class PlanViewer {
       if (id) (_c = (_b = this.handlers).onZoneClick) == null ? void 0 : _c.call(_b, id);
       return;
     }
-    const pin = (_d = t == null ? void 0 : t.closest) == null ? void 0 : _d.call(t, "[data-c2-pin]");
+    const collapseBtn = (_d = t == null ? void 0 : t.closest) == null ? void 0 : _d.call(t, "[data-c2-cluster-collapse]");
+    if (collapseBtn && !this.zoneMode) {
+      this.collapseClusterExpand();
+      return;
+    }
+    const clusterBtn = (_e = t == null ? void 0 : t.closest) == null ? void 0 : _e.call(t, "[data-c2-cluster]");
+    if (clusterBtn && !this.zoneMode && !this.addMode) {
+      const key = clusterBtn.getAttribute("data-c2-cluster");
+      if (key) {
+        this._expandedClusterKey = key;
+        this.setMarkers(this._lastMarkers, { clusterThreshold: this._lastClusterThreshold });
+      }
+      return;
+    }
+    const pin = (_f = t == null ? void 0 : t.closest) == null ? void 0 : _f.call(t, "[data-c2-pin]");
     if (pin && !this.zoneMode) {
       const id = pin.getAttribute("data-c2-pin");
-      if (id) (_f = (_e = this.handlers).onMarkerClick) == null ? void 0 : _f.call(_e, id);
+      if (id) {
+        this._expandedClusterKey = null;
+        (_h = (_g = this.handlers).onMarkerClick) == null ? void 0 : _h.call(_g, id);
+      }
+      return;
+    }
+    if (this._expandedClusterKey && !this.addMode && !this.zoneMode) {
+      this.collapseClusterExpand();
       return;
     }
     if (!this.stage) return;
@@ -1058,7 +1220,7 @@ class PlanViewer {
       if (!this.zoneClick1) {
         this.zoneClick1 = { x: xPercent, y: yPercent };
         this.clearTempZone();
-        (_g = this.zonesEl) == null ? void 0 : _g.insertAdjacentHTML(
+        (_i = this.zonesEl) == null ? void 0 : _i.insertAdjacentHTML(
           "beforeend",
           `<div id="c2-temp-zone-dot"
             class="absolute w-3 h-3 bg-indigo-600 rounded-full border-2 border-white z-30
@@ -1076,15 +1238,155 @@ class PlanViewer {
       const zone = { x, y, w, h };
       this._drawTempZone(zone);
       this.zoneClick1 = null;
-      (_i = (_h = this.handlers).onZoneDrawn) == null ? void 0 : _i.call(_h, zone);
+      (_k = (_j = this.handlers).onZoneDrawn) == null ? void 0 : _k.call(_j, zone);
       return;
     }
     if (!this.addMode) return;
-    (_k = (_j = this.handlers).onPlanClick) == null ? void 0 : _k.call(_j, xPercent, yPercent);
+    (_m = (_l = this.handlers).onPlanClick) == null ? void 0 : _m.call(_l, xPercent, yPercent);
   }
   getPdfUrl() {
     return this.pdfUrl;
   }
+}
+const ALL_PIN_STATUSES = [
+  "issued",
+  "in_progress",
+  "fixed",
+  "closed",
+  "rejected"
+];
+const STATUS_LABELS = {
+  issued: "Выдано",
+  in_progress: "В работе",
+  fixed: "На проверке",
+  closed: "Закрыто",
+  rejected: "Отклонено"
+};
+const STATUS_STYLES = {
+  issued: {
+    active: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400",
+    badgeActive: "bg-red-600 text-white"
+  },
+  in_progress: {
+    active: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400",
+    badgeActive: "bg-blue-600 text-white"
+  },
+  fixed: {
+    active: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-400",
+    badgeActive: "bg-orange-500 text-white"
+  },
+  closed: {
+    active: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400",
+    badgeActive: "bg-green-600 text-white"
+  },
+  rejected: {
+    active: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300",
+    badgeActive: "bg-slate-500 text-white"
+  }
+};
+const pinFiltersState = {
+  statuses: [],
+  category: "ALL"
+};
+function normalizePinCategory(c) {
+  const v = String(c || "").toLowerCase();
+  if (v === "minor" || v === "b1") return "B1";
+  if (v === "major" || v === "b2") return "B2";
+  if (v === "critical" || v === "b3") return "B3";
+  const up = String(c || "").toUpperCase();
+  if (up === "B1" || up === "B2" || up === "B3") return up;
+  return up || "";
+}
+function filterDefectsByPins(defects, filters = pinFiltersState) {
+  let out = defects.slice();
+  if (filters.statuses.length > 0) {
+    const set = new Set(filters.statuses.map(String));
+    out = out.filter((d) => set.has(String(d.status)));
+  }
+  if (filters.category && filters.category !== "ALL") {
+    out = out.filter((d) => normalizePinCategory(String(d.category)) === filters.category);
+  }
+  return out;
+}
+function countByStatus(defects) {
+  const counts = {
+    issued: 0,
+    in_progress: 0,
+    fixed: 0,
+    closed: 0,
+    rejected: 0
+  };
+  for (const d of defects) {
+    const st = String(d.status);
+    if (st in counts) counts[st]++;
+  }
+  return counts;
+}
+function toggleStatusFilter(filters, statusKey) {
+  const idx = filters.statuses.indexOf(statusKey);
+  if (idx > -1) filters.statuses.splice(idx, 1);
+  else filters.statuses.push(statusKey);
+  if (filters.statuses.length === ALL_PIN_STATUSES.length) {
+    filters.statuses = [];
+  }
+}
+function setCategoryFilter(filters, category) {
+  filters.category = category;
+}
+function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
+  let forCounts = baseDefects;
+  if (filters.category && filters.category !== "ALL") {
+    forCounts = baseDefects.filter(
+      (d) => normalizePinCategory(String(d.category)) === filters.category
+    );
+  }
+  const counts = countByStatus(forCounts);
+  const isAllMode = filters.statuses.length === 0;
+  const compact = !!(opts == null ? void 0 : opts.compact);
+  const darkFs = !!(opts == null ? void 0 : opts.darkFs);
+  const inactiveClass = darkFs ? "bg-white/10 text-slate-300 border-white/20" : "bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
+  const inactiveBadge = darkFs ? "bg-white/10 text-slate-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500 border border-slate-200 dark:border-slate-700";
+  const chips = ALL_PIN_STATUSES.map((statusKey) => {
+    const isActive = filters.statuses.includes(statusKey);
+    const visuallyActive = isAllMode || isActive;
+    const btnClass = visuallyActive ? STATUS_STYLES[statusKey].active : inactiveClass;
+    const badgeClass = visuallyActive ? STATUS_STYLES[statusKey].badgeActive : inactiveBadge;
+    const pad = compact ? "px-2 py-1" : "px-2.5 py-1.5";
+    return `<button type="button" data-c2-pin-status="${statusKey}"
+      class="shrink-0 ${pad} rounded-xl border text-[9px] font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
+      ${STATUS_LABELS[statusKey]}
+      <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-[8px] font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
+    </button>`;
+  }).join("");
+  const cats = [
+    { key: "ALL", label: "Все" },
+    { key: "B3", label: "B3" },
+    { key: "B2", label: "B2" },
+    { key: "B1", label: "B1" }
+  ];
+  const catBtns = cats.map(({ key, label }) => {
+    const on = filters.category === key;
+    const cls = on ? darkFs ? "bg-white text-slate-900" : "bg-indigo-600 text-white" : darkFs ? "bg-white/10 text-slate-300 hover:bg-white/20" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+    return `<button type="button" data-c2-pin-category="${key}"
+        class="px-2 py-1 rounded-lg text-[9px] font-bold transition-colors ${cls}">${label}</button>`;
+  }).join("");
+  return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
+    <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
+    <div class="flex gap-1 items-center">
+      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Кат.</span>
+      <div class="flex gap-0.5">${catBtns}</div>
+    </div>
+  </div>`;
+}
+function paintPinFilterHosts(baseDefects, filters = pinFiltersState, opts) {
+  document.querySelectorAll("[data-c2-pin-filters-host]").forEach((el) => {
+    const host = el;
+    const dark = host.getAttribute("data-c2-pin-filters-host") === "fs" || !!(opts == null ? void 0 : opts.darkFs);
+    host.innerHTML = renderPinFiltersHtml(baseDefects, filters, {
+      compact: opts == null ? void 0 : opts.compact,
+      darkFs: dark
+    });
+  });
 }
 let _viewer$1 = null;
 let _openUnitId = null;
@@ -1130,10 +1432,15 @@ async function _refreshPins() {
   const dSvc = _defects$2();
   if (!_viewer$1 || !_apartmentId || !dSvc) return;
   await dSvc.init();
-  const defects = _listForApartment(dSvc, _apartmentId);
-  _viewer$1.setMarkers(defects);
+  const all = _listForApartment(dSvc, _apartmentId);
+  const filtered = filterDefectsByPins(all, pinFiltersState);
+  const host = document.querySelector('#c2-apartment-plan [data-c2-pin-filters-host="apt"]');
+  if (host) {
+    host.innerHTML = renderPinFiltersHtml(all, pinFiltersState, { compact: true });
+  }
+  _viewer$1.setMarkers(filtered);
   const countEl = document.getElementById("c2-apt-overlay-count");
-  if (countEl) countEl.textContent = `Замечаний: ${defects.length}`;
+  if (countEl) countEl.textContent = `Показано ${filtered.length} из ${all.length}`;
 }
 async function _maybeMarkHasDefects(unitId) {
   const uSvc = _units$1();
@@ -1209,27 +1516,30 @@ async function openApartmentPlan(unit, cb) {
   wrap.id = "c2-apartment-plan";
   wrap.className = "fixed inset-0 z-[95] flex flex-col bg-slate-100 dark:bg-slate-900";
   wrap.innerHTML = `
-    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-      <div class="min-w-0">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
-        <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$7(title)}</div>
-        <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$7(path)}</div>
-      </div>
-      <div class="flex items-center gap-2 shrink-0 flex-wrap">
-        <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Замечаний: 0</span>
-        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
-          <button type="button" data-c2-apt-zoom-out
-            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
-          <button type="button" data-c2-apt-zoom-in
-            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
-          <button type="button" data-c2-apt-zoom-fit
-            class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      <div class="flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
+          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$7(title)}</div>
+          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$7(path)}</div>
         </div>
-        ${guest ? "" : `<button type="button" data-c2-apt-add-mode
-                class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`}
-        <button type="button" data-c2-apt-close
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Показано 0 из 0</span>
+          <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
+            <button type="button" data-c2-apt-zoom-out
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+            <button type="button" data-c2-apt-zoom-in
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+            <button type="button" data-c2-apt-zoom-fit
+              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+          </div>
+          ${guest ? "" : `<button type="button" data-c2-apt-add-mode
+                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`}
+          <button type="button" data-c2-apt-close
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+        </div>
       </div>
+      <div data-c2-pin-filters-host="apt"></div>
     </div>
     <div id="c2-apt-plan-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
   document.body.appendChild(wrap);
@@ -1257,6 +1567,27 @@ async function openApartmentPlan(unit, cb) {
   (_f = wrap.querySelector("[data-c2-apt-zoom-fit]")) == null ? void 0 : _f.addEventListener("click", (ev) => {
     ev.preventDefault();
     _viewer$1 == null ? void 0 : _viewer$1.fit();
+  });
+  wrap.addEventListener("click", (ev) => {
+    var _a2, _b2;
+    const t = ev.target;
+    const statusChip = (_a2 = t == null ? void 0 : t.closest) == null ? void 0 : _a2.call(t, "[data-c2-pin-status]");
+    if (statusChip && wrap.contains(statusChip)) {
+      ev.preventDefault();
+      const key = statusChip.getAttribute("data-c2-pin-status");
+      if (!key) return;
+      toggleStatusFilter(pinFiltersState, key);
+      void _refreshPins();
+      return;
+    }
+    const catBtn = (_b2 = t == null ? void 0 : t.closest) == null ? void 0 : _b2.call(t, "[data-c2-pin-category]");
+    if (catBtn && wrap.contains(catBtn)) {
+      ev.preventDefault();
+      const key = catBtn.getAttribute("data-c2-pin-category");
+      if (!key) return;
+      setCategoryFilter(pinFiltersState, key);
+      void _refreshPins();
+    }
   });
   const host = wrap.querySelector("#c2-apt-plan-host");
   _viewer$1 = new PlanViewer(host, {
@@ -2940,12 +3271,6 @@ function _deadlineMeta(v) {
   today.setHours(0, 0, 0, 0);
   return { label, overdue: end < today };
 }
-function _filterSeg(active, key, label) {
-  const on = active === key;
-  const cls = on ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700";
-  return `<button type="button" data-c2-def-filter="${key}"
-    class="flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${cls}">${label}</button>`;
-}
 function _statusChip(status) {
   const st = String(status || "").toLowerCase();
   let cls = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
@@ -2958,20 +3283,16 @@ function _statusChip(status) {
     _statusLabel(st)
   )}</span>`;
 }
-function filterDefects(list, filter) {
-  if (filter === "open") return list.filter((d) => !_isClosed(String(d.status)));
-  if (filter === "closed") return list.filter((d) => _isClosed(String(d.status)));
-  return list.slice();
-}
 function renderDefectsRegistry(host, opts) {
-  const { floorId, floorLabel, defects, filter, onFilterChange, cb } = opts;
+  const { floorId, floorLabel, defects, cb } = opts;
+  const filters = opts.filters || pinFiltersState;
   if (!floorId) {
     host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
       Выберите этаж слева, чтобы увидеть реестр замечаний
     </div>`;
     return;
   }
-  const filtered = filterDefects(defects, filter);
+  const filtered = filterDefectsByPins(defects, filters);
   const rows = filtered.length === 0 ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
           Нет замечаний по выбранному фильтру
         </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -3010,23 +3331,12 @@ function renderDefectsRegistry(host, opts) {
           <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
             ${_escape$1(floorLabel || "Этаж")}
           </div>
-          <div class="text-[10px] text-slate-400 shrink-0">${defects.length} всего</div>
+          <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
         </div>
-        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
-          ${_filterSeg(filter, "all", "Все")}
-          ${_filterSeg(filter, "open", "Открытые")}
-          ${_filterSeg(filter, "closed", "Закрытые")}
-        </div>
+        <div data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>
     </div>`;
-  host.querySelectorAll("[data-c2-def-filter]").forEach((btn) => {
-    btn.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      const key = btn.getAttribute("data-c2-def-filter");
-      if (key === "all" || key === "open" || key === "closed") onFilterChange(key);
-    });
-  });
   host.querySelectorAll("[data-c2-def-row]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -3069,7 +3379,6 @@ let _mountedPdfUrl = null;
 let _subview = "plan";
 let _pendingFocusAccId = null;
 let _pendingHighlightDefectId = null;
-let _defectsFilter = "all";
 let _fsOpen = false;
 let _fsPlaceholder = null;
 let _fsEscHandler = null;
@@ -3171,6 +3480,7 @@ function _renderPlanChrome(svc) {
         ${_fullscreenIconBtn()}
       </div>
     </div>
+    <div class="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700" data-c2-pin-filters-host="plan"></div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
     <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
       <span id="c2-overlay-count"></span>
@@ -3372,14 +3682,24 @@ async function _refreshOverlaysOnly() {
   if (!_viewer || !_selectedFloorId) return;
   if (dSvc) await dSvc.init();
   if (aSvc) await aSvc.init();
-  const defects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const allDefects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const filtered = filterDefectsByPins(allDefects, pinFiltersState);
   const zones = aSvc ? aSvc.listForFloor(_selectedFloorId) : [];
-  _viewer.setMarkers(defects);
+  paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
+  _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
+  const label = `Показано ${filtered.length} из ${allDefects.length} · Зон: ${zones.length}`;
   const countEl = document.getElementById("c2-overlay-count");
-  if (countEl) countEl.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  if (countEl) countEl.textContent = label;
   const fsCount = document.getElementById("c2-fs-overlay-count");
-  if (fsCount) fsCount.textContent = `Замечаний: ${defects.length} · Зон: ${zones.length}`;
+  if (fsCount) fsCount.textContent = label;
+}
+async function _onPinFiltersChanged() {
+  if (_subview === "defects") {
+    await renderConstructionV2();
+    return;
+  }
+  await _refreshOverlaysOnly();
 }
 function _closePlanFullscreen() {
   if (!_fsOpen) return;
@@ -3415,22 +3735,25 @@ function _openPlanFullscreen() {
   const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-white/10 text-white border-white/30";
   const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-white/10 text-white border-white/30";
   overlay.innerHTML = `
-    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-slate-950/90 flex-wrap">
-      <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
-        ${_zoomToolbarHtml("fs")}
-        <button type="button" data-c2-zone-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-          ${_zoneMode ? "2 клика…" : "Зона"}
-        </button>
-        <button type="button" data-c2-add-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-          ${_addMode ? "Кликни…" : "+ Замечание"}
-        </button>
-        <button type="button" data-c2-fs-close
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-white/10 bg-slate-950/90">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
+          ${_zoomToolbarHtml("fs")}
+          <button type="button" data-c2-zone-mode
+            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+            ${_zoneMode ? "2 клика…" : "Зона"}
+          </button>
+          <button type="button" data-c2-add-mode
+            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+            ${_addMode ? "Кликни…" : "+ Замечание"}
+          </button>
+          <button type="button" data-c2-fs-close
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+        </div>
       </div>
+      <div data-c2-pin-filters-host="fs"></div>
     </div>
     <div id="c2-plan-fs-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
   const fsHost = overlay.querySelector("#c2-plan-fs-host");
@@ -3534,12 +3857,7 @@ async function renderConstructionV2() {
       floorId: _selectedFloorId,
       floorLabel: path || (floor == null ? void 0 : floor.displayName) || "",
       defects: list,
-      filter: _defectsFilter,
-      onFilterChange: (f) => {
-        _defectsFilter = f;
-        renderConstructionV2().catch(() => {
-        });
-      },
+      filters: pinFiltersState,
       cb: {
         onOpenDefect: (id) => _openViewDefect(id),
         onShowOnPlan: (id, locationId) => focusDefectOnPlan(id, locationId)
@@ -3569,7 +3887,7 @@ function _bindOnce() {
   document.addEventListener(
     "click",
     (ev) => {
-      var _a, _b, _c, _d, _e, _f, _g;
+      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
       const t = ev.target;
       const floorBtn = (_a = t == null ? void 0 : t.closest) == null ? void 0 : _a.call(t, "[data-c2-floor]");
       if (floorBtn) {
@@ -3621,6 +3939,26 @@ function _bindOnce() {
       if (zFit) {
         ev.preventDefault();
         _viewer == null ? void 0 : _viewer.fit();
+        return;
+      }
+      const statusChip = (_h = t == null ? void 0 : t.closest) == null ? void 0 : _h.call(t, "[data-c2-pin-status]");
+      if (statusChip) {
+        if ((_i = t == null ? void 0 : t.closest) == null ? void 0 : _i.call(t, "#c2-apartment-plan")) return;
+        ev.preventDefault();
+        const key = statusChip.getAttribute("data-c2-pin-status");
+        if (!key) return;
+        toggleStatusFilter(pinFiltersState, key);
+        void _onPinFiltersChanged();
+        return;
+      }
+      const catBtn = (_j = t == null ? void 0 : t.closest) == null ? void 0 : _j.call(t, "[data-c2-pin-category]");
+      if (catBtn) {
+        if ((_k = t == null ? void 0 : t.closest) == null ? void 0 : _k.call(t, "#c2-apartment-plan")) return;
+        ev.preventDefault();
+        const key = catBtn.getAttribute("data-c2-pin-category");
+        if (!key) return;
+        setCategoryFilter(pinFiltersState, key);
+        void _onPinFiltersChanged();
       }
     },
     true

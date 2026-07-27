@@ -109,21 +109,31 @@
             if (!id || !window.RBI.services.storage) return null;
             try {
                 var row = await window.RBI.services.storage.get(getReportsStore(), id);
-                return (row && row.file_blob) ? row.file_blob : null;
+                if (!row) return null;
+                var toBlob = window.rbiReportPayloadToBlob;
+                if (typeof toBlob === 'function') {
+                    return toBlob(row.file_blob, row.mime_type || row.mimeType || 'application/pdf');
+                }
+                return (row.file_blob instanceof Blob && row.file_blob.size > 0) ? row.file_blob : null;
             } catch (e) {
                 console.warn('[RBI.reports] getLocalBlob:', e);
                 return null;
             }
         },
 
-        /** Есть ли локальный blob в RAM или IDB. */
+        /** Есть ли локальный payload в RAM или IDB (Blob или ArrayBuffer). */
         hasLocalBlob: async function (reportOrId) {
             var r = reportOrId;
             if (typeof reportOrId === 'string') {
                 r = this.getAllSync().find(function (x) { return x && x.id === reportOrId; }) || { id: reportOrId };
             }
             if (!r) return false;
-            if (r.file_blob) return true;
+            var hasPayload = window.rbiHasReportPayload;
+            if (typeof hasPayload === 'function') {
+                if (hasPayload(r.file_blob)) return true;
+            } else if (r.file_blob) {
+                return true;
+            }
             var blob = await this.getLocalBlob(r.id);
             return !!blob;
         },

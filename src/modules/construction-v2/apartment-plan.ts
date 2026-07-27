@@ -7,6 +7,14 @@ import type { ConstructionDefectV2 } from '../../services/construction-defects/t
 import type { ConstructionUnitV2 } from '../../services/construction-units/types';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
 import { PlanViewer } from './plan-viewer';
+import {
+  type PinCategory,
+  filterDefectsByPins,
+  pinFiltersState,
+  renderPinFiltersHtml,
+  setCategoryFilter,
+  toggleStatusFilter
+} from './pin-filters';
 
 type LocNode = { id: string; nodeType?: string; displayName?: string };
 
@@ -98,10 +106,15 @@ async function _refreshPins(): Promise<void> {
   const dSvc = _defects();
   if (!_viewer || !_apartmentId || !dSvc) return;
   await dSvc.init();
-  const defects = _listForApartment(dSvc, _apartmentId);
-  _viewer.setMarkers(defects);
+  const all = _listForApartment(dSvc, _apartmentId);
+  const filtered = filterDefectsByPins(all, pinFiltersState);
+  const host = document.querySelector('#c2-apartment-plan [data-c2-pin-filters-host="apt"]') as HTMLElement | null;
+  if (host) {
+    host.innerHTML = renderPinFiltersHtml(all, pinFiltersState, { compact: true });
+  }
+  _viewer.setMarkers(filtered);
   const countEl = document.getElementById('c2-apt-overlay-count');
-  if (countEl) countEl.textContent = `Замечаний: ${defects.length}`;
+  if (countEl) countEl.textContent = `Показано ${filtered.length} из ${all.length}`;
 }
 
 async function _maybeMarkHasDefects(unitId: string): Promise<void> {
@@ -198,31 +211,34 @@ export async function openApartmentPlan(
   wrap.id = 'c2-apartment-plan';
   wrap.className = 'fixed inset-0 z-[95] flex flex-col bg-slate-100 dark:bg-slate-900';
   wrap.innerHTML = `
-    <div class="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-      <div class="min-w-0">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
-        <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape(title)}</div>
-        <div class="text-[10px] font-bold text-slate-400 truncate">${_escape(path)}</div>
-      </div>
-      <div class="flex items-center gap-2 shrink-0 flex-wrap">
-        <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Замечаний: 0</span>
-        <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
-          <button type="button" data-c2-apt-zoom-out
-            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
-          <button type="button" data-c2-apt-zoom-in
-            class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
-          <button type="button" data-c2-apt-zoom-fit
-            class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      <div class="flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
+          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape(title)}</div>
+          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape(path)}</div>
         </div>
-        ${
-          guest
-            ? ''
-            : `<button type="button" data-c2-apt-add-mode
-                class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`
-        }
-        <button type="button" data-c2-apt-close
-          class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Показано 0 из 0</span>
+          <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
+            <button type="button" data-c2-apt-zoom-out
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+            <button type="button" data-c2-apt-zoom-in
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+            <button type="button" data-c2-apt-zoom-fit
+              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+          </div>
+          ${
+            guest
+              ? ''
+              : `<button type="button" data-c2-apt-add-mode
+                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`
+          }
+          <button type="button" data-c2-apt-close
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+        </div>
       </div>
+      <div data-c2-pin-filters-host="apt"></div>
     </div>
     <div id="c2-apt-plan-host" class="relative flex-1 min-h-0 overflow-hidden"></div>`;
 
@@ -253,6 +269,27 @@ export async function openApartmentPlan(
   wrap.querySelector('[data-c2-apt-zoom-fit]')?.addEventListener('click', (ev) => {
     ev.preventDefault();
     _viewer?.fit();
+  });
+
+  wrap.addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    const statusChip = t?.closest?.('[data-c2-pin-status]') as HTMLElement | null;
+    if (statusChip && wrap.contains(statusChip)) {
+      ev.preventDefault();
+      const key = statusChip.getAttribute('data-c2-pin-status');
+      if (!key) return;
+      toggleStatusFilter(pinFiltersState, key);
+      void _refreshPins();
+      return;
+    }
+    const catBtn = t?.closest?.('[data-c2-pin-category]') as HTMLElement | null;
+    if (catBtn && wrap.contains(catBtn)) {
+      ev.preventDefault();
+      const key = catBtn.getAttribute('data-c2-pin-category') as PinCategory | null;
+      if (!key) return;
+      setCategoryFilter(pinFiltersState, key);
+      void _refreshPins();
+    }
   });
 
   const host = wrap.querySelector('#c2-apt-plan-host') as HTMLElement;

@@ -201,17 +201,22 @@ window.UniversalPdfViewer = {
 
         try {
             let pdfArrayBuffer = null;
-            if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
-                const cachedUrl = await PhotoManager.getAsyncUrl(pdfUrl);
-                if (cachedUrl && cachedUrl.startsWith('blob:')) {
-                    const res = await fetch(cachedUrl);
+            if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
+                pdfArrayBuffer = await window.rbiLoadCloudPdfArrayBuffer(pdfUrl);
+            } else {
+                if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.getAsyncUrl === 'function') {
+                    const cachedUrl = await PhotoManager.getAsyncUrl(pdfUrl);
+                    if (cachedUrl && cachedUrl.startsWith('blob:')) {
+                        const res = await fetch(cachedUrl);
+                        pdfArrayBuffer = await res.arrayBuffer();
+                    }
+                }
+                if (!pdfArrayBuffer) {
+                    if (navigator.onLine === false) throw new Error('PDF не кэширован офлайн');
+                    const res = await fetch(pdfUrl);
+                    if (!res.ok) throw new Error('Не удалось скачать файл');
                     pdfArrayBuffer = await res.arrayBuffer();
                 }
-            }
-            if (!pdfArrayBuffer) {
-                const res = await fetch(pdfUrl);
-                if (!res.ok) throw new Error('Не удалось скачать файл');
-                pdfArrayBuffer = await res.arrayBuffer();
             }
 
             const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
