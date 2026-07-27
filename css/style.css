@@ -509,17 +509,38 @@ body.hide-dashboard #header-data-block {
     display: none !important;
 }
 
-/* Настройки размера шрифта */
+/* Настройки масштаба интерфейса (Tailwind text-[Npx] не слушает em —
+   поэтому zoom на html; font-size — запасной путь). */
+html.font-small {
+    zoom: 0.92;
+}
+html.font-large {
+    zoom: 1.1;
+}
+html.font-xlarge {
+    zoom: 1.22;
+}
+
 body.font-small {
     font-size: 0.9em;
 }
-
 body.font-large {
     font-size: 1.1em;
 }
-
 body.font-xlarge {
     font-size: 1.25em;
+}
+
+@supports not (zoom: 1) {
+    html.font-small {
+        font-size: 92%;
+    }
+    html.font-large {
+        font-size: 110%;
+    }
+    html.font-xlarge {
+        font-size: 122%;
+    }
 }
 
 body.modal-open {

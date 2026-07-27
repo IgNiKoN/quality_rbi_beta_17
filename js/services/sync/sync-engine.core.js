@@ -304,6 +304,37 @@ window.triggerSync = async function (mode = 'silent') {
                     }
                 }
 
+                // UI-prefs из облака (fontSize, theme, motion…) — только если
+                // cloud settingsUpdatedAt новее локального. Роль/объекты не трогаем:
+                // они уже применены из колонок профиля выше.
+                const cloudSettingsBag = (serverProfile.settings && typeof serverProfile.settings === 'object')
+                    ? serverProfile.settings
+                    : null;
+                if (cloudSettingsBag) {
+                    const localPrefsTs = Number(appSettings.settingsUpdatedAt || 0);
+                    const cloudPrefsTs = Number(cloudSettingsBag.settingsUpdatedAt || 0);
+                    if (cloudPrefsTs > localPrefsTs) {
+                        const AUTH_PREF_KEYS = {
+                            userRole: 1,
+                            cloudStatus: 1,
+                            assignedProjects: 1,
+                            pendingAssignedProjects: 1,
+                            pendingUnassignProjects: 1,
+                            assignedContractor: 1,
+                            contractorName: 1,
+                            engineerName: 1,
+                            key: 1
+                        };
+                        Object.keys(cloudSettingsBag).forEach((k) => {
+                            if (AUTH_PREF_KEYS[k]) return;
+                            appSettings[k] = cloudSettingsBag[k];
+                        });
+                        appSettings.settingsUpdatedAt = cloudPrefsTs;
+                        needUiUpdate = true;
+                        console.log('[Sync] UI-настройки профиля подтянуты из облака.');
+                    }
+                }
+
                 if (typeof dbPut === 'function') {
                     await dbPut('app_settings', { key: 'user_prefs', ...appSettings });
                 }
@@ -311,6 +342,7 @@ window.triggerSync = async function (mode = 'silent') {
                 if (needUiUpdate && window.RBI.services.permissions) {
                     window.RBI.services.permissions.applyUIConstraints();
 
+                    if (typeof applySettingsToUI === 'function') applySettingsToUI();
                     if (typeof renderSyncUI === 'function') renderSyncUI();
                     if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
 
@@ -2173,12 +2205,16 @@ if (window.RbiStorageManager) {
                     ? (await dbGet('app_state', 'current_session') || {})
                     : {};
 
-                // ИСПРАВЛЕНИЕ: Пушим профиль только если были реальные действия инженера после последней синхронизации
+                // ИСПРАВЛЕНИЕ: Пушим профиль если были действия ИЛИ смена UI-настроек
                 const lastPushTime = lastPushAt ? new Date(lastPushAt).getTime() : 0;
+                const settingsUpdatedAt = (typeof appSettings !== 'undefined' && appSettings.settingsUpdatedAt)
+                    ? Number(appSettings.settingsUpdatedAt)
+                    : 0;
                 const profileLastUpdated = Math.max(
                     currentSession.timestamp || 0,
                     (typeof gameActionLogs !== 'undefined' && gameActionLogs.length > 0) ? new Date(gameActionLogs[gameActionLogs.length - 1].date).getTime() : 0,
-                    (typeof weeklyPlanData !== 'undefined' && weeklyPlanData.tasks && weeklyPlanData.tasks.length > 0) ? new Date(weeklyPlanData.tasks[0].updatedAt || 0).getTime() : 0
+                    (typeof weeklyPlanData !== 'undefined' && weeklyPlanData.tasks && weeklyPlanData.tasks.length > 0) ? new Date(weeklyPlanData.tasks[0].updatedAt || 0).getTime() : 0,
+                    settingsUpdatedAt
                 );
 
                 // 🛡️ ЗАЩИТА 2: Строгая проверка свежести профиля

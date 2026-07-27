@@ -1269,7 +1269,12 @@ window.switchReferenceSubTab = switchReferenceSubTab;
 
 // === СВОРАЧИВАЕМЫЕ ПАНЕЛИ ФИЛЬТРОВ ===
 // Режим: autoCollapseFilters = 'auto' | 'manual' (настройки интерфейса).
-// Авто: свернуть в середине страницы; развернуть у верха и у низа (не по каждому свайпу).
+// Авто (как в лучших мобильных UI):
+//   • у верха — развёрнуто;
+//   • ушли вниз за порог — свернуть;
+//   • развернуть снова только у верха (не при скролле вверх и не у низа);
+//   • ручное раскрытие mid-page — держим открытым, пока пользователь снова
+//     не уйдёт заметно вниз (иначе авто сразу схлопывает — плохо).
 // Анимация всегда iOS spring (cubic-bezier) — и по клику, и по скроллу.
 // Панели: #analytics-filters-block и #hist-sticky-panel.
 
@@ -1394,13 +1399,30 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
 
     let collapsed = false;
     let isAnimating = false;
+    let pendingCollapsed = null;
+    // Ручное раскрытие mid-page: не даём авто сразу свернуть
+    // (и игнорируем скачок scrollY от изменения высоты панели).
+    let userHoldOpen = false;
+    let holdOpenFromY = 0;
+    let ignoreAutoUntil = 0;
     const SPRING_TRANSITION =
         'max-height 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
     body.style.transition = SPRING_TRANSITION;
 
+    function currentScrollY() {
+        return window.scrollY || document.documentElement.scrollTop || 0;
+    }
+
     function setCollapsed(val) {
-        if (collapsed === val || isAnimating) return;
+        if (collapsed === val) {
+            pendingCollapsed = null;
+            return;
+        }
+        if (isAnimating) {
+            pendingCollapsed = val;
+            return;
+        }
         collapsed = val;
         isAnimating = true;
 
@@ -1430,22 +1452,54 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
         setTimeout(function () {
             if (!collapsed) body.style.overflow = 'visible';
             isAnimating = false;
+            if (pendingCollapsed !== null && pendingCollapsed !== collapsed) {
+                var next = pendingCollapsed;
+                pendingCollapsed = null;
+                setCollapsed(next);
+            } else {
+                pendingCollapsed = null;
+            }
         }, 520);
+    }
+
+    function armManualHoldOpen() {
+        userHoldOpen = true;
+        holdOpenFromY = currentScrollY();
+        // Пока панель анимируется/растёт, scrollY может прыгнуть сам —
+        // не считаем это «ушли вниз», обновляем базу.
+        ignoreAutoUntil = Date.now() + 550;
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                holdOpenFromY = Math.max(holdOpenFromY, currentScrollY());
+            });
+        });
     }
 
     if (header) {
         header.style.cursor = 'pointer';
         header.addEventListener('click', function (e) {
             if (e.target.closest('[data-no-panel-toggle], select, input, button, a, label')) return;
-            setCollapsed(!collapsed);
+            var willCollapse = !collapsed;
+            setCollapsed(willCollapse);
+            if (willCollapse) {
+                userHoldOpen = false;
+                ignoreAutoUntil = 0;
+            } else {
+                armManualHoldOpen();
+            }
         });
     }
+
+    // Гистерезис + hold после ручного раскрытия.
+    var COLLAPSE_AFTER_Y = 80;
+    var EXPAND_AT_Y = 28;
+    var HOLD_RELEASE_DELTA = 56;
 
     window.addEventListener('scroll', function () {
         if (!_isAutoCollapseFiltersEnabled()) return;
         if (!_collapsiblePanelIsOnScreen(panel)) return;
 
-        const y = window.scrollY || 0;
+        const y = currentScrollY();
         const viewH = window.innerHeight || 0;
         const docH = Math.max(
             document.documentElement ? document.documentElement.scrollHeight : 0,
@@ -1453,19 +1507,36 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
         );
 
         if (docH <= viewH + 250) {
+            userHoldOpen = false;
+            ignoreAutoUntil = 0;
             setCollapsed(false);
             return;
         }
 
-        const nearTop = y < 40;
-        const nearBottom = y + viewH >= docH - 140;
-
-        // Середина — свернуть; верх или низ страницы — развернуть (с пружиной).
-        if (nearTop || nearBottom) {
+        if (y <= EXPAND_AT_Y) {
+            userHoldOpen = false;
+            ignoreAutoUntil = 0;
             if (collapsed) setCollapsed(false);
-        } else if (y > 100 && !collapsed) {
-            setCollapsed(true);
+            return;
         }
+
+        if (userHoldOpen) {
+            if (Date.now() < ignoreAutoUntil) {
+                holdOpenFromY = Math.max(holdOpenFromY, y);
+                return;
+            }
+            // Сворачиваем только после осознанного ухода вниз от точки раскрытия.
+            if (y >= holdOpenFromY + HOLD_RELEASE_DELTA) {
+                userHoldOpen = false;
+                if (!collapsed) setCollapsed(true);
+            }
+            return;
+        }
+
+        if (y >= COLLAPSE_AFTER_Y) {
+            if (!collapsed) setCollapsed(true);
+        }
+        // Между EXPAND_AT_Y и COLLAPSE_AFTER_Y — держим текущее состояние (антидребезг).
     }, { passive: true });
 }
 window.initCollapsiblePanel = initCollapsiblePanel;

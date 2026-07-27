@@ -98,6 +98,11 @@
         }
 
         _setSetting(key, value);
+        // Метка для sync профиля: иначе prefs не уходят в облако
+        // (push профиля раньше смотрел только session/XP/plan).
+        if (key !== 'settingsUpdatedAt') {
+            _setSetting('settingsUpdatedAt', Date.now());
+        }
 
         if (typeof window.applySettingsToUI === 'function') window.applySettingsToUI();
 

@@ -29,6 +29,8 @@
         engineerName: '',
         defaultProject: '',
         fontSize: 'medium',
+        /** Unix ms — когда локально меняли prefs (для push/pull профиля) */
+        settingsUpdatedAt: 0,
         navPosition: 'auto',
         swipeEnabled: false,
         autoCollapseOk: false,
@@ -155,6 +157,11 @@
             }
 
             window.appSettings[key] = value;
+
+            // Метка свежести UI-prefs для sync профиля (не рекурсивно)
+            if (key !== 'settingsUpdatedAt') {
+                window.appSettings.settingsUpdatedAt = Date.now();
+            }
 
             try {
                 var data = Object.assign({ key: SETTINGS_KEY }, window.appSettings);

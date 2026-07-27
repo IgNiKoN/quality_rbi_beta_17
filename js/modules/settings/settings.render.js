@@ -311,7 +311,7 @@ var SettingsRender = {
                         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
                             <div class="min-w-0">
                                 <div class="font-bold text-sm">Фильтры при скролле</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто: свернуть в середине, развернуть у верха и у низа страницы. Ручное — только по клику</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто: свернуть при уходе вниз, развернуть у верха; ручное раскрытие mid-page не схлопывается сразу. Ручное — только по клику</div>
                             </div>
                             <select id="set-auto-collapse-filters" class="input-base w-36 shrink-0"
                                 data-settings-action="toggleSetting" data-settings-action-key="autoCollapseFilters" data-settings-action-val-type="element" data-action-event="change">
@@ -1667,7 +1667,10 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         }
 
         document.documentElement.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
-        document.documentElement.classList.add('font-' + (_getSetting('fontSize') || 'medium'));
+        document.body.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
+        var fontSizeClass = 'font-' + (_getSetting('fontSize') || 'medium');
+        document.documentElement.classList.add(fontSizeClass);
+        document.body.classList.add(fontSizeClass);
 
         document.body.classList.remove('nav-pos-auto', 'nav-pos-top', 'nav-pos-bottom');
         document.body.classList.add('nav-pos-' + (_getSetting('navPosition') || 'auto'));
