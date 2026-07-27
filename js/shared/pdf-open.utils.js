@@ -201,25 +201,36 @@
             ? new File([blob], fileName, { type: 'application/pdf' })
             : null;
 
-        // Desktop: сначала локальный blob, иначе https. iPhone — sheet (sync open на кнопке).
-        if (!isAppleTouch()) {
-            if (blobUrl && openUrlSync(blobUrl)) {
+        // Локальный файл есть — никогда не уходим на https (Safari после await
+        // часто блокирует window.open(blob) и раньше открывал сеть «успешно»).
+        if (blobUrl) {
+            if (!isAppleTouch() && openUrlSync(blobUrl)) {
                 setTimeout(function () {
                     try { URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
                 }, 60000);
                 return { ok: true, mode: 'blob-tab' };
             }
-            if (httpsUrl && isOnline() && openUrlSync(httpsUrl)) {
-                return { ok: true, mode: 'https' };
-            }
+            showSheet({
+                title: title,
+                fileName: fileName,
+                httpsUrl: '',
+                blobUrl: blobUrl,
+                file: file
+            });
+            return { ok: true, mode: 'sheet' };
+        }
+
+        // Локального нет — только сеть.
+        if (httpsUrl && isOnline() && !isAppleTouch() && openUrlSync(httpsUrl)) {
+            return { ok: true, mode: 'https' };
         }
 
         showSheet({
             title: title,
             fileName: fileName,
             httpsUrl: httpsUrl,
-            blobUrl: blobUrl,
-            file: file
+            blobUrl: '',
+            file: null
         });
         return { ok: true, mode: 'sheet' };
     };
