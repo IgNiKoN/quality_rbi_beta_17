@@ -30,6 +30,48 @@ window.rbiEscapeAttr = function (value) {
 };
 
 /**
+ * Атрибуты <img> для офлайн-превью: blob из RAM сразу, иначе placeholder + data-local-src
+ * (bootstrap / rbiHydrateLocalImages → PhotoManager.getAsyncUrl из IDB).
+ * Не ставить сырой https в src — в офлайне браузер не ходит в PhotoManager.
+ * @param {string|string[]} ref
+ * @param {{ preferThumb?: boolean }} [opts]
+ * @returns {string} например `src="..." data-local-src="..." data-prefer-thumb="1"`
+ */
+window.rbiBuildPhotoImgAttrs = function (ref, opts) {
+    if (Array.isArray(ref)) ref = ref[0];
+    if (!ref || typeof ref !== 'string') return 'src=""';
+
+    const preferThumb = !!(opts && opts.preferThumb);
+    const esc = window.rbiEscapeAttr(ref);
+    const ph = window.rbiPhotoPlaceholder || '';
+    const needsHydrate = ref.startsWith('local://')
+        || ref.startsWith('cloud://')
+        || /^https?:\/\//i.test(ref);
+
+    if (!needsHydrate) {
+        const sync = (typeof window.getPhotoSrc === 'function' ? window.getPhotoSrc(ref) : ref) || ref;
+        return 'src="' + window.rbiEscapeAttr(sync) + '"';
+    }
+
+    let ram = '';
+    try {
+        if (preferThumb && typeof window.getPhotoThumbSrc === 'function') {
+            ram = window.getPhotoThumbSrc(ref) || '';
+        }
+        if (!ram && typeof window.getPhotoSrc === 'function') {
+            ram = window.getPhotoSrc(ref) || '';
+        }
+    } catch (e) { /* ignore */ }
+
+    if (ram && String(ram).startsWith('blob:')) {
+        return 'src="' + window.rbiEscapeAttr(ram) + '"';
+    }
+
+    const thumbAttr = preferThumb ? ' data-prefer-thumb="1"' : '';
+    return 'src="' + ph + '" data-local-src="' + esc + '"' + thumbAttr;
+};
+
+/**
  * Сжатие файла изображения → dataURL (webp/jpeg).
  * Общий хелпер для ES-модулей (практики, TWI, задачи, FMEA, совещания):
  * в module-scope bare `compressImageToBase64` не резолвится в window.

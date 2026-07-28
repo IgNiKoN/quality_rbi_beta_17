@@ -1,15 +1,21 @@
 /**
  * Реестр замечаний этажа (construction-v2 subview `defects`).
- * Фильтр — тот же PinFilters, что на плане (chips статусов + категория).
+ * Фильтр — PinFilters (chips статусов + категория) + опциональный chip «Просроч.».
  */
 
 import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
+import {
+  daysOpen,
+  deadlineEndOfDay,
+  isOverdueNow
+} from './defect-sla-metrics';
 import {
   type PinFilters,
   filterDefectsByPins,
   pinFiltersState,
   renderPinFiltersHtml
 } from './pin-filters';
+import { filterDefectsForRole } from './contractor-scope';
 
 /** @deprecated — оставлен для совместимости импортов; фильтр теперь PinFilters. */
 export type DefectsFilter = 'all' | 'open' | 'closed';
@@ -19,6 +25,9 @@ export type DefectsRegistryCallbacks = {
   onShowOnPlan: (id: string, locationId: string) => void;
   onFiltersChanged?: () => void;
 };
+
+/** Chip «Просроч.» — отдельно от pinFiltersState статусов. */
+let _overdueOnly = false;
 
 function _escape(s: string) {
   return String(s || '')
@@ -56,21 +65,14 @@ function _categoryBar(c: string): string {
   return 'bg-orange-500';
 }
 
-function _isClosed(status: string): boolean {
-  const st = String(status || '').toLowerCase();
-  return st === 'closed' || st === 'fixed' || st === 'rejected' || st === 'cancelled';
-}
-
-function _deadlineMeta(v: unknown): { label: string; overdue: boolean } {
-  if (v == null || v === '') return { label: 'без срока', overdue: false };
-  const m = String(v).trim().match(/^(\d{4}-\d{2}-\d{2})/);
-  if (!m) return { label: String(v), overdue: false };
-  const [y, mo, d] = m[1].split('-');
-  const label = `${d}.${mo}.${y}`;
-  const end = new Date(`${m[1]}T23:59:59`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return { label, overdue: end < today };
+/** Канон реестра: overdue = issued|in_progress|fixed с прошедшим deadline. */
+function _deadlineMeta(d: ConstructionDefectV2): { label: string; overdue: boolean } {
+  if (d.deadline == null || d.deadline === '') return { label: 'без срока', overdue: false };
+  const m = String(d.deadline).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!m) return { label: String(d.deadline), overdue: false };
+  const [y, mo, day] = m[1].split('-');
+  const label = `${day}.${mo}.${y}`;
+  return { label, overdue: isOverdueNow(d) };
 }
 
 function _statusChip(status: string): string {
@@ -84,6 +86,21 @@ function _statusChip(status: string): string {
   return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape(
     _statusLabel(st)
   )}</span>`;
+}
+
+function _deadlineSortKey(d: ConstructionDefectV2): number {
+  const end = deadlineEndOfDay(d.deadline);
+  return end ? end.getTime() : Number.POSITIVE_INFINITY;
+}
+
+/** Просроченные сверху, затем по deadline ASC (без срока — в конце). */
+function _sortRegistry(list: ConstructionDefectV2[]): ConstructionDefectV2[] {
+  return list.slice().sort((a, b) => {
+    const ao = isOverdueNow(a) ? 0 : 1;
+    const bo = isOverdueNow(b) ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return _deadlineSortKey(a) - _deadlineSortKey(b);
+  });
 }
 
 /** Фильтрация по PinFilters (общий контракт с планом). */
@@ -104,7 +121,8 @@ export function renderDefectsRegistry(
     cb: DefectsRegistryCallbacks;
   }
 ): void {
-  const { floorId, floorLabel, defects, cb } = opts;
+  const { floorId, floorLabel, cb } = opts;
+  const defects = filterDefectsForRole(opts.defects || []);
   const filters = opts.filters || pinFiltersState;
 
   if (!floorId) {
@@ -114,7 +132,16 @@ export function renderDefectsRegistry(
     return;
   }
 
-  const filtered = filterDefectsByPins(defects, filters);
+  let filtered = filterDefectsByPins(defects, filters);
+  if (_overdueOnly) {
+    filtered = filtered.filter((d) => isOverdueNow(d));
+  }
+  filtered = _sortRegistry(filtered);
+
+  const overdueChipCls = _overdueOnly
+    ? 'bg-red-600 text-white border-red-600'
+    : 'bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30';
+
   const rows =
     filtered.length === 0
       ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
@@ -124,13 +151,20 @@ export function renderDefectsRegistry(
           ${filtered
             .map((d, i) => {
               const desc = String(d.description || d.item_name || d.text || 'Без описания').slice(0, 140);
-              const dl = _deadlineMeta(d.deadline);
-              const dlCls =
-                dl.overdue && !_isClosed(String(d.status))
-                  ? 'text-red-600 dark:text-red-400 font-semibold'
-                  : 'text-slate-400';
+              const dl = _deadlineMeta(d);
+              const openDays = daysOpen(d);
+              const daysBadge =
+                openDays != null
+                  ? `<span class="text-[10px] font-bold ${
+                      dl.overdue ? 'text-red-600 dark:text-red-400' : 'text-slate-400'
+                    }">${openDays} дн.</span>`
+                  : '';
+              const dlCls = dl.overdue
+                ? 'text-red-600 dark:text-red-400 font-semibold'
+                : 'text-slate-400';
               const bar = _categoryBar(String(d.category));
-              return `<li>
+              const rowBg = dl.overdue ? 'bg-red-50/40 dark:bg-red-950/15' : '';
+              return `<li class="${rowBg}">
                 <div class="flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                   <div class="w-1 shrink-0 ${bar}"></div>
                   <button type="button" data-c2-def-row="${_escape(d.id)}"
@@ -141,7 +175,8 @@ export function renderDefectsRegistry(
                       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
                         <span class="text-[10px] font-bold text-slate-500">${_escape(_categoryLabel(String(d.category)))}</span>
                         ${_statusChip(String(d.status))}
-                        <span class="text-[10px] ${dlCls}">${_escape(dl.label)}${dl.overdue && !_isClosed(String(d.status)) ? ' · просрочено' : ''}</span>
+                        ${daysBadge}
+                        <span class="text-[10px] ${dlCls}">${_escape(dl.label)}${dl.overdue ? ' · просрочено' : ''}</span>
                       </span>
                       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape(desc)}</span>
                     </span>
@@ -164,10 +199,23 @@ export function renderDefectsRegistry(
           </div>
           <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
         </div>
-        <div data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
+          <button type="button" data-c2-reg-overdue
+            class="shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border ${overdueChipCls}"
+            title="Только просроченные (issued / в работе / на проверке)">Просроч.</button>
+        </div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>
     </div>`;
+
+  host.querySelector('[data-c2-reg-overdue]')?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    _overdueOnly = !_overdueOnly;
+    renderDefectsRegistry(host, opts);
+    cb.onFiltersChanged?.();
+  });
 
   host.querySelectorAll('[data-c2-def-row]').forEach((btn) => {
     btn.addEventListener('click', (ev) => {

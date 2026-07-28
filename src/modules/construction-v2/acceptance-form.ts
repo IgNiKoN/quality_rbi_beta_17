@@ -15,6 +15,8 @@ import {
   renderChecklistSectionHtml
 } from './acceptance-checklist';
 import { openCreateDefectForm } from './defect-form';
+import { resolveMyContractorId, isContractorRole } from './contractor-scope';
+import { isSlotTaken, slotTimeOptionsHtml } from './acceptance-slots';
 
 /** Full-rect zone для приёмки квартиры (без zone-picker). */
 export const APARTMENT_FULL_ZONE: AcceptanceZoneV2 = { x: 0, y: 0, w: 100, h: 100 };
@@ -260,19 +262,39 @@ function _workTitle(key: string): string {
   return key;
 }
 
-function _resolveContractorId(displayName: string): string | null {
-  const contractorsSvc = window.RBI?.services?.contractors as
-    | { resolveIdFromNormalized?: (o: Record<string, string>) => string | null | undefined }
-    | undefined;
-  if (contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === 'function') {
-    return (
-      contractorsSvc.resolveIdFromNormalized({
-        display_name: displayName,
-        contractor_name: displayName
-      }) || null
-    );
+function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boolean; lockedId?: string | null }): string {
+  if (opts?.locked) {
+    const id = String(opts.lockedId || '').trim();
+    const label = id || 'не привязан';
+    return `
+      <div>
+        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик</label>
+        <input type="hidden" id="c2-acc-contractor" value="${_escape(id)}">
+        <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape(
+          label
+        )} <span class="text-[9px] font-bold uppercase text-slate-400">(ваш)</span></div>
+      </div>`;
   }
-  return null;
+  const svc = window.RBI?.services?.contractors as
+    | { list?: () => Array<{ id?: string; display_name?: string; displayName?: string }> }
+    | undefined;
+  const rows = typeof svc?.list === 'function' ? svc.list() : [];
+  const optsHtml =
+    `<option value="">— выберите подрядчика —</option>` +
+    (rows || [])
+      .filter((r) => r && r.id)
+      .map((r) => {
+        const id = String(r.id);
+        const label = String(r.display_name || r.displayName || id);
+        const sel = selectedId && String(selectedId) === id ? ' selected' : '';
+        return `<option value="${_escape(id)}"${sel}>${_escape(label)}</option>`;
+      })
+      .join('');
+  return `
+    <div>
+      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик *</label>
+      <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
+    </div>`;
 }
 
 function _floorLabel(locationId: string): string {
@@ -338,6 +360,14 @@ export function openCreateAcceptanceForm(
     return;
   }
 
+  const isContractor = role === 'contractor' || isContractorRole();
+  const myContractorId = isContractor ? resolveMyContractorId() : null;
+  if (isContractor && !myContractorId) {
+    window.showToast?.('⚠️ Подрядчик не привязан к профилю — заявку создать нельзя');
+    onCancel?.();
+    return;
+  }
+
   const isApartment =
     ctx.mode === 'apartment' || _locationNodeType(ctx.locationId) === 'apartment';
   const path = _floorLabel(ctx.locationId);
@@ -359,6 +389,11 @@ export function openCreateAcceptanceForm(
            <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
          </div>
        </div>`;
+
+  const contractorHtml = _contractorSelectHtml(null, {
+    locked: isContractor,
+    lockedId: myContractorId
+  });
 
   const html = `
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -382,18 +417,13 @@ export function openCreateAcceptanceForm(
             </select>
             ${roomVolHtml}
           </div>
+          ${contractorHtml}
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
             <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">Когда готовы сдать?</label>
             <div class="grid grid-cols-2 gap-2">
               <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today()}">
               <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
-                <option value="09:00">09:00 - 10:00</option>
-                <option value="10:00">10:00 - 11:00</option>
-                <option value="11:00">11:00 - 12:00</option>
-                <option value="13:00">13:00 - 14:00</option>
-                <option value="14:00" selected>14:00 - 15:00</option>
-                <option value="15:00">15:00 - 16:00</option>
-                <option value="16:00">16:00 - 17:00</option>
+                ${slotTimeOptionsHtml('14:00')}
               </select>
             </div>
           </div>
@@ -427,12 +457,34 @@ export function openCreateAcceptanceForm(
     const vol = (document.getElementById('c2-acc-vol') as HTMLInputElement | null)?.value?.trim() || '';
     const dateStr = (document.getElementById('c2-acc-date') as HTMLInputElement | null)?.value || '';
     const timeStr = (document.getElementById('c2-acc-time') as HTMLSelectElement | null)?.value || '';
+    let contractorId = isContractor
+      ? myContractorId
+      : (document.getElementById('c2-acc-contractor') as HTMLSelectElement | HTMLInputElement | null)?.value?.trim() ||
+        null;
     if (!workKey || !dateStr) {
       window.showToast?.('⚠️ Заполните вид работ и дату');
       return;
     }
-    const engineerName =
-      (window as unknown as { syncConfig?: { engineerName?: string } }).syncConfig?.engineerName || '';
+    if (!isContractor && !contractorId) {
+      window.showToast?.('⚠️ Выберите подрядчика');
+      return;
+    }
+    const accListSvc = window.RBI?.services?.constructionAcceptance as
+      | { list?: () => ConstructionAcceptanceV2[] }
+      | undefined;
+    const existing = accListSvc?.list?.() || [];
+    if (
+      isSlotTaken(existing, {
+        date: dateStr,
+        time: timeStr,
+        locationId: ctx.locationId
+      })
+    ) {
+      const ok = window.confirm(
+        'На это время уже есть активная заявка по этой локации. Всё равно отправить?'
+      );
+      if (!ok) return;
+    }
     const baseZone = isApartment ? { ...APARTMENT_FULL_ZONE } : { ...ctx.zone };
     const zone: AcceptanceZoneV2 = { ...baseZone, room: room || null };
     void Promise.resolve(
@@ -444,7 +496,7 @@ export function openCreateAcceptanceForm(
         volume: vol || null,
         requested_date: dateStr,
         requested_time: timeStr || null,
-        contractorId: _resolveContractorId(engineerName)
+        contractorId: contractorId || null
       })
     ).then(() => modal.remove());
   });

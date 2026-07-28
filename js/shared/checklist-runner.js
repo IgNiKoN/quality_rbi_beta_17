@@ -111,9 +111,12 @@ function _photoRowHtml(id, photos, style) {
   const thumbs = (photos || [])
     .map((src, idx) => {
       const safe = _escape(src);
+      const attrs = (typeof window.rbiBuildPhotoImgAttrs === 'function')
+        ? window.rbiBuildPhotoImgAttrs(src, { preferThumb: true })
+        : ('src="' + _escape(_thumbSrc(src)) + '"');
       return (
         `<div class="relative shrink-0">` +
-        `<img data-cr-photo-view="${safe}" src="${_escape(_thumbSrc(src))}" class="photo-thumb !w-11 !h-11 !rounded-[12px] border ${style.thumbBorder} shadow-sm object-cover cursor-pointer" loading="lazy">` +
+        `<img data-cr-photo-view="${safe}" ${attrs} class="photo-thumb !w-11 !h-11 !rounded-[12px] border ${style.thumbBorder} shadow-sm object-cover cursor-pointer" loading="lazy">` +
         `<div data-cr-photo-remove="${idx}" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[12px] font-bold cursor-pointer shadow-md border border-white z-10">✕</div>` +
         `</div>`
       );

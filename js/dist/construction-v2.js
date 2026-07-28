@@ -12,7 +12,40 @@ const ConstructionV2Manifest = {
   defaultRoute: "/construction-v2"
 };
 const DEFECT_CATEGORIES_V2 = ["B1", "B2", "B3"];
-function _escape$8(s) {
+function isContractorRole() {
+  var _a, _b, _c;
+  const perms = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
+  return (((_c = perms == null ? void 0 : perms.getCurrentRole) == null ? void 0 : _c.call(perms)) || "") === "contractor";
+}
+function resolveMyContractorId() {
+  var _a, _b, _c, _d, _e;
+  const perms = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
+  const name = String(((_c = perms == null ? void 0 : perms.getAssignedContractor) == null ? void 0 : _c.call(perms)) || "").trim();
+  if (!name) return null;
+  const contractors = (_e = (_d = window.RBI) == null ? void 0 : _d.services) == null ? void 0 : _e.contractors;
+  if (!(contractors == null ? void 0 : contractors.resolveIdFromNormalized)) return null;
+  const id = String(
+    contractors.resolveIdFromNormalized({
+      display_name: name,
+      contractor_name: name
+    }) || ""
+  ).trim();
+  if (!id || id === "pending") return null;
+  return id;
+}
+function filterDefectsForRole(list) {
+  if (!isContractorRole()) return list;
+  const myId = resolveMyContractorId();
+  if (!myId) return [];
+  return (list || []).filter((d) => String(d.contractorId || "").trim() === myId);
+}
+function filterAcceptancesForRole(list) {
+  if (!isContractorRole()) return list;
+  const myId = resolveMyContractorId();
+  if (!myId) return [];
+  return (list || []).filter((a) => String(a.contractorId || "").trim() === myId);
+}
+function _escape$b(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _contractors() {
@@ -60,7 +93,7 @@ function _catLabel(c) {
   if (c === "B3" || c === "critical") return "B3 (Критика)";
   return "B2 (Значимый)";
 }
-function _statusLabel$1(s) {
+function _statusLabel$2(s) {
   const map = {
     issued: "Выдано",
     in_progress: "В работе",
@@ -143,12 +176,12 @@ function _templateOptionsHtml(selected) {
   const st = _sysTemplates$2();
   Object.keys(st).sort().forEach((k) => {
     const sel = selected === `sys_${k}` ? " selected" : "";
-    html += `<option value="sys_${_escape$8(k)}"${sel}>[СИС] ${_escape$8(st[k].title || k)}</option>`;
+    html += `<option value="sys_${_escape$b(k)}"${sel}>[СИС] ${_escape$b(st[k].title || k)}</option>`;
   });
   const ut = _userTemplates$2();
   Object.keys(ut).sort().forEach((k) => {
     const sel = selected === `user_${k}` ? " selected" : "";
-    html += `<option value="user_${_escape$8(k)}"${sel}>[МОЙ] ${_escape$8(ut[k].title || k)}</option>`;
+    html += `<option value="user_${_escape$b(k)}"${sel}>[МОЙ] ${_escape$b(ut[k].title || k)}</option>`;
   });
   return html;
 }
@@ -156,7 +189,7 @@ function _contractorOptionsHtml(selected) {
   const opts = _contractors();
   return `<option value="">— без подрядчика —</option>` + opts.map((o) => {
     const sel = selected === o.id ? " selected" : "";
-    return `<option value="${_escape$8(o.id)}"${sel}>${_escape$8(o.label)}</option>`;
+    return `<option value="${_escape$b(o.id)}"${sel}>${_escape$b(o.label)}</option>`;
   }).join("");
 }
 function _renderGallery(photos) {
@@ -166,7 +199,7 @@ function _renderGallery(photos) {
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos.map(
     (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" data-c2-photo-idx="${i}">
-      <img src="${_escape$8(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape$8(p)}" />
+      <img src="${_escape$b(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape$b(p)}" />
       <button type="button" data-c2-photo-remove="${i}"
         class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[11px] font-black">✕</button>
     </div>`
@@ -258,9 +291,9 @@ function _bindItemSearch(panel) {
     dd.innerHTML = matched.map((i) => {
       const w = Number(i.w) || 2;
       return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-          data-c2-pick-item data-id="${_escape$8(i.id)}" data-name="${_escape$8(i.n)}" data-w="${w}" data-norm="${_escape$8(i.t || "")}">
+          data-c2-pick-item data-id="${_escape$b(i.id)}" data-name="${_escape$b(i.n)}" data-w="${w}" data-norm="${_escape$b(i.t || "")}">
           <div class="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
-            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$8(i.n)}
+            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$b(i.n)}
           </div>
         </button>`;
     }).join("");
@@ -325,7 +358,7 @@ function _historyHtml(history) {
   const list = Array.isArray(history) ? history : [];
   if (!list.length) return "";
   const rows = [...list].reverse().map((h) => {
-    const stName = _statusLabel$1(String(h.status || ""));
+    const stName = _statusLabel$2(String(h.status || ""));
     let dDate = "";
     try {
       dDate = new Date(h.date).toLocaleString("ru-RU", {
@@ -339,11 +372,11 @@ function _historyHtml(history) {
     }
     const photos = Array.isArray(h.photos) && h.photos.length ? h.photos : h.photo ? [h.photo] : [];
     const photosHtml = photos.map(
-      (p) => `<img src="${_escape$8(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape$8(String(p))}" alt="" />`
+      (p) => `<img src="${_escape$b(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape$b(String(p))}" alt="" />`
     ).join("");
     return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px]">
-      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape$8(stName)}</span><span class="text-slate-400">${_escape$8(dDate)}</span></div>
-      <div class="text-slate-600 dark:text-slate-300">${_escape$8(h.user || "")}${h.comment ? ` — <i>${_escape$8(String(h.comment))}</i>` : ""}</div>
+      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape$b(stName)}</span><span class="text-slate-400">${_escape$b(dDate)}</span></div>
+      <div class="text-slate-600 dark:text-slate-300">${_escape$b(h.user || "")}${h.comment ? ` — <i>${_escape$b(String(h.comment))}</i>` : ""}</div>
       <div class="flex gap-1 flex-wrap">${photosHtml}</div>
     </div>`;
   });
@@ -357,7 +390,7 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
   const panel = root.querySelector("[data-c2-defect-panel]");
   const photosRef = { current: [] };
   const catOpts = DEFECT_CATEGORIES_V2.map(
-    (c) => `<option value="${c}"${c === "B2" ? " selected" : ""}>${_escape$8(_catLabel(c))}</option>`
+    (c) => `<option value="${c}"${c === "B2" ? " selected" : ""}>${_escape$b(_catLabel(c))}</option>`
   ).join("");
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
@@ -373,14 +406,14 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
       <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
       <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
-        value="${_escape$8((prefill == null ? void 0 : prefill.item_name) || "")}" />
-      <input type="hidden" data-c2-item-id value="${_escape$8((prefill == null ? void 0 : prefill.item_id) || "")}" />
-      <input type="hidden" data-c2-item-name value="${_escape$8((prefill == null ? void 0 : prefill.item_name) || "")}" />
+        value="${_escape$b((prefill == null ? void 0 : prefill.item_name) || "")}" />
+      <input type="hidden" data-c2-item-id value="${_escape$b((prefill == null ? void 0 : prefill.item_id) || "")}" />
+      <input type="hidden" data-c2-item-name value="${_escape$b((prefill == null ? void 0 : prefill.item_name) || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${(prefill == null ? void 0 : prefill.norm_text) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$8((prefill == null ? void 0 : prefill.norm_text) || "")}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b((prefill == null ? void 0 : prefill.norm_text) || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -401,7 +434,7 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$8((prefill == null ? void 0 : prefill.description) || (prefill == null ? void 0 : prefill.item_name) || "")}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$b((prefill == null ? void 0 : prefill.description) || (prefill == null ? void 0 : prefill.item_name) || "")}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -506,7 +539,14 @@ function _actionButtonsHtml(defect) {
   return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Закрыть</button>`;
 }
 function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
+  if (isContractorRole()) {
+    const myId = resolveMyContractorId();
+    if (!myId || String(defect.contractorId || "").trim() !== myId) {
+      (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Нет доступа к чужому замечанию");
+      return;
+    }
+  }
   const root = _ensureOverlay();
   const panel = root.querySelector("[data-c2-defect-panel]");
   const photosRef = {
@@ -515,7 +555,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   const { isEngineer } = _roleInfo$1();
   const catOpts = DEFECT_CATEGORIES_V2.map((c) => {
     const sel = String(defect.category).toUpperCase() === c ? " selected" : "";
-    return `<option value="${c}"${sel}>${_escape$8(_catLabel(c))}</option>`;
+    return `<option value="${c}"${sel}>${_escape$b(_catLabel(c))}</option>`;
   }).join("");
   const deadlineVal = _deadlineInputValue(defect.deadline);
   const canEditFields = isEngineer;
@@ -525,7 +565,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
       <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$8(_statusLabel$1(String(defect.status)))}</b></p>
+    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$b(_statusLabel$2(String(defect.status)))}</b></p>
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
@@ -533,15 +573,15 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </select>
     <div class="relative mb-3">
       <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение</label>
-      <input type="text" data-c2-item-search autocomplete="off" value="${_escape$8(defect.item_name || "")}"
+      <input type="text" data-c2-item-search autocomplete="off" value="${_escape$b(defect.item_name || "")}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
-      <input type="hidden" data-c2-item-id value="${_escape$8(defect.item_id || "")}" />
-      <input type="hidden" data-c2-item-name value="${_escape$8(defect.item_name || "")}" />
+      <input type="hidden" data-c2-item-id value="${_escape$b(defect.item_id || "")}" />
+      <input type="hidden" data-c2-item-name value="${_escape$b(defect.item_name || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${defect.norm_text ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$8(defect.norm_text || "")}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b(defect.norm_text || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -552,7 +592,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       </div>
       <div>
         <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
-        <input type="date" data-c2-defect-deadline value="${_escape$8(deadlineVal)}"
+        <input type="date" data-c2-defect-deadline value="${_escape$b(deadlineVal)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       </div>
     </div>
@@ -562,7 +602,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$8(defect.description)}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$b(defect.description)}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${canEditFields ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -580,7 +620,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     _bindItemSearch(panel);
     _bindGallery(panel, photosRef, () => {
     });
-    (_a = panel.querySelector("[data-c2-photo-add]")) == null ? void 0 : _a.addEventListener("click", () => {
+    (_b = panel.querySelector("[data-c2-photo-add]")) == null ? void 0 : _b.addEventListener("click", () => {
       var _a2;
       (_a2 = panel.querySelector("[data-c2-photo-input]")) == null ? void 0 : _a2.click();
     });
@@ -604,7 +644,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   root.onclick = (ev) => {
     if (ev.target === root) closeDefectForm();
   };
-  (_b = panel.querySelector("[data-c2-defect-save]")) == null ? void 0 : _b.addEventListener("click", async () => {
+  (_c = panel.querySelector("[data-c2-defect-save]")) == null ? void 0 : _c.addEventListener("click", async () => {
     var _a2, _b2;
     if (!onSave) {
       closeDefectForm();
@@ -634,7 +674,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       (_b2 = window.showToast) == null ? void 0 : _b2.call(window, "❌ " + msg);
     }
   });
-  (_c = panel.querySelector("[data-c2-defect-delete]")) == null ? void 0 : _c.addEventListener("click", async () => {
+  (_d = panel.querySelector("[data-c2-defect-delete]")) == null ? void 0 : _d.addEventListener("click", async () => {
     var _a2;
     if (!confirm("Удалить замечание?")) return;
     try {
@@ -647,7 +687,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   });
   panel.querySelectorAll("[data-c2-status]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      var _a2, _b2, _c2, _d, _e;
+      var _a2, _b2, _c2, _d2, _e;
       if (!onChangeStatus) return;
       const status = btn.getAttribute("data-c2-status");
       let comment = null;
@@ -683,7 +723,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
           return;
         }
         if (!fixPhotos.length) {
-          (_d = window.showToast) == null ? void 0 : _d.call(window, "⚠️ Не удалось сохранить фото");
+          (_d2 = window.showToast) == null ? void 0 : _d2.call(window, "⚠️ Не удалось сохранить фото");
           return;
         }
       }
@@ -1392,7 +1432,7 @@ let _viewer$1 = null;
 let _openUnitId = null;
 let _apartmentId = null;
 let _addMode$1 = false;
-function _escape$7(s) {
+function _escape$a(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _defects$2() {
@@ -1411,7 +1451,7 @@ function _listForApartment(dSvc, apartmentId) {
   if (typeof dSvc.listForLocation === "function") return dSvc.listForLocation(apartmentId);
   return dSvc.list({ locationId: apartmentId });
 }
-function _pathLabel$1(apartmentId) {
+function _pathLabel$2(apartmentId) {
   const loc = _loc$3();
   if (!(loc == null ? void 0 : loc.getPath) || !apartmentId) return apartmentId || "—";
   try {
@@ -1511,7 +1551,7 @@ async function openApartmentPlan(unit, cb) {
   _addMode$1 = false;
   const guest = cb.isGuest();
   const title = `${fresh.type || "КВ"} ${fresh.name || ""}`.trim();
-  const path = _pathLabel$1(apartmentId);
+  const path = _pathLabel$2(apartmentId);
   const wrap = document.createElement("div");
   wrap.id = "c2-apartment-plan";
   wrap.className = "fixed inset-0 z-[95] flex flex-col bg-slate-100 dark:bg-slate-900";
@@ -1520,8 +1560,8 @@ async function openApartmentPlan(unit, cb) {
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
           <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
-          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$7(title)}</div>
-          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$7(path)}</div>
+          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$a(title)}</div>
+          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$a(path)}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
           <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Показано 0 из 0</span>
@@ -1659,12 +1699,12 @@ async function openApartmentPlan(unit, cb) {
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape$7(msg)}</div>`;
+    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape$a(msg)}</div>`;
     _viewer$1 = null;
   }
 }
 const ACTIVE_DEFECT_STATUSES_FOR_BATCH = /* @__PURE__ */ new Set(["issued", "in_progress", "fixed"]);
-function _escape$6(s) {
+function _escape$9(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _sysTemplates$1() {
@@ -1830,9 +1870,9 @@ function _bBadgeHtml(b) {
   return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
       <div class="flex items-center justify-between gap-2">
         <span class="text-[10px] font-black uppercase">УрК B</span>
-        <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape$6(String(b.final))}%</span>
+        <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape$9(String(b.final))}%</span>
       </div>
-      <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$6(b.statusTxt || "")}</div>
+      <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$9(b.statusTxt || "")}</div>
     </div>`;
 }
 function renderChecklistSectionHtml(item, opts) {
@@ -1865,11 +1905,91 @@ function renderChecklistSectionHtml(item, opts) {
         </div>
       </div>
       <div class="text-[10px] text-slate-400 font-bold">
-        ${_escape$6(String(templateItems.length))} пункт(ов) · ${_escape$6(String(new Set(templateItems.map((t) => t.group)).size))} групп
+        ${_escape$9(String(templateItems.length))} пункт(ов) · ${_escape$9(String(new Set(templateItems.map((t) => t.group)).size))} групп
       </div>
       ${_bBadgeHtml(b)}
       ${openBtn}
       ${batchBtn}
+    </div>`;
+}
+const SLOT_HOURS = [
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00"
+];
+function _escape$8(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _normTime(t) {
+  const s = String(t || "").trim();
+  if (!s) return "";
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return s;
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+function _isActive(a) {
+  if (a.is_deleted || a._deleted) return false;
+  const st = String(a.status || "pending").toLowerCase();
+  return st === "pending" || st === "accepted";
+}
+function listSlotOccupancy(acceptances, opts) {
+  const date = String(opts.date || "").trim();
+  const loc = opts.locationId != null ? String(opts.locationId).trim() : "";
+  const dayItems = (acceptances || []).filter((a) => {
+    if (!_isActive(a)) return false;
+    if (String(a.requested_date || "").trim() !== date) return false;
+    if (loc && String(a.locationId || "").trim() !== loc) return false;
+    return true;
+  });
+  return SLOT_HOURS.map((time) => {
+    const items = dayItems.filter((a) => _normTime(a.requested_time) === time);
+    return { time, taken: items.length > 0, count: items.length, items };
+  });
+}
+function isSlotTaken(acceptances, opts) {
+  const date = String(opts.date || "").trim();
+  const time = _normTime(opts.time);
+  const loc = String(opts.locationId || "").trim();
+  const exclude = String(opts.excludeId || "").trim();
+  if (!date || !time || !loc) return false;
+  return (acceptances || []).some((a) => {
+    if (!_isActive(a)) return false;
+    if (exclude && String(a.id || "") === exclude) return false;
+    if (String(a.requested_date || "").trim() !== date) return false;
+    if (_normTime(a.requested_time) !== time) return false;
+    return String(a.locationId || "").trim() === loc;
+  });
+}
+function slotTimeOptionsHtml(selected) {
+  const sel = _normTime(selected) || "14:00";
+  return SLOT_HOURS.map((h) => {
+    const nextH = Number(h.slice(0, 2)) + 1;
+    const end = `${String(nextH).padStart(2, "0")}:00`;
+    const isSel = h === sel ? " selected" : "";
+    return `<option value="${h}"${isSel}>${h} - ${end}</option>`;
+  }).join("");
+}
+function slotBoardHtml(occupancy, opts) {
+  const title = (opts == null ? void 0 : opts.title) || "Слоты дня";
+  const cells = occupancy.map((o) => {
+    const cls = o.taken ? "bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200" : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-300";
+    const label = o.taken ? `занято${o.count > 1 ? ` ×${o.count}` : ""}` : "свободно";
+    const tip = o.items.map((i) => String(i.work_type || i.id || "").slice(0, 40)).filter(Boolean).join("; ");
+    return `<div class="rounded-xl border px-2 py-1.5 text-center ${cls}" title="${_escape$8(tip)}">
+        <div class="text-[10px] font-black">${o.time}</div>
+        <div class="text-[8px] font-bold uppercase tracking-wide">${_escape$8(label)}</div>
+      </div>`;
+  }).join("");
+  return `
+    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+      <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_escape$8(title)}</div>
+      <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">${cells}</div>
     </div>`;
 }
 const APARTMENT_FULL_ZONE = { x: 0, y: 0, w: 100, h: 100 };
@@ -1877,7 +1997,7 @@ function _checklistRunner() {
   var _a, _b;
   return window.ChecklistRunner || (((_b = (_a = window.RBI) == null ? void 0 : _a.shared) == null ? void 0 : _b.checklistRunner) ?? null);
 }
-function _escape$5(s) {
+function _escape$7(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _roleInfo() {
@@ -1960,12 +2080,12 @@ function _tmplOptions(selected) {
   const st = _sysTemplates();
   Object.keys(st).sort().forEach((k) => {
     const v = `sys_${k}`;
-    html += `<option value="${_escape$5(v)}" ${selected === v ? "selected" : ""}>[СИС] ${_escape$5(st[k].title || k)}</option>`;
+    html += `<option value="${_escape$7(v)}" ${selected === v ? "selected" : ""}>[СИС] ${_escape$7(st[k].title || k)}</option>`;
   });
   const ut = _userTemplates();
   Object.keys(ut).sort().forEach((k) => {
     const v = `user_${k}`;
-    html += `<option value="${_escape$5(v)}" ${selected === v ? "selected" : ""}>[МОЙ] ${_escape$5(ut[k].title || k)}</option>`;
+    html += `<option value="${_escape$7(v)}" ${selected === v ? "selected" : ""}>[МОЙ] ${_escape$7(ut[k].title || k)}</option>`;
   });
   return html;
 }
@@ -1982,16 +2102,33 @@ function _workTitle(key) {
   }
   return key;
 }
-function _resolveContractorId(displayName) {
+function _contractorSelectHtml(selectedId, opts) {
   var _a, _b;
-  const contractorsSvc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
-  if (contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === "function") {
-    return contractorsSvc.resolveIdFromNormalized({
-      display_name: displayName,
-      contractor_name: displayName
-    }) || null;
+  if (opts == null ? void 0 : opts.locked) {
+    const id = String(opts.lockedId || "").trim();
+    const label = id || "не привязан";
+    return `
+      <div>
+        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик</label>
+        <input type="hidden" id="c2-acc-contractor" value="${_escape$7(id)}">
+        <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape$7(
+      label
+    )} <span class="text-[9px] font-bold uppercase text-slate-400">(ваш)</span></div>
+      </div>`;
   }
-  return null;
+  const svc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
+  const rows = typeof (svc == null ? void 0 : svc.list) === "function" ? svc.list() : [];
+  const optsHtml = `<option value="">— выберите подрядчика —</option>` + (rows || []).filter((r) => r && r.id).map((r) => {
+    const id = String(r.id);
+    const label = String(r.display_name || r.displayName || id);
+    const sel = "";
+    return `<option value="${_escape$7(id)}"${sel}>${_escape$7(label)}</option>`;
+  }).join("");
+  return `
+    <div>
+      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик *</label>
+      <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
+    </div>`;
 }
 function _floorLabel(locationId) {
   var _a, _b, _c, _d;
@@ -2013,7 +2150,7 @@ function _listDefectsForLocation(locationId) {
   if (typeof dSvc.list === "function") return dSvc.list({ locationId }) || [];
   return [];
 }
-function _today() {
+function _today$2() {
   const d = /* @__PURE__ */ new Date();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -2035,10 +2172,17 @@ function _zoneCenter(zone) {
   };
 }
 function openCreateAcceptanceForm(ctx, onSave, onCancel) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
   const { role } = _roleInfo();
   if (role === "guest") {
     (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Гости не могут предъявлять работы");
+    onCancel == null ? void 0 : onCancel();
+    return;
+  }
+  const isContractor = role === "contractor" || isContractorRole();
+  const myContractorId = isContractor ? resolveMyContractorId() : null;
+  if (isContractor && !myContractorId) {
+    (_b = window.showToast) == null ? void 0 : _b.call(window, "⚠️ Подрядчик не привязан к профилю — заявку создать нельзя");
     onCancel == null ? void 0 : onCancel();
     return;
   }
@@ -2051,13 +2195,17 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
        </div>` : `<div class="grid grid-cols-2 gap-2">
          <div>
            <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Оси / Захватка</label>
-           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape$5(ctx.zone.room || "")}">
+           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape$7(ctx.zone.room || "")}">
          </div>
          <div>
            <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
            <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
          </div>
        </div>`;
+  const contractorHtml = _contractorSelectHtml(null, {
+    locked: isContractor,
+    lockedId: myContractorId
+  });
   const html = `
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
@@ -2071,7 +2219,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
               <span>Локация</span>
               ${zoneBadge}
             </div>
-            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$5(path)}</div>
+            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$7(path)}</div>
           </div>
           <div>
             <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Вид работ *</label>
@@ -2080,18 +2228,13 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
             </select>
             ${roomVolHtml}
           </div>
+          ${contractorHtml}
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
             <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">Когда готовы сдать?</label>
             <div class="grid grid-cols-2 gap-2">
-              <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today()}">
+              <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today$2()}">
               <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
-                <option value="09:00">09:00 - 10:00</option>
-                <option value="10:00">10:00 - 11:00</option>
-                <option value="11:00">11:00 - 12:00</option>
-                <option value="13:00">13:00 - 14:00</option>
-                <option value="14:00" selected>14:00 - 15:00</option>
-                <option value="15:00">15:00 - 16:00</option>
-                <option value="16:00">16:00 - 17:00</option>
+                ${slotTimeOptionsHtml("14:00")}
               </select>
             </div>
           </div>
@@ -2102,7 +2245,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
         </div>
       </div>
     </div>`;
-  (_b = document.getElementById("c2-acc-request-modal")) == null ? void 0 : _b.remove();
+  (_c = document.getElementById("c2-acc-request-modal")) == null ? void 0 : _c.remove();
   document.body.insertAdjacentHTML("beforeend", html);
   const modal = document.getElementById("c2-acc-request-modal");
   if (!modal) return;
@@ -2114,18 +2257,34 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
     if (ev.target === modal) close();
   });
   modal.querySelectorAll("[data-c2-acc-close]").forEach((btn) => btn.addEventListener("click", close));
-  (_c = modal.querySelector("[data-c2-acc-save]")) == null ? void 0 : _c.addEventListener("click", () => {
-    var _a2, _b2, _c2, _d, _e, _f, _g, _h, _i;
+  (_d = modal.querySelector("[data-c2-acc-save]")) == null ? void 0 : _d.addEventListener("click", () => {
+    var _a2, _b2, _c2, _d2, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
     const workKey = ((_a2 = document.getElementById("c2-acc-work")) == null ? void 0 : _a2.value) || "";
     const room = isApartment ? "" : ((_c2 = (_b2 = document.getElementById("c2-acc-room")) == null ? void 0 : _b2.value) == null ? void 0 : _c2.trim()) || "";
-    const vol = ((_e = (_d = document.getElementById("c2-acc-vol")) == null ? void 0 : _d.value) == null ? void 0 : _e.trim()) || "";
+    const vol = ((_e = (_d2 = document.getElementById("c2-acc-vol")) == null ? void 0 : _d2.value) == null ? void 0 : _e.trim()) || "";
     const dateStr = ((_f = document.getElementById("c2-acc-date")) == null ? void 0 : _f.value) || "";
     const timeStr = ((_g = document.getElementById("c2-acc-time")) == null ? void 0 : _g.value) || "";
+    let contractorId = isContractor ? myContractorId : ((_i = (_h = document.getElementById("c2-acc-contractor")) == null ? void 0 : _h.value) == null ? void 0 : _i.trim()) || null;
     if (!workKey || !dateStr) {
-      (_h = window.showToast) == null ? void 0 : _h.call(window, "⚠️ Заполните вид работ и дату");
+      (_j = window.showToast) == null ? void 0 : _j.call(window, "⚠️ Заполните вид работ и дату");
       return;
     }
-    const engineerName = ((_i = window.syncConfig) == null ? void 0 : _i.engineerName) || "";
+    if (!isContractor && !contractorId) {
+      (_k = window.showToast) == null ? void 0 : _k.call(window, "⚠️ Выберите подрядчика");
+      return;
+    }
+    const accListSvc = (_m = (_l = window.RBI) == null ? void 0 : _l.services) == null ? void 0 : _m.constructionAcceptance;
+    const existing = ((_n = accListSvc == null ? void 0 : accListSvc.list) == null ? void 0 : _n.call(accListSvc)) || [];
+    if (isSlotTaken(existing, {
+      date: dateStr,
+      time: timeStr,
+      locationId: ctx.locationId
+    })) {
+      const ok = window.confirm(
+        "На это время уже есть активная заявка по этой локации. Всё равно отправить?"
+      );
+      if (!ok) return;
+    }
     const baseZone = isApartment ? { ...APARTMENT_FULL_ZONE } : { ...ctx.zone };
     const zone = { ...baseZone, room: room || null };
     void Promise.resolve(
@@ -2137,7 +2296,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
         volume: vol || null,
         requested_date: dateStr,
         requested_time: timeStr || null,
-        contractorId: _resolveContractorId(engineerName)
+        contractorId: contractorId || null
       })
     ).then(() => modal.remove());
   });
@@ -2184,19 +2343,19 @@ function openAcceptanceDetails(item, handlers) {
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape$5(status)}</h3>
+          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape$7(status)}</h3>
           <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
         </div>
         <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape$5(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape$5(item.work_type || "—")}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape$7(path)}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape$7(item.work_type || "—")}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape$5(item.volume || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape$5(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape$7(item.volume || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape$7(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape$5(item.requested_date || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape$5(item.requested_time || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape$7(item.requested_date || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape$7(item.requested_time || "—")}</div></div>
           </div>
           ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}
@@ -2518,7 +2677,7 @@ function openAcceptanceDetails(item, handlers) {
     void Promise.resolve((_a2 = handlers.onSoftDelete) == null ? void 0 : _a2.call(handlers, item.id)).then(() => close());
   });
 }
-function _escape$4(s) {
+function _escape$6(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _acc$2() {
@@ -2530,7 +2689,14 @@ function _loc$2() {
   return ((_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.locations) || null;
 }
 let _filterObjectId = null;
+let _slotsDate = null;
 let _bound$2 = false;
+function _today$1() {
+  const d = /* @__PURE__ */ new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 function _objectIdForFloor(loc, floorId) {
   var _a;
   const path = loc.getPath(floorId);
@@ -2541,21 +2707,21 @@ function _cardHtml(r, loc) {
   const path = loc.getPath(r.locationId).map((n) => n.displayName).join(" · ");
   const overdue = r.status === "pending" && r.requested_date && new Date(r.requested_date).setHours(0, 0, 0, 0) < (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0);
   const progress = computeChecklistProgress(r.template_key, r.checklist_results);
-  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$4(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>` : "";
+  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$6(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>` : "";
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
-         data-c2-acc-card="${_escape$4(r.id)}">
+         data-c2-acc-card="${_escape$6(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$4(r.work_type || "Без вида работ")}</div>
+        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$6(r.work_type || "Без вида работ")}</div>
         ${overdue ? '<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">просрочено</span>' : ""}
       </div>
-      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$4(path || r.locationId)}</div>
+      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$6(path || r.locationId)}</div>
       <div class="flex justify-between items-center text-[10px]">
-        <span class="font-bold text-slate-600">${_escape$4(r.requested_date || "—")} ${_escape$4(r.requested_time || "")}</span>
-        <button type="button" data-c2-acc-plan="${_escape$4(r.id)}"
+        <span class="font-bold text-slate-600">${_escape$6(r.requested_date || "—")} ${_escape$6(r.requested_time || "")}</span>
+        <button type="button" data-c2-acc-plan="${_escape$6(r.id)}"
           class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">План</button>
       </div>
-      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$4(r.volume)}</div>` : ""}
+      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$6(r.volume)}</div>` : ""}
       ${progressHtml}
     </div>`;
 }
@@ -2563,7 +2729,7 @@ function _column(title, color, items, loc) {
   return `
     <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700 p-2">
       <div class="flex items-center justify-between px-1 mb-2">
-        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape$4(title)}</span>
+        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape$6(title)}</span>
         <span class="bg-white dark:bg-slate-800 text-slate-600 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 text-[10px] font-bold">${items.length}</span>
       </div>
       <div class="max-h-[55vh] overflow-y-auto">
@@ -2582,21 +2748,30 @@ async function renderAcceptanceKanban(root) {
   await acc.init();
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
   const objOpts = `<option value="">Все объекты</option>` + objects.map(
-    (o) => `<option value="${_escape$4(o.id)}" ${_filterObjectId === o.id ? "selected" : ""}>${_escape$4(o.displayName)}</option>`
+    (o) => `<option value="${_escape$6(o.id)}" ${_filterObjectId === o.id ? "selected" : ""}>${_escape$6(o.displayName)}</option>`
   ).join("");
-  let all = acc.list();
+  let all = filterAcceptancesForRole(acc.list());
   if (_filterObjectId) {
     all = all.filter((r) => _objectIdForFloor(loc, r.locationId) === _filterObjectId);
   }
   const pending = all.filter((r) => r.status === "pending");
   const rejected = all.filter((r) => r.status === "rejected");
   const accepted = all.filter((r) => r.status === "accepted");
+  const slotsDate = _slotsDate || _today$1();
+  const occupancy = listSlotOccupancy(all, { date: slotsDate });
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Канбан приёмки (v2)</div>
         <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
       </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">Слоты дня</label>
+        <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape$6(
+    slotsDate
+  )}">
+      </div>
+      ${slotBoardHtml(occupancy, { title: `Занятость ${slotsDate}` })}
       <div class="flex flex-col lg:flex-row gap-3">
         ${_column("Ожидают", "text-blue-600", pending, loc)}
         ${_column("Отклонены", "text-red-600", rejected, loc)}
@@ -2614,6 +2789,12 @@ function _bindOnce$2() {
       const t = ev.target;
       if ((t == null ? void 0 : t.id) === "c2-acc-obj-filter") {
         _filterObjectId = t.value || null;
+        const root = document.getElementById("construction-v2-root");
+        if (root) renderAcceptanceKanban(root).catch(() => {
+        });
+      }
+      if ((t == null ? void 0 : t.id) === "c2-acc-slots-date") {
+        _slotsDate = t.value || null;
         const root = document.getElementById("construction-v2-root");
         if (root) renderAcceptanceKanban(root).catch(() => {
         });
@@ -2698,10 +2879,10 @@ const UNIT_STATUS_LABELS_RU = {
   transferred: "Передана",
   shareholder_defects: "Замечания дольщика"
 };
-function _escape$3(s) {
+function _escape$5(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function _pathLabel(loc, locationId) {
+function _pathLabel$1(loc, locationId) {
   if (!(loc == null ? void 0 : loc.getPath) || !locationId) return locationId || "—";
   try {
     const path = loc.getPath(locationId) || [];
@@ -2721,11 +2902,11 @@ function openUnitCard(unit, deps) {
   unit.id;
   const guest = deps.cb.isGuest();
   const canDel = !guest && deps.cb.canSoftDelete(unit);
-  const path = _pathLabel(deps.loc, unit.locationId);
+  const path = _pathLabel$1(deps.loc, unit.locationId);
   const status = String(unit.status || "not_inspected");
   const hasPdf = !!(unit.pdf_url && String(unit.pdf_url).startsWith("http"));
   const statusOpts = UNIT_STATUSES_V2.map(
-    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$3(UNIT_STATUS_LABELS_RU[st])}</option>`
+    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$5(UNIT_STATUS_LABELS_RU[st])}</option>`
   ).join("");
   const wrap = document.createElement("div");
   wrap.id = "c2-unit-card";
@@ -2735,17 +2916,17 @@ function openUnitCard(unit, deps) {
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
           <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Квартира</div>
-          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$3(unit.type || "КВ")} ${_escape$3(
+          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$5(unit.type || "КВ")} ${_escape$5(
     unit.name
   )}</div>
-          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$3(path)}</div>
+          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$5(path)}</div>
         </div>
         <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="Закрыть">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
           <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Статус передачи</span>
-          <select id="c2-unit-card-status" data-c2-unit-id="${_escape$3(unit.id)}"
+          <select id="c2-unit-card-status" data-c2-unit-id="${_escape$5(unit.id)}"
             class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
             ${guest ? "disabled" : ""}>
             ${statusOpts}
@@ -2753,23 +2934,23 @@ function openUnitCard(unit, deps) {
         </label>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">План квартиры (PDF)</div>
-          ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$3(
+          ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$5(
     unit.pdf_name || "plan.pdf"
-  )}${unit.pdf_size ? ` · ${_escape$3(String(unit.pdf_size))} B` : ""}</div>
+  )}${unit.pdf_size ? ` · ${_escape$5(String(unit.pdf_size))} B` : ""}</div>
                  <div class="flex flex-wrap gap-2">
-                   <a href="${_escape$3(String(unit.pdf_url))}" target="_blank" rel="noopener"
+                   <a href="${_escape$5(String(unit.pdf_url))}" target="_blank" rel="noopener"
                      class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">Открыть</a>
-                   <button type="button" data-c2-unit-apt-plan="${_escape$3(unit.id)}"
+                   <button type="button" data-c2-unit-apt-plan="${_escape$5(unit.id)}"
                      class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">Замечания на плане</button>
                  </div>` : `<div class="text-[11px] text-slate-400 font-bold">План не загружен</div>
                  <div class="text-[10px] text-slate-400 font-bold">Загрузка PDF — в Настройках → справочник локаций</div>
                  <button type="button" disabled
                    class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">Замечания на плане</button>`}
         </div>
-        <button type="button" data-c2-unit-acceptance="${_escape$3(unit.id)}"
+        <button type="button" data-c2-unit-acceptance="${_escape$5(unit.id)}"
           class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? "opacity-50 cursor-not-allowed" : ""}"
           ${guest ? "disabled" : ""}>Приёмка</button>
-        ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$3(unit.id)}"
+        ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$5(unit.id)}"
                 class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">Удалить помещение</button>` : ""}
       </div>
     </div>`;
@@ -2891,7 +3072,7 @@ function _permissions() {
   var _a, _b;
   return (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
 }
-function _escape$2(s) {
+function _escape$4(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _toast(msg) {
@@ -2936,7 +3117,7 @@ function _cellBg(status) {
   }
   return "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
 }
-let _objectId = null;
+let _objectId$1 = null;
 let _buildingId = null;
 let _bound$1 = false;
 function _renderLegend() {
@@ -2951,7 +3132,7 @@ function _renderLegend() {
   return `
     <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
       ${items.map(
-    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$2(
+    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$4(
       UNIT_STATUS_LABELS_RU[it.st]
     )}</span></div>`
   ).join("")}
@@ -2973,7 +3154,7 @@ function _renderGrid(uSvc, loc) {
     const floorLabel = floor.displayName || floor.id;
     html += `
       <div class="flex items-center gap-2">
-        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$2(
+        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$4(
       floorLabel
     )}</div>
         <div class="flex gap-1.5 flex-1">`;
@@ -2989,15 +3170,15 @@ function _renderGrid(uSvc, loc) {
         if (b) {
           const ring = b.final < 70 ? "ring-2 ring-red-400/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
           bTint = ` ${ring}`;
-          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${b.final < 70 ? "bg-red-500/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$2(b.statusTxt)}">${_escape$2(String(b.final))}</span>`;
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${b.final < 70 ? "bg-red-500/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$4(b.statusTxt)}">${_escape$4(String(b.final))}</span>`;
         }
         html += `
-          <button type="button" data-c2-unit-cell="${_escape$2(u.id)}"
+          <button type="button" data-c2-unit-cell="${_escape$4(u.id)}"
             class="relative ${bg}${bTint} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
             ${bBadge}
-            <span class="text-[12px] font-black">${_escape$2(u.name)}</span>
-            <span class="text-[8px] opacity-60 font-bold">${_escape$2(u.type || "КВ")}</span>
+            <span class="text-[12px] font-black">${_escape$4(u.name)}</span>
+            <span class="text-[8px] opacity-60 font-bold">${_escape$4(u.type || "КВ")}</span>
           </button>`;
       }
     }
@@ -3017,15 +3198,15 @@ function _selectorsHtml(loc) {
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
   let objOpts = `<option value="">— объект —</option>`;
   for (const o of objects) {
-    objOpts += `<option value="${_escape$2(o.id)}" ${_objectId === o.id ? "selected" : ""}>${_escape$2(
+    objOpts += `<option value="${_escape$4(o.id)}" ${_objectId$1 === o.id ? "selected" : ""}>${_escape$4(
       o.displayName
     )}</option>`;
   }
   let bldOpts = `<option value="">— корпус —</option>`;
-  if (_objectId) {
-    const buildings = loc.getChildren(_objectId).filter((b) => !b.nodeType || b.nodeType === "building");
+  if (_objectId$1) {
+    const buildings = loc.getChildren(_objectId$1).filter((b) => !b.nodeType || b.nodeType === "building");
     for (const b of buildings) {
-      bldOpts += `<option value="${_escape$2(b.id)}" ${_buildingId === b.id ? "selected" : ""}>${_escape$2(
+      bldOpts += `<option value="${_escape$4(b.id)}" ${_buildingId === b.id ? "selected" : ""}>${_escape$4(
         b.displayName
       )}</option>`;
     }
@@ -3035,7 +3216,7 @@ function _selectorsHtml(loc) {
       <select id="c2-transfer-object" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold">
         ${objOpts}
       </select>
-      <select id="c2-transfer-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId ? "" : "disabled"}>
+      <select id="c2-transfer-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId$1 ? "" : "disabled"}>
         ${bldOpts}
       </select>
     </div>`;
@@ -3092,7 +3273,7 @@ function _bindOnce$1() {
       const t = ev.target;
       if (!t) return;
       if (t.id === "c2-transfer-object") {
-        _objectId = t.value || null;
+        _objectId$1 = t.value || null;
         _buildingId = null;
         void _refreshBoard();
         return;
@@ -3228,10 +3409,244 @@ async function _onGenerate() {
     _toast(`Ошибка: ${(e == null ? void 0 : e.message) || e}`);
   }
 }
-function _escape$1(s) {
+const MS_DAY = 24 * 60 * 60 * 1e3;
+function _asDate(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  const s = String(v).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) {
+    const d2 = /* @__PURE__ */ new Date(`${m[1]}T12:00:00`);
+    return Number.isNaN(d2.getTime()) ? null : d2;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function deadlineEndOfDay(deadline) {
+  const m = String(deadline || "").trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!m) return null;
+  const end = /* @__PURE__ */ new Date(`${m[1]}T23:59:59.999`);
+  return Number.isNaN(end.getTime()) ? null : end;
+}
+function _ceilDays(from, to) {
+  const a = new Date(from);
+  a.setHours(12, 0, 0, 0);
+  const b = new Date(to);
+  b.setHours(12, 0, 0, 0);
+  return Math.max(0, Math.ceil((b.getTime() - a.getTime()) / MS_DAY));
+}
+function _history(d) {
+  const h = d.history;
+  if (!Array.isArray(h)) return [];
+  return h;
+}
+function _normStatus(s) {
+  const st = String(s || "").toLowerCase();
+  if (st === "open") return "issued";
+  if (st === "cancelled") return "rejected";
+  return st;
+}
+function normalizeCategory(c) {
+  const v = String(c || "").toLowerCase();
+  if (v === "minor" || v === "b1") return "B1";
+  if (v === "major" || v === "b2") return "B2";
+  if (v === "critical" || v === "b3") return "B3";
+  const up = String(c || "").toUpperCase();
+  if (up === "B1" || up === "B2" || up === "B3") return up;
+  return up || "—";
+}
+function isOverdueNow(d, now = /* @__PURE__ */ new Date()) {
+  const st = _normStatus(String(d.status));
+  if (st !== "issued" && st !== "in_progress" && st !== "fixed") return false;
+  const end = deadlineEndOfDay(d.deadline);
+  if (!end) return false;
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return end < today;
+}
+function issueDate(d) {
+  const fromCreated = _asDate(d.created_at);
+  if (fromCreated) return fromCreated;
+  for (const e of _history(d)) {
+    const st = _normStatus(String(e.status));
+    if (st === "issued") {
+      const dt = _asDate(e.date);
+      if (dt) return dt;
+    }
+  }
+  return _asDate(d.updated_at);
+}
+function eliminateDate(d) {
+  let best = null;
+  for (const e of _history(d)) {
+    const st = _normStatus(String(e.status));
+    if (st !== "fixed" && st !== "closed") continue;
+    const dt = _asDate(e.date);
+    if (!dt) continue;
+    if (!best || dt.getTime() < best.getTime()) best = dt;
+  }
+  return best;
+}
+function acceptedDate(d) {
+  let best = null;
+  for (const e of _history(d)) {
+    if (_normStatus(String(e.status)) !== "closed") continue;
+    const dt = _asDate(e.date);
+    if (!dt) continue;
+    if (!best || dt.getTime() < best.getTime()) best = dt;
+  }
+  return best;
+}
+function daysOpen(d, now = /* @__PURE__ */ new Date()) {
+  const issued = issueDate(d);
+  if (!issued) return null;
+  return _ceilDays(issued, now);
+}
+function agingBucket(days) {
+  if (days <= 3) return "0-3";
+  if (days <= 7) return "4-7";
+  if (days <= 14) return "8-14";
+  return "15+";
+}
+function _avg(nums) {
+  if (!nums.length) return null;
+  const sum = nums.reduce((a, b) => a + b, 0);
+  return Math.round(sum / nums.length * 10) / 10;
+}
+function _inPeriod(d, period, now) {
+  if (period === "all") return true;
+  const days = period === "30" ? 30 : 90;
+  const issued = issueDate(d);
+  if (!issued) return false;
+  const cut = new Date(now);
+  cut.setHours(0, 0, 0, 0);
+  cut.setDate(cut.getDate() - days);
+  return issued.getTime() >= cut.getTime();
+}
+function _locOk(d, ids) {
+  if (!ids || ids.size === 0) return true;
+  return ids.has(String(d.locationId || ""));
+}
+function computeDefectSlaMetrics(defects, opts = {}) {
+  const now = opts.now instanceof Date ? opts.now : new Date(opts.now ?? Date.now());
+  const period = opts.period || "all";
+  const locSet = opts.locationIds == null ? null : opts.locationIds instanceof Set ? opts.locationIds : new Set(opts.locationIds.map(String));
+  const list = (defects || []).filter(
+    (d) => d && !d.is_deleted && !d._deleted && _inPeriod(d, period, now) && _locOk(d, locSet)
+  );
+  let open = 0;
+  let overdueNow = 0;
+  const elimDays = [];
+  const reviewDays = [];
+  let closedOnTime = 0;
+  let closedLate = 0;
+  const catMap = {
+    B1: { open: 0, overdue: 0, elim: [] },
+    B2: { open: 0, overdue: 0, elim: [] },
+    B3: { open: 0, overdue: 0, elim: [] }
+  };
+  const contrMap = /* @__PURE__ */ new Map();
+  const aging = { "0-3": 0, "4-7": 0, "8-14": 0, "15+": 0 };
+  const overdueList = [];
+  const ensureContr = (id) => {
+    if (!contrMap.has(id)) contrMap.set(id, { open: 0, overdue: 0, elim: [] });
+    return contrMap.get(id);
+  };
+  for (const d of list) {
+    const st = _normStatus(String(d.status));
+    const cat = normalizeCategory(d.category);
+    const catKey = cat === "B1" || cat === "B2" || cat === "B3" ? cat : null;
+    const cid = String(d.contractorId || "").trim() || "—";
+    const contr = ensureContr(cid);
+    const issued = issueDate(d);
+    const elim = eliminateDate(d);
+    const accepted = acceptedDate(d);
+    if (elim && issued) {
+      const days = _ceilDays(issued, elim);
+      elimDays.push(days);
+      if (catKey) catMap[catKey].elim.push(days);
+      contr.elim.push(days);
+    }
+    if (accepted && elim) {
+      const hist = _history(d);
+      const hasFixed = hist.some((e) => _normStatus(String(e.status)) === "fixed");
+      if (hasFixed && accepted.getTime() >= elim.getTime()) {
+        reviewDays.push(_ceilDays(elim, accepted));
+      }
+    }
+    if (st === "closed") {
+      const end = deadlineEndOfDay(d.deadline);
+      if (end && accepted) {
+        if (accepted.getTime() <= end.getTime()) closedOnTime += 1;
+        else closedLate += 1;
+      }
+    }
+    const isOpenAging = st === "issued" || st === "in_progress" || st === "fixed";
+    if (isOpenAging) {
+      if (st === "issued" || st === "in_progress") {
+        open += 1;
+        if (catKey) catMap[catKey].open += 1;
+        contr.open += 1;
+      }
+      if (issued) {
+        aging[agingBucket(_ceilDays(issued, now))] += 1;
+      }
+      if (isOverdueNow(d, now)) {
+        overdueNow += 1;
+        if (catKey) catMap[catKey].overdue += 1;
+        contr.overdue += 1;
+        const end = deadlineEndOfDay(d.deadline);
+        const daysOd = _ceilDays(end, now);
+        overdueList.push({
+          id: d.id,
+          description: String(d.description || d.item_name || d.text || "Без описания").slice(0, 120),
+          status: st,
+          category: String(cat),
+          contractorId: d.contractorId || null,
+          deadline: String(d.deadline || "").slice(0, 10),
+          daysOverdue: daysOd,
+          daysOpen: issued ? _ceilDays(issued, now) : 0,
+          locationId: String(d.locationId || "")
+        });
+      }
+    }
+  }
+  overdueList.sort((a, b) => b.daysOverdue - a.daysOverdue || b.daysOpen - a.daysOpen);
+  const closedWithDeadline = closedOnTime + closedLate;
+  const onTimePct = closedWithDeadline > 0 ? Math.round(closedOnTime / closedWithDeadline * 1e3) / 10 : null;
+  const byCategory = ["B1", "B2", "B3"].map((category) => ({
+    category,
+    open: catMap[category].open,
+    overdue: catMap[category].overdue,
+    avgEliminateDays: _avg(catMap[category].elim)
+  }));
+  const byContractor = [...contrMap.entries()].map(([contractorId, v]) => ({
+    contractorId,
+    open: v.open,
+    overdue: v.overdue,
+    avgEliminateDays: _avg(v.elim)
+  })).sort((a, b) => b.overdue - a.overdue || b.open - a.open).slice(0, 10);
+  return {
+    open,
+    overdueNow,
+    avgEliminateDays: _avg(elimDays),
+    avgReviewDays: _avg(reviewDays),
+    onTimePct,
+    closedOnTime,
+    closedLate,
+    closedWithDeadline,
+    byCategory,
+    byContractor,
+    aging,
+    overdueList: overdueList.slice(0, 20)
+  };
+}
+let _overdueOnly = false;
+function _escape$3(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function _statusLabel(s) {
+function _statusLabel$1(s) {
   const map = {
     issued: "Выдано",
     in_progress: "В работе",
@@ -3256,20 +3671,13 @@ function _categoryBar(c) {
   if (v === "B3" || v === "CRITICAL") return "bg-red-600";
   return "bg-orange-500";
 }
-function _isClosed(status) {
-  const st = String(status || "").toLowerCase();
-  return st === "closed" || st === "fixed" || st === "rejected" || st === "cancelled";
-}
-function _deadlineMeta(v) {
-  if (v == null || v === "") return { label: "без срока", overdue: false };
-  const m = String(v).trim().match(/^(\d{4}-\d{2}-\d{2})/);
-  if (!m) return { label: String(v), overdue: false };
-  const [y, mo, d] = m[1].split("-");
-  const label = `${d}.${mo}.${y}`;
-  const end = /* @__PURE__ */ new Date(`${m[1]}T23:59:59`);
-  const today = /* @__PURE__ */ new Date();
-  today.setHours(0, 0, 0, 0);
-  return { label, overdue: end < today };
+function _deadlineMeta(d) {
+  if (d.deadline == null || d.deadline === "") return { label: "без срока", overdue: false };
+  const m = String(d.deadline).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!m) return { label: String(d.deadline), overdue: false };
+  const [y, mo, day] = m[1].split("-");
+  const label = `${day}.${mo}.${y}`;
+  return { label, overdue: isOverdueNow(d) };
 }
 function _statusChip(status) {
   const st = String(status || "").toLowerCase();
@@ -3279,12 +3687,26 @@ function _statusChip(status) {
   else if (st === "fixed") cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
   else if (st === "closed") cls = "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300";
   else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
-  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape$1(
-    _statusLabel(st)
+  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape$3(
+    _statusLabel$1(st)
   )}</span>`;
 }
+function _deadlineSortKey(d) {
+  const end = deadlineEndOfDay(d.deadline);
+  return end ? end.getTime() : Number.POSITIVE_INFINITY;
+}
+function _sortRegistry(list) {
+  return list.slice().sort((a, b) => {
+    const ao = isOverdueNow(a) ? 0 : 1;
+    const bo = isOverdueNow(b) ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return _deadlineSortKey(a) - _deadlineSortKey(b);
+  });
+}
 function renderDefectsRegistry(host, opts) {
-  const { floorId, floorLabel, defects, cb } = opts;
+  var _a;
+  const { floorId, floorLabel, cb } = opts;
+  const defects = filterDefectsForRole(opts.defects || []);
   const filters = opts.filters || pinFiltersState;
   if (!floorId) {
     host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
@@ -3292,32 +3714,41 @@ function renderDefectsRegistry(host, opts) {
     </div>`;
     return;
   }
-  const filtered = filterDefectsByPins(defects, filters);
+  let filtered = filterDefectsByPins(defects, filters);
+  if (_overdueOnly) {
+    filtered = filtered.filter((d) => isOverdueNow(d));
+  }
+  filtered = _sortRegistry(filtered);
+  const overdueChipCls = _overdueOnly ? "bg-red-600 text-white border-red-600" : "bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30";
   const rows = filtered.length === 0 ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
           Нет замечаний по выбранному фильтру
         </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered.map((d, i) => {
     const desc = String(d.description || d.item_name || d.text || "Без описания").slice(0, 140);
-    const dl = _deadlineMeta(d.deadline);
-    const dlCls = dl.overdue && !_isClosed(String(d.status)) ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-400";
+    const dl = _deadlineMeta(d);
+    const openDays = daysOpen(d);
+    const daysBadge = openDays != null ? `<span class="text-[10px] font-bold ${dl.overdue ? "text-red-600 dark:text-red-400" : "text-slate-400"}">${openDays} дн.</span>` : "";
+    const dlCls = dl.overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-400";
     const bar = _categoryBar(String(d.category));
-    return `<li>
+    const rowBg = dl.overdue ? "bg-red-50/40 dark:bg-red-950/15" : "";
+    return `<li class="${rowBg}">
                 <div class="flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                   <div class="w-1 shrink-0 ${bar}"></div>
-                  <button type="button" data-c2-def-row="${_escape$1(d.id)}"
+                  <button type="button" data-c2-def-row="${_escape$3(d.id)}"
                     class="flex-1 min-w-0 text-left px-3 py-2.5 flex items-start gap-2.5">
                     <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300
                                  flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
                     <span class="min-w-0 flex-1">
                       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                        <span class="text-[10px] font-bold text-slate-500">${_escape$1(_categoryLabel(String(d.category)))}</span>
+                        <span class="text-[10px] font-bold text-slate-500">${_escape$3(_categoryLabel(String(d.category)))}</span>
                         ${_statusChip(String(d.status))}
-                        <span class="text-[10px] ${dlCls}">${_escape$1(dl.label)}${dl.overdue && !_isClosed(String(d.status)) ? " · просрочено" : ""}</span>
+                        ${daysBadge}
+                        <span class="text-[10px] ${dlCls}">${_escape$3(dl.label)}${dl.overdue ? " · просрочено" : ""}</span>
                       </span>
-                      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$1(desc)}</span>
+                      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$3(desc)}</span>
                     </span>
                   </button>
-                  <button type="button" data-c2-def-on-plan="${_escape$1(d.id)}" data-c2-def-loc="${_escape$1(d.locationId)}"
+                  <button type="button" data-c2-def-on-plan="${_escape$3(d.id)}" data-c2-def-loc="${_escape$3(d.locationId)}"
                     class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                     title="Показать на плане">На плане</button>
                 </div>
@@ -3329,14 +3760,27 @@ function renderDefectsRegistry(host, opts) {
       <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
-            ${_escape$1(floorLabel || "Этаж")}
+            ${_escape$3(floorLabel || "Этаж")}
           </div>
           <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
         </div>
-        <div data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
+          <button type="button" data-c2-reg-overdue
+            class="shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border ${overdueChipCls}"
+            title="Только просроченные (issued / в работе / на проверке)">Просроч.</button>
+        </div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>
     </div>`;
+  (_a = host.querySelector("[data-c2-reg-overdue]")) == null ? void 0 : _a.addEventListener("click", (ev) => {
+    var _a2;
+    ev.preventDefault();
+    ev.stopPropagation();
+    _overdueOnly = !_overdueOnly;
+    renderDefectsRegistry(host, opts);
+    (_a2 = cb.onFiltersChanged) == null ? void 0 : _a2.call(cb);
+  });
   host.querySelectorAll("[data-c2-def-row]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -3352,6 +3796,351 @@ function renderDefectsRegistry(host, opts) {
       const id = el.getAttribute("data-c2-def-on-plan");
       const loc = el.getAttribute("data-c2-def-loc");
       if (id && loc) cb.onShowOnPlan(id, loc);
+    });
+  });
+}
+let _period = "all";
+let _objectId = null;
+function _escape$2(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _fmt(n, suffix = "") {
+  if (n == null || Number.isNaN(n)) return "—";
+  return `${n}${suffix}`;
+}
+function _contractorLabel(id) {
+  var _a, _b, _c;
+  const cid = String(id || "").trim();
+  if (!cid || cid === "—") return "—";
+  try {
+    const svc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
+    const fromSvc = ((_c = svc == null ? void 0 : svc.list) == null ? void 0 : _c.call(svc)) || [];
+    const hit = fromSvc.find((c) => String(c.id) === cid);
+    if (hit) return String(hit.display_name || hit.name || cid);
+  } catch {
+  }
+  const dir = window.ContractorDirectory;
+  const hit2 = ((dir == null ? void 0 : dir.contractors) || []).find((c) => String(c.id) === cid);
+  if (hit2) return String(hit2.display_name || cid);
+  return cid.length > 12 ? `${cid.slice(0, 8)}…` : cid;
+}
+function _locationIdsUnderObject(loc, objectId) {
+  const ids = /* @__PURE__ */ new Set();
+  const walk = (parentId) => {
+    ids.add(parentId);
+    for (const ch of loc.getChildren(parentId) || []) {
+      walk(ch.id);
+    }
+  };
+  walk(objectId);
+  return ids;
+}
+function _kpiCard(label, value, tone = "") {
+  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "ok" ? "border-emerald-200 dark:border-emerald-900/40" : "border-[var(--card-border)]";
+  return `<div class="min-w-[7.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape$2(label)}</div>
+    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${_escape$2(value)}</div>
+  </div>`;
+}
+function _barRow(label, count, max, color) {
+  const pct = max > 0 ? Math.round(count / max * 100) : 0;
+  return `<div class="flex items-center gap-2 text-[11px] mb-1.5">
+    <span class="w-12 shrink-0 font-bold text-slate-500">${_escape$2(label)}</span>
+    <div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+      <div class="h-full ${color}" style="width:${pct}%"></div>
+    </div>
+    <span class="w-8 text-right font-bold text-slate-700 dark:text-slate-200">${count}</span>
+  </div>`;
+}
+function _periodBtn(p, label) {
+  const on = _period === p;
+  return `<button type="button" data-c2-metrics-period="${p}"
+    class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300"}">${_escape$2(label)}</button>`;
+}
+function renderMetricsView(host, opts) {
+  var _a;
+  const { loc, defectsSvc, cb } = opts;
+  const objects = loc.listNodes({ nodeType: "object", parentId: null }) || [];
+  const allDefects = ((_a = defectsSvc == null ? void 0 : defectsSvc.list) == null ? void 0 : _a.call(defectsSvc, { includeDeleted: false })) || [];
+  let locationIds = null;
+  if (_objectId) {
+    locationIds = _locationIdsUnderObject(loc, _objectId);
+  }
+  const m = computeDefectSlaMetrics(allDefects, {
+    period: _period,
+    locationIds
+  });
+  const agingMax = Math.max(1, ...Object.values(m.aging));
+  const objectOptions = [
+    `<option value="">Все объекты</option>`,
+    ...objects.map(
+      (o) => `<option value="${_escape$2(o.id)}"${_objectId === o.id ? " selected" : ""}>${_escape$2(
+        o.displayName
+      )}</option>`
+    )
+  ].join("");
+  const catRows = m.byCategory.map(
+    (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
+      <td class="py-1.5 pr-2 font-bold">${_escape$2(r.category)}</td>
+      <td class="py-1.5 pr-2 text-right">${r.open}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
+    </tr>`
+  ).join("");
+  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">Нет данных</td></tr>` : m.byContractor.map(
+    (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
+      <td class="py-1.5 pr-2 font-medium truncate max-w-[10rem]" title="${_escape$2(r.contractorId)}">${_escape$2(
+      _contractorLabel(r.contractorId)
+    )}</td>
+      <td class="py-1.5 pr-2 text-right">${r.open}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
+    </tr>`
+  ).join("");
+  const overdueRows = m.overdueList.length === 0 ? `<div class="p-4 text-center text-slate-400 text-[12px]">Нет просроченных</div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
+          ${m.overdueList.map(
+    (r) => `<li>
+            <button type="button" data-c2-metrics-def="${_escape$2(r.id)}"
+              class="w-full text-left px-3 py-2.5 hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
+              <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                <span class="text-[10px] font-bold text-slate-500">${_escape$2(r.category)}</span>
+                <span class="text-[9px] font-bold uppercase text-red-600">+${r.daysOverdue} дн. проср.</span>
+                <span class="text-[10px] text-slate-400">${r.daysOpen} дн. открыто</span>
+              </span>
+              <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$2(
+      r.description
+    )}</span>
+            </button>
+          </li>`
+  ).join("")}
+        </ul>`;
+  host.innerHTML = `
+    <div class="flex flex-col gap-3 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Сроки замечаний</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">Локальный расчёт по defects_v2 · без новой схемы БД</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex gap-1">${_periodBtn("30", "30 дн.")}${_periodBtn("90", "90 дн.")}${_periodBtn("all", "Все")}</div>
+          <select data-c2-metrics-object
+            class="text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
+            ${objectOptions}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        ${_kpiCard("Открытые", String(m.open))}
+        ${_kpiCard("Просроченные", String(m.overdueNow), m.overdueNow ? "danger" : "")}
+        ${_kpiCard("Ср. устранение", _fmt(m.avgEliminateDays, " дн."))}
+        ${_kpiCard("Ср. проверка СК", _fmt(m.avgReviewDays, " дн."))}
+        ${_kpiCard("% вовремя", m.onTimePct == null ? "—" : `${m.onTimePct}%`, m.onTimePct != null && m.onTimePct >= 80 ? "ok" : "")}
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По категории</div>
+          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
+            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+              <th class="text-left font-bold pb-1">Cat</th>
+              <th class="text-right font-bold pb-1">Откр.</th>
+              <th class="text-right font-bold pb-1">Проср.</th>
+              <th class="text-right font-bold pb-1">Ср. дн.</th>
+            </tr></thead>
+            <tbody>${catRows}</tbody>
+          </table>
+        </div>
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Aging открытых</div>
+          ${_barRow("0–3", m.aging["0-3"], agingMax, "bg-emerald-500")}
+          ${_barRow("4–7", m.aging["4-7"], agingMax, "bg-amber-400")}
+          ${_barRow("8–14", m.aging["8-14"], agingMax, "bg-orange-500")}
+          ${_barRow("15+", m.aging["15+"], agingMax, "bg-red-600")}
+        </div>
+      </div>
+
+      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По подрядчику (топ-10 по просрочке)</div>
+        <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
+          <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+            <th class="text-left font-bold pb-1">Подрядчик</th>
+            <th class="text-right font-bold pb-1">Откр.</th>
+            <th class="text-right font-bold pb-1">Проср.</th>
+            <th class="text-right font-bold pb-1">Ср. дн.</th>
+          </tr></thead>
+          <tbody>${contrRows}</tbody>
+        </table>
+      </div>
+
+      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
+        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
+          Просроченные сейчас · до 20
+        </div>
+        ${overdueRows}
+      </div>
+    </div>`;
+  host.querySelectorAll("[data-c2-metrics-period]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const p = btn.getAttribute("data-c2-metrics-period");
+      if (!p || p === _period) return;
+      _period = p;
+      renderMetricsView(host, opts);
+    });
+  });
+  const sel = host.querySelector("[data-c2-metrics-object]");
+  sel == null ? void 0 : sel.addEventListener("change", () => {
+    _objectId = sel.value || null;
+    renderMetricsView(host, opts);
+  });
+  host.querySelectorAll("[data-c2-metrics-def]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.getAttribute("data-c2-metrics-def");
+      if (id) cb.onOpenDefect(id);
+    });
+  });
+}
+function _escape$1(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _today() {
+  const d = /* @__PURE__ */ new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+function _pathLabel(locationId) {
+  var _a, _b, _c, _d;
+  const loc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.locations;
+  if (loc == null ? void 0 : loc.getPath) {
+    return loc.getPath(locationId).map((n) => n.displayName).join(" · ");
+  }
+  return ((_d = (_c = loc == null ? void 0 : loc.getNode) == null ? void 0 : _c.call(loc, locationId)) == null ? void 0 : _d.displayName) || locationId;
+}
+function _statusLabel(s) {
+  const map = {
+    issued: "Выдано",
+    in_progress: "В работе",
+    fixed: "На проверке",
+    closed: "Закрыто",
+    rejected: "Отклонено",
+    pending: "Ожидает",
+    accepted: "Принята"
+  };
+  return map[s] || s || "—";
+}
+function _kpi(label, value, tone = "") {
+  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
+  return `<div class="min-w-[6.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape$1(label)}</div>
+    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${value}</div>
+  </div>`;
+}
+function _defectRow(d) {
+  const desc = String(d.description || d.item_name || d.text || "Без описания").slice(0, 120);
+  const overdue = isOverdueNow(d);
+  return `<li>
+    <button type="button" data-c2-cab-def="${_escape$1(d.id)}"
+      class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${overdue ? "bg-red-50/40 dark:bg-red-950/15" : ""}">
+      <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
+        <span class="text-[10px] font-bold text-slate-500">${_escape$1(String(d.category || ""))}</span>
+        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$1(_statusLabel(String(d.status)))}</span>
+        ${overdue ? '<span class="text-[9px] font-bold uppercase text-red-600">просрочено</span>' : ""}
+      </span>
+      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$1(desc)}</span>
+      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(d.locationId))}</span>
+    </button>
+  </li>`;
+}
+function _accRow(a) {
+  return `<li>
+    <button type="button" data-c2-cab-acc="${_escape$1(a.id)}"
+      class="w-full text-left px-3 py-2.5 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors">
+      <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
+        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$1(_statusLabel(String(a.status)))}</span>
+        <span class="text-[10px] font-bold text-slate-500">${_escape$1(a.requested_date || "—")} ${_escape$1(
+    a.requested_time || ""
+  )}</span>
+      </span>
+      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape$1(
+    a.work_type || "Без вида работ"
+  )}</span>
+      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(a.locationId))}</span>
+    </button>
+  </li>`;
+}
+function _section(title, rows, empty) {
+  return `
+    <section class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
+      <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$1(
+    title
+  )}</div>
+      ${rows ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>` : `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape$1(empty)}</div>`}
+    </section>`;
+}
+function renderContractorCabinet(host, opts) {
+  const myId = resolveMyContractorId();
+  const defects = filterDefectsForRole(opts.defects || []);
+  const acceptances = filterAcceptancesForRole(opts.acceptances || []);
+  if (!myId) {
+    host.innerHTML = `
+      <div class="p-6 max-w-lg mx-auto">
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
+          Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика —
+          иначе кабинет, реестр и пины будут пустыми.
+        </div>
+      </div>`;
+    return;
+  }
+  const open = defects.filter((d) => {
+    const st = String(d.status || "").toLowerCase();
+    return st === "issued" || st === "in_progress" || st === "open" || st === "rejected";
+  });
+  const onReview = defects.filter((d) => String(d.status || "").toLowerCase() === "fixed");
+  const overdue = defects.filter((d) => isOverdueNow(d));
+  const upcoming = acceptances.filter((a) => {
+    const st = String(a.status || "").toLowerCase();
+    return st === "pending" || st === "accepted";
+  }).slice().sort((a, b) => {
+    const da = `${a.requested_date || ""} ${a.requested_time || ""}`;
+    const db = `${b.requested_date || ""} ${b.requested_time || ""}`;
+    return da.localeCompare(db);
+  }).slice(0, 8);
+  const occupancy = listSlotOccupancy(acceptances, { date: _today() });
+  host.innerHTML = `
+    <div class="space-y-3 p-1 sm:p-2">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Кабинет подрядчика</div>
+        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape$1(myId)}">мой id · ${_escape$1(
+    myId.length > 10 ? `${myId.slice(0, 8)}…` : myId
+  )}</div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${_kpi("Открытые", open.length)}
+        ${_kpi("На проверке", onReview.length, "warn")}
+        ${_kpi("Просроченные", overdue.length, "danger")}
+        ${_kpi("Слоты (скоро)", upcoming.length)}
+      </div>
+      ${slotBoardHtml(occupancy, { title: `Слоты сегодня (${_today()})` })}
+      ${_section("Открытые замечания", open.map(_defectRow).join(""), "Нет открытых замечаний")}
+      ${_section("На проверке", onReview.map(_defectRow).join(""), "Нет замечаний на проверке")}
+      ${_section("Просроченные", overdue.map(_defectRow).join(""), "Нет просроченных")}
+      ${_section("Ближайшие слоты приёмки", upcoming.map(_accRow).join(""), "Нет заявок на приёмку")}
+    </div>`;
+  host.querySelectorAll("[data-c2-cab-def]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.getAttribute("data-c2-cab-def");
+      if (id) opts.cb.onOpenDefect(id);
+    });
+  });
+  host.querySelectorAll("[data-c2-cab-acc]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.getAttribute("data-c2-cab-acc");
+      if (id) opts.cb.onOpenAcceptance(id);
     });
   });
 }
@@ -3517,7 +4306,7 @@ function _openViewDefect(id) {
   );
 }
 async function _afterDefectMutation() {
-  if (_subview === "defects") {
+  if (_subview === "defects" || _subview === "cabinet" || _subview === "metrics") {
     await renderConstructionV2();
     return;
   }
@@ -3682,9 +4471,9 @@ async function _refreshOverlaysOnly() {
   if (!_viewer || !_selectedFloorId) return;
   if (dSvc) await dSvc.init();
   if (aSvc) await aSvc.init();
-  const allDefects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const allDefects = filterDefectsForRole(dSvc ? dSvc.listForFloor(_selectedFloorId) : []);
   const filtered = filterDefectsByPins(allDefects, pinFiltersState);
-  const zones = aSvc ? aSvc.listForFloor(_selectedFloorId) : [];
+  const zones = filterAcceptancesForRole(aSvc ? aSvc.listForFloor(_selectedFloorId) : []);
   paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
   _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
@@ -3801,6 +4590,7 @@ function focusDefectOnPlan(id, locationId) {
   }
 }
 async function renderConstructionV2() {
+  var _a, _b;
   const root = _root();
   if (!root) return;
   if (_subview === "acceptance") {
@@ -3810,6 +4600,52 @@ async function renderConstructionV2() {
     _viewer = null;
     _mountedPdfUrl = null;
     await renderAcceptanceKanban(root);
+    return;
+  }
+  if (_subview === "cabinet") {
+    _closePlanFullscreen();
+    teardownTransferUi();
+    _viewer == null ? void 0 : _viewer.destroy();
+    _viewer = null;
+    _mountedPdfUrl = null;
+    const dSvcCab = _defects();
+    const aSvcCab = _acc();
+    if (dSvcCab) await dSvcCab.init();
+    if (aSvcCab) await aSvcCab.init();
+    root.innerHTML = `<div id="c2-cabinet-host" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden min-h-[420px]"></div>`;
+    const host = document.getElementById("c2-cabinet-host");
+    if (!host) return;
+    const defects = ((_a = dSvcCab == null ? void 0 : dSvcCab.list) == null ? void 0 : _a.call(dSvcCab, { includeDeleted: false })) || [];
+    const acceptances = ((_b = aSvcCab == null ? void 0 : aSvcCab.list) == null ? void 0 : _b.call(aSvcCab, { includeDeleted: false })) || [];
+    renderContractorCabinet(host, {
+      defects,
+      acceptances,
+      cb: {
+        onOpenDefect: (id) => _openViewDefect(id),
+        onOpenAcceptance: (id) => {
+          const item = aSvcCab == null ? void 0 : aSvcCab.get(id);
+          if (!item || !aSvcCab) return;
+          openAcceptanceDetails(item, {
+            onFocusPlan: (rid) => focusAcceptanceOnPlan(rid),
+            onChangeStatus: async (rid, status) => {
+              var _a2;
+              await aSvcCab.changeStatus(rid, status);
+              (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "✅ Статус обновлён");
+              await renderConstructionV2();
+            },
+            onSoftDelete: async (rid) => {
+              var _a2;
+              await aSvcCab.softDelete(rid);
+              (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "Заявка отозвана");
+              await renderConstructionV2();
+            },
+            onChecklistChanged: async () => {
+              await renderConstructionV2();
+            }
+          });
+        }
+      }
+    });
     return;
   }
   if (_subview === "transfer") {
@@ -3836,6 +4672,20 @@ async function renderConstructionV2() {
   _viewer == null ? void 0 : _viewer.destroy();
   _viewer = null;
   _mountedPdfUrl = null;
+  if (_subview === "metrics") {
+    root.innerHTML = `<div id="c2-metrics-host" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden min-h-[420px]"></div>`;
+    const host = document.getElementById("c2-metrics-host");
+    if (!host) return;
+    const scopedDefectsSvc = dSvc ? {
+      list: (opts) => filterDefectsForRole(dSvc.list(opts) || [])
+    } : null;
+    renderMetricsView(host, {
+      loc: svc,
+      defectsSvc: scopedDefectsSvc,
+      cb: { onOpenDefect: (id) => _openViewDefect(id) }
+    });
+    return;
+  }
   if (_subview === "defects") {
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
@@ -3999,7 +4849,7 @@ async function refreshConstructionV2Markers() {
     if (root) await renderTransferBoard(root);
     return;
   }
-  if (_subview === "defects") {
+  if (_subview === "defects" || _subview === "metrics") {
     await renderConstructionV2();
     return;
   }
@@ -4050,8 +4900,14 @@ function _applyHashSubview() {
     setConstructionV2Subview("transfer");
   } else if (h.startsWith("/construction-v2/defects")) {
     setConstructionV2Subview("defects");
+  } else if (h.startsWith("/construction-v2/metrics")) {
+    setConstructionV2Subview("metrics");
+  } else if (h.startsWith("/construction-v2/cabinet")) {
+    setConstructionV2Subview("cabinet");
+  } else if (h === "/construction-v2" || h === "/construction-v2/") {
+    setConstructionV2Subview(isContractorRole() ? "cabinet" : "plan");
   } else if (h.startsWith("/construction-v2")) {
-    setConstructionV2Subview("plan");
+    setConstructionV2Subview(isContractorRole() ? "cabinet" : "plan");
   }
 }
 async function init(_ctx) {
@@ -4146,6 +5002,8 @@ function _registerAppRouter() {
     router.addRoute("#/construction-v2/acceptance", () => showTab());
     router.addRoute("#/construction-v2/transfer", () => showTab());
     router.addRoute("#/construction-v2/defects", () => showTab());
+    router.addRoute("#/construction-v2/metrics", () => showTab());
+    router.addRoute("#/construction-v2/cabinet", () => showTab());
   }
 }
 function registerModule() {

@@ -10599,20 +10599,29 @@ export const ReportsActions = {
             const monthMeetings = _getMeetings().filter(m => new Date(m.date) >= startOfMonth && m.qDayPhoto);
             let meetingPhotosHtml = '';
             if (monthMeetings.length > 0) {
-                meetingPhotosHtml = `
+                const meetingTiles = [];
+                for (const m of monthMeetings.slice(0, 3)) {
+                    const src = (typeof PhotoManager !== 'undefined' && PhotoManager.getAsyncUrl)
+                        ? (await PhotoManager.getAsyncUrl(m.qDayPhoto) || window.getPhotoSrc(m.qDayPhoto) || '')
+                        : (window.getPhotoSrc(m.qDayPhoto) || '');
+                    if (!src) continue;
+                    meetingTiles.push(`
+                            <td style="width:33.3%; vertical-align:top;">
+                                <div style="height: 150px; border-radius:8px; overflow:hidden; border:1px solid #cbd5e1;">
+                                    <img src="${src}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                                <div style="font-size:9px; color:#64748b; font-weight:bold; margin-top:4px; text-align:center;">${m.title}</div>
+                            </td>`);
+                }
+                if (meetingTiles.length > 0) {
+                    meetingPhotosHtml = `
                 <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; margin-top: 20px;">📸 Жизнь объекта (Совещания и обходы)</h2>
                 <table style="width: 100%; border-spacing: 10px 0; border-collapse: separate; margin-left:-10px;">
                     <tr>
-                        ${monthMeetings.slice(0, 3).map(m => `
-                            <td style="width:33.3%; vertical-align:top;">
-                                <div style="height: 150px; border-radius:8px; overflow:hidden; border:1px solid #cbd5e1;">
-                                    <img src="${window.getPhotoSrc(m.qDayPhoto)}" style="width:100%; height:100%; object-fit:cover;">
-                                </div>
-                                <div style="font-size:9px; color:#64748b; font-weight:bold; margin-top:4px; text-align:center;">${m.title}</div>
-                            </td>
-                        `).join('')}
+                        ${meetingTiles.join('')}
                     </tr>
                 </table>`;
+                }
             }
             // 3. ТОП ПРАКТИК (Отбираем 2 лучшие)
             let topPracticesHtml = `<div style="color:#64748b; font-size:10px;">Практик в этом месяце не публиковалось.</div>`;

@@ -6,6 +6,8 @@ import type { ConstructionAcceptanceV2 } from '../../services/construction-accep
 import type { LocationNode } from '../../services/locations/types';
 import { computeChecklistProgress, progressLine } from './acceptance-checklist';
 import { openAcceptanceDetails } from './acceptance-form';
+import { filterAcceptancesForRole } from './contractor-scope';
+import { listSlotOccupancy, slotBoardHtml } from './acceptance-slots';
 
 type AccSvc = {
   init: () => Promise<boolean>;
@@ -39,7 +41,15 @@ function _loc(): LocSvc | null {
 }
 
 let _filterObjectId: string | null = null;
+let _slotsDate: string | null = null;
 let _bound = false;
+
+function _today(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 
 function _objectIdForFloor(loc: LocSvc, floorId: string): string | null {
   const path = loc.getPath(floorId);
@@ -120,13 +130,15 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
       )
       .join('');
 
-  let all = acc.list();
+  let all = filterAcceptancesForRole(acc.list());
   if (_filterObjectId) {
     all = all.filter((r) => _objectIdForFloor(loc, r.locationId) === _filterObjectId);
   }
   const pending = all.filter((r) => r.status === 'pending');
   const rejected = all.filter((r) => r.status === 'rejected');
   const accepted = all.filter((r) => r.status === 'accepted');
+  const slotsDate = _slotsDate || _today();
+  const occupancy = listSlotOccupancy(all, { date: slotsDate });
 
   root.innerHTML = `
     <div class="space-y-3">
@@ -134,6 +146,13 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
         <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Канбан приёмки (v2)</div>
         <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
       </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">Слоты дня</label>
+        <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape(
+          slotsDate
+        )}">
+      </div>
+      ${slotBoardHtml(occupancy, { title: `Занятость ${slotsDate}` })}
       <div class="flex flex-col lg:flex-row gap-3">
         ${_column('Ожидают', 'text-blue-600', pending, loc)}
         ${_column('Отклонены', 'text-red-600', rejected, loc)}
@@ -153,6 +172,11 @@ function _bindOnce() {
       const t = ev.target as HTMLElement | null;
       if (t?.id === 'c2-acc-obj-filter') {
         _filterObjectId = (t as HTMLSelectElement).value || null;
+        const root = document.getElementById('construction-v2-root');
+        if (root) renderAcceptanceKanban(root).catch(() => {});
+      }
+      if (t?.id === 'c2-acc-slots-date') {
+        _slotsDate = (t as HTMLInputElement).value || null;
         const root = document.getElementById('construction-v2-root');
         if (root) renderAcceptanceKanban(root).catch(() => {});
       }

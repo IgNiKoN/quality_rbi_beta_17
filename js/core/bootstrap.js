@@ -200,6 +200,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                             if (realUrl) {
                                 img.src = realUrl;
                                 img.removeAttribute('data-local-src');
+                            } else {
+                                // Офлайн / нет в IDB — не оставляем битый https в src
+                                img.src = (/^https?:\/\//i.test(String(src)) && !navigator.onLine)
+                                    ? (window.rbiPhotoCloudPlaceholder || window.rbiPhotoPlaceholder || img.src)
+                                    : (window.rbiPhotoPlaceholder || img.src);
                             }
                         }
                     }
@@ -210,6 +215,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         initImageObserver();
 
         let imgDebounceTimer = null;
+        const observeLocalSrcImgs = () => {
+            if (!localImgObserver) return;
+            const pending = Array.from(document.querySelectorAll('img[data-local-src]'))
+                .filter(img => !img.closest('[data-no-observe]'));
+            for (let i = 0; i < pending.length; i++) {
+                localImgObserver.observe(pending[i]);
+            }
+        };
         const domObserver = new MutationObserver((mutations) => {
             let hasNewNodes = false;
             for (let i = 0; i < mutations.length; i++) {
@@ -229,9 +242,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     for (let i = 0; i < imgs.length; i++) {
                         const img = imgs[i];
                         img.setAttribute('data-local-src', img.src);
-                        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="100%" height="100%" fill="%23f1f5f9"/></svg>';
-                        localImgObserver.observe(img);
+                        img.src = window.rbiPhotoPlaceholder
+                            || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="100%" height="100%" fill="%23f1f5f9"/></svg>';
                     }
+                    // Также все явно помеченные data-local-src (https/local/cloud превью)
+                    observeLocalSrcImgs();
                 }, 150);
             }
         });

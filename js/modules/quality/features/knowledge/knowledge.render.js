@@ -68,6 +68,7 @@ export const KnowledgeRender = {
 
         container.innerHTML = magicTwiHtml + html;
         _restoreExpanded(container, expanded);
+        if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(container);
     },
 
     /**
@@ -140,6 +141,7 @@ export const KnowledgeRender = {
 
         container.innerHTML = html;
         _restoreExpanded(container, expanded);
+        if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(container);
     },
 
     /**
@@ -176,7 +178,9 @@ export const KnowledgeRender = {
                 previewHtml = '<div class="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 relative"><div class="w-10 h-12 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col justify-between p-1.5 relative overflow-hidden"><div class="absolute top-0 left-0 right-0 h-3.5 bg-red-500 flex items-center justify-center"><span class="text-[7px] text-white font-black tracking-widest">PDF</span></div><div class="space-y-1 mt-4"><div class="h-0.5 bg-slate-200 dark:bg-slate-700 rounded w-full"></div><div class="h-0.5 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div><div class="h-0.5 bg-slate-200 dark:bg-slate-700 rounded w-4/6"></div></div></div></div>';
             } else {
                 previewHtml = previewImg
-                    ? '<img src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(previewImg) + '" class="w-full h-full object-cover" loading="lazy">'
+                    ? '<img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function')
+                        ? window.rbiBuildPhotoImgAttrs(previewImg, { preferThumb: true })
+                        : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(previewImg) + '"')) + ' class="w-full h-full object-cover" loading="lazy">'
                     : '<div class="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 ' + typeColor + '">' + typeIcon + '</div>';
             }
 
@@ -261,9 +265,13 @@ export const KnowledgeRender = {
             if (hasPdfAttachment || isOldPdf) {
                 previewHtml = '<div class="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 relative p-2"><div class="w-12 h-16 bg-white dark:bg-slate-800 rounded-lg shadow-md border border-red-200 dark:border-red-800 flex flex-col justify-between p-1.5 relative overflow-hidden"><div class="absolute top-0 left-0 right-0 h-4 bg-red-500 flex items-center justify-center"><span class="text-[7px] text-white font-black tracking-widest">PDF</span></div><div class="space-y-1.5 mt-5"><div class="h-1 bg-slate-200 dark:bg-slate-700 rounded w-full"></div><div class="h-1 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div><div class="h-1 bg-slate-200 dark:bg-slate-700 rounded w-4/6"></div></div></div></div>';
             } else if (node.attachments && node.attachments.length > 0 && node.attachments[0].type === 'image') {
-                previewHtml = '<img src="' + window.getPhotoSrc(node.attachments[0].url) + '" class="w-full h-full object-contain p-2">';
+                previewHtml = '<img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function')
+                    ? window.rbiBuildPhotoImgAttrs(node.attachments[0].url, { preferThumb: true })
+                    : ('src="' + window.getPhotoSrc(node.attachments[0].url) + '"')) + ' class="w-full h-full object-contain p-2">';
             } else if (node.img) {
-                previewHtml = '<img src="' + window.getPhotoSrc(node.img) + '" class="w-full h-full object-contain p-2">';
+                previewHtml = '<img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function')
+                    ? window.rbiBuildPhotoImgAttrs(node.img, { preferThumb: true })
+                    : ('src="' + window.getPhotoSrc(node.img) + '"')) + ' class="w-full h-full object-contain p-2">';
             } else {
                 previewHtml = '<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-8 h-8 opacity-40 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path></svg></div>';
             }

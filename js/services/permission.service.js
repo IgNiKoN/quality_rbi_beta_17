@@ -15,13 +15,15 @@
     // остаётся на стороне user-context.service.js.
     var BUSINESS_MODULE_IDS = ['quality', 'construction'];
 
-    // === МАТРИЦА ПРАВ ДОСТУПА ===
+    // === МАТРИЦА ПРАВ ДОСТУПА (DEFAULT, неизменяемая) ===
     // dataScope — декларативное правило видимости данных по роли (§29 п.10 «в»):
     //   'all'                   — видит все записи (текущий isLeadership()/isAdmin() приоритет);
     //   'ownProject'             — только записи назначенных проектов;
     //   'ownContractor'         — только записи назначенного подрядчика (+ фильтр по проекту, если назначен);
     //   'ownProjectOrOwnRecords' — назначенные проекты, либо (если проектов нет) только свои записи без проекта;
     //   'none'                  — 0 доступа к чужим данным.
+    // Оверрайды админа (§23 Блок 1) живут в appSettings.roleMatrixOverrides
+    // и мержатся поверх DEFAULT при чтении — ключи ролей не добавляются/не удаляются.
     const ROLE_MATRIX = {
         guest: {
             canCreate: false, canPush: false, canDeleteOwn: false, canDeleteAll: false,
@@ -32,7 +34,7 @@
         },
 
         contractor: {
-            canCreate: false, canPush: false, canDeleteOwn: false, canDeleteAll: false,
+            canCreate: false, canPush: true, canDeleteOwn: false, canDeleteAll: false,
             canManageRoles: false, canManageObjects: false, canEditKnowledgeBase: false, canViewKnowledgeBase: true,
             isAdmin: false, isLeadership: false, canManageSK: false, canManageHierarchy: false,
             isEngineerOrAdmin: false, canViewWeeklyPlan: false,
@@ -89,27 +91,149 @@
         }
     };
 
-    // COMPANY_ROLE_MATRICES — обёртка ROLE_MATRIX под ключ единственной существующей
-    // компании 'rbi' (§29 п.10б). Подготовка контракта под будущий multi-tenant —
-    // сама ROLE_MATRIX не меняется (0 новых ролей/полей).
+    var BOOL_PERM_KEYS = [
+        'canCreate', 'canPush', 'canDeleteOwn', 'canDeleteAll',
+        'canManageRoles', 'canManageObjects', 'canEditKnowledgeBase', 'canViewKnowledgeBase',
+        'isAdmin', 'isLeadership', 'canManageSK', 'canManageHierarchy',
+        'isEngineerOrAdmin', 'canViewWeeklyPlan'
+    ];
+    var DATA_SCOPE_VALUES = {
+        all: 1, ownProject: 1, ownContractor: 1, ownProjectOrOwnRecords: 1, none: 1
+    };
+    var MODULE_ID_SET = { quality: 1, construction: 1 };
+    var OVERRIDES_SETTINGS_KEY = 'roleMatrixOverrides';
+
+    // COMPANY_ROLE_MATRICES — обёртка DEFAULT ROLE_MATRIX под ключ единственной существующей
+    // компании 'rbi' (§29 п.10б). DEFAULT не мутируется оверрайдами.
     const COMPANY_ROLE_MATRICES = { rbi: ROLE_MATRIX };
 
-    // Резолвер матрицы ролей по companyId — fallback на 'rbi' для любого
-    // неизвестного/не переданного companyId (сохраняет текущее поведение 1:1).
-    function _getRoleMatrix(companyId) {
+    function _getDefaultMatrix(companyId) {
         return COMPANY_ROLE_MATRICES[companyId] || COMPANY_ROLE_MATRICES.rbi;
+    }
+
+    function _readRawOverrides() {
+        if (typeof appSettings === 'undefined' || !appSettings) return {};
+        var raw = appSettings[OVERRIDES_SETTINGS_KEY];
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+        return raw;
+    }
+
+    function _cloneOverrides(src) {
+        var out = {};
+        var raw = src || {};
+        Object.keys(raw).forEach(function (roleKey) {
+            if (!ROLE_MATRIX[roleKey]) return;
+            var entry = raw[roleKey];
+            if (!entry || typeof entry !== 'object') return;
+            out[roleKey] = Object.assign({}, entry);
+            if (Array.isArray(entry.allowedModules)) {
+                out[roleKey].allowedModules = entry.allowedModules.slice();
+            }
+        });
+        return out;
+    }
+
+    function _sanitizePartial(partial) {
+        var cleaned = {};
+        if (!partial || typeof partial !== 'object') return cleaned;
+        BOOL_PERM_KEYS.forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(partial, k)) {
+                cleaned[k] = !!partial[k];
+            }
+        });
+        if (Object.prototype.hasOwnProperty.call(partial, 'dataScope')) {
+            var scope = String(partial.dataScope || '');
+            if (DATA_SCOPE_VALUES[scope]) cleaned.dataScope = scope;
+        }
+        if (Object.prototype.hasOwnProperty.call(partial, 'label')) {
+            cleaned.label = String(partial.label == null ? '' : partial.label).slice(0, 120);
+        }
+        if (Object.prototype.hasOwnProperty.call(partial, 'allowedModules') && Array.isArray(partial.allowedModules)) {
+            cleaned.allowedModules = partial.allowedModules
+                .map(function (id) { return String(id); })
+                .filter(function (id) { return !!MODULE_ID_SET[id]; });
+            if (cleaned.allowedModules.length === 0) {
+                cleaned.allowedModules = BUSINESS_MODULE_IDS.slice();
+            }
+        }
+        return cleaned;
+    }
+
+    function _mergeEntry(base, override) {
+        var merged = Object.assign({}, base);
+        if (Array.isArray(base.allowedModules)) {
+            merged.allowedModules = base.allowedModules.slice();
+        }
+        if (!override || typeof override !== 'object') return merged;
+        BOOL_PERM_KEYS.forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(override, k)) {
+                merged[k] = !!override[k];
+            }
+        });
+        if (Object.prototype.hasOwnProperty.call(override, 'dataScope') && DATA_SCOPE_VALUES[override.dataScope]) {
+            merged.dataScope = override.dataScope;
+        }
+        if (Object.prototype.hasOwnProperty.call(override, 'label')) {
+            merged.label = String(override.label == null ? merged.label : override.label);
+        }
+        if (Array.isArray(override.allowedModules)) {
+            merged.allowedModules = override.allowedModules.slice();
+        }
+        return merged;
+    }
+
+    // Merged матрица (DEFAULT + оверрайды). Ключи ролей = только DEFAULT.
+    function _getRoleMatrix(companyId) {
+        var base = _getDefaultMatrix(companyId);
+        var overrides = _readRawOverrides();
+        var merged = {};
+        Object.keys(base).forEach(function (roleKey) {
+            merged[roleKey] = _mergeEntry(base[roleKey], overrides[roleKey]);
+        });
+        return merged;
+    }
+
+    function _persistOverrides(nextOverrides) {
+        var safe = _cloneOverrides(nextOverrides);
+        if (window.RBI && window.RBI.services && window.RBI.services.settings &&
+            typeof window.RBI.services.settings.set === 'function') {
+            return window.RBI.services.settings.set(OVERRIDES_SETTINGS_KEY, safe);
+        }
+        if (typeof appSettings !== 'undefined' && appSettings) {
+            appSettings[OVERRIDES_SETTINGS_KEY] = safe;
+            appSettings.settingsUpdatedAt = Date.now();
+            if (typeof window.saveSettings === 'function') {
+                return window.saveSettings(OVERRIDES_SETTINGS_KEY, safe);
+            }
+            if (typeof dbPut === 'function') {
+                return dbPut(window.STORES ? window.STORES.SETTINGS : 'app_settings',
+                    Object.assign({ key: 'user_prefs' }, appSettings));
+            }
+        }
+        return Promise.resolve(false);
+    }
+
+    function _resolveCurrentRoleKey() {
+        if (!window.syncConfig || !window.syncConfig.enabled) {
+            return 'engineer';
+        }
+        if (typeof appSettings === 'undefined' || !appSettings.userRole) {
+            return 'guest';
+        }
+        return appSettings.userRole;
+    }
+
+    function _callerCanManageRoles() {
+        var role = _resolveCurrentRoleKey();
+        var matrix = _getRoleMatrix();
+        var entry = matrix[role] || matrix.guest;
+        return !!(entry && (entry.isAdmin || entry.canManageRoles));
     }
 
     const permissions = {
         // 1. Получить текущую роль пользователя
         getCurrentRole() {
-            if (!window.syncConfig || !window.syncConfig.enabled) {
-                return 'engineer';
-            }
-            if (typeof appSettings === 'undefined' || !appSettings.userRole) {
-                return 'guest';
-            }
-            return appSettings.userRole;
+            return _resolveCurrentRoleKey();
         },
 
         // 2. Получить облачный статус доступа
@@ -119,10 +243,77 @@
         },
 
         // 3. Получить права по текущей (или переданной) роли, опционально для companyId.
+        // Возвращает merged DEFAULT+overrides (shallow copy записи).
         getPermissions(role, companyId) {
             const r = role || this.getCurrentRole();
             const matrix = _getRoleMatrix(companyId);
-            return matrix[r] || matrix.guest;
+            const entry = matrix[r] || matrix.guest;
+            return _mergeEntry(entry, null);
+        },
+
+        // 3a. Запись роли (merged) — §23 Блок 1.
+        getRoleEntry(role, companyId) {
+            return this.getPermissions(role, companyId);
+        },
+
+        // 3b. Снимок всей merged-матрицы (только ключи DEFAULT).
+        getMatrixSnapshot(companyId) {
+            const matrix = _getRoleMatrix(companyId);
+            const snap = {};
+            Object.keys(matrix).forEach(function (key) {
+                snap[key] = _mergeEntry(matrix[key], null);
+            });
+            return snap;
+        },
+
+        // 3c. Текущие оверрайды (копия). Ключи только из DEFAULT ROLE_MATRIX.
+        getRoleOverrides() {
+            return _cloneOverrides(_readRawOverrides());
+        },
+
+        // 3d. Установить partial-оверрайд роли. Нельзя добавить/удалить/переименовать ключ роли.
+        setRoleOverrides(roleKey, partial) {
+            if (!ROLE_MATRIX[roleKey]) {
+                console.warn('[permission.service] setRoleOverrides: unknown role', roleKey);
+                return Promise.resolve({ error: 'unknown_role' });
+            }
+            if (!_callerCanManageRoles()) {
+                return Promise.resolve({ error: 'forbidden' });
+            }
+            const cleaned = _sanitizePartial(partial);
+            const next = _cloneOverrides(_readRawOverrides());
+            next[roleKey] = Object.assign({}, next[roleKey] || {}, cleaned);
+            return Promise.resolve(_persistOverrides(next)).then(function () {
+                return { error: null, overrides: _cloneOverrides(_readRawOverrides()) };
+            }).catch(function (e) {
+                console.error('[permission.service] setRoleOverrides', e);
+                return { error: e };
+            });
+        },
+
+        // 3e. Сбросить оверрайд одной роли к DEFAULT из кода.
+        clearRoleOverrides(roleKey) {
+            if (!ROLE_MATRIX[roleKey]) {
+                console.warn('[permission.service] clearRoleOverrides: unknown role', roleKey);
+                return Promise.resolve({ error: 'unknown_role' });
+            }
+            if (!_callerCanManageRoles()) {
+                return Promise.resolve({ error: 'forbidden' });
+            }
+            const next = _cloneOverrides(_readRawOverrides());
+            delete next[roleKey];
+            return Promise.resolve(_persistOverrides(next)).then(function () {
+                return { error: null, overrides: _cloneOverrides(_readRawOverrides()) };
+            }).catch(function (e) {
+                console.error('[permission.service] clearRoleOverrides', e);
+                return { error: e };
+            });
+        },
+
+        // 3f. Явная подгрузка оверрайдов из appSettings (после load settings / sync pull).
+        // Чтение всегда live из appSettings — метод для симметрии API / будущих подписчиков.
+        loadRoleOverrides() {
+            return this.getRoleOverrides();
         },
 
         // 4. ГРУППОВЫЕ ПРОВЕРКИ
@@ -412,6 +603,30 @@
 
         getPermissions: function (role, companyId) {
             return permissions.getPermissions(role, companyId);
+        },
+
+        getRoleEntry: function (role, companyId) {
+            return permissions.getRoleEntry(role, companyId);
+        },
+
+        getMatrixSnapshot: function (companyId) {
+            return permissions.getMatrixSnapshot(companyId);
+        },
+
+        getRoleOverrides: function () {
+            return permissions.getRoleOverrides();
+        },
+
+        setRoleOverrides: function (roleKey, partial) {
+            return permissions.setRoleOverrides(roleKey, partial);
+        },
+
+        clearRoleOverrides: function (roleKey) {
+            return permissions.clearRoleOverrides(roleKey);
+        },
+
+        loadRoleOverrides: function () {
+            return permissions.loadRoleOverrides();
         },
 
         isAdmin: function () {

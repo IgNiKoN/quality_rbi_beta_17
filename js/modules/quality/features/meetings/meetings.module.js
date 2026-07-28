@@ -569,7 +569,7 @@ export function renderMeetingTab(options) {
         const dateStr = new Date(m.date).toLocaleDateString('ru-RU');
         const memoPreview = _meetingPlainPreview(m.memoText, 160);
         const thumb = m.qDayPhoto
-            ? `<img src="${window.getPhotoSrc(m.qDayPhoto)}" class="w-full h-full object-cover">`
+            ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(m.qDayPhoto, { preferThumb: true }) : ('src="' + window.getPhotoSrc(m.qDayPhoto) + '"')} class="w-full h-full object-cover">`
             : _meetingPhotoPlaceholder('thumb');
 
         if (isListView) {
@@ -587,7 +587,7 @@ export function renderMeetingTab(options) {
         }
 
         const previewHtml = m.qDayPhoto
-            ? `<img src="${window.getPhotoSrc(m.qDayPhoto)}" class="w-full h-full object-cover">`
+            ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(m.qDayPhoto, { preferThumb: true }) : ('src="' + window.getPhotoSrc(m.qDayPhoto) + '"')} class="w-full h-full object-cover">`
             : _meetingPhotoPlaceholder('card');
 
         return `
@@ -670,6 +670,9 @@ export function renderMeetingTab(options) {
 
     if (typeof window._kbRestoreExpandedGroups === 'function') {
         window._kbRestoreExpandedGroups(container, expanded);
+    }
+    if (typeof window.rbiHydrateLocalImages === 'function') {
+        window.rbiHydrateLocalImages(container);
     }
 }
 
@@ -1617,7 +1620,7 @@ export function createMeeting(customData = null) {
                 <div class="flex gap-2 overflow-x-auto no-scrollbar">
                     ${b3Photos.map(p => `
                         <div class="shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-red-200 relative">
-                            <img src="${window.getPhotoSrc(p.src)}" class="w-full h-full object-cover">
+                            <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(p.src, { preferThumb: true }) : ('src="' + window.getPhotoSrc(p.src) + '"')} class="w-full h-full object-cover">
                             <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] truncate px-1 pb-0.5">${p.contr}</div>
                         </div>
                     `).join('')}

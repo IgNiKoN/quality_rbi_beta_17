@@ -9,6 +9,7 @@ import type {
   DefectStatusV2
 } from '../../services/construction-defects/types';
 import { DEFECT_CATEGORIES_V2 } from '../../services/construction-defects/types';
+import { isContractorRole, resolveMyContractorId } from './contractor-scope';
 
 export type DefectFormCreateInput = {
   locationId: string;
@@ -641,6 +642,13 @@ export function openViewDefectForm(
   onSave?: (id: string, patch: DefectFormEditInput) => void | Promise<void>,
   onChangeStatus?: (id: string, input: DefectFormChangeStatusInput) => void | Promise<void>
 ): void {
+  if (isContractorRole()) {
+    const myId = resolveMyContractorId();
+    if (!myId || String(defect.contractorId || '').trim() !== myId) {
+      window.showToast?.('⚠️ Нет доступа к чужому замечанию');
+      return;
+    }
+  }
   const root = _ensureOverlay();
   const panel = root.querySelector('[data-c2-defect-panel]') as HTMLElement;
   const photosRef = {

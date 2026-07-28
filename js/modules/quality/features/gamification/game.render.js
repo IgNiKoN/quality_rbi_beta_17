@@ -1380,7 +1380,7 @@ let gameChartInstance = null;
       const defectN = (f.defects || []).length;
       const photos = (f.defects || []).map(d => d.photo).filter(Boolean);
       const thumb = photos.length > 0
-        ? `<img src="${window.getPhotoSrc(photos[0])}" class="w-full h-full object-cover">`
+        ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(photos[0], { preferThumb: true }) : ('src="' + window.getPhotoSrc(photos[0]) + '"')} class="w-full h-full object-cover">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>`;
 
       if (isListView) {
@@ -1398,7 +1398,7 @@ let gameChartInstance = null;
       }
 
       const previewHtml = photos.length > 0
-        ? `<img src="${window.getPhotoSrc(photos[0])}" class="w-full h-full object-cover">`
+        ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(photos[0], { preferThumb: true }) : ('src="' + window.getPhotoSrc(photos[0]) + '"')} class="w-full h-full object-cover">`
         : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-8 h-8 opacity-40 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>`;
 
       return `
@@ -1483,6 +1483,9 @@ let gameChartInstance = null;
 
     if (typeof window._kbRestoreExpandedGroups === 'function') {
       window._kbRestoreExpandedGroups(listContainer, expanded);
+    }
+    if (typeof window.rbiHydrateLocalImages === 'function') {
+      window.rbiHydrateLocalImages(listContainer);
     }
   };
 
@@ -1991,7 +1994,7 @@ let gameChartInstance = null;
       if (def.photo) {
         photoHtml = `
             <div class="relative w-16 h-16 mt-2 group">
-                <img src="${window.getPhotoSrc(def.photo)}" class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
+                <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(def.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(def.photo) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
                 <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
             </div>`;
       } else {
@@ -2087,6 +2090,9 @@ let gameChartInstance = null;
             </button>
         </div>
     `;
+    if (typeof window.rbiHydrateLocalImages === 'function') {
+      window.rbiHydrateLocalImages(workspace);
+    }
   };
 
   // Перенесено из js/game.js (строка 3061).

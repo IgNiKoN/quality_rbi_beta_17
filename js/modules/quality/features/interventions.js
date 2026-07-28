@@ -1527,11 +1527,14 @@ window.rbi_renderPracPhotosUI = function (stage) {
     const photos = (window._manPracState && window._manPracState[stateKey]) || [];
     const html = photos.map((url, idx) => `
         <div class="relative w-full h-14 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
-            <img src="${window.getPhotoSrc(url)}" class="w-full h-full object-cover">
+            <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(url, { preferThumb: true }) : ('src="' + window.getPhotoSrc(url) + '"')} class="w-full h-full object-cover">
             <button type="button" onclick="rbi_removePracPhoto('${stage}', ${idx})" class="absolute top-0.5 right-0.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shadow-sm active:scale-90">✕</button>
         </div>
     `).join('');
-    containers.forEach(function (container) { container.innerHTML = html; });
+    containers.forEach(function (container) {
+        container.innerHTML = html;
+        if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(container);
+    });
 };
 
 window.rbi_removePracPhoto = function (stage, idx) {

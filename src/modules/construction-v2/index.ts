@@ -12,6 +12,7 @@ import {
   requestFocusAcceptance,
   setConstructionV2Subview
 } from './ui';
+import { isContractorRole } from './contractor-scope';
 import type { ConstructionAcceptanceV2 } from '../../services/construction-acceptance/types';
 import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
 
@@ -96,8 +97,14 @@ function _applyHashSubview() {
     setConstructionV2Subview('transfer');
   } else if (h.startsWith('/construction-v2/defects')) {
     setConstructionV2Subview('defects');
+  } else if (h.startsWith('/construction-v2/metrics')) {
+    setConstructionV2Subview('metrics');
+  } else if (h.startsWith('/construction-v2/cabinet')) {
+    setConstructionV2Subview('cabinet');
+  } else if (h === '/construction-v2' || h === '/construction-v2/') {
+    setConstructionV2Subview(isContractorRole() ? 'cabinet' : 'plan');
   } else if (h.startsWith('/construction-v2')) {
-    setConstructionV2Subview('plan');
+    setConstructionV2Subview(isContractorRole() ? 'cabinet' : 'plan');
   }
 }
 
@@ -208,6 +215,8 @@ function _registerAppRouter() {
     router.addRoute('#/construction-v2/acceptance', () => showTab());
     router.addRoute('#/construction-v2/transfer', () => showTab());
     router.addRoute('#/construction-v2/defects', () => showTab());
+    router.addRoute('#/construction-v2/metrics', () => showTab());
+    router.addRoute('#/construction-v2/cabinet', () => showTab());
   }
 }
 

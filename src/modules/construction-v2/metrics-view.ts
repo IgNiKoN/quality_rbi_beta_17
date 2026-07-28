@@ -1,0 +1,302 @@
+/**
+ * Subview «Сроки» construction-v2 — KPI + разрезы + топ просроченных.
+ */
+
+import type { ConstructionDefectV2 } from '../../services/construction-defects/types';
+import type { LocationNode } from '../../services/locations/types';
+import {
+  type DefectSlaMetrics,
+  type PeriodPreset,
+  computeDefectSlaMetrics
+} from './defect-sla-metrics';
+
+export type MetricsViewCallbacks = {
+  onOpenDefect: (id: string) => void;
+};
+
+type LocSvc = {
+  listNodes: (opts?: { nodeType?: string; parentId?: string | null }) => LocationNode[];
+  getPath: (id: string) => LocationNode[];
+  getChildren: (parentId: string | null) => LocationNode[];
+};
+
+type DefectsSvc = {
+  list: (opts?: { includeDeleted?: boolean }) => ConstructionDefectV2[];
+};
+
+let _period: PeriodPreset = 'all';
+let _objectId: string | null = null;
+let _boundHost: HTMLElement | null = null;
+
+function _escape(s: string) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function _fmt(n: number | null, suffix = ''): string {
+  if (n == null || Number.isNaN(n)) return '—';
+  return `${n}${suffix}`;
+}
+
+function _contractorLabel(id: string | null | undefined): string {
+  const cid = String(id || '').trim();
+  if (!cid || cid === '—') return '—';
+  try {
+    const svc = window.RBI?.services?.contractors as
+      | { list?: () => Array<{ id?: string; display_name?: string; name?: string }> }
+      | undefined;
+    const fromSvc = svc?.list?.() || [];
+    const hit = fromSvc.find((c) => String(c.id) === cid);
+    if (hit) return String(hit.display_name || hit.name || cid);
+  } catch {
+    /* ignore */
+  }
+  const dir = (
+    window as unknown as {
+      ContractorDirectory?: { contractors?: Array<{ id?: string; display_name?: string }> };
+    }
+  ).ContractorDirectory;
+  const hit2 = (dir?.contractors || []).find((c) => String(c.id) === cid);
+  if (hit2) return String(hit2.display_name || cid);
+  return cid.length > 12 ? `${cid.slice(0, 8)}…` : cid;
+}
+
+/** Все locationId (floor/apartment) под объектом. */
+function _locationIdsUnderObject(loc: LocSvc, objectId: string): Set<string> {
+  const ids = new Set<string>();
+  const walk = (parentId: string) => {
+    ids.add(parentId);
+    for (const ch of loc.getChildren(parentId) || []) {
+      walk(ch.id);
+    }
+  };
+  walk(objectId);
+  return ids;
+}
+
+function _kpiCard(label: string, value: string, tone = ''): string {
+  const toneCls =
+    tone === 'danger'
+      ? 'border-red-200 dark:border-red-900/50'
+      : tone === 'ok'
+        ? 'border-emerald-200 dark:border-emerald-900/40'
+        : 'border-[var(--card-border)]';
+  return `<div class="min-w-[7.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape(label)}</div>
+    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${_escape(value)}</div>
+  </div>`;
+}
+
+function _barRow(label: string, count: number, max: number, color: string): string {
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
+  return `<div class="flex items-center gap-2 text-[11px] mb-1.5">
+    <span class="w-12 shrink-0 font-bold text-slate-500">${_escape(label)}</span>
+    <div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+      <div class="h-full ${color}" style="width:${pct}%"></div>
+    </div>
+    <span class="w-8 text-right font-bold text-slate-700 dark:text-slate-200">${count}</span>
+  </div>`;
+}
+
+function _periodBtn(p: PeriodPreset, label: string): string {
+  const on = _period === p;
+  return `<button type="button" data-c2-metrics-period="${p}"
+    class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+      on
+        ? 'bg-indigo-600 text-white border-indigo-600'
+        : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+    }">${_escape(label)}</button>`;
+}
+
+export function renderMetricsView(
+  host: HTMLElement,
+  opts: {
+    loc: LocSvc;
+    defectsSvc: DefectsSvc | null;
+    /** MVP: опционально сузить к этажу (если выбран в дереве) — не используется в текущем UI; object filter. */
+    selectedFloorId?: string | null;
+    cb: MetricsViewCallbacks;
+  }
+): void {
+  const { loc, defectsSvc, cb } = opts;
+  const objects = loc.listNodes({ nodeType: 'object', parentId: null }) || [];
+
+  const allDefects = defectsSvc?.list?.({ includeDeleted: false }) || [];
+  let locationIds: Set<string> | null = null;
+  if (_objectId) {
+    locationIds = _locationIdsUnderObject(loc, _objectId);
+  }
+
+  const m: DefectSlaMetrics = computeDefectSlaMetrics(allDefects, {
+    period: _period,
+    locationIds
+  });
+
+  const agingMax = Math.max(1, ...Object.values(m.aging));
+
+  const objectOptions = [
+    `<option value="">Все объекты</option>`,
+    ...objects.map(
+      (o) =>
+        `<option value="${_escape(o.id)}"${_objectId === o.id ? ' selected' : ''}>${_escape(
+          o.displayName
+        )}</option>`
+    )
+  ].join('');
+
+  const catRows = m.byCategory
+    .map(
+      (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
+      <td class="py-1.5 pr-2 font-bold">${_escape(r.category)}</td>
+      <td class="py-1.5 pr-2 text-right">${r.open}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-red-600 font-semibold' : ''}">${r.overdue}</td>
+      <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
+    </tr>`
+    )
+    .join('');
+
+  const contrRows =
+    m.byContractor.length === 0
+      ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">Нет данных</td></tr>`
+      : m.byContractor
+          .map(
+            (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
+      <td class="py-1.5 pr-2 font-medium truncate max-w-[10rem]" title="${_escape(r.contractorId)}">${_escape(
+              _contractorLabel(r.contractorId)
+            )}</td>
+      <td class="py-1.5 pr-2 text-right">${r.open}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-red-600 font-semibold' : ''}">${r.overdue}</td>
+      <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
+    </tr>`
+          )
+          .join('');
+
+  const overdueRows =
+    m.overdueList.length === 0
+      ? `<div class="p-4 text-center text-slate-400 text-[12px]">Нет просроченных</div>`
+      : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
+          ${m.overdueList
+            .map(
+              (r) => `<li>
+            <button type="button" data-c2-metrics-def="${_escape(r.id)}"
+              class="w-full text-left px-3 py-2.5 hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
+              <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                <span class="text-[10px] font-bold text-slate-500">${_escape(r.category)}</span>
+                <span class="text-[9px] font-bold uppercase text-red-600">+${r.daysOverdue} дн. проср.</span>
+                <span class="text-[10px] text-slate-400">${r.daysOpen} дн. открыто</span>
+              </span>
+              <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape(
+                r.description
+              )}</span>
+            </button>
+          </li>`
+            )
+            .join('')}
+        </ul>`;
+
+  host.innerHTML = `
+    <div class="flex flex-col gap-3 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Сроки замечаний</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">Локальный расчёт по defects_v2 · без новой схемы БД</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex gap-1">${_periodBtn('30', '30 дн.')}${_periodBtn('90', '90 дн.')}${_periodBtn('all', 'Все')}</div>
+          <select data-c2-metrics-object
+            class="text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
+            ${objectOptions}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        ${_kpiCard('Открытые', String(m.open))}
+        ${_kpiCard('Просроченные', String(m.overdueNow), m.overdueNow ? 'danger' : '')}
+        ${_kpiCard('Ср. устранение', _fmt(m.avgEliminateDays, ' дн.'))}
+        ${_kpiCard('Ср. проверка СК', _fmt(m.avgReviewDays, ' дн.'))}
+        ${_kpiCard('% вовремя', m.onTimePct == null ? '—' : `${m.onTimePct}%`, m.onTimePct != null && m.onTimePct >= 80 ? 'ok' : '')}
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По категории</div>
+          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
+            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+              <th class="text-left font-bold pb-1">Cat</th>
+              <th class="text-right font-bold pb-1">Откр.</th>
+              <th class="text-right font-bold pb-1">Проср.</th>
+              <th class="text-right font-bold pb-1">Ср. дн.</th>
+            </tr></thead>
+            <tbody>${catRows}</tbody>
+          </table>
+        </div>
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Aging открытых</div>
+          ${_barRow('0–3', m.aging['0-3'], agingMax, 'bg-emerald-500')}
+          ${_barRow('4–7', m.aging['4-7'], agingMax, 'bg-amber-400')}
+          ${_barRow('8–14', m.aging['8-14'], agingMax, 'bg-orange-500')}
+          ${_barRow('15+', m.aging['15+'], agingMax, 'bg-red-600')}
+        </div>
+      </div>
+
+      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
+        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По подрядчику (топ-10 по просрочке)</div>
+        <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
+          <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+            <th class="text-left font-bold pb-1">Подрядчик</th>
+            <th class="text-right font-bold pb-1">Откр.</th>
+            <th class="text-right font-bold pb-1">Проср.</th>
+            <th class="text-right font-bold pb-1">Ср. дн.</th>
+          </tr></thead>
+          <tbody>${contrRows}</tbody>
+        </table>
+      </div>
+
+      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
+        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
+          Просроченные сейчас · до 20
+        </div>
+        ${overdueRows}
+      </div>
+    </div>`;
+
+  _boundHost = host;
+
+  host.querySelectorAll('[data-c2-metrics-period]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const p = (btn as HTMLElement).getAttribute('data-c2-metrics-period') as PeriodPreset | null;
+      if (!p || p === _period) return;
+      _period = p;
+      renderMetricsView(host, opts);
+    });
+  });
+
+  const sel = host.querySelector('[data-c2-metrics-object]') as HTMLSelectElement | null;
+  sel?.addEventListener('change', () => {
+    _objectId = sel.value || null;
+    renderMetricsView(host, opts);
+  });
+
+  host.querySelectorAll('[data-c2-metrics-def]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const id = (btn as HTMLElement).getAttribute('data-c2-metrics-def');
+      if (id) cb.onOpenDefect(id);
+    });
+  });
+}
+
+export function getMetricsPeriod(): PeriodPreset {
+  return _period;
+}
+
+export function resetMetricsFilters(): void {
+  _period = 'all';
+  _objectId = null;
+  _boundHost = null;
+}

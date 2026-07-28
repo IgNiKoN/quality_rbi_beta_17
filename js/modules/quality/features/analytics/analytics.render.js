@@ -1888,7 +1888,7 @@ export const AnalyticsRender = {
                 const safePhoto = (typeof window.rbiEscapeAttr === 'function')
                     ? window.rbiEscapeAttr(d.photo)
                     : String(d.photo || '').replace(/"/g, '&quot;');
-                const imgHtml = d.photo ? `<img src="${window.getPhotoSrc(d.photo)}" class="w-full h-24 object-cover border-b border-[var(--card-border)] cursor-pointer active:scale-95" onclick="openPhotoViewer('${safePhoto}')" loading="lazy" data-local-src="${safePhoto}">` : `<div class="w-full h-24 bg-[var(--hover-bg)] flex items-center justify-center text-[var(--card-border)] text-[10px] border-b border-[var(--card-border)] text-center px-1">НЕТ ФОТО</div>`;
+                const imgHtml = d.photo ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(d.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(d.photo) + '" data-local-src="' + safePhoto + '"')} class="w-full h-24 object-cover border-b border-[var(--card-border)] cursor-pointer active:scale-95" onclick="openPhotoViewer('${safePhoto}')" loading="lazy">` : `<div class="w-full h-24 bg-[var(--hover-bg)] flex items-center justify-center text-[var(--card-border)] text-[10px] border-b border-[var(--card-border)] text-center px-1">НЕТ ФОТО</div>`;
                 let badgeColor = isCrit ? 'text-red-700 bg-red-100 border-red-200' : 'text-orange-700 bg-orange-100 border-orange-200';
                 let badgeText = isCrit ? 'B3' : 'B2';
                 if (isOk) { badgeColor = 'text-green-700 bg-green-100 border-green-200'; badgeText = 'OK'; }

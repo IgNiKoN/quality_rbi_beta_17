@@ -1654,7 +1654,7 @@ async function _openTaskAction(taskId) {
     } else {
         if (task.type === 'manual') {
             var photoPreviewHtml = task.completionPhoto
-                ? '<div class="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm"><img src="' + window.getPhotoSrc(task.completionPhoto) + '" class="w-full h-full object-cover"></div>'
+                ? '<div class="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm"><img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(task.completionPhoto, { preferThumb: true }) : ('src="' + window.getPhotoSrc(task.completionPhoto) + '"')) + ' class="w-full h-full object-cover"></div>'
                 : '<div id="task-photo-preview" class="hidden mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div>';
             actionButtonsHtml += '\n                <div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-indigo-50 dark:bg-slate-800 border border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> Прикрепить фото (Опционально)</button>' + photoPreviewHtml + '</div>\n                <button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Отметить выполненной</button>';
         } else if (task.taskType === 'ППР') {
@@ -1917,7 +1917,8 @@ function _handleTaskCompletionPhoto(event) {
         var box = document.getElementById('task-photo-preview');
         box.dataset.photo = localUrl;
         box.classList.remove('hidden');
-        box.innerHTML = '<img src="' + window.getPhotoSrc(localUrl) + '" class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById(\'task-photo-preview\').dataset.photo=\'\'; document.getElementById(\'task-photo-preview\').classList.add(\'hidden\');" class="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>';
+        box.innerHTML = '<img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl) : ('src="' + window.getPhotoSrc(localUrl) + '"')) + ' class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById(\'task-photo-preview\').dataset.photo=\'\'; document.getElementById(\'task-photo-preview\').classList.add(\'hidden\');" class="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>';
+        if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(box);
         event.target.value = '';
     });
 }

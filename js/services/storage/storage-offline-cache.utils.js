@@ -166,6 +166,30 @@ function rbiCollectOfflineCacheUrls(scope = 'all') {
         });
     }
 
+    // Логотип бренда — любой scope офлайн-пакета (маленький файл, нужен в настройках/отчётах).
+    {
+        const brandLogo = (typeof window.appSettings !== 'undefined' && window.appSettings && window.appSettings.brandLogo)
+            ? window.appSettings.brandLogo
+            : ((typeof appSettings !== 'undefined' && appSettings && appSettings.brandLogo) ? appSettings.brandLogo : '');
+        if (brandLogo) addMany(brandLogo, Date.now(), 'brand_logo');
+    }
+
+    // FMEA: фото дефектов в архиве (раньше не попадали в «Скачать всё»).
+    if (wantInspections) {
+        const fmeaList = (typeof window.rbi_fmeaRecords !== 'undefined' && Array.isArray(window.rbi_fmeaRecords))
+            ? window.rbi_fmeaRecords
+            : [];
+        fmeaList.forEach((f) => {
+            if (!f || f._deleted === true || f.is_deleted === true) return;
+            const ts = rbiRecordDateMs(f);
+            if (scoped === 'days30' && ts < cutoff30) return;
+            const defects = Array.isArray(f.defects) ? f.defects : [];
+            defects.forEach((d) => {
+                if (d && d.photo) addMany(d.photo, ts, 'fmea_photo');
+            });
+        });
+    }
+
     if (wantInspections && scoped === 'all') {
         if (typeof window.rbi_meetingsData !== 'undefined' && Array.isArray(window.rbi_meetingsData)) {
             window.rbi_meetingsData.forEach((m) => {

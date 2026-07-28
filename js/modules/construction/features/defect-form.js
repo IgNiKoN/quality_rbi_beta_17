@@ -529,7 +529,7 @@ window.ConstDefectForm = {
 
                 let histPhoto = '';
                 if (h.photo) {
-                    histPhoto = `<img src="${(window.getPhotoThumbSrc || window.getPhotoSrc)(h.photo)}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" loading="lazy" onclick="openPhotoViewer('${h.photo}')">`;
+                    histPhoto = `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(h.photo, { preferThumb: true }) : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(h.photo) + '"')} class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" loading="lazy" onclick="openPhotoViewer('${h.photo}')">`;
                 }
 
                 historyHtml += `

@@ -11,6 +11,7 @@ import { SettingsActions } from './settings.actions.js';
 import { mountContractorDirectoryUI } from './features/contractor-directory-ui.js';
 import { mountLocationDirectoryUI } from './features/location-directory-ui.js';
 import { mountContractorIdBackfillUI } from './features/contractor-id-backfill-ui.js';
+import { mountRoleMatrixUI } from './features/role-matrix-ui.js';
 
 var SettingsRender = {
     // =====================================================================
@@ -22,43 +23,52 @@ var SettingsRender = {
         return `
         <div id="tab-settings" class="view-section">
             <div
-                class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex justify-between items-center">
-                <h2
-                    class="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
-                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                        stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-                        </path>
-                    </svg>
-                    Настройки
-                </h2>
-                <div class="flex items-center gap-2">
-                    <button data-game-action="gameOpenManagerPanelAuth"
-                        class="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full text-slate-500 active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700"
-                        title="Панель Руководителя">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex flex-col gap-2.5">
+                <div class="flex justify-between items-center gap-2">
+                    <h2
+                        class="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5 min-w-0">
+                        <svg class="w-5 h-5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
                             </path>
                         </svg>
-                    </button>
-                    <button data-settings-action="resetSettingsToDefault"
-                        class="text-[9px] font-black text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg uppercase tracking-widest border border-red-100 dark:border-red-800/50 shadow-sm active:scale-95 transition-colors">По умолчанию</button>
+                        Настройки
+                    </h2>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button data-game-action="gameOpenManagerPanelAuth"
+                            class="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full text-slate-500 active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700"
+                            title="Панель Руководителя">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                </path>
+                            </svg>
+                        </button>
+                        <button data-settings-action="resetSettingsToDefault"
+                            class="text-[9px] font-black text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg uppercase tracking-widest border border-red-100 dark:border-red-800/50 shadow-sm active:scale-95 transition-colors">По умолчанию</button>
+                    </div>
                 </div>
-            </div>
-
-            <div id="settings-subnav" class="mb-3 flex flex-wrap gap-1.5 p-1 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" role="tablist" aria-label="Подразделы настроек">
-                <button type="button" data-settings-subsection="platform" role="tab"
-                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Платформа</button>
-                <button type="button" data-settings-subsection="directories" role="tab"
-                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Справочники</button>
-                <button type="button" data-settings-subsection="quality" role="tab"
-                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Качество</button>
-                <button type="button" data-settings-subsection="construction" role="tab"
-                    class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">Стройконтроль</button>
+                <div class="relative min-w-0">
+                    <div id="settings-subnav" class="flex flex-nowrap gap-1 p-1 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] overflow-x-auto no-scrollbar" role="tablist" aria-label="Подразделы настроек">
+                        <button type="button" data-settings-subsection="platform" role="tab"
+                            class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Платформа</button>
+                        <button type="button" data-settings-subsection="directories" role="tab"
+                            class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Справочники</button>
+                        <button type="button" data-settings-subsection="quality" role="tab"
+                            class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Качество</button>
+                        <button type="button" data-settings-subsection="construction" role="tab"
+                            class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Стройконтроль</button>
+                    </div>
+                    <!-- Подсказка скролла (только визуал, не кликабельна; на md+ скрыта) -->
+                    <div class="settings-subnav-scroll-hint pointer-events-none absolute inset-y-1 right-1 w-7 rounded-r-lg bg-gradient-to-l from-[var(--card-bg)] via-[var(--card-bg)]/80 to-transparent flex items-center justify-end pr-0.5 md:hidden" aria-hidden="true">
+                        <svg class="w-3.5 h-3.5 text-slate-400/70 dark:text-slate-500/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </div>
             </div>
 
             <div class="settings-panels">
@@ -860,6 +870,24 @@ var SettingsRender = {
                 </div>
             </div>
             <div id="settings-panel-directories" data-settings-panel="directories" class="space-y-3" hidden>
+                <!-- РОЛИ И ПРАВА (§23, только admin / canManageRoles) -->
+                <details id="settings-role-matrix-section"
+                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
+                            Роли и права
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
+                    </summary>
+                    <div id="settings-role-matrix-root"></div>
+                </details>
+
                 <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ (v2, параллельно legacy construction) -->
                 <details id="location-directory-section"
                     class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
@@ -1576,9 +1604,28 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         var logoPreview = document.getElementById('brand-logo-preview');
         var logoImg = document.getElementById('brand-logo-img');
         if (logoPreview && logoImg) {
-            if (_getSetting('brandLogo')) {
-                logoImg.src = _getSetting('brandLogo');
+            var brandLogo = _getSetting('brandLogo');
+            if (brandLogo) {
                 logoPreview.classList.remove('hidden');
+                logoImg.removeAttribute('data-local-src');
+                logoImg.removeAttribute('data-prefer-thumb');
+                var needsHydrate = String(brandLogo).indexOf('http') === 0
+                    || String(brandLogo).indexOf('local://') === 0
+                    || String(brandLogo).indexOf('cloud://') === 0;
+                if (needsHydrate) {
+                    logoImg.src = window.rbiPhotoPlaceholder || '';
+                    logoImg.setAttribute('data-local-src', brandLogo);
+                    logoImg.setAttribute('data-prefer-thumb', '1');
+                    if (typeof window.rbiHydrateLocalImages === 'function') {
+                        window.rbiHydrateLocalImages(logoPreview);
+                    } else if (typeof PhotoManager !== 'undefined' && PhotoManager.getAsyncUrl) {
+                        PhotoManager.getAsyncUrl(brandLogo, { preferThumb: true }).then(function (u) {
+                            if (u) logoImg.src = u;
+                        });
+                    }
+                } else {
+                    logoImg.src = brandLogo;
+                }
             } else {
                 logoPreview.classList.add('hidden');
             }
@@ -1598,6 +1645,11 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (typeof mountContractorIdBackfillUI === 'function') {
             mountContractorIdBackfillUI().catch(function (e) {
                 console.warn('[settings] contractor-id-backfill UI:', e);
+            });
+        }
+        if (typeof mountRoleMatrixUI === 'function') {
+            mountRoleMatrixUI().catch(function (e) {
+                console.warn('[settings] role-matrix UI:', e);
             });
         }
 

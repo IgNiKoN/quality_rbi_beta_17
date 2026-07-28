@@ -398,9 +398,7 @@
       let thumbs = '';
       for (let i = 0; i < list.length; i++) {
         const ref = list[i];
-        const displayUrl = (ref.startsWith('local://') || ref.startsWith('cloud://'))
-          ? (await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref))
-          : window.getPhotoSrc(ref);
+        const displayUrl = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref) || '';
         thumbs += `
         <div class="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 aspect-[4/3]">
             <img src="${displayUrl}" class="w-full h-full object-cover cursor-pointer" onclick="setTimeout(() => openPhotoViewer('${ref}'), 100)" alt="">
@@ -736,12 +734,7 @@
           photoHtml = '<div class="grid grid-cols-2 gap-2 mt-2">';
           for (let p = 0; p < photoRefs.length; p++) {
             const ref = photoRefs[p];
-            let realPhoto = null;
-            if (ref.startsWith('cloud://') || ref.startsWith('local://')) {
-              realPhoto = await PhotoManager.getAsyncUrl(ref);
-            } else {
-              realPhoto = window.getPhotoSrc(ref);
-            }
+            let realPhoto = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref);
             if (realPhoto) {
               photoHtml += `<img src="${realPhoto}" class="w-full h-36 object-cover rounded-lg border border-slate-200 cursor-pointer bg-slate-50" onclick="openPhotoViewer('${ref}')">`;
             }

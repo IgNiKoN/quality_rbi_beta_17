@@ -1755,6 +1755,38 @@ if (window.RbiStorageManager) {
                         if (Array.isArray(cloudDefects)) {
                             for (const d of cloudDefects) {
                                 if (!d || !d.id) continue;
+                                // Как у location_nodes: не затирать локальный soft-delete / dirty до push.
+                                const localDefect = await dbGet(STORES.CONST_DEFECTS_V2, d.id);
+                                const cloudIsDeleted = d.is_deleted === true;
+                                const localDeletePending =
+                                    localDefect &&
+                                    (localDefect._deleted === true || localDefect.is_deleted === true) &&
+                                    ((localDefect.syncStatus || localDefect.sync_status) === 'not_synced' ||
+                                        localDefect.source === 'local');
+                                if (localDeletePending && !cloudIsDeleted) {
+                                    console.log(
+                                        '[Sync][Стройконтроль v2] Пропущен pull: локальное удаление дефекта ожидает отправки',
+                                        d.id
+                                    );
+                                    continue;
+                                }
+                                const localDirty =
+                                    localDefect &&
+                                    ((localDefect.syncStatus || localDefect.sync_status) === 'not_synced' ||
+                                        localDefect.source === 'local');
+                                if (localDirty && !cloudIsDeleted) {
+                                    const localTime = new Date(
+                                        localDefect.updated_at || localDefect.updatedAt || 0
+                                    ).getTime();
+                                    const cloudTime = new Date(d.updated_at || 0).getTime();
+                                    if (localTime >= cloudTime) {
+                                        console.log(
+                                            '[Sync][Стройконтроль v2] Пропущен pull: локальная правка дефекта новее/ожидает push',
+                                            d.id
+                                        );
+                                        continue;
+                                    }
+                                }
                                 // photo (text) → photos[]; open/cancelled → issued/rejected
                                 let photos = [];
                                 if (Array.isArray(d.photos) && d.photos.length) {
@@ -1805,6 +1837,38 @@ if (window.RbiStorageManager) {
                         if (Array.isArray(cloudAcc)) {
                             for (const a of cloudAcc) {
                                 if (!a || !a.id) continue;
+                                // Как у location_nodes / defects_v2: не затирать delete-pending / dirty.
+                                const localAcc = await dbGet(STORES.CONST_ACCEPTANCE_V2, a.id);
+                                const cloudIsDeleted = a.is_deleted === true;
+                                const localDeletePending =
+                                    localAcc &&
+                                    (localAcc._deleted === true || localAcc.is_deleted === true) &&
+                                    ((localAcc.syncStatus || localAcc.sync_status) === 'not_synced' ||
+                                        localAcc.source === 'local');
+                                if (localDeletePending && !cloudIsDeleted) {
+                                    console.log(
+                                        '[Sync][Стройконтроль v2] Пропущен pull: локальное удаление приёмки ожидает отправки',
+                                        a.id
+                                    );
+                                    continue;
+                                }
+                                const localDirty =
+                                    localAcc &&
+                                    ((localAcc.syncStatus || localAcc.sync_status) === 'not_synced' ||
+                                        localAcc.source === 'local');
+                                if (localDirty && !cloudIsDeleted) {
+                                    const localTime = new Date(
+                                        localAcc.updated_at || localAcc.updatedAt || 0
+                                    ).getTime();
+                                    const cloudTime = new Date(a.updated_at || 0).getTime();
+                                    if (localTime >= cloudTime) {
+                                        console.log(
+                                            '[Sync][Стройконтроль v2] Пропущен pull: локальная правка приёмки новее/ожидает push',
+                                            a.id
+                                        );
+                                        continue;
+                                    }
+                                }
                                 let st = String(a.status || '').toLowerCase();
                                 if (st !== 'pending' && st !== 'rejected' && st !== 'accepted') st = 'pending';
                                 await dbPut(STORES.CONST_ACCEPTANCE_V2, {
@@ -3255,11 +3319,31 @@ if (window.RbiStorageManager) {
                                     const source = d.source || '';
                                     return status === 'not_synced' || status === 'blocked' || source === 'local';
                                 });
-                                const isAdminDefects = window.RBI.services.permissions
-                                    ? window.RBI.services.permissions.isAdmin()
-                                    : false;
+                                const permsDef = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                                const isAdminDefects = permsDef ? permsDef.isAdmin() : false;
                                 if (!isAdminDefects) {
+                                    const roleDef = permsDef && typeof permsDef.getCurrentRole === 'function'
+                                        ? permsDef.getCurrentRole()
+                                        : '';
+                                    const isContractorDef = roleDef === 'contractor';
+                                    let myContractorIdDef = '';
+                                    if (isContractorDef && permsDef && typeof permsDef.getAssignedContractor === 'function') {
+                                        const assignedName = String(permsDef.getAssignedContractor() || '').trim();
+                                        const contractorsSvc = window.RBI && window.RBI.services && window.RBI.services.contractors;
+                                        if (assignedName && contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === 'function') {
+                                            myContractorIdDef = String(
+                                                contractorsSvc.resolveIdFromNormalized({
+                                                    display_name: assignedName,
+                                                    contractor_name: assignedName
+                                                }) || ''
+                                            ).trim();
+                                            if (myContractorIdDef === 'pending') myContractorIdDef = '';
+                                        }
+                                    }
                                     defectsToPush = defectsToPush.filter(d => {
+                                        if (isContractorDef && myContractorIdDef) {
+                                            return String(d.contractorId || d.contractor_id || '') === String(myContractorIdDef);
+                                        }
                                         const owner = d.owner || d.created_by || d.author || '';
                                         return !owner || owner === iName;
                                     });
@@ -3326,11 +3410,31 @@ if (window.RbiStorageManager) {
                                     const source = d.source || '';
                                     return status === 'not_synced' || status === 'blocked' || source === 'local';
                                 });
-                                const isAdminAcc = window.RBI.services.permissions
-                                    ? window.RBI.services.permissions.isAdmin()
-                                    : false;
+                                const permsAcc = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                                const isAdminAcc = permsAcc ? permsAcc.isAdmin() : false;
                                 if (!isAdminAcc) {
+                                    const roleAcc = permsAcc && typeof permsAcc.getCurrentRole === 'function'
+                                        ? permsAcc.getCurrentRole()
+                                        : '';
+                                    const isContractorAcc = roleAcc === 'contractor';
+                                    let myContractorIdAcc = '';
+                                    if (isContractorAcc && permsAcc && typeof permsAcc.getAssignedContractor === 'function') {
+                                        const assignedName = String(permsAcc.getAssignedContractor() || '').trim();
+                                        const contractorsSvc = window.RBI && window.RBI.services && window.RBI.services.contractors;
+                                        if (assignedName && contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === 'function') {
+                                            myContractorIdAcc = String(
+                                                contractorsSvc.resolveIdFromNormalized({
+                                                    display_name: assignedName,
+                                                    contractor_name: assignedName
+                                                }) || ''
+                                            ).trim();
+                                            if (myContractorIdAcc === 'pending') myContractorIdAcc = '';
+                                        }
+                                    }
                                     accToPush = accToPush.filter(d => {
+                                        if (isContractorAcc && myContractorIdAcc) {
+                                            return String(d.contractorId || d.contractor_id || '') === String(myContractorIdAcc);
+                                        }
                                         const owner = d.owner || d.created_by || d.author || '';
                                         return !owner || owner === iName;
                                     });

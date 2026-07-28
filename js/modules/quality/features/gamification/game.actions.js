@@ -1131,7 +1131,7 @@ function emit(eventName, detail) {
       if (def.photo) {
         photoHtml = `
             <div class="relative w-16 h-16 mt-2 group">
-                <img src="${window.getPhotoSrc(def.photo)}" class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
+                <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(def.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(def.photo) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
                 <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
             </div>`;
       } else {
@@ -1219,6 +1219,9 @@ function emit(eventName, detail) {
         </div>
     `;
 
+    if (typeof window.rbiHydrateLocalImages === 'function') {
+      window.rbiHydrateLocalImages(workspace);
+    }
     rbi_renderFmeaRegistry(); // Перерисовываем архив, чтобы убрать открытый файл
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast("Отчет открыт для редактирования");
@@ -1287,7 +1290,7 @@ function emit(eventName, detail) {
         if (photoDiv) {
           photoDiv.outerHTML = `
             <div class="relative w-16 h-16 mt-2 group">
-                <img src="${window.getPhotoSrc(def.photo)}" class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
+                <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(def.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(def.photo) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
                 <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
             </div>`;
         }
@@ -1423,7 +1426,7 @@ function emit(eventName, detail) {
         const targetDiv = photoContainer.lastElementChild;
         targetDiv.outerHTML = `
             <div class="relative w-16 h-16 mt-2 group">
-                <img src="${window.getPhotoSrc(localUrl)}" class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${localUrl}')">
+                <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl, { preferThumb: true }) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${localUrl}')">
                 <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
             </div>`;
       }

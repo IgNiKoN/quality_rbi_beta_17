@@ -11,6 +11,12 @@ import { PlanViewer } from './plan-viewer';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
 import { renderTransferBoard, teardownTransferUi } from './transfer-board';
 import { renderDefectsRegistry } from './defects-registry';
+import { renderMetricsView } from './metrics-view';
+import { renderContractorCabinet } from './contractor-cabinet';
+import {
+  filterAcceptancesForRole,
+  filterDefectsForRole
+} from './contractor-scope';
 import {
   type PinCategory,
   filterDefectsByPins,
@@ -31,6 +37,7 @@ type LocSvc = {
 
 type DefectsSvc = {
   init: () => Promise<boolean>;
+  list: (opts?: { includeDeleted?: boolean }) => ConstructionDefectV2[];
   listForFloor: (locationId: string) => ConstructionDefectV2[];
   get: (id: string) => ConstructionDefectV2 | null;
   create: (input: Record<string, unknown>) => Promise<ConstructionDefectV2>;
@@ -45,6 +52,7 @@ type DefectsSvc = {
 
 type AccSvc = {
   init: () => Promise<boolean>;
+  list: (opts?: { includeDeleted?: boolean }) => ConstructionAcceptanceV2[];
   listForFloor: (locationId: string) => ConstructionAcceptanceV2[];
   get: (id: string) => ConstructionAcceptanceV2 | null;
   create: (input: {
@@ -61,7 +69,7 @@ type AccSvc = {
   softDelete: (id: string) => Promise<ConstructionAcceptanceV2>;
 };
 
-export type ConstructionV2Subview = 'plan' | 'defects' | 'acceptance' | 'transfer';
+export type ConstructionV2Subview = 'plan' | 'defects' | 'acceptance' | 'transfer' | 'metrics' | 'cabinet';
 
 function _loc(): LocSvc | null {
   return (window.RBI?.services?.locations as LocSvc) || null;
@@ -245,7 +253,7 @@ function _openViewDefect(id: string): void {
 }
 
 async function _afterDefectMutation(): Promise<void> {
-  if (_subview === 'defects') {
+  if (_subview === 'defects' || _subview === 'cabinet' || _subview === 'metrics') {
     await renderConstructionV2();
     return;
   }
@@ -418,9 +426,9 @@ async function _refreshOverlaysOnly(): Promise<void> {
   if (!_viewer || !_selectedFloorId) return;
   if (dSvc) await dSvc.init();
   if (aSvc) await aSvc.init();
-  const allDefects = dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
+  const allDefects = filterDefectsForRole(dSvc ? dSvc.listForFloor(_selectedFloorId) : []);
   const filtered = filterDefectsByPins(allDefects, pinFiltersState);
-  const zones = aSvc ? aSvc.listForFloor(_selectedFloorId) : [];
+  const zones = filterAcceptancesForRole(aSvc ? aSvc.listForFloor(_selectedFloorId) : []);
   paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
   _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
@@ -570,6 +578,51 @@ export async function renderConstructionV2(): Promise<void> {
     return;
   }
 
+  if (_subview === 'cabinet') {
+    _closePlanFullscreen();
+    teardownTransferUi();
+    _viewer?.destroy();
+    _viewer = null;
+    _mountedPdfUrl = null;
+    const dSvcCab = _defects();
+    const aSvcCab = _acc();
+    if (dSvcCab) await dSvcCab.init();
+    if (aSvcCab) await aSvcCab.init();
+    root.innerHTML = `<div id="c2-cabinet-host" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden min-h-[420px]"></div>`;
+    const host = document.getElementById('c2-cabinet-host');
+    if (!host) return;
+    const defects = dSvcCab?.list?.({ includeDeleted: false }) || [];
+    const acceptances = aSvcCab?.list?.({ includeDeleted: false }) || [];
+    renderContractorCabinet(host, {
+      defects,
+      acceptances,
+      cb: {
+        onOpenDefect: (id) => _openViewDefect(id),
+        onOpenAcceptance: (id) => {
+          const item = aSvcCab?.get(id);
+          if (!item || !aSvcCab) return;
+          openAcceptanceDetails(item, {
+            onFocusPlan: (rid) => focusAcceptanceOnPlan(rid),
+            onChangeStatus: async (rid, status) => {
+              await aSvcCab.changeStatus(rid, status);
+              window.showToast?.('✅ Статус обновлён');
+              await renderConstructionV2();
+            },
+            onSoftDelete: async (rid) => {
+              await aSvcCab.softDelete(rid);
+              window.showToast?.('Заявка отозвана');
+              await renderConstructionV2();
+            },
+            onChecklistChanged: async () => {
+              await renderConstructionV2();
+            }
+          });
+        }
+      }
+    });
+    return;
+  }
+
   if (_subview === 'transfer') {
     _closePlanFullscreen();
     _viewer?.destroy();
@@ -596,6 +649,25 @@ export async function renderConstructionV2(): Promise<void> {
   _viewer?.destroy();
   _viewer = null;
   _mountedPdfUrl = null;
+
+  if (_subview === 'metrics') {
+    root.innerHTML = `<div id="c2-metrics-host" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden min-h-[420px]"></div>`;
+    const host = document.getElementById('c2-metrics-host');
+    if (!host) return;
+    const scopedDefectsSvc = dSvc
+      ? {
+          list: (opts?: { includeDeleted?: boolean }) =>
+            filterDefectsForRole(dSvc.list(opts) || [])
+        }
+      : null;
+    renderMetricsView(host, {
+      loc: svc,
+      defectsSvc: scopedDefectsSvc,
+      selectedFloorId: _selectedFloorId,
+      cb: { onOpenDefect: (id) => _openViewDefect(id) }
+    });
+    return;
+  }
 
   if (_subview === 'defects') {
     root.innerHTML = `
@@ -788,7 +860,7 @@ export async function refreshConstructionV2Markers(): Promise<void> {
     if (root) await renderTransferBoard(root);
     return;
   }
-  if (_subview === 'defects') {
+  if (_subview === 'defects' || _subview === 'metrics') {
     await renderConstructionV2();
     return;
   }
