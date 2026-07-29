@@ -479,7 +479,9 @@ function _openPlanFullscreen(): void {
 
   const overlay = document.createElement('div');
   overlay.id = 'c2-plan-fs';
-  overlay.className = 'fixed inset-0 z-[92] flex flex-col bg-slate-900';
+  // Inline z-index: Tailwind CDN часто не генерирует z-[N]; .bottom-nav = 1000
+  overlay.className = 'fixed inset-0 flex flex-col bg-slate-900';
+  overlay.style.zIndex = '1100';
   const addCls = _addMode
     ? 'bg-indigo-600 text-white border-indigo-600'
     : 'bg-white/10 text-white border-white/30';

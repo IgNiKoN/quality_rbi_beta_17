@@ -78,7 +78,9 @@ export function openUnitCard(
 
   const wrap = document.createElement('div');
   wrap.id = 'c2-unit-card';
-  wrap.className = 'fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/40 p-3';
+  // Inline z-index: выше .bottom-nav (1000), ниже plan fullscreen (1100)
+  wrap.className = 'fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 p-3';
+  wrap.style.zIndex = '1050';
   wrap.innerHTML = `
     <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">

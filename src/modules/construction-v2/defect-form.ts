@@ -203,10 +203,15 @@ async function _savePhotoFiles(files: FileList | File[]): Promise<string[]> {
 
 function _ensureOverlay(): HTMLElement {
   let el = document.getElementById('c2-defect-modal');
-  if (el) return el;
+  if (el) {
+    el.style.zIndex = '1200';
+    return el;
+  }
   el = document.createElement('div');
   el.id = 'c2-defect-modal';
-  el.className = 'fixed inset-0 z-[600] hidden items-center justify-center bg-black/40 p-3';
+  // Inline z-index: выше plan fullscreen (1100); Tailwind CDN z-[N] ненадёжен
+  el.className = 'fixed inset-0 hidden items-center justify-center bg-black/40 p-3';
+  el.style.zIndex = '1200';
   el.innerHTML = `<div class="w-full max-w-md max-h-[92vh] overflow-y-auto bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl p-4" data-c2-defect-panel></div>`;
   document.body.appendChild(el);
   return el;

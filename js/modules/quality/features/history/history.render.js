@@ -9,8 +9,175 @@
  */
 
 import { HistoryState } from './history.state.js';
+import {
+    planPinOf,
+    formatPlanPinPlaceLabel,
+    assignFloorPointNumbers
+} from '../shared/plan-pin-label.js';
+import { openHistoryPlanViewer } from '../audit/features/quality-plan-pin.js';
 
 let _ctx = null;
+/** Cache floorId → Map(id→num) for one History render pass. */
+let _histFloorNumCache = new Map();
+
+function _locationsSvc() {
+    try {
+        return (window.RBI && window.RBI.services && window.RBI.services.locations) || null;
+    } catch (_e) {
+        return null;
+    }
+}
+
+function _clearHistFloorNumCache() {
+    _histFloorNumCache = new Map();
+}
+
+function _pointNoForItem(item) {
+    const pin = planPinOf(item);
+    if (!pin || pin.locationId == null) return null;
+    const fid = String(pin.locationId);
+    if (!_histFloorNumCache.has(fid)) {
+        _histFloorNumCache.set(fid, assignFloorPointNumbers(HistoryState.allRecords || [], fid));
+    }
+    return _histFloorNumCache.get(fid).get(String(item.id));
+}
+
+function _placeLabelForItem(item) {
+    const pin = planPinOf(item);
+    if (!pin || !Number.isFinite(Number(pin.x)) || !Number.isFinite(Number(pin.y))) {
+        return item && item.location ? String(item.location) : '';
+    }
+    return formatPlanPinPlaceLabel(item, {
+        pointNo: _pointNoForItem(item),
+        locations: _locationsSvc(),
+        inspections: HistoryState.allRecords || []
+    });
+}
+
+function _escHtml(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function _workTypePinItems(items) {
+    return (items || []).filter(function (item) {
+        const pin = planPinOf(item);
+        return !!(pin && pin.locationId != null
+            && Number.isFinite(Number(pin.x)) && Number.isFinite(Number(pin.y)));
+    });
+}
+
+function _workTypeCanShowPlan(items) {
+    const loc = _locationsSvc();
+    if (!loc || typeof loc.getPlanForFloor !== 'function') return false;
+    const pins = _workTypePinItems(items);
+    for (let i = 0; i < pins.length; i++) {
+        const pin = planPinOf(pins[i]);
+        const plan = loc.getPlanForFloor(pin.locationId);
+        if (plan && plan.pdf_url) return true;
+    }
+    return false;
+}
+
+function _showMiniFloorPicker(floors, onPick) {
+    const existing = document.getElementById('history-plan-floor-pick');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'history-plan-floor-pick';
+    overlay.className = 'fixed inset-0 z-[12000] bg-black/50 flex items-end sm:items-center justify-center p-3';
+    const rows = floors.map(function (f) {
+        return `<button type="button" data-hplan-floor="${_escAttr(f.id)}"
+            class="w-full text-left px-3 py-2.5 rounded-xl mb-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30
+                   text-[12px] font-bold text-slate-700 dark:text-slate-200 border border-transparent hover:border-indigo-100">
+            ${_escHtml(f.name || f.id)}
+        </button>`;
+    }).join('');
+    overlay.innerHTML = `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="text-sm font-bold text-slate-800 dark:text-slate-100">Выбор этажа</div>
+          <button type="button" data-hplan-cancel class="text-slate-400 hover:text-slate-700 text-xl leading-none px-2">×</button>
+        </div>
+        <div class="overflow-y-auto p-2 flex-1">${rows || '<div class="p-4 text-center text-[11px] text-slate-400">Нет этажей</div>'}</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = function () { overlay.remove(); };
+    overlay.querySelector('[data-hplan-cancel]').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelectorAll('[data-hplan-floor]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const id = btn.getAttribute('data-hplan-floor');
+            close();
+            if (id && typeof onPick === 'function') onPick(id);
+        });
+    });
+}
+
+function _openHistoryPlanForItems(items) {
+    const pinItems = _workTypePinItems(items);
+    if (!pinItems.length) {
+        if (typeof showToast === 'function') showToast('Нет точек на плане в этой группе');
+        return;
+    }
+    const loc = _locationsSvc();
+    const floorMap = new Map();
+    pinItems.forEach(function (item) {
+        const pin = planPinOf(item);
+        const fid = String(pin.locationId);
+        if (floorMap.has(fid)) return;
+        const plan = loc && loc.getPlanForFloor(fid);
+        if (!plan || !plan.pdf_url) return;
+        let name = fid;
+        try {
+            const node = loc.getNode(fid);
+            if (node && node.displayName) name = node.displayName;
+        } catch (_e) { /* ignore */ }
+        floorMap.set(fid, { id: fid, name: name });
+    });
+    const floors = [...floorMap.values()];
+    if (!floors.length) {
+        if (typeof showToast === 'function') showToast('⚠️ У этажей нет PDF-плана');
+        return;
+    }
+    const openFloor = function (floorId) {
+        openHistoryPlanViewer({ floorId: floorId, items: pinItems });
+    };
+    if (floors.length === 1) {
+        openFloor(floors[0].id);
+        return;
+    }
+    _showMiniFloorPicker(floors, openFloor);
+}
+
+let _histPlanDelegationBound = false;
+
+function _bindHistPlanDelegation() {
+    if (_histPlanDelegationBound) return;
+    _histPlanDelegationBound = true;
+    document.addEventListener('click', function (e) {
+        const btn = e.target && e.target.closest && e.target.closest('[data-hist-open-plan]');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const head = btn.closest('[data-hist-worktype-head]');
+        if (!head) return;
+        const body = head.nextElementSibling;
+        if (!body) return;
+        const ids = [...body.querySelectorAll('[data-hist-id]')].map(function (el) {
+            return el.getAttribute('data-hist-id');
+        }).filter(Boolean);
+        const idSet = new Set(ids.map(String));
+        const items = (HistoryState.allRecords || []).filter(function (it) {
+            return idSet.has(String(it.id));
+        });
+        _openHistoryPlanForItems(items);
+    }, true);
+}
+
+_bindHistPlanDelegation();
 
 function _getEtalonActs() {
     if (_ctx && _ctx.knowledge) {
@@ -48,7 +215,7 @@ function _templates() {
  * Сохраняет раскрытые аккордеоны Объект/Подрядчик до перерисовки списка.
  * Ключи — отображаемые имена (стабильнее index-based id hist-group-N).
  */
-// Сколько проверок у подрядчика показывать сразу (без «Показать еще»).
+// Сколько проверок у вида работ показывать сразу (без «Показать еще»).
 const HIST_CONTRACTOR_VISIBLE = 10;
 
 function _escAttr(s) {
@@ -71,15 +238,21 @@ function _contractorNameOf(item) {
     return (item && item.contractorName) || 'Не указан';
 }
 
+function _workTypeNameOf(item) {
+    return (item && item.templateTitle) || 'Неизвестный вид работ';
+}
+
 function _filterHistoryRecords(allRecords) {
     const fSearch = document.getElementById('hist-search-text')?.value.toLowerCase() || '';
     const fPeriod = document.getElementById('hist-filter-period')?.value || 'D30';
     const fPhoto = document.getElementById('hist-filter-photo')?.checked;
     const fB3 = document.getElementById('hist-filter-b3')?.checked;
+    const fPlan = document.getElementById('hist-filter-plan')?.checked;
     const _histMultiFilters = (window.activeMultiFilters && window.activeMultiFilters.history) || {};
     const fProj = _histMultiFilters.project || [];
     const fContr = _histMultiFilters.contractor || [];
     const fInsp = _histMultiFilters.inspector || [];
+    const fTmpl = _histMultiFilters.template || [];
 
     let filteredArr = allRecords || [];
     const now = new Date();
@@ -91,7 +264,8 @@ function _filterHistoryRecords(allRecords) {
                 (i.location && i.location.toLowerCase().includes(fSearch)) ||
                 (projectText && projectText.toLowerCase().includes(fSearch)) ||
                 (i.inspectorName && i.inspectorName.toLowerCase().includes(fSearch)) ||
-                (i.contractorName && i.contractorName.toLowerCase().includes(fSearch))
+                (i.contractorName && i.contractorName.toLowerCase().includes(fSearch)) ||
+                (i.templateTitle && i.templateTitle.toLowerCase().includes(fSearch))
             );
         });
     }
@@ -104,6 +278,9 @@ function _filterHistoryRecords(allRecords) {
     }
     if (fContr.length > 0) filteredArr = filteredArr.filter(i => fContr.includes(i.contractorName));
     if (fInsp.length > 0) filteredArr = filteredArr.filter(i => fInsp.includes(i.inspectorName));
+    if (fTmpl.length > 0) {
+        filteredArr = filteredArr.filter(i => fTmpl.includes(i.templateTitle || i.templateKey));
+    }
 
     if (fPeriod && fPeriod !== 'ALL') {
         const histDays = typeof window.getAnalyticsPeriodDays === 'function'
@@ -118,8 +295,236 @@ function _filterHistoryRecords(allRecords) {
 
     if (fPhoto) filteredArr = filteredArr.filter(i => i.photos && Object.keys(i.photos).length > 0);
     if (fB3) filteredArr = filteredArr.filter(i => i.metrics && i.metrics.n_B3_fail > 0);
+    if (fPlan) {
+        filteredArr = filteredArr.filter(function (i) {
+            const pin = planPinOf(i);
+            if (!pin) return false;
+            const x = Number(pin.x);
+            const y = Number(pin.y);
+            return Number.isFinite(x) && Number.isFinite(y) && pin.locationId != null;
+        });
+    }
 
     return filteredArr;
+}
+
+function _normLocName(s) {
+    return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Floors under building (building → sections → floors) — same as quality-plan-pin. */
+function _floorsUnderBuilding(loc, buildingId) {
+    const sections = loc.getChildren(buildingId) || [];
+    const floors = [];
+    for (let i = 0; i < sections.length; i++) {
+        const kids = loc.getChildren(sections[i].id) || [];
+        for (let j = 0; j < kids.length; j++) {
+            if (kids[j].nodeType === 'floor') floors.push(kids[j]);
+        }
+    }
+    return floors;
+}
+
+function _resolveLocationObject(loc, projectName) {
+    if (!loc || !projectName) return null;
+    if (typeof loc.resolveObjectLink === 'function') {
+        try {
+            const link = loc.resolveObjectLink({ displayName: projectName });
+            if (link && link.linked && link.locationObject) return link.locationObject;
+            if (link && link.locationObject) return link.locationObject;
+        } catch (_e) { /* fall through */ }
+    }
+    const objects = (typeof loc.listNodes === 'function'
+        ? loc.listNodes({ nodeType: 'object', parentId: null })
+        : []) || [];
+    const pn = _normLocName(projectName);
+    return objects.find(function (o) {
+        return _normLocName(o.displayName) === pn || _normLocName(o.canonical_key) === pn;
+    }) || null;
+}
+
+/** PDF floors for a location object: { id, name, buildingName }[] */
+function _pdfFloorsForObject(loc, objectNode) {
+    if (!loc || !objectNode) return [];
+    const buildings = (loc.getChildren(objectNode.id) || []).filter(function (n) {
+        return !n.nodeType || n.nodeType === 'building';
+    });
+    const rows = [];
+    buildings.forEach(function (b) {
+        _floorsUnderBuilding(loc, b.id).forEach(function (f) {
+            const plan = loc.getPlanForFloor(f.id);
+            if (!plan || !plan.pdf_url) return;
+            rows.push({
+                id: String(f.id),
+                name: f.displayName || f.id,
+                buildingName: b.displayName || '',
+                buildingsCount: buildings.length
+            });
+        });
+    });
+    return rows;
+}
+
+function _pinItemsOnFloor(filteredArr, floorId) {
+    const fid = String(floorId);
+    return (filteredArr || []).filter(function (item) {
+        const pin = planPinOf(item);
+        return !!(pin && String(pin.locationId) === fid
+            && Number.isFinite(Number(pin.x)) && Number.isFinite(Number(pin.y)));
+    });
+}
+
+function _floorRowLabel(row) {
+    if (row.buildingsCount > 1 && row.buildingName) {
+        return row.buildingName + ' · ' + row.name;
+    }
+    return row.name;
+}
+
+let _histPlansDelegationBound = false;
+/** floorId → filtered pin items for last plans render (open overlay). */
+let _histPlansFloorItems = new Map();
+
+function _bindHistPlansDelegation() {
+    if (_histPlansDelegationBound) return;
+    _histPlansDelegationBound = true;
+    document.addEventListener('click', function (e) {
+        const toggle = e.target && e.target.closest && e.target.closest('[data-hist-plans-toggle]');
+        if (toggle) {
+            const card = toggle.closest('[data-hist-plans-project]');
+            const body = card && card.querySelector('[data-hist-plans-project-body]');
+            const icon = toggle.querySelector('.chevron-icon');
+            if (!body) return;
+            e.preventDefault();
+            const open = body.classList.toggle('is-open');
+            if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+            return;
+        }
+        const btn = e.target && e.target.closest && e.target.closest('[data-hist-plans-floor]');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const floorId = btn.getAttribute('data-hist-plans-floor');
+        if (!floorId) return;
+        const items = _histPlansFloorItems.get(String(floorId)) || [];
+        openHistoryPlanViewer({ floorId: floorId, items: items });
+    }, true);
+}
+
+_bindHistPlansDelegation();
+
+function _renderHistoryPlansList(filteredArr) {
+    const listDiv = document.getElementById('history-plans-list');
+    if (!listDiv) return;
+
+    // Preserve open object accordions across filter re-render (как в Проверках).
+    const expandedProjects = new Set();
+    listDiv.querySelectorAll('[data-hist-plans-project]').forEach(function (card) {
+        const pName = card.getAttribute('data-hist-plans-project');
+        const body = card.querySelector('[data-hist-plans-project-body]');
+        if (pName && body && body.classList.contains('is-open')) expandedProjects.add(pName);
+    });
+
+    _histPlansFloorItems = new Map();
+
+    const loc = _locationsSvc();
+    if (!loc || typeof loc.getPlanForFloor !== 'function') {
+        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">Справочник локаций недоступен.</div>`;
+        return;
+    }
+
+    const projectNames = [];
+    const seenProj = new Set();
+    (filteredArr || []).forEach(function (item) {
+        const pName = _projectNameOf(item);
+        if (!seenProj.has(pName)) {
+            seenProj.add(pName);
+            projectNames.push(pName);
+        }
+    });
+    projectNames.sort(_histCollator().compare);
+
+    const blocks = [];
+    projectNames.forEach(function (pName) {
+        const obj = _resolveLocationObject(loc, pName);
+        if (!obj) return;
+        const floors = _pdfFloorsForObject(loc, obj);
+        if (!floors.length) return;
+
+        let totalPins = 0;
+        const floorRows = floors.map(function (row) {
+            const pinItems = _pinItemsOnFloor(filteredArr, row.id);
+            _histPlansFloorItems.set(String(row.id), pinItems);
+            const count = pinItems.length;
+            totalPins += count;
+            const countCls = count === 0
+                ? 'text-slate-400 dark:text-slate-500'
+                : 'text-indigo-600 dark:text-indigo-400';
+            const emptyHint = count === 0
+                ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">пусто</span>'
+                : '';
+            // Padding на родителе + без scale: иначе overflow .rbi-acc-inner обрезает border/shadow.
+            return `<button type="button" data-hist-plans-floor="${_escAttr(row.id)}"
+                class="w-full text-left flex items-center justify-between gap-2 px-3 py-2.5 mb-1.5 last:mb-0 rounded-xl box-border
+                       bg-white dark:bg-slate-800 border border-[var(--card-border)]
+                       hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20
+                       transition-colors">
+                <span class="min-w-0 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escHtml(_floorRowLabel(row))}</span>
+                <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(count === 1 ? 'точка' : (count > 1 && count < 5 ? 'точки' : 'точек'))}${emptyHint}</span>
+            </button>`;
+        }).join('');
+
+        const pEsc = _escAttr(pName);
+        const floorsLabel = floors.length === 1
+            ? '1 этаж'
+            : (floors.length > 1 && floors.length < 5 ? floors.length + ' этажа' : floors.length + ' этажей');
+        const pinsLabel = totalPins + ' на планах';
+
+        // Toggle via closest() — не getElementById: checks/plans оба в DOM, hist-group-N дублировались.
+        blocks.push(`
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-[14px] shadow-sm mb-2 overflow-hidden" data-hist-plans-project="${pEsc}">
+            <div class="flex justify-between items-center p-2.5 cursor-pointer hover:bg-[var(--hover-bg)] active:bg-[var(--hover-bg)] transition-colors select-none rounded-t-[14px]" data-hist-plans-toggle>
+                <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div class="w-8 h-8 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-[10px] flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-800">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${_escHtml(pName)}</div>
+                        <div class="text-[9px] font-bold text-slate-400 truncate mt-[1px]">${_escHtml(floorsLabel)}</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0 pl-1">
+                    <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${_escHtml(pinsLabel)}</span>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+            </div>
+            <div class="rbi-acc min-w-0" data-hist-plans-project-body>
+                <div class="rbi-acc-inner">
+                    <div class="border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2.5 min-w-0">
+                        ${floorRows}
+                    </div>
+                </div>
+            </div>
+        </div>`);
+    });
+
+    if (!blocks.length) {
+        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">Нет объектов с PDF-планами этажей по заданным фильтрам.</div>`;
+        return;
+    }
+    listDiv.innerHTML = blocks.join('');
+
+    // Restore previously open objects (default: collapsed).
+    if (expandedProjects.size > 0) {
+        listDiv.querySelectorAll('[data-hist-plans-project]').forEach(function (card) {
+            const pName = card.getAttribute('data-hist-plans-project');
+            if (!pName || !expandedProjects.has(pName)) return;
+            const body = card.querySelector('[data-hist-plans-project-body]');
+            const icon = card.querySelector('.chevron-icon');
+            if (body) body.classList.add('is-open');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        });
+    }
 }
 
 let _histGroupSeq = 0;
@@ -140,6 +545,9 @@ function _renderHistoryRowHtml(item) {
     const idAttr = _escAttr(item.id);
     const statusCls = (item.metrics && item.metrics.statusCls) || 'tag-blue';
     const finalPct = (item.metrics && item.metrics.final != null) ? item.metrics.final : '—';
+    const placeLabel = _placeLabelForItem(item);
+    const placeTitle = _escAttr(placeLabel);
+    const placeHtml = _escHtml(placeLabel);
 
     return `
                 <div class="flex items-center gap-1.5 mb-1.5 min-w-0 w-full max-w-full" data-hist-id="${idAttr}" data-hist-date="${ts}">
@@ -148,7 +556,7 @@ function _renderHistoryRowHtml(item) {
                         <div class="flex justify-between items-start gap-2 min-w-0">
                             <div class="min-w-0 flex-1 overflow-hidden">
                                 <div class="flex items-center gap-1 min-w-0">
-                                    <div class="text-[10px] font-bold text-slate-800 dark:text-white truncate leading-tight min-w-0 flex-1">${item.location || ''}${photoIcon ? ' ' + photoIcon : ''}</div>
+                                    <div class="text-[10px] font-bold text-slate-800 dark:text-white truncate leading-tight min-w-0 flex-1" title="${placeTitle}">${placeHtml}${photoIcon ? ' ' + photoIcon : ''}</div>
                                     <div class="shrink-0 self-center">${syncBadge}</div>
                                 </div>
                                 <div class="text-[8px] text-slate-400 truncate font-medium mt-0.5 min-w-0">${metaLine}</div>
@@ -162,17 +570,67 @@ function _renderHistoryRowHtml(item) {
                 </div>`;
 }
 
-function _renderContractorBlockHtml(safeGroupName, cName, cIndex, items) {
-    const safeContractorName = `${safeGroupName}-contr-${cIndex}`;
-    const contrAvgUrk = _avgFinalUrk(items);
-    const contrUrkHtml = (contrAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="Средний УрК по подрядчику">${contrAvgUrk}%</span>`
-        : `<span class="hidden" data-hist-urk-contr></span>`;
+function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
+    const safeWorkTypeName = `${safeContractorName}-wt-${tIndex}`;
+    const wtAvgUrk = _avgFinalUrk(items);
+    const wtUrkHtml = (wtAvgUrk !== null)
+        ? `<span class="status-tag ${_avgUrkStatusCls(wtAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-wt title="Средний УрК по виду работ">${wtAvgUrk}%</span>`
+        : `<span class="hidden" data-hist-urk-wt></span>`;
     const reversed = [...items].sort((a, b) => new Date(b.date) - new Date(a.date));
     const visibleItems = reversed.slice(0, HIST_CONTRACTOR_VISIBLE);
     const hiddenItems = reversed.slice(HIST_CONTRACTOR_VISIBLE);
+    const tEsc = _escAttr(tTitle);
+    const hiddenGroupId = `${safeWorkTypeName}-hidden`;
+    const planBtn = _workTypeCanShowPlan(items)
+        ? `<button type="button" data-hist-open-plan
+            class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
+                   bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
+                   px-2 py-1 rounded-md active:scale-95"
+            onclick="event.stopPropagation()">План</button>`
+        : '';
+
+    let html = `<div class="mb-1 mt-1 flex justify-between items-center gap-2 cursor-pointer select-none rounded-md px-1.5 py-1 hover:bg-[var(--hover-bg)] transition-colors" data-hist-worktype-head="${tEsc}" onclick="
+                    const body = document.getElementById('${safeWorkTypeName}');
+                    const icon = this.querySelector('.chevron-icon-wt');
+                    if (!body) return;
+                    const open = body.classList.toggle('is-open');
+                    if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+                ">
+                    <div class="text-[11px] font-bold text-indigo-600/80 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1 min-w-0">
+                        <svg class="w-2.5 h-2.5 text-indigo-400 transition-transform duration-300 chevron-icon-wt shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                        <span class="truncate normal-case tracking-normal">${tTitle}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        ${planBtn}
+                        ${wtUrkHtml}
+                        <span class="text-[8px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-wt>${items.length} шт</span>
+                    </div>
+                </div>`;
+    html += `<div id="${safeWorkTypeName}" class="rbi-acc min-w-0 pl-1" data-hist-worktype="${tEsc}"><div class="rbi-acc-inner">`;
+    html += visibleItems.map(_renderHistoryRowHtml).join('');
+    if (hiddenItems.length > 0) {
+        html += `<div id="${hiddenGroupId}" class="hidden" data-hist-hidden>${hiddenItems.map(_renderHistoryRowHtml).join('')}</div>`;
+        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">Показать еще проверки (${hiddenItems.length})</button>`;
+    }
+    html += `</div></div>`;
+    return html;
+}
+
+/** workTypesMap: { [templateTitle]: items[] } */
+function _renderContractorBlockHtml(safeGroupName, cName, cIndex, workTypesMap) {
+    const safeContractorName = `${safeGroupName}-contr-${cIndex}`;
+    const collator = _histCollator();
+    const wtNames = Object.keys(workTypesMap || {}).sort(collator.compare);
+    const allItems = [];
+    wtNames.forEach((t) => {
+        const arr = workTypesMap[t] || [];
+        for (let i = 0; i < arr.length; i++) allItems.push(arr[i]);
+    });
+    const contrAvgUrk = _avgFinalUrk(allItems);
+    const contrUrkHtml = (contrAvgUrk !== null)
+        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="Средний УрК по подрядчику">${contrAvgUrk}%</span>`
+        : `<span class="hidden" data-hist-urk-contr></span>`;
     const cEsc = _escAttr(cName);
-    const hiddenGroupId = `${safeGroupName}-hidden-${String(cName).replace(/\W/g, '')}`;
 
     let html = `<div class="mb-1.5 mt-1.5 flex justify-between items-center gap-2 cursor-pointer select-none rounded-lg px-1.5 py-1 hover:bg-[var(--hover-bg)] transition-colors" data-hist-contractor-head="${cEsc}" onclick="
                     const body = document.getElementById('${safeContractorName}');
@@ -187,15 +645,13 @@ function _renderContractorBlockHtml(safeGroupName, cName, cIndex, items) {
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         ${contrUrkHtml}
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${items.length} шт</span>
+                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${allItems.length} шт</span>
                     </div>
                 </div>`;
     html += `<div id="${safeContractorName}" class="rbi-acc min-w-0" data-hist-contractor="${cEsc}"><div class="rbi-acc-inner">`;
-    html += visibleItems.map(_renderHistoryRowHtml).join('');
-    if (hiddenItems.length > 0) {
-        html += `<div id="${hiddenGroupId}" class="hidden" data-hist-hidden>${hiddenItems.map(_renderHistoryRowHtml).join('')}</div>`;
-        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">Показать еще проверки (${hiddenItems.length})</button>`;
-    }
+    wtNames.forEach((tTitle, tIndex) => {
+        html += _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, workTypesMap[tTitle] || []);
+    });
     html += `</div></div>`;
     return html;
 }
@@ -206,8 +662,11 @@ function _renderProjectGroupHtml(pName, contractorsMap) {
     const contractorNames = Object.keys(contractorsMap).sort(collator.compare);
     const allObjectItems = [];
     contractorNames.forEach(cName => {
-        const arr = contractorsMap[cName];
-        for (let i = 0; i < arr.length; i++) allObjectItems.push(arr[i]);
+        const wtMap = contractorsMap[cName] || {};
+        Object.keys(wtMap).forEach((tTitle) => {
+            const arr = wtMap[tTitle] || [];
+            for (let i = 0; i < arr.length; i++) allObjectItems.push(arr[i]);
+        });
     });
     const totalChecksInGroup = allObjectItems.length;
     const objAvgUrk = _avgFinalUrk(allObjectItems);
@@ -292,7 +751,8 @@ function _histProjectListHost(pBody) {
 function _captureExpandedHistory(listDiv) {
     const projects = new Set();
     const contractors = new Set();
-    if (!listDiv) return { projects, contractors };
+    const workTypes = new Set();
+    if (!listDiv) return { projects, contractors, workTypes };
 
     listDiv.querySelectorAll('[data-hist-project]').forEach((card) => {
         const pName = card.getAttribute('data-hist-project');
@@ -302,10 +762,16 @@ function _captureExpandedHistory(listDiv) {
         pBody.querySelectorAll('[data-hist-contractor]').forEach((cBody) => {
             if (!_histAccIsOpen(cBody)) return;
             const cName = cBody.getAttribute('data-hist-contractor');
-            if (cName) contractors.add(pName + '\0' + cName);
+            if (!cName) return;
+            contractors.add(pName + '\0' + cName);
+            cBody.querySelectorAll('[data-hist-worktype]').forEach((wtBody) => {
+                if (!_histAccIsOpen(wtBody)) return;
+                const tTitle = wtBody.getAttribute('data-hist-worktype');
+                if (tTitle) workTypes.add(pName + '\0' + cName + '\0' + tTitle);
+            });
         });
     });
-    return { projects, contractors };
+    return { projects, contractors, workTypes };
 }
 
 function _restoreExpandedHistory(listDiv, expanded) {
@@ -328,6 +794,16 @@ function _restoreExpandedHistory(listDiv, expanded) {
             const head = cBody.previousElementSibling;
             const cIcon = head && head.querySelector('.chevron-icon-sm');
             if (cIcon) cIcon.style.transform = 'rotate(180deg)';
+
+            if (!expanded.workTypes) return;
+            cBody.querySelectorAll('[data-hist-worktype]').forEach((wtBody) => {
+                const tTitle = wtBody.getAttribute('data-hist-worktype');
+                if (!tTitle || !expanded.workTypes.has(pName + '\0' + cName + '\0' + tTitle)) return;
+                _histAccOpen(wtBody);
+                const wtHead = wtBody.previousElementSibling;
+                const wtIcon = wtHead && wtHead.querySelector('.chevron-icon-wt');
+                if (wtIcon) wtIcon.style.transform = 'rotate(180deg)';
+            });
         });
     });
 }
@@ -344,9 +820,15 @@ function _findHistContractorBody(card, cName) {
     return card.querySelector('[data-hist-contractor="' + esc + '"]');
 }
 
-function _enforceContractorVisibleLimit(cBody) {
-    if (!cBody) return;
-    const host = _histAccContentHost(cBody);
+function _findHistWorkTypeBody(cBody, tTitle) {
+    if (!cBody || !tTitle) return null;
+    const esc = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(tTitle) : tTitle.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return cBody.querySelector('[data-hist-worktype="' + esc + '"]');
+}
+
+function _enforceWorkTypeVisibleLimit(wtBody) {
+    if (!wtBody) return;
+    const host = _histAccContentHost(wtBody);
     if (!host) return;
     const rows = [...host.querySelectorAll('[data-hist-id]')];
     rows.sort((a, b) => (Number(b.getAttribute('data-hist-date')) || 0) - (Number(a.getAttribute('data-hist-date')) || 0));
@@ -365,7 +847,7 @@ function _enforceContractorVisibleLimit(cBody) {
         hiddenWrap = document.createElement('div');
         hiddenWrap.className = 'hidden';
         hiddenWrap.setAttribute('data-hist-hidden', '');
-        hiddenWrap.id = (cBody.id || 'hist') + '-hidden';
+        hiddenWrap.id = (wtBody.id || 'hist') + '-hidden';
         host.appendChild(hiddenWrap);
     }
     if (!showMoreBtn) {
@@ -422,6 +904,15 @@ function _updateProjectCardStats(card, pName, filteredArr) {
         const countContr = head && head.querySelector('[data-hist-count-contr]');
         if (countContr) countContr.textContent = items.length + ' шт';
         _patchUrkEl(head && head.querySelector('[data-hist-urk-contr]'), _avgFinalUrk(items), 'Средний УрК по подрядчику');
+
+        cBody.querySelectorAll('[data-hist-worktype]').forEach((wtBody) => {
+            const tTitle = wtBody.getAttribute('data-hist-worktype');
+            const wtItems = items.filter(i => _workTypeNameOf(i) === tTitle);
+            const wtHead = wtBody.previousElementSibling;
+            const countWt = wtHead && wtHead.querySelector('[data-hist-count-wt]');
+            if (countWt) countWt.textContent = wtItems.length + ' шт';
+            _patchUrkEl(wtHead && wtHead.querySelector('[data-hist-urk-wt]'), _avgFinalUrk(wtItems), 'Средний УрК по виду работ');
+        });
     });
 }
 
@@ -477,7 +968,7 @@ function _ensureContractorBlock(card, cName) {
     if (!listHost) return null;
     const safeGroupName = pBody.id || _nextHistGroupId();
     const cIndex = pBody.querySelectorAll('[data-hist-contractor]').length;
-    const blockHtml = _renderContractorBlockHtml(safeGroupName, cName, cIndex, []);
+    const blockHtml = _renderContractorBlockHtml(safeGroupName, cName, cIndex, {});
     const collator = _histCollator();
     const heads = [...listHost.querySelectorAll(':scope > [data-hist-contractor-head]')];
     let placed = false;
@@ -493,16 +984,40 @@ function _ensureContractorBlock(card, cName) {
     return _findHistContractorBody(card, cName);
 }
 
-function _insertRowIntoContractor(cBody, item) {
-    if (!cBody || !item || item.id == null) return false;
+function _ensureWorkTypeBlock(cBody, tTitle) {
+    let wtBody = _findHistWorkTypeBody(cBody, tTitle);
+    if (wtBody) return wtBody;
+
+    const host = _histAccContentHost(cBody);
+    if (!host) return null;
+    const safeContractorName = cBody.id || ('hist-contr-' + _nextHistGroupId());
+    const tIndex = cBody.querySelectorAll('[data-hist-worktype]').length;
+    const blockHtml = _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, []);
+    const collator = _histCollator();
+    const heads = [...host.querySelectorAll(':scope > [data-hist-worktype-head]')];
+    let placed = false;
+    for (let i = 0; i < heads.length; i++) {
+        const other = heads[i].getAttribute('data-hist-worktype-head') || '';
+        if (collator.compare(tTitle, other) < 0) {
+            heads[i].insertAdjacentHTML('beforebegin', blockHtml);
+            placed = true;
+            break;
+        }
+    }
+    if (!placed) host.insertAdjacentHTML('beforeend', blockHtml);
+    return _findHistWorkTypeBody(cBody, tTitle);
+}
+
+function _insertRowIntoWorkType(wtBody, item) {
+    if (!wtBody || !item || item.id == null) return false;
     const idStr = String(item.id);
-    if (cBody.querySelector('[data-hist-id="' + ((typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(idStr) : idStr.replace(/"/g, '\\"')) + '"]')) {
+    if (wtBody.querySelector('[data-hist-id="' + ((typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(idStr) : idStr.replace(/"/g, '\\"')) + '"]')) {
         return false;
     }
 
     const newTs = new Date(item.date).getTime() || 0;
     const rowHtml = _renderHistoryRowHtml(item);
-    const rows = [...cBody.querySelectorAll('[data-hist-id]')];
+    const rows = [...wtBody.querySelectorAll('[data-hist-id]')];
     let insertBefore = null;
     for (let i = 0; i < rows.length; i++) {
         const ts = Number(rows[i].getAttribute('data-hist-date')) || 0;
@@ -514,15 +1029,39 @@ function _insertRowIntoContractor(cBody, item) {
     if (insertBefore) {
         insertBefore.insertAdjacentHTML('beforebegin', rowHtml);
     } else {
-        const host = _histAccContentHost(cBody);
+        const host = _histAccContentHost(wtBody);
         const hiddenWrap = host && host.querySelector('[data-hist-hidden]');
         const showMoreBtn = host && host.querySelector('[data-hist-show-more]');
         if (hiddenWrap) hiddenWrap.insertAdjacentHTML('beforeend', rowHtml);
         else if (showMoreBtn) showMoreBtn.insertAdjacentHTML('beforebegin', rowHtml);
         else if (host) host.insertAdjacentHTML('beforeend', rowHtml);
     }
-    _enforceContractorVisibleLimit(cBody);
+    _enforceWorkTypeVisibleLimit(wtBody);
+    _ensureWorkTypePlanButton(wtBody);
     return true;
+}
+
+/** After incremental row insert — show «План» if pin+PDF now present. */
+function _ensureWorkTypePlanButton(wtBody) {
+    if (!wtBody) return;
+    const head = wtBody.previousElementSibling;
+    if (!head || !head.hasAttribute('data-hist-worktype-head')) return;
+    if (head.querySelector('[data-hist-open-plan]')) return;
+    const ids = [...wtBody.querySelectorAll('[data-hist-id]')].map(function (el) {
+        return el.getAttribute('data-hist-id');
+    }).filter(Boolean);
+    const idSet = new Set(ids.map(String));
+    const items = (HistoryState.allRecords || []).filter(function (it) {
+        return idSet.has(String(it.id));
+    });
+    if (!_workTypeCanShowPlan(items)) return;
+    const countEl = head.querySelector('[data-hist-count-wt]');
+    const btnHtml = `<button type="button" data-hist-open-plan
+            class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
+                   bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
+                   px-2 py-1 rounded-md active:scale-95"
+            onclick="event.stopPropagation()">План</button>`;
+    if (countEl) countEl.insertAdjacentHTML('beforebegin', btnHtml);
 }
 
 function _getDocumentaryScore(item) {
@@ -597,6 +1136,11 @@ export const HistoryRender = {
      *              hist-filter-photo, hist-filter-b3
      */
     render() {
+        if (window.currentHistoryViewMode === 'plans') {
+            HistoryRender.renderPlans();
+            return;
+        }
+
         const listDiv = document.getElementById('history-list');
         const emptyMsg = document.getElementById('hist-empty-msg');
         const countEl = document.getElementById('hist-count-total');
@@ -606,6 +1150,7 @@ export const HistoryRender = {
         // (sync dirty path, filters) — same idea as Tasks UI restore.
         const expanded = _captureExpandedHistory(listDiv);
         _histGroupSeq = 0;
+        _clearHistFloorNumCache();
 
         if (HistoryState.allRecords.length === 0) {
             listDiv.innerHTML = '';
@@ -624,14 +1169,16 @@ export const HistoryRender = {
             return;
         }
 
-        // Объект → Подрядчик (алфавит) → проверки по дате (новые сверху).
+        // Объект → Подрядчик → Вид работ → проверки по дате (новые сверху).
         const grouped = {};
         filteredArr.forEach(item => {
             const pName = _projectNameOf(item);
             const cName = _contractorNameOf(item);
+            const tTitle = _workTypeNameOf(item);
             if (!grouped[pName]) grouped[pName] = {};
-            if (!grouped[pName][cName]) grouped[pName][cName] = [];
-            grouped[pName][cName].push(item);
+            if (!grouped[pName][cName]) grouped[pName][cName] = {};
+            if (!grouped[pName][cName][tTitle]) grouped[pName][cName][tTitle] = [];
+            grouped[pName][cName][tTitle].push(item);
         });
 
         const groupKeys = Object.keys(grouped).sort(_histCollator().compare);
@@ -650,11 +1197,36 @@ export const HistoryRender = {
     },
 
     /**
+     * Режим «Планы»: объекты → этажи с PDF → RO-оверлей.
+     * Точки и счётчики — по `_filterHistoryRecords` (глобальные фильтры Истории).
+     */
+    renderPlans() {
+        const listDiv = document.getElementById('history-plans-list');
+        const countEl = document.getElementById('hist-count-total');
+        if (!listDiv) return;
+
+        const source = HistoryState.allRecords || [];
+        if (source.length === 0) {
+            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">История пуста.</div>`;
+            if (countEl) countEl.innerText = '0';
+            return;
+        }
+
+        const filteredArr = _filterHistoryRecords(source);
+        if (countEl) countEl.innerText = filteredArr.length;
+        _renderHistoryPlansList(filteredArr);
+    },
+
+    /**
      * Догрузка страницы без полной пересборки списка: вставляет только новые
      * строки/группы, сохраняет скролл, чекбоксы и раскрытые аккордеоны.
      * Fallback на render(), если DOM ещё без data-hist-* (пустой/фильтр-empty).
      */
     appendPage(newItems) {
+        if (window.currentHistoryViewMode === 'plans') {
+            HistoryRender.renderPlans();
+            return;
+        }
         const listDiv = document.getElementById('history-list');
         const countEl = document.getElementById('hist-count-total');
         const emptyMsg = document.getElementById('hist-empty-msg');
@@ -680,9 +1252,11 @@ export const HistoryRender = {
         incoming.forEach((item) => {
             const pName = _projectNameOf(item);
             const cName = _contractorNameOf(item);
+            const tTitle = _workTypeNameOf(item);
             if (!byProject[pName]) byProject[pName] = {};
-            if (!byProject[pName][cName]) byProject[pName][cName] = [];
-            byProject[pName][cName].push(item);
+            if (!byProject[pName][cName]) byProject[pName][cName] = {};
+            if (!byProject[pName][cName][tTitle]) byProject[pName][cName][tTitle] = [];
+            byProject[pName][cName][tTitle].push(item);
         });
 
         Object.keys(byProject).forEach((pName) => {
@@ -696,8 +1270,12 @@ export const HistoryRender = {
             Object.keys(byProject[pName]).forEach((cName) => {
                 const cBody = _ensureContractorBlock(card, cName);
                 if (!cBody) return;
-                byProject[pName][cName].forEach((item) => {
-                    _insertRowIntoContractor(cBody, item);
+                Object.keys(byProject[pName][cName]).forEach((tTitle) => {
+                    const wtBody = _ensureWorkTypeBlock(cBody, tTitle);
+                    if (!wtBody) return;
+                    byProject[pName][cName][tTitle].forEach((item) => {
+                        _insertRowIntoWorkType(wtBody, item);
+                    });
                 });
             });
             touchedProjects.add(pName);
@@ -752,6 +1330,8 @@ export const HistoryRender = {
 
         if (window.currentHistoryViewMode === 'reports') {
             if (typeof renderReportsList === 'function') renderReportsList();
+        } else if (window.currentHistoryViewMode === 'plans') {
+            HistoryRender.renderPlans();
         } else {
             HistoryRender.render();
         }
@@ -840,10 +1420,11 @@ export const HistoryRender = {
         }).join('');
 
         const modal = document.getElementById('modal-overlay');
+        const detailPlace = _placeLabelForItem(item);
         document.getElementById('modal-title').innerHTML = `
     <div class="flex justify-between items-center w-full">
         <button class="p-2 -ml-2 text-slate-400 hover:text-indigo-600 disabled:opacity-20 active:scale-90" ${newerId ? `onclick="showHistoryDetail('${newerId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg></button>
-        <div class="text-center truncate flex-1 px-2 text-lg dark:text-white">${item.location}</div>
+        <div class="text-center truncate flex-1 px-2 text-lg dark:text-white" title="${_escAttr(detailPlace)}">${_escHtml(detailPlace)}</div>
         <button class="p-2 -mr-2 text-slate-400 hover:text-indigo-600 disabled:opacity-20 active:scale-90" ${olderId ? `onclick="showHistoryDetail('${olderId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg></button>
     </div>`;
 

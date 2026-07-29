@@ -919,7 +919,7 @@ window.ConstDefectForm = {
                 // Если мы искали именно эту точку с Реестра - делаем её ОГРОМНОЙ и пульсирующей
                 if (highlightDefectId === d.id) {
                     return `
-                    <div class="absolute z-50 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto" style="left: ${d.x}%; top: ${d.y}%;">
+                    <div class="absolute z-50 pointer-events-auto" style="left: ${d.x}%; top: ${d.y}%; transform: translate(-50%, -50%);">
                         <!-- Эффект радара (синие расходящиеся круги) -->
                         <div class="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-75"></div>
                         <!-- Сама увеличенная кнопка с жирной синей рамкой -->
@@ -933,8 +933,10 @@ window.ConstDefectForm = {
 
                 return `
                 <div onclick="window.ConstDefectForm.openExisting('${d.id}')" 
-                     class="absolute w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-black cursor-pointer hover:scale-125 transition-transform z-20 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto ${bgColor} ${overdueClass}" 
-                     style="left: ${d.x}%; top: ${d.y}%;" 
+                     class="absolute w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-black z-20 pointer-events-auto ${bgColor} ${overdueClass}" 
+                     style="left: ${d.x}%; top: ${d.y}%; transform: translate(-50%, -50%); cursor: pointer; transition: transform 150ms ease;"
+                     onpointerenter="this.style.transform='translate(-50%,-50%) scale(1.15)'"
+                     onpointerleave="this.style.transform='translate(-50%,-50%)'"
                      title="${d.itemName} (${d.category})">
                     ${indexNum}
                 </div>`;
@@ -961,8 +963,10 @@ window.ConstDefectForm = {
                 const grad = `conic-gradient(from 0deg, #ef4444 0deg ${cRed}deg, #f97316 ${cRed}deg ${cOrange}deg, #3b82f6 ${cOrange}deg ${cBlue}deg, #22c55e ${cBlue}deg 360deg)`;
 
                 return `
-                <div class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center cursor-pointer z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform hover:scale-110"
-                     style="left: ${avgX}%; top: ${avgY}%; background: ${grad}; padding: 3px;"
+                <div class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center z-30 pointer-events-auto"
+                     style="left: ${avgX}%; top: ${avgY}%; background: ${grad}; padding: 3px; transform: translate(-50%, -50%); cursor: pointer; transition: transform 150ms ease;"
+                     onpointerenter="this.style.transform='translate(-50%,-50%) scale(1.15)'"
+                     onpointerleave="this.style.transform='translate(-50%,-50%)'"
                      onclick="showToast('Приблизьте чертеж, чтобы увидеть ${total} дефектов')" title="Скрыто дефектов: ${total}">
                     <div class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center text-[12px] font-black border border-slate-200">
                         ${total}

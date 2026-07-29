@@ -209,7 +209,9 @@ export async function openApartmentPlan(
 
   const wrap = document.createElement('div');
   wrap.id = 'c2-apartment-plan';
-  wrap.className = 'fixed inset-0 z-[95] flex flex-col bg-slate-100 dark:bg-slate-900';
+  // Inline z-index: выше .bottom-nav (1000); Tailwind CDN z-[N] ненадёжен
+  wrap.className = 'fixed inset-0 flex flex-col bg-slate-100 dark:bg-slate-900';
+  wrap.style.zIndex = '1100';
   wrap.innerHTML = `
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="flex items-center justify-between gap-2">

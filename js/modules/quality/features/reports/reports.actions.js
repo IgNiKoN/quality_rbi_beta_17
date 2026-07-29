@@ -10,6 +10,7 @@
 
 import { ReportsState } from './reports.state.js';
 import { buildMeetingProtocolHtml } from '../meetings/meetings.protocol.js';
+import { buildInspectionPlanSheetHtml } from '../shared/plan-pin-print.js';
 
 function _getSetting(key) {
     if (ReportsActions._ctx && ReportsActions._ctx.settings) return ReportsActions._ctx.settings.get(key);
@@ -9254,9 +9255,24 @@ export const ReportsActions = {
         if (skippedEtalon) showToast('ℹ️ Эталоны пропущены — печатайте их отдельно');
 
         const parts = [];
+        let planSheetToastShown = false;
+        const toastOnce = function (msg) {
+            if (planSheetToastShown) return;
+            planSheetToastShown = true;
+            if (typeof showToast === 'function') showToast(msg);
+        };
         for (let r = 0; r < records.length; r++) {
             if (r > 0) parts.push('<div class="pdf-page-break page-break-before"></div>');
             parts.push(await buildInspectionActHtml(records[r]));
+            try {
+                const sheetHtml = await buildInspectionPlanSheetHtml(records[r], all, { toastOnce: toastOnce });
+                if (sheetHtml) {
+                    parts.push('<div class="pdf-page-break page-break-before"></div>');
+                    parts.push(sheetHtml);
+                }
+            } catch (_sheetErr) {
+                toastOnce('⚠️ Лист плана пропущен — PDF недоступен');
+            }
         }
 
         const author = records[0].inspectorName || _getSetting('engineerName') || 'Инженер';

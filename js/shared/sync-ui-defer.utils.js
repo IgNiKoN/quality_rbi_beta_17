@@ -166,7 +166,7 @@
             return _viewNeedsFirstPaint(['schedule-container', 'sub-schedule'], /Нет данных/i);
         }
         if (tab === 'sub-history') {
-            return _viewNeedsFirstPaint(['history-list-container', 'sub-history'], /Нет записей|Нет данных/i);
+            return _viewNeedsFirstPaint(['history-list', 'sub-history'], /Нет записей|Нет данных/i);
         }
         if (tab === 'sub-reports' || tab === 'sub-data' || tab === 'sub-rating') {
             return _viewNeedsFirstPaint([tab], /Нет данных/i);
@@ -189,7 +189,14 @@
             // stale, иначе кнопка «закреплена», а данные остаются старыми.
             var filterStale = typeof window.analyticsFilterPaintIsStale === 'function'
                 && window.analyticsFilterPaintIsStale();
+            var dataStale = !!(window.AnalyticsRender
+                && typeof window.AnalyticsRender.sourceDataIsStale === 'function'
+                && window.AnalyticsRender.sourceDataIsStale());
             if (!_analyticsNeedsFlushPaint() && !filterStale) {
+                // A9: если source-signature не изменился — снимаем dirty,
+                // иначе следующий switchAnalyticsSubTab снова full-rebuild'ил.
+                // Если данные реально изменились — dirty остаётся до навигации.
+                if (!dataStale) flags.analytics = false;
                 return;
             }
             if (typeof window.renderCurrentAnalyticsTab === 'function') {
@@ -201,7 +208,9 @@
         }
 
         if (flags.history && isViewActive('history')) {
-            if (!_viewNeedsFirstPaint(['history-list-container', 'sub-history'], /Нет записей|Нет данных/i)) {
+            // A9: живой журнал не пересобираем; dirty остаётся → refresh при уходе/заходе.
+            // Host id — history-list (history-list-container в разметке нет).
+            if (!_viewNeedsFirstPaint(['history-list', 'sub-history'], /Нет записей|Нет данных/i)) {
                 return;
             }
             if (window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
@@ -219,6 +228,7 @@
         }
 
         if (flags.sk && isViewActive('sk')) {
+            // A9: живой ПК СК не пересобираем; dirty остаётся → refresh при повторном заходе.
             if (!_viewNeedsFirstPaint(['sk-main-container', 'sk-view-dashboard', 'sub-sk'], /Чтение базы|Нет данных/i)) {
                 return;
             }

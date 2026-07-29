@@ -157,10 +157,14 @@ async function _savePhotoFiles(files) {
 }
 function _ensureOverlay() {
   let el = document.getElementById("c2-defect-modal");
-  if (el) return el;
+  if (el) {
+    el.style.zIndex = "1200";
+    return el;
+  }
   el = document.createElement("div");
   el.id = "c2-defect-modal";
-  el.className = "fixed inset-0 z-[600] hidden items-center justify-center bg-black/40 p-3";
+  el.className = "fixed inset-0 hidden items-center justify-center bg-black/40 p-3";
+  el.style.zIndex = "1200";
   el.innerHTML = `<div class="w-full max-w-md max-h-[92vh] overflow-y-auto bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl p-4" data-c2-defect-panel></div>`;
   document.body.appendChild(el);
   return el;
@@ -801,6 +805,9 @@ function spiderPositions(centerX, centerY, count, radiusPct = 5) {
   }
   return pts;
 }
+const PZ_STEP = 0.2;
+const PZ_MIN = 0.4;
+const PZ_MAX = 8;
 function _pdfjs() {
   return window.pdfjsLib || null;
 }
@@ -840,6 +847,8 @@ class PlanViewer {
     this.pdfUrl = "";
     this.panzoom = null;
     this._onWheelBound = null;
+    this._onPointerBound = null;
+    this._lastPointerClient = null;
     this._lastMarkers = [];
     this._lastClusterThreshold = 2.5;
     this._expandedClusterKey = null;
@@ -897,16 +906,31 @@ class PlanViewer {
   }
   setScale(scale) {
     if (!this.panzoom) return;
-    const s = Math.min(8, Math.max(0.4, Number(scale) || 1));
-    this.panzoom.zoom(s, { animate: true });
+    const s = Math.min(PZ_MAX, Math.max(PZ_MIN, Number(scale) || 1));
+    this.panzoom.zoomToPoint(s, this._getZoomPoint());
   }
   zoomIn() {
-    var _a;
-    (_a = this.panzoom) == null ? void 0 : _a.zoomIn({ animate: true });
+    if (!this.panzoom) return;
+    const next = Math.min(PZ_MAX, this.panzoom.getScale() * Math.exp(PZ_STEP));
+    this.panzoom.zoomToPoint(next, this._getZoomPoint());
   }
   zoomOut() {
-    var _a;
-    (_a = this.panzoom) == null ? void 0 : _a.zoomOut({ animate: true });
+    if (!this.panzoom) return;
+    const next = Math.max(PZ_MIN, this.panzoom.getScale() * Math.exp(-PZ_STEP));
+    this.panzoom.zoomToPoint(next, this._getZoomPoint());
+  }
+  /**
+   * Точка zoom в client coords: последний pointer над wrap, иначе центр viewport.
+   * Важно: Panzoom.zoom({focal}) ждёт уже сконвертированные coords;
+   * clientX/Y передаём через zoomToPoint (как zoomWithWheel).
+   */
+  _getZoomPoint() {
+    if (this._lastPointerClient) {
+      return { clientX: this._lastPointerClient.x, clientY: this._lastPointerClient.y };
+    }
+    if (!this.wrap) return { clientX: 0, clientY: 0 };
+    const r = this.wrap.getBoundingClientRect();
+    return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
   }
   /** Сброс масштаба/пана к стартовому fit. */
   fit() {
@@ -1026,15 +1050,32 @@ class PlanViewer {
           parts.push(`<button type="button" data-c2-cluster-collapse="${_escapeAttr(key)}"
             class="absolute w-5 h-5 rounded-full bg-slate-800/80 text-white text-[8px] font-black
                    border border-white shadow z-25 flex items-center justify-center
-                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-            style="left:${item.x}%;top:${item.y}%;" title="Свернуть">×</button>`);
+                   pointer-events-auto panzoom-exclude"
+            style="left:${item.x}%;top:${item.y}%;transform:translate(-50%,-50%);transition:transform 150ms ease"
+            title="Свернуть">×</button>`);
         } else {
           parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
         }
       }
     }
     this.pins.innerHTML = parts.join("");
+    this._bindPinHoverScale();
     this._applyHighlight();
+  }
+  /** Grow pin on hover without losing centering (inline transform beats style.css lift). */
+  _bindPinHoverScale() {
+    if (!this.pins) return;
+    const rest = "translate(-50%,-50%)";
+    const hover = "translate(-50%,-50%) scale(1.15)";
+    this.pins.querySelectorAll("[data-c2-pin], [data-c2-cluster], [data-c2-cluster-collapse]").forEach((node) => {
+      const el = node;
+      el.addEventListener("pointerenter", () => {
+        el.style.transform = hover;
+      });
+      el.addEventListener("pointerleave", () => {
+        el.style.transform = rest;
+      });
+    });
   }
   _singlePinHtml(d, num, x, y) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
@@ -1043,9 +1084,8 @@ class PlanViewer {
     return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
       class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
              flex items-center justify-center text-white text-[10px] font-black
-             cursor-pointer hover:scale-125 transition-transform z-20
-             transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-      style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
+             z-20 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="${title}">${num}</button>`;
   }
   _clusterBubbleHtml(x, y, defects, key) {
     const total = defects.length;
@@ -1069,9 +1109,8 @@ class PlanViewer {
     const ids = defects.map((d) => d.id).join(",");
     return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
       class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
-             cursor-pointer z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto
-             panzoom-exclude transition-transform hover:scale-110"
-      style="left:${x}%;top:${y}%;background:${grad};padding:3px;" title="Замечаний: ${total}">
+             z-30 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="Замечаний: ${total}">
       <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
                    text-[11px] font-black border border-slate-200">${total}</span>
     </button>`;
@@ -1113,8 +1152,8 @@ class PlanViewer {
       `<div id="c2-temp-pin"
         class="absolute w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg
                flex items-center justify-center text-white text-[10px] font-black z-30
-               transform -translate-x-1/2 -translate-y-1/2 animate-bounce pointer-events-none"
-        style="left:${xPercent}%;top:${yPercent}%;">+</div>`
+               animate-bounce pointer-events-none"
+        style="left:${xPercent}%;top:${yPercent}%;transform:translate(-50%,-50%)">+</div>`
     );
   }
   clearTempPin() {
@@ -1141,9 +1180,9 @@ class PlanViewer {
     const factory = _panzoomFactory();
     if (!factory || !this.stage || !this.wrap) return;
     this.panzoom = factory(this.stage, {
-      maxScale: 8,
-      minScale: 0.4,
-      step: 0.2,
+      maxScale: PZ_MAX,
+      minScale: PZ_MIN,
+      step: PZ_STEP,
       cursor: "grab",
       excludeClass: "panzoom-exclude"
     });
@@ -1153,12 +1192,24 @@ class PlanViewer {
       this.panzoom.zoomWithWheel(e);
     };
     this.wrap.addEventListener("wheel", this._onWheelBound, { passive: false });
+    this._lastPointerClient = null;
+    this._onPointerBound = (e) => {
+      this._lastPointerClient = { x: e.clientX, y: e.clientY };
+    };
+    this.wrap.addEventListener("pointermove", this._onPointerBound);
+    this.wrap.addEventListener("mousemove", this._onPointerBound);
   }
   _destroyPanzoom() {
     if (this.wrap && this._onWheelBound) {
       this.wrap.removeEventListener("wheel", this._onWheelBound);
     }
     this._onWheelBound = null;
+    if (this.wrap && this._onPointerBound) {
+      this.wrap.removeEventListener("pointermove", this._onPointerBound);
+      this.wrap.removeEventListener("mousemove", this._onPointerBound);
+    }
+    this._onPointerBound = null;
+    this._lastPointerClient = null;
     if (this.panzoom) {
       try {
         this.panzoom.destroy();
@@ -1196,7 +1247,11 @@ class PlanViewer {
       this.panzoom.pan(pan.x + dx / s, pan.y + dy / s, { animate: true });
     };
     if (this.panzoom.getScale() < 1.2) {
-      this.panzoom.zoom(1.5, { animate: true });
+      const wr = this.wrap.getBoundingClientRect();
+      this.panzoom.zoomToPoint(1.5, {
+        clientX: wr.left + wr.width / 2,
+        clientY: wr.top + wr.height / 2
+      });
       setTimeout(run, 220);
     } else {
       requestAnimationFrame(run);
@@ -1264,8 +1319,8 @@ class PlanViewer {
           "beforeend",
           `<div id="c2-temp-zone-dot"
             class="absolute w-3 h-3 bg-indigo-600 rounded-full border-2 border-white z-30
-                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            style="left:${xPercent}%;top:${yPercent}%;"></div>`
+                   pointer-events-none"
+            style="left:${xPercent}%;top:${yPercent}%;transform:translate(-50%,-50%)"></div>`
         );
         return;
       }
@@ -1554,7 +1609,8 @@ async function openApartmentPlan(unit, cb) {
   const path = _pathLabel$2(apartmentId);
   const wrap = document.createElement("div");
   wrap.id = "c2-apartment-plan";
-  wrap.className = "fixed inset-0 z-[95] flex flex-col bg-slate-100 dark:bg-slate-900";
+  wrap.className = "fixed inset-0 flex flex-col bg-slate-100 dark:bg-slate-900";
+  wrap.style.zIndex = "1100";
   wrap.innerHTML = `
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="flex items-center justify-between gap-2">
@@ -2910,7 +2966,8 @@ function openUnitCard(unit, deps) {
   ).join("");
   const wrap = document.createElement("div");
   wrap.id = "c2-unit-card";
-  wrap.className = "fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/40 p-3";
+  wrap.className = "fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 p-3";
+  wrap.style.zIndex = "1050";
   wrap.innerHTML = `
     <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
@@ -4520,7 +4577,8 @@ function _openPlanFullscreen() {
   parent.insertBefore(_fsPlaceholder, host);
   const overlay = document.createElement("div");
   overlay.id = "c2-plan-fs";
-  overlay.className = "fixed inset-0 z-[92] flex flex-col bg-slate-900";
+  overlay.className = "fixed inset-0 flex flex-col bg-slate-900";
+  overlay.style.zIndex = "1100";
   const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-white/10 text-white border-white/30";
   const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-white/10 text-white border-white/30";
   overlay.innerHTML = `

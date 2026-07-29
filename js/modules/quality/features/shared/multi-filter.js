@@ -76,13 +76,13 @@ function getActiveMultiFilters() {
     let af = window.activeMultiFilters;
     if (!af || typeof af !== 'object') {
         af = {
-            history: { project: [], contractor: [], inspector: [] },
+            history: { project: [], contractor: [], inspector: [], template: [] },
             analytics: { project: [], contractor: [], inspector: [], template: [] }
         };
         window.activeMultiFilters = af;
     }
     if (!af.history || typeof af.history !== 'object') {
-        af.history = { project: [], contractor: [], inspector: [] };
+        af.history = { project: [], contractor: [], inspector: [], template: [] };
     }
     if (!af.analytics || typeof af.analytics !== 'object') {
         af.analytics = { project: [], contractor: [], inspector: [], template: [] };
@@ -91,6 +91,7 @@ function getActiveMultiFilters() {
         if (!Array.isArray(af.history[k])) af.history[k] = [];
         if (!Array.isArray(af.analytics[k])) af.analytics[k] = [];
     });
+    if (!Array.isArray(af.history.template)) af.history.template = [];
     if (!Array.isArray(af.analytics.template)) af.analytics.template = [];
     return af;
 }
@@ -158,7 +159,12 @@ window.ensureSingleAssignedProjectFilter = ensureSingleAssignedProjectFilter;
 window.getSingleAssignedProjectDisplayName = _singleAssignedProjectDisplayName;
 
 const MULTI_FILTER_BTN_IDS = {
-    history: { project: 'btn-hist-project', contractor: 'btn-hist-contractor', inspector: 'btn-hist-inspector' },
+    history: {
+        project: 'btn-hist-project',
+        contractor: 'btn-hist-contractor',
+        inspector: 'btn-hist-inspector',
+        template: 'btn-hist-template'
+    },
     analytics: {
         project: 'btn-ana-project',
         contractor: 'btn-ana-contractor',
@@ -302,6 +308,13 @@ function openMultiFilterModal(type, title, context) {
         filteredSk = filteredSk.filter(r => fInsp.includes(r.issued_by) || fInsp.includes(r.inspector));
     }
 
+    // Если открыт НЕ фильтр Видов работ, но Вид работ уже выбран — сужаем базу
+    if (type !== 'template' && activeMultiFilters[context].template && activeMultiFilters[context].template.length > 0) {
+        const fTmpl = activeMultiFilters[context].template;
+        filteredRbi = filteredRbi.filter(i => fTmpl.includes(i.templateTitle || i.templateKey));
+        filteredSk = filteredSk.filter(r => fTmpl.includes(r.category));
+    }
+
     // 5. СОБИРАЕМ ДАННЫЕ ИЗ УЖЕ ОТФИЛЬТРОВАННОЙ БАЗЫ
     if (type === 'project') {
         const rbiProjs = filteredRbi.map(i => i.project_display_name || i.projectName || i.project_canonical_key);
@@ -334,9 +347,14 @@ function openMultiFilterModal(type, title, context) {
         uniqueValues = [...new Set(rbiEngs.filter(name => name && name !== 'Система' && name !== 'Системная'))].sort();
     }
     else if (type === 'template') {
+        // История: только RBI templateTitle (не список СК). Analytics — RBI + SK category.
         const rbiTmpls = filteredRbi.map(i => i.templateTitle);
-        const skTmpls = filteredSk.map(r => r.category && r.category !== 'Без категории' ? r.category : null);
-        uniqueValues = [...new Set([...rbiTmpls, ...skTmpls].filter(Boolean))].sort();
+        if (context === 'history') {
+            uniqueValues = [...new Set(rbiTmpls.filter(Boolean))].sort();
+        } else {
+            const skTmpls = filteredSk.map(r => r.category && r.category !== 'Без категории' ? r.category : null);
+            uniqueValues = [...new Set([...rbiTmpls, ...skTmpls].filter(Boolean))].sort();
+        }
     }
 
     const currentSelected = activeMultiFilters[context][type] || [];
@@ -518,6 +536,7 @@ function updateFilterButtonLabels() {
     const activeMultiFilters = getActiveMultiFilters();
     updateBtn('btn-hist-project', activeMultiFilters.history.project, 'Все объекты');
     updateBtn('btn-hist-contractor', activeMultiFilters.history.contractor, 'Все подрядчики');
+    updateBtn('btn-hist-template', activeMultiFilters.history.template, 'Все виды работ');
     updateBtn('btn-hist-inspector', activeMultiFilters.history.inspector, 'Все инспекторы');
 
     updateBtn('btn-ana-project', activeMultiFilters.analytics.project, 'Все объекты');

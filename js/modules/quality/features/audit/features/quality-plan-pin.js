@@ -4,6 +4,8 @@
  * Паттерн координат % — как construction-v2 PlanViewer, без cross-import.
  */
 
+import { collectFloorPinMarkers } from '../../shared/plan-pin-label.js';
+
 let _mounted = false;
 
 function _locations() {
@@ -274,7 +276,65 @@ export function clearPin() {
 
 function _removeOverlay() {
   const existing = document.getElementById('quality-plan-pin-overlay');
-  if (existing) existing.remove();
+  if (existing) {
+    try {
+      const wrap = existing.querySelector('[data-qpin-wrap]');
+      if (wrap && existing._qpinOnWheel) {
+        wrap.removeEventListener('wheel', existing._qpinOnWheel);
+      }
+    } catch (_e0) { /* ignore */ }
+    try {
+      const pz = existing._qpinPanzoom;
+      if (pz && typeof pz.destroy === 'function') pz.destroy();
+    } catch (_e) { /* ignore */ }
+    existing._qpinPanzoom = null;
+    existing._qpinOnWheel = null;
+    existing.remove();
+  }
+}
+
+const _PIN_PALETTE = [
+  '#4f46e5', '#059669', '#d97706', '#dc2626',
+  '#0891b2', '#7c3aed', '#db2777', '#65a30d'
+];
+
+function _hashKey(s) {
+  let h = 0;
+  const str = String(s || '');
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function _colorForTemplate(templateKey) {
+  return _PIN_PALETTE[_hashKey(templateKey) % _PIN_PALETTE.length];
+}
+
+function _templateLabel(templateKey) {
+  const key = String(templateKey || '');
+  try {
+    const sys = typeof window.SYSTEM_TEMPLATES !== 'undefined' ? window.SYSTEM_TEMPLATES : null;
+    if (sys && sys[key] && sys[key].title) return String(sys[key].title);
+  } catch (_e) { /* ignore */ }
+  try {
+    const ut = window.userTemplates;
+    if (ut && ut[key] && ut[key].title) return String(ut[key].title);
+  } catch (_e2) { /* ignore */ }
+  return key || 'Вид работ';
+}
+
+function _getAllInspections() {
+  try {
+    if (window.RBI && window.RBI.services && window.RBI.services.inspections
+      && typeof window.RBI.services.inspections.getAllSync === 'function') {
+      return window.RBI.services.inspections.getAllSync() || [];
+    }
+  } catch (_e) { /* fall through */ }
+  return Array.isArray(window.contractorArray) ? window.contractorArray : [];
+}
+
+/** Stable numbered history pins for floor — shared helper (нумерация A). */
+function _collectFloorPins(floorId) {
+  return collectFloorPinMarkers(_getAllInspections(), floorId, _templateLabel);
 }
 
 function _showPicker(onPickFloor) {
@@ -372,7 +432,11 @@ function _showPicker(onPickFloor) {
   }
 }
 
-async function _openPlanViewer(floorId) {
+async function _openPlanViewer(floorId, viewerOpts) {
+  viewerOpts = viewerOpts || {};
+  const readOnly = !!viewerOpts.readOnly;
+  const filterItems = Array.isArray(viewerOpts.items) ? viewerOpts.items : null;
+
   const loc = _locations();
   if (!loc) {
     _toast('⚠️ Справочник локаций недоступен');
@@ -390,36 +454,130 @@ async function _openPlanViewer(floorId) {
   }
 
   _removeOverlay();
-  const existingPin = _getPin();
+  const existingPin = readOnly ? null : _getPin();
   let tempX = existingPin && String(existingPin.locationId) === String(floorId) ? Number(existingPin.x) : null;
   let tempY = existingPin && String(existingPin.locationId) === String(floorId) ? Number(existingPin.y) : null;
+
+  // Numbers from full floor set; visible set may be filter intersection (History).
+  const allFloorPins = _collectFloorPins(floorId);
+  let historyPins = allFloorPins;
+  if (filterItems) {
+    const idSet = new Set(filterItems.map(function (it) { return String(it.id); }));
+    historyPins = allFloorPins.filter(function (p) { return idSet.has(String(p.id)); });
+  }
+  // Enrich contractor for RO chips (markers from shared helper lack contractorName).
+  const contractorLookup = new Map();
+  (filterItems || _getAllInspections()).forEach(function (it) {
+    if (it && it.id != null) {
+      contractorLookup.set(String(it.id), it.contractorName || 'Не указан');
+    }
+  });
+  historyPins = historyPins.map(function (p) {
+    return Object.assign({}, p, {
+      contractorName: contractorLookup.get(String(p.id)) || 'Не указан'
+    });
+  });
+  const allKeys = [];
+  const seenKeys = new Set();
+  historyPins.forEach(function (p) {
+    if (!seenKeys.has(p.templateKey)) {
+      seenKeys.add(p.templateKey);
+      allKeys.push(p.templateKey);
+    }
+  });
+  const visibleKeys = new Set(allKeys);
+  const allContractors = [];
+  const seenContractors = new Set();
+  if (readOnly) {
+    historyPins.forEach(function (p) {
+      const c = p.contractorName || 'Не указан';
+      if (!seenContractors.has(c)) {
+        seenContractors.add(c);
+        allContractors.push(c);
+      }
+    });
+  }
+  const visibleContractors = new Set(allContractors);
+  let panzoom = null;
+  let lastPointer = null;
+  let pointerDown = null;
+  const PZ_MIN = 0.4;
+  const PZ_MAX = 8;
+  const PZ_STEP = 0.2;
+
+  const chipsHtml = allKeys.length
+    ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips>
+        ${readOnly ? '<span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5">Вид</span>' : ''}
+        <button type="button" data-qpin-chip="__all__"
+          class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+                 bg-indigo-500 text-white border border-indigo-400">Все</button>
+        ${allKeys.map(function (k) {
+          const col = _colorForTemplate(k);
+          return `<button type="button" data-qpin-chip="${_escape(k)}"
+            class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+                   text-white border border-white/30"
+            style="background:${col}" title="${_escape(_templateLabel(k))}">${_escape(_templateLabel(k))}</button>`;
+        }).join('')}
+      </div>`
+    : '';
+
+  const contractorChipsHtml = (readOnly && allContractors.length)
+    ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips-contractor>
+        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5">Подр.</span>
+        <button type="button" data-qpin-cchip="__all__"
+          class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+                 bg-indigo-500 text-white border border-indigo-400">Все</button>
+        ${allContractors.map(function (c) {
+          return `<button type="button" data-qpin-cchip="${_escape(c)}"
+            class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+                   text-white border border-white/30 bg-slate-600"
+            title="${_escape(c)}">${_escape(c)}</button>`;
+        }).join('')}
+      </div>`
+    : '';
+
+  const titleText = readOnly ? 'План этажа (история)' : 'Точка на плане этажа';
+  const footerText = readOnly
+    ? 'Нажмите на точку, чтобы открыть проверку · pinch / ± для масштаба'
+    : 'Нажмите на план, чтобы поставить точку · pinch / ± для масштаба';
+  const confirmHtml = readOnly
+    ? ''
+    : `<button type="button" data-qpin-confirm
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
+          ${tempX == null ? 'disabled' : ''}>Подтвердить</button>`;
 
   const overlay = document.createElement('div');
   overlay.id = 'quality-plan-pin-overlay';
   overlay.className = 'fixed inset-0 z-[12000] bg-slate-900 flex flex-col';
   overlay.innerHTML = `
-    <div class="flex items-center justify-between px-3 py-2 bg-slate-950/90 text-white shrink-0">
-      <div class="text-[11px] font-black uppercase tracking-widest">Точка на плане этажа</div>
-      <div class="flex gap-2">
-        <button type="button" data-qpin-confirm
-          class="px-3 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
-          ${tempX == null ? 'disabled' : ''}>Подтвердить</button>
+    <div class="flex items-center justify-between px-3 py-2 bg-slate-950/90 text-white shrink-0 gap-2">
+      <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate">${_escape(titleText)}</div>
+      <div class="flex gap-1.5 items-center shrink-0">
+        <button type="button" data-qpin-other-floor
+          class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">Другой этаж</button>
+        <button type="button" data-qpin-zoom-out
+          class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">−</button>
+        <button type="button" data-qpin-zoom-in
+          class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">+</button>
+        ${confirmHtml}
         <button type="button" data-qpin-cancel
-          class="px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">Отмена</button>
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${readOnly ? 'Закрыть' : 'Отмена'}</button>
       </div>
     </div>
+    ${chipsHtml}
+    ${contractorChipsHtml}
     <div class="relative flex-1 min-h-0" data-qpin-host>
-      <div class="absolute inset-0 overflow-auto bg-slate-800" data-qpin-wrap>
-        <div class="relative mx-auto my-2 shadow-lg bg-white" data-qpin-stage style="width:fit-content">
+      <div class="absolute inset-0 overflow-hidden bg-slate-800 flex items-center justify-center" data-qpin-wrap>
+        <div class="relative shadow-lg bg-white" data-qpin-stage style="width:fit-content;transform-origin:0 0">
           <canvas data-qpin-canvas class="block max-w-none"></canvas>
-          <div data-qpin-pins class="absolute inset-0 pointer-events-none"></div>
+          <div data-qpin-pins class="absolute inset-0"></div>
         </div>
       </div>
       <div data-qpin-loader class="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-[11px] font-bold uppercase tracking-widest text-slate-300">
         Загрузка плана…
       </div>
     </div>
-    <div class="px-3 py-2 text-[10px] text-slate-300 bg-slate-950/80 shrink-0">Нажмите на план, чтобы поставить точку</div>`;
+    <div class="px-3 py-2 text-[10px] text-slate-300 bg-slate-950/80 shrink-0">${_escape(footerText)}</div>`;
   document.body.appendChild(overlay);
 
   const host = overlay.querySelector('[data-qpin-host]');
@@ -433,28 +591,251 @@ async function _openPlanViewer(floorId) {
   const close = function () { _removeOverlay(); };
   overlay.querySelector('[data-qpin-cancel]').addEventListener('click', close);
 
-  const drawTemp = function () {
-    if (!pins) return;
-    pins.innerHTML = '';
-    if (tempX == null || tempY == null) return;
-    pins.innerHTML = `<div class="absolute w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg
-      flex items-center justify-center text-white text-[10px] font-black z-30
-      transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-      style="left:${tempX}%;top:${tempY}%;">+</div>`;
-  };
-
-  confirmBtn.addEventListener('click', function () {
-    if (tempX == null || tempY == null) return;
-    applyPinToForm({ x: tempX, y: tempY }, floorId);
-    document.dispatchEvent(new CustomEvent('quality:planPin:changed', {
-      detail: { planPin: _getPin() }
-    }));
-    _toast('✅ Точка на плане сохранена');
+  overlay.querySelector('[data-qpin-other-floor]').addEventListener('click', function (e) {
+    e.stopPropagation();
     close();
+    if (readOnly) {
+      _showPicker(function (fid) {
+        _openPlanViewer(fid, { readOnly: true, items: filterItems });
+      });
+    } else {
+      _showPicker(function (fid) {
+        _openPlanViewer(fid);
+      });
+    }
   });
 
-  wrap.classList.add('cursor-crosshair');
+  function _currentScale() {
+    return (panzoom && typeof panzoom.getScale === 'function') ? (panzoom.getScale() || 1) : 1;
+  }
+
+  function _renderPins(opts) {
+    opts = opts || {};
+    const scale = opts.scale != null ? opts.scale : _currentScale();
+    if (!pins) return;
+    const visible = historyPins.filter(function (p) {
+      if (!visibleKeys.has(p.templateKey)) return false;
+      if (readOnly && allContractors.length) {
+        return visibleContractors.has(p.contractorName || 'Не указан');
+      }
+      return true;
+    });
+    const threshold = 4 / Math.max(scale, 0.01);
+    const unclustered = visible.slice();
+    const clusters = [];
+    while (unclustered.length > 0) {
+      const base = unclustered.shift();
+      const current = [base];
+      let i = 0;
+      while (i < unclustered.length) {
+        const p = unclustered[i];
+        const dist = Math.hypot(base.x - p.x, base.y - p.y);
+        if (dist < threshold) {
+          current.push(p);
+          unclustered.splice(i, 1);
+        } else {
+          i++;
+        }
+      }
+      clusters.push(current);
+    }
+
+    /* Avoid class cursor-pointer: style.css .cursor-pointer:hover overrides transform.
+       Hover grow: keep translate + scale in the same inline transform (beats style.css). */
+    const PIN_TF = 'translate(-50%,-50%)';
+    const PIN_TF_HOVER = 'translate(-50%,-50%) scale(1.15)';
+    const histPointer = readOnly
+      ? 'pointer-events-auto'
+      : 'pointer-events-none';
+    const histCursor = readOnly ? 'cursor:pointer;' : '';
+
+    let html = clusters.map(function (cluster) {
+      if (cluster.length === 1) {
+        const d = cluster[0];
+        const col = _colorForTemplate(d.templateKey);
+        return `<div data-qpin-hist="${_escape(d.id)}"
+          class="absolute w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center
+                 text-white text-[10px] font-black z-20
+                 ${histPointer} panzoom-exclude"
+          style="left:${d.x}%;top:${d.y}%;background:${col};transform:${PIN_TF};transition:transform 150ms ease;${histCursor}"
+          title="${_escape(d.title)} #${d.num}">${d.num}</div>`;
+      }
+      const total = cluster.length;
+      const avgX = cluster.reduce(function (s, p) { return s + p.x; }, 0) / total;
+      const avgY = cluster.reduce(function (s, p) { return s + p.y; }, 0) / total;
+      const counts = {};
+      cluster.forEach(function (p) {
+        counts[p.templateKey] = (counts[p.templateKey] || 0) + 1;
+      });
+      const keys = Object.keys(counts);
+      let deg = 0;
+      const parts = [];
+      keys.forEach(function (k) {
+        const next = deg + (counts[k] / total) * 360;
+        parts.push(_colorForTemplate(k) + ' ' + deg + 'deg ' + next + 'deg');
+        deg = next;
+      });
+      const grad = 'conic-gradient(from 0deg, ' + parts.join(', ') + ')';
+      return `<div data-qpin-cluster="${total}"
+        class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
+               z-30 pointer-events-auto panzoom-exclude"
+        style="left:${avgX}%;top:${avgY}%;background:${grad};padding:3px;transform:${PIN_TF};transition:transform 150ms ease;cursor:pointer"
+        title="Проверок: ${total}">
+        <div class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
+                    text-[12px] font-black border border-slate-200 pointer-events-none">${total}</div>
+      </div>`;
+    }).join('');
+
+    if (!readOnly && tempX != null && tempY != null) {
+      html += `<div class="absolute w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg
+        flex items-center justify-center text-white text-[10px] font-black z-40
+        pointer-events-none panzoom-exclude"
+        style="left:${tempX}%;top:${tempY}%;transform:${PIN_TF}">+</div>`;
+    }
+    pins.innerHTML = html;
+    function _bindHoverScale(el) {
+      el.addEventListener('pointerenter', function () { el.style.transform = PIN_TF_HOVER; });
+      el.addEventListener('pointerleave', function () { el.style.transform = PIN_TF; });
+    }
+    pins.querySelectorAll('[data-qpin-cluster]').forEach(function (el) {
+      _bindHoverScale(el);
+      el.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        const n = el.getAttribute('data-qpin-cluster') || '?';
+        _toast('Приблизьте план, чтобы увидеть ' + n + ' проверок');
+      });
+    });
+    if (readOnly) {
+      pins.querySelectorAll('[data-qpin-hist]').forEach(function (el) {
+        _bindHoverScale(el);
+        el.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          const id = el.getAttribute('data-qpin-hist');
+          if (!id) return;
+          close();
+          const showDetail = window['showHistoryDetail'];
+          if (typeof showDetail === 'function') showDetail(id);
+        });
+      });
+    }
+  }
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', function () {
+      if (tempX == null || tempY == null) return;
+      applyPinToForm({ x: tempX, y: tempY }, floorId);
+      document.dispatchEvent(new CustomEvent('quality:planPin:changed', {
+        detail: { planPin: _getPin() }
+      }));
+      _toast('✅ Точка на плане сохранена');
+      close();
+    });
+  }
+
+  const chipsRoot = overlay.querySelector('[data-qpin-chips]');
+  if (chipsRoot) {
+    chipsRoot.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-qpin-chip]');
+      if (!btn) return;
+      const key = btn.getAttribute('data-qpin-chip');
+      if (key === '__all__') {
+        allKeys.forEach(function (k) { visibleKeys.add(k); });
+      } else if (visibleKeys.has(key)) {
+        visibleKeys.delete(key);
+        if (visibleKeys.size === 0) {
+          allKeys.forEach(function (k) { visibleKeys.add(k); });
+        }
+      } else {
+        visibleKeys.add(key);
+      }
+      chipsRoot.querySelectorAll('[data-qpin-chip]').forEach(function (b) {
+        const k = b.getAttribute('data-qpin-chip');
+        if (k === '__all__') {
+          const allOn = visibleKeys.size === allKeys.length;
+          b.classList.toggle('opacity-40', !allOn);
+          b.classList.toggle('bg-indigo-500', allOn);
+          b.classList.toggle('bg-slate-600', !allOn);
+        } else {
+          b.classList.toggle('opacity-40', !visibleKeys.has(k));
+          b.style.outline = visibleKeys.has(k) ? '2px solid #fff' : 'none';
+        }
+      });
+      _renderPins({ scale: _currentScale() });
+    });
+  }
+
+  const cChipsRoot = overlay.querySelector('[data-qpin-chips-contractor]');
+  if (cChipsRoot) {
+    cChipsRoot.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-qpin-cchip]');
+      if (!btn) return;
+      const key = btn.getAttribute('data-qpin-cchip');
+      if (key === '__all__') {
+        allContractors.forEach(function (c) { visibleContractors.add(c); });
+      } else if (visibleContractors.has(key)) {
+        visibleContractors.delete(key);
+        if (visibleContractors.size === 0) {
+          allContractors.forEach(function (c) { visibleContractors.add(c); });
+        }
+      } else {
+        visibleContractors.add(key);
+      }
+      cChipsRoot.querySelectorAll('[data-qpin-cchip]').forEach(function (b) {
+        const k = b.getAttribute('data-qpin-cchip');
+        if (k === '__all__') {
+          const allOn = visibleContractors.size === allContractors.length;
+          b.classList.toggle('opacity-40', !allOn);
+          b.classList.toggle('bg-indigo-500', allOn);
+          b.classList.toggle('bg-slate-600', !allOn);
+        } else {
+          b.classList.toggle('opacity-40', !visibleContractors.has(k));
+          b.style.outline = visibleContractors.has(k) ? '2px solid #fff' : 'none';
+        }
+      });
+      _renderPins({ scale: _currentScale() });
+    });
+  }
+
+  function _zoomBy(dir) {
+    if (!panzoom) return;
+    const cur = panzoom.getScale() || 1;
+    const next = dir > 0
+      ? Math.min(PZ_MAX, cur * Math.exp(PZ_STEP))
+      : Math.max(PZ_MIN, cur * Math.exp(-PZ_STEP));
+    const wr = wrap.getBoundingClientRect();
+    const focal = lastPointer || { clientX: wr.left + wr.width / 2, clientY: wr.top + wr.height / 2 };
+    if (typeof panzoom.zoomToPoint === 'function') {
+      panzoom.zoomToPoint(next, focal);
+    } else if (typeof panzoom.zoom === 'function') {
+      panzoom.zoom(next, { animate: true });
+    }
+    _renderPins({ scale: panzoom.getScale() });
+  }
+
+  overlay.querySelector('[data-qpin-zoom-in]').addEventListener('click', function (e) {
+    e.stopPropagation();
+    _zoomBy(1);
+  });
+  overlay.querySelector('[data-qpin-zoom-out]').addEventListener('click', function (e) {
+    e.stopPropagation();
+    _zoomBy(-1);
+  });
+
+  wrap.classList.add(readOnly ? 'cursor-grab' : 'cursor-crosshair');
+  wrap.addEventListener('pointerdown', function (ev) {
+    pointerDown = { x: ev.clientX, y: ev.clientY };
+  });
+  wrap.addEventListener('pointermove', function (ev) {
+    lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+  });
   wrap.addEventListener('click', function (ev) {
+    if (ev.target.closest('[data-qpin-cluster], [data-qpin-hist], [data-qpin-zoom-in], [data-qpin-zoom-out], [data-qpin-chip], [data-qpin-cchip], [data-qpin-other-floor]')) return;
+    if (readOnly) return;
+    if (pointerDown) {
+      const moved = Math.hypot(ev.clientX - pointerDown.x, ev.clientY - pointerDown.y);
+      pointerDown = null;
+      if (moved > 5) return;
+    }
     const rect = stage.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     const xPercent = ((ev.clientX - rect.left) / rect.width) * 100;
@@ -462,19 +843,21 @@ async function _openPlanViewer(floorId) {
     if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) return;
     tempX = Math.round(xPercent * 100) / 100;
     tempY = Math.round(yPercent * 100) / 100;
-    confirmBtn.disabled = false;
-    drawTemp();
+    if (confirmBtn) confirmBtn.disabled = false;
+    _renderPins({ scale: _currentScale() });
   });
 
   try {
     let buf = null;
     const pdfUrl = plan.pdf_url;
-    if (typeof window.rbiLoadCloudPdfArrayBuffer === 'function') {
-      buf = await window.rbiLoadCloudPdfArrayBuffer(pdfUrl);
+    const loadCloudPdf = window['rbiLoadCloudPdfArrayBuffer'];
+    if (typeof loadCloudPdf === 'function') {
+      buf = await loadCloudPdf(pdfUrl);
     } else {
-      if (window.PhotoManager && typeof window.PhotoManager.getAsyncUrl === 'function') {
+      const pm = window['PhotoManager'];
+      if (pm && typeof pm.getAsyncUrl === 'function') {
         try {
-          const cached = await window.PhotoManager.getAsyncUrl(pdfUrl);
+          const cached = await pm.getAsyncUrl(pdfUrl);
           if (cached && String(cached).startsWith('blob:')) {
             const res = await fetch(cached);
             buf = await res.arrayBuffer();
@@ -504,7 +887,31 @@ async function _openPlanViewer(floorId) {
     if (!ctx) throw new Error('canvas 2d недоступен');
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     if (loader) loader.remove();
-    drawTemp();
+
+    const factory = window.Panzoom;
+    if (typeof factory === 'function') {
+      panzoom = factory(stage, {
+        maxScale: PZ_MAX,
+        minScale: PZ_MIN,
+        step: PZ_STEP,
+        cursor: 'grab',
+        excludeClass: 'panzoom-exclude'
+      });
+      overlay._qpinPanzoom = panzoom;
+      const onWheel = function (e) {
+        if (!panzoom) return;
+        e.preventDefault();
+        panzoom.zoomWithWheel(e);
+        _renderPins({ scale: panzoom.getScale() });
+      };
+      wrap.addEventListener('wheel', onWheel, { passive: false });
+      overlay._qpinOnWheel = onWheel;
+      stage.addEventListener('panzoomchange', function () {
+        _renderPins({ scale: _currentScale() });
+      });
+    }
+
+    _renderPins({ scale: _currentScale() });
   } catch (e) {
     console.error('[quality-plan-pin] load failed', e);
     _toast('⚠️ Не удалось открыть план этажа');
@@ -537,6 +944,20 @@ export async function openPlanPinFlow(opts) {
 
   _showPicker(function (floorId) {
     _openPlanViewer(floorId);
+  });
+}
+
+/** Read-only history plan viewer (markers/clusters/zoom, no place-pin). */
+export async function openHistoryPlanViewer(opts) {
+  opts = opts || {};
+  const floorId = opts.floorId;
+  if (!floorId) {
+    _toast('⚠️ Этаж не выбран');
+    return;
+  }
+  await _openPlanViewer(floorId, {
+    readOnly: true,
+    items: Array.isArray(opts.items) ? opts.items : null
   });
 }
 
@@ -580,6 +1001,23 @@ export function mountControls() {
         _toast('Точка на плане снята');
       });
     }
+  }
+
+  // Contractor change → reset pin context keep project (spec follow-up).
+  const contr = document.getElementById('inp-contractor');
+  if (contr && !contr._qpinContractorHook) {
+    contr._qpinContractorHook = true;
+    let prevContr = contr.value;
+    const onMaybeChange = function () {
+      const next = contr.value;
+      if (next === prevContr) return;
+      prevContr = next;
+      if (window.AuditActions && typeof window.AuditActions.resetPinContextKeepProject === 'function') {
+        window.AuditActions.resetPinContextKeepProject({ clearContractor: false });
+      }
+    };
+    contr.addEventListener('change', onMaybeChange);
+    contr.addEventListener('blur', onMaybeChange);
   }
 
   seedLocationSuggestions();

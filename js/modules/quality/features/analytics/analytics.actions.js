@@ -460,12 +460,16 @@ export const AnalyticsActions = {
         // Обновляем кнопку FAB
         if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
 
-        // Скелетон / «Загрузка…» — и при sync-defer (раньше молча пусто),
-        // и когда paint нельзя reuse. Текст всегда, даже если motion выключен.
+        // Скелетон / «Загрузка…» — только если секция ещё не нарисована.
+        // A9: при sync-defer НЕ затираем живой UI; dirty сам по себе не повод
+        // для skeleton, если fingerprint/data совпадают (canReuse).
         const deferring = typeof window.shouldDeferFullRender === 'function'
             && window.shouldDeferFullRender('analytics');
         const canReuse = typeof window.analyticsTabCanReusePaint === 'function'
             && window.analyticsTabCanReusePaint(tabId);
+        const alreadyPainted = !!(window.AnalyticsRender
+            && typeof window.AnalyticsRender.sectionLooksPainted === 'function'
+            && window.AnalyticsRender.sectionLooksPainted(tabId));
         const skeletonTargets = {
             'sub-contractors': 'contractors-list-container',
             'sub-onepager': 'onepager-content-container',
@@ -473,7 +477,7 @@ export const AnalyticsActions = {
             'sub-schedule': 'schedule-container',
             'sub-sk': 'sk-main-container'
         };
-        if ((!canReuse || deferring) && typeof window.rbiShowContentSkeleton === 'function') {
+        if (!canReuse && !alreadyPainted && typeof window.rbiShowContentSkeleton === 'function') {
             const skShellAlive = tabId === 'sub-sk' && !!document.getElementById('sk-view-dashboard');
             if (!skShellAlive) {
                 const elId = skeletonTargets[tabId];
@@ -481,7 +485,7 @@ export const AnalyticsActions = {
                 if (el) {
                     window.rbiShowContentSkeleton(el, {
                         cards: tabId === 'sub-history' ? 5 : 4,
-                        label: deferring ? 'Идёт синхронизация…' : 'Загрузка…'
+                        label: 'Загрузка…'
                     });
                 }
             }
@@ -489,6 +493,13 @@ export const AnalyticsActions = {
 
         // Дать браузеру отрисовать «Загрузка…», иначе тяжёлый sync-render
         // блокирует main thread и экран остаётся пустым/старым.
+        // При sync-defer + уже нарисованной секции — не вызываем render
+        // (он только markDirty и выйдет); иначе rAF всё равно ок.
+        if (deferring && alreadyPainted) {
+            if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
+            else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
+            return;
+        }
         if (typeof window.renderCurrentAnalyticsTab === 'function') {
             requestAnimationFrame(function () {
                 setTimeout(function () {
@@ -767,8 +778,10 @@ export const AnalyticsActions = {
     switchHistoryView(view) {
         const btnChecks = document.getElementById('btn-hist-checks');
         const btnReports = document.getElementById('btn-hist-reports');
+        const btnPlans = document.getElementById('btn-hist-plans');
         const viewChecks = document.getElementById('history-checks-view');
         const viewReports = document.getElementById('history-reports-view');
+        const viewPlans = document.getElementById('history-plans-view');
         const actionsRow = document.getElementById('hist-checks-actions-row');
 
         const actClass = "px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 bg-white dark:bg-slate-800 text-indigo-600 shadow-sm";
@@ -777,19 +790,27 @@ export const AnalyticsActions = {
         // Сохраняем стейт в глобальную переменную, чтобы фильтры понимали, что перерисовывать
         window.currentHistoryViewMode = view;
 
+        if (btnChecks) btnChecks.className = inactClass;
+        if (btnReports) btnReports.className = inactClass;
+        if (btnPlans) btnPlans.className = inactClass;
+        if (viewChecks) viewChecks.classList.add('hidden');
+        if (viewReports) viewReports.classList.add('hidden');
+        if (viewPlans) viewPlans.classList.add('hidden');
+
         if (view === 'checks') {
-            btnChecks.className = actClass;
-            btnReports.className = inactClass;
-            viewChecks.classList.remove('hidden');
-            viewReports.classList.add('hidden');
-            if (actionsRow) actionsRow.style.display = 'flex'; // Показываем чекбоксы (С фото, С B3 и тд)
+            if (btnChecks) btnChecks.className = actClass;
+            if (viewChecks) viewChecks.classList.remove('hidden');
+            if (actionsRow) actionsRow.style.display = 'flex';
+            renderHistoryTab();
+        } else if (view === 'plans') {
+            if (btnPlans) btnPlans.className = actClass;
+            if (viewPlans) viewPlans.classList.remove('hidden');
+            if (actionsRow) actionsRow.style.display = 'flex';
             renderHistoryTab();
         } else {
-            btnReports.className = actClass;
-            btnChecks.className = inactClass;
-            viewChecks.classList.add('hidden');
-            viewReports.classList.remove('hidden');
-            if (actionsRow) actionsRow.style.display = 'none'; // Скрываем чекбоксы, они не нужны отчетам
+            if (btnReports) btnReports.className = actClass;
+            if (viewReports) viewReports.classList.remove('hidden');
+            if (actionsRow) actionsRow.style.display = 'none';
             if (typeof window.renderReportsList === 'function') window.renderReportsList();
         }
     },

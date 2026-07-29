@@ -36,10 +36,16 @@ type PdfPage = {
   };
 };
 
+type ZoomOpts = { animate?: boolean; force?: boolean };
+/** Point for Panzoom.zoomToPoint — client coords (как WheelEvent). */
+type ZoomPoint = { clientX: number; clientY: number };
+
 type PanzoomInstance = {
-  zoom: (scale: number, opts?: { animate?: boolean }) => void;
-  zoomIn: (opts?: { animate?: boolean }) => void;
-  zoomOut: (opts?: { animate?: boolean }) => void;
+  zoom: (scale: number, opts?: ZoomOpts) => void;
+  zoomIn: (opts?: ZoomOpts) => void;
+  zoomOut: (opts?: ZoomOpts) => void;
+  /** Масштаб к точке в client coords (корректный focal; zoom/zoomIn.focal — другая СК). */
+  zoomToPoint: (scale: number, point: ZoomPoint, opts?: ZoomOpts) => void;
   zoomWithWheel: (event: WheelEvent) => void;
   pan: (x: number, y: number, opts?: { animate?: boolean; relative?: boolean }) => void;
   getScale: () => number;
@@ -48,6 +54,11 @@ type PanzoomInstance = {
   destroy: () => void;
   setOptions: (opts: Record<string, unknown>) => void;
 };
+
+/** step Panzoom init (см. _initPanzoom); zoomIn = scale * Math.exp(±step). */
+const PZ_STEP = 0.2;
+const PZ_MIN = 0.4;
+const PZ_MAX = 8;
 
 type PanzoomFactory = (el: HTMLElement, opts?: Record<string, unknown>) => PanzoomInstance;
 
@@ -101,6 +112,9 @@ export class PlanViewer {
   private pdfUrl = '';
   private panzoom: PanzoomInstance | null = null;
   private _onWheelBound: ((e: WheelEvent) => void) | null = null;
+  private _onPointerBound: ((e: PointerEvent | MouseEvent) => void) | null = null;
+  /** Последняя позиция указателя над wrap (client coords) — для focal кнопок ±. */
+  private _lastPointerClient: { x: number; y: number } | null = null;
   /** Последний набор дефектов для setMarkers (для collapse expand). */
   private _lastMarkers: ConstructionDefectV2[] = [];
   private _lastClusterThreshold = 2.5;
@@ -168,16 +182,34 @@ export class PlanViewer {
 
   setScale(scale: number) {
     if (!this.panzoom) return;
-    const s = Math.min(8, Math.max(0.4, Number(scale) || 1));
-    this.panzoom.zoom(s, { animate: true });
+    const s = Math.min(PZ_MAX, Math.max(PZ_MIN, Number(scale) || 1));
+    this.panzoom.zoomToPoint(s, this._getZoomPoint());
   }
 
   zoomIn() {
-    this.panzoom?.zoomIn({ animate: true });
+    if (!this.panzoom) return;
+    const next = Math.min(PZ_MAX, this.panzoom.getScale() * Math.exp(PZ_STEP));
+    this.panzoom.zoomToPoint(next, this._getZoomPoint());
   }
 
   zoomOut() {
-    this.panzoom?.zoomOut({ animate: true });
+    if (!this.panzoom) return;
+    const next = Math.max(PZ_MIN, this.panzoom.getScale() * Math.exp(-PZ_STEP));
+    this.panzoom.zoomToPoint(next, this._getZoomPoint());
+  }
+
+  /**
+   * Точка zoom в client coords: последний pointer над wrap, иначе центр viewport.
+   * Важно: Panzoom.zoom({focal}) ждёт уже сконвертированные coords;
+   * clientX/Y передаём через zoomToPoint (как zoomWithWheel).
+   */
+  private _getZoomPoint(): ZoomPoint {
+    if (this._lastPointerClient) {
+      return { clientX: this._lastPointerClient.x, clientY: this._lastPointerClient.y };
+    }
+    if (!this.wrap) return { clientX: 0, clientY: 0 };
+    const r = this.wrap.getBoundingClientRect();
+    return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
   }
 
   /** Сброс масштаба/пана к стартовому fit. */
@@ -318,8 +350,9 @@ export class PlanViewer {
           parts.push(`<button type="button" data-c2-cluster-collapse="${_escapeAttr(key)}"
             class="absolute w-5 h-5 rounded-full bg-slate-800/80 text-white text-[8px] font-black
                    border border-white shadow z-25 flex items-center justify-center
-                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-            style="left:${item.x}%;top:${item.y}%;" title="Свернуть">×</button>`);
+                   pointer-events-auto panzoom-exclude"
+            style="left:${item.x}%;top:${item.y}%;transform:translate(-50%,-50%);transition:transform 150ms ease"
+            title="Свернуть">×</button>`);
         } else {
           parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
         }
@@ -327,7 +360,26 @@ export class PlanViewer {
     }
 
     this.pins.innerHTML = parts.join('');
+    this._bindPinHoverScale();
     this._applyHighlight();
+  }
+
+  /** Grow pin on hover without losing centering (inline transform beats style.css lift). */
+  private _bindPinHoverScale() {
+    if (!this.pins) return;
+    const rest = 'translate(-50%,-50%)';
+    const hover = 'translate(-50%,-50%) scale(1.15)';
+    this.pins
+      .querySelectorAll('[data-c2-pin], [data-c2-cluster], [data-c2-cluster-collapse]')
+      .forEach((node) => {
+        const el = node as HTMLElement;
+        el.addEventListener('pointerenter', () => {
+          el.style.transform = hover;
+        });
+        el.addEventListener('pointerleave', () => {
+          el.style.transform = rest;
+        });
+      });
   }
 
   private _singlePinHtml(
@@ -342,9 +394,8 @@ export class PlanViewer {
     return `<button type="button" data-c2-pin="${_escapeAttr(d.id)}"
       class="absolute w-6 h-6 ${bg} rounded-full border-2 border-white shadow-md
              flex items-center justify-center text-white text-[10px] font-black
-             cursor-pointer hover:scale-125 transition-transform z-20
-             transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto panzoom-exclude"
-      style="left:${x}%;top:${y}%;" title="${title}">${num}</button>`;
+             z-20 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="${title}">${num}</button>`;
   }
 
   private _clusterBubbleHtml(
@@ -375,9 +426,8 @@ export class PlanViewer {
     const ids = defects.map((d) => d.id).join(',');
     return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
       class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
-             cursor-pointer z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto
-             panzoom-exclude transition-transform hover:scale-110"
-      style="left:${x}%;top:${y}%;background:${grad};padding:3px;" title="Замечаний: ${total}">
+             z-30 pointer-events-auto panzoom-exclude"
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="Замечаний: ${total}">
       <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
                    text-[11px] font-black border border-slate-200">${total}</span>
     </button>`;
@@ -424,8 +474,8 @@ export class PlanViewer {
       `<div id="c2-temp-pin"
         class="absolute w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg
                flex items-center justify-center text-white text-[10px] font-black z-30
-               transform -translate-x-1/2 -translate-y-1/2 animate-bounce pointer-events-none"
-        style="left:${xPercent}%;top:${yPercent}%;">+</div>`
+               animate-bounce pointer-events-none"
+        style="left:${xPercent}%;top:${yPercent}%;transform:translate(-50%,-50%)">+</div>`
     );
   }
 
@@ -454,9 +504,9 @@ export class PlanViewer {
     const factory = _panzoomFactory();
     if (!factory || !this.stage || !this.wrap) return;
     this.panzoom = factory(this.stage, {
-      maxScale: 8,
-      minScale: 0.4,
-      step: 0.2,
+      maxScale: PZ_MAX,
+      minScale: PZ_MIN,
+      step: PZ_STEP,
       cursor: 'grab',
       excludeClass: 'panzoom-exclude'
     });
@@ -466,6 +516,12 @@ export class PlanViewer {
       this.panzoom.zoomWithWheel(e);
     };
     this.wrap.addEventListener('wheel', this._onWheelBound, { passive: false });
+    this._lastPointerClient = null;
+    this._onPointerBound = (e: PointerEvent | MouseEvent) => {
+      this._lastPointerClient = { x: e.clientX, y: e.clientY };
+    };
+    this.wrap.addEventListener('pointermove', this._onPointerBound);
+    this.wrap.addEventListener('mousemove', this._onPointerBound);
   }
 
   private _destroyPanzoom() {
@@ -473,6 +529,12 @@ export class PlanViewer {
       this.wrap.removeEventListener('wheel', this._onWheelBound);
     }
     this._onWheelBound = null;
+    if (this.wrap && this._onPointerBound) {
+      this.wrap.removeEventListener('pointermove', this._onPointerBound);
+      this.wrap.removeEventListener('mousemove', this._onPointerBound);
+    }
+    this._onPointerBound = null;
+    this._lastPointerClient = null;
     if (this.panzoom) {
       try {
         this.panzoom.destroy();
@@ -511,9 +573,13 @@ export class PlanViewer {
       const s = this.panzoom.getScale() || 1;
       this.panzoom.pan(pan.x + dx / s, pan.y + dy / s, { animate: true });
     };
-    // Чуть увеличить, если слишком мелко
+    // Чуть увеличить, если слишком мелко (к центру wrap — без дёрганья к курсору)
     if (this.panzoom.getScale() < 1.2) {
-      this.panzoom.zoom(1.5, { animate: true });
+      const wr = this.wrap.getBoundingClientRect();
+      this.panzoom.zoomToPoint(1.5, {
+        clientX: wr.left + wr.width / 2,
+        clientY: wr.top + wr.height / 2
+      });
       setTimeout(run, 220);
     } else {
       requestAnimationFrame(run);
@@ -584,8 +650,8 @@ export class PlanViewer {
           'beforeend',
           `<div id="c2-temp-zone-dot"
             class="absolute w-3 h-3 bg-indigo-600 rounded-full border-2 border-white z-30
-                   transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            style="left:${xPercent}%;top:${yPercent}%;"></div>`
+                   pointer-events-none"
+            style="left:${xPercent}%;top:${yPercent}%;transform:translate(-50%,-50%)"></div>`
         );
         return;
       }

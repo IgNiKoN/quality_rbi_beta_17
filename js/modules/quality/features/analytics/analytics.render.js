@@ -193,6 +193,10 @@ const ANALYTICS_GALLERY_PAGE_SIZE = 16;
 // с тем же galleryId.
 const _galleryFullData = new Map();
 
+// A9: отложенная сборка фотогалереи вкладки «Подрядчики» (при открытии details).
+let _lazyContractorsGalleryData = null;
+let _lazyContractorsGalleryFilled = false;
+
 // In-memory кэш готовых canvas-превью (dataURL) по исходной ссылке на фото
 // (data:/local://.../cloud://.../http...). Переживает только текущую сессию —
 // по тому же принципу, что уже применён в contractor-metrics.service.js.
@@ -292,17 +296,40 @@ function _analyticsSectionLooksPainted(tabId) {
     return true;
 }
 
+function _historySectionLooksPainted() {
+    const el = document.getElementById('history-list');
+    if (!el) return false;
+    if (el.querySelector && el.querySelector('.rbi-skeleton-wrap')) return false;
+    const html = (el.innerHTML || '').trim();
+    if (html.length < 80) return false;
+    const text = el.innerText || '';
+    if (/Нет записей|Нет данных/i.test(text) && html.length < 800) return false;
+    return true;
+}
+
+/** Секция подвкладки уже отрисована (для skeleton-guard при sync-defer). */
+function analyticsSectionLooksPainted(tabId) {
+    if (tabId === 'sub-history') return _historySectionLooksPainted();
+    return _analyticsSectionLooksPainted(tabId);
+}
+
 /** Можно ли показать подвкладку без скелетона и без полного re-render (B4). */
 function analyticsTabCanReusePaint(tabId) {
-    if (!tabId || tabId === 'sub-history') return false;
+    if (!tabId) return false;
     if (typeof window.shouldDeferFullRender === 'function' && window.shouldDeferFullRender('analytics')) {
         return false;
     }
-    if (window.syncDirtyFlags && window.syncDirtyFlags.analytics) return false;
-    // ПК СК: отдельный dirty после sync — не reuse, пока данные не перечитаны.
+    // history/sk dirty: блокируем reuse только при ПОВТОРНОМ заходе на вкладку
+    // (нужен refresh). Пока пользователь УЖЕ на вкладке — dirty не повод
+    // для skeleton (см. renderCurrentAnalyticsTab stay-on-tab reuse).
     if (tabId === 'sub-sk' && window.syncDirtyFlags && window.syncDirtyFlags.sk) return false;
+    if (tabId === 'sub-history' && window.syncDirtyFlags && window.syncDirtyFlags.history) return false;
+    // analytics dirty сам по себе НЕ блокирует reuse: если filter/data fingerprint
+    // совпадают — UI актуален; иначе switchAnalyticsSubTab каждый фоновый sync
+    // снова ставил скелетон и full-rebuild (A9).
     if (_analyticsFilterFingerprint() !== _analyticsFilterFp) return false;
     if (_analyticsSourceDataSignature() !== _analyticsDataSig) return false;
+    if (tabId === 'sub-history') return _historySectionLooksPainted();
     if (!_analyticsRenderedTabs.has(tabId)) return false;
     return _analyticsSectionLooksPainted(tabId);
 }
@@ -317,6 +344,11 @@ function analyticsFilterPaintIsStale() {
     return _analyticsFilterFingerprint() !== _analyticsFilterFp;
 }
 window.analyticsFilterPaintIsStale = analyticsFilterPaintIsStale;
+
+/** Источник данных (inspections) изменился с последнего успешного paint. */
+function analyticsSourceDataIsStale() {
+    return _analyticsSourceDataSignature() !== _analyticsDataSig;
+}
 
 /** Сброс кэша paint при apply мультифильтра (до отложенного render). */
 function invalidateAnalyticsFilterCache() {
@@ -513,6 +545,70 @@ function _renderPhotoCardHtml(d, i, galleryId, badgeColor, badgeText) {
                 </div>
             </div>
         `;
+}
+
+function _collectAnalyticsGalleryPhotos(data) {
+    const allPhotosB3 = [];
+    const allPhotosB2 = [];
+    const allPhotosOK = [];
+    if (!Array.isArray(data)) return { allPhotosB3, allPhotosB2, allPhotosOK };
+    data.forEach((i) => {
+        if (!i || !i.state) return;
+        Object.keys(i.state).forEach((id) => {
+            const s = i.state[id];
+            const photosArr = (i.photos && i.photos[id])
+                ? (window.normalizeItemPhotos ? window.normalizeItemPhotos(i.photos[id]) : [].concat(i.photos[id]))
+                : [];
+            if (!photosArr.length) return;
+            let defName = 'Дефект';
+            const tType = i.templateKey ? i.templateKey.split('_')[0] : '';
+            const tKey = i.templateKey ? i.templateKey.replace(tType + '_', '') : '';
+            const cl = tType === 'sys' && _getSystemTemplates()[tKey]
+                ? _getSystemTemplates()[tKey].groups
+                : (_templates().getUserTemplates()[tKey] ? _templates().getUserTemplates()[tKey].groups : []);
+            const foundItem = getFlatList(cl).find((x) => String(x.id) === String(id));
+            if (foundItem) defName = foundItem.n;
+            photosArr.forEach((photo) => {
+                if (!photo) return;
+                const photoObj = {
+                    photo: photo,
+                    name: defName,
+                    contr: i.contractorName,
+                    date: new Date(i.date).toLocaleDateString('ru-RU')
+                };
+                if (s === 'fail' || s === 'fail_escalated') {
+                    const isB3 = (s === 'fail_escalated') || (foundItem && foundItem.w === 3);
+                    if (isB3) allPhotosB3.push(photoObj);
+                    else allPhotosB2.push(photoObj);
+                } else if (s === 'ok') {
+                    allPhotosOK.push(photoObj);
+                }
+            });
+        });
+    });
+    return { allPhotosB3, allPhotosB2, allPhotosOK };
+}
+
+/** A9: заполнить фотогалереи Подрядчиков при первом открытии details. */
+function rbiEnsureAnalyticsPhotoGalleries(ev) {
+    const details = ev && ev.target;
+    if (details && details.tagName === 'DETAILS' && !details.open) return;
+    if (_lazyContractorsGalleryFilled) return;
+    const data = _lazyContractorsGalleryData;
+    if (!data) return;
+    _lazyContractorsGalleryFilled = true;
+    const { allPhotosB3, allPhotosB2, allPhotosOK } = _collectAnalyticsGalleryPhotos(data);
+    const slotB3 = document.getElementById('lazy-gallery-main_b3');
+    const slotB2 = document.getElementById('lazy-gallery-main_b2');
+    const slotOk = document.getElementById('lazy-gallery-main_ok');
+    if (slotB3) slotB3.outerHTML = AnalyticsRender.initPhotoGallery('main_b3', allPhotosB3, true);
+    if (slotB2) slotB2.outerHTML = AnalyticsRender.initPhotoGallery('main_b2', allPhotosB2, false);
+    if (slotOk) {
+        slotOk.outerHTML = AnalyticsRender.initPhotoGallery(
+            'main_ok', allPhotosOK, false,
+            'text-green-700 bg-green-100 border-green-200', 'OK'
+        );
+    }
 }
 
 // Подтягивает полные фото для порции галереи (не thumb-превью).
@@ -871,6 +967,9 @@ export const AnalyticsRender = {
                             <div id="btn-hist-reports" data-analytics-action="switchHistoryView" data-action-arg="reports"
                                 class="px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 text-slate-500 dark:text-slate-400">
                                 Отчеты</div>
+                            <div id="btn-hist-plans" data-analytics-action="switchHistoryView" data-action-arg="plans"
+                                class="px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 text-slate-500 dark:text-slate-400">
+                                Планы</div>
                         </div>
                     </div>
 
@@ -889,31 +988,37 @@ export const AnalyticsRender = {
                                 placeholder="Поиск..." oninput="applyHistoryFilters()">
                         </div>
 
-                        <!-- Мульти-фильтры -->
-                        <div class="grid grid-cols-2 gap-2 mb-2">
+                        <!-- Мульти-фильтры: 2 ряда × 3 колонки -->
+                        <div class="grid grid-cols-3 gap-2 mb-2">
                             <button id="btn-hist-project"
                                 data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["project","Объекты","history"]'
-                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
+                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
                                     class="truncate">Все объекты</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
                             <button id="btn-hist-contractor"
                                 data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["contractor","Подрядчики","history"]'
-                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
+                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
                                     class="truncate">Все подрядчики</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                                </svg></button>
+                            <button id="btn-hist-template"
+                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["template","Виды работ","history"]'
+                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
+                                    class="truncate">Все виды работ</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
                             <button id="btn-hist-inspector"
                                 data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["inspector","Инспекторы","history"]'
-                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
+                                class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
                                     class="truncate">Все инспекторы</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
-
-                            <div class="relative w-full">
+                            <div class="relative w-full col-span-2 min-w-0">
                                 <select id="hist-filter-period"
                                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     data-history-action="applyHistoryFilters" data-action-event="change">
@@ -946,6 +1051,11 @@ export const AnalyticsRender = {
                                     class="flex items-center gap-1.5 text-[10px] font-bold text-red-500 cursor-pointer">
                                     <input type="checkbox" id="hist-filter-b3" class="accent-red-500 w-3.5 h-3.5"
                                         data-history-action="applyHistoryFilters" data-action-event="change"> Только B3
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-muted)] cursor-pointer">
+                                    <input type="checkbox" id="hist-filter-plan" class="accent-indigo-600 w-3.5 h-3.5"
+                                        data-history-action="applyHistoryFilters" data-action-event="change"> С планом
                                 </label>
                             </div>
                             <div class="flex items-center gap-2">
@@ -1004,6 +1114,11 @@ export const AnalyticsRender = {
                     </div>
                     <div id="reports-list" class="pb-8"></div>
                 </div>
+
+                <!-- ВЬЮХА 3: ИНТЕРАКТИВНЫЕ ПЛАНЫ ПО ОБЪЕКТУ -->
+                <div id="history-plans-view" class="hidden">
+                    <div id="history-plans-list" class="min-w-0 max-w-full pb-8"></div>
+                </div>
             </div>
 
             <!-- НОВЫЙ БЛОК: ГРАФИК РАБОТ -->
@@ -1057,18 +1172,29 @@ export const AnalyticsRender = {
                 && !!(window.isSyncing || window._rbiDeferActiveViewFullRender))) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
-            // Явный статус вместо «пустого» экрана на время sync-defer.
-            const activeTab = AnalyticsState.activeSubTab || 'sub-contractors';
-            const skeletonTargets = {
-                'sub-contractors': 'contractors-list-container',
-                'sub-onepager': 'onepager-content-container',
-                'sub-history': 'history-list'
-            };
-            const elId = skeletonTargets[activeTab];
-            const el = elId ? document.getElementById(elId) : null;
-            if (el && typeof window.rbiShowContentSkeleton === 'function'
-                && !(el.querySelector && el.querySelector('.rbi-skeleton-wrap'))) {
-                window.rbiShowContentSkeleton(el, { cards: 3, label: 'Идёт синхронизация…' });
+            // A9: не затирать уже отрисованный UI скелетоном —
+            // иначе flush видит skeleton и делает full-rebuild по кругу.
+            // История / ПК СК / График — тот же паттерн, что Подрядчики/Сводка.
+            const activeTabDefer = AnalyticsState.activeSubTab || 'sub-contractors';
+            if (!analyticsSectionLooksPainted(activeTabDefer)) {
+                const skeletonTargets = {
+                    'sub-contractors': 'contractors-list-container',
+                    'sub-onepager': 'onepager-content-container',
+                    'sub-history': 'history-list',
+                    'sub-schedule': 'schedule-container',
+                    'sub-sk': 'sk-main-container'
+                };
+                const elId = skeletonTargets[activeTabDefer];
+                const el = elId ? document.getElementById(elId) : null;
+                if (el && typeof window.rbiShowContentSkeleton === 'function'
+                    && !(el.querySelector && el.querySelector('.rbi-skeleton-wrap'))) {
+                    // ПК СК: не сносить shell, если dashboard уже есть.
+                    if (activeTabDefer === 'sub-sk' && document.getElementById('sk-view-dashboard')) {
+                        /* keep shell */
+                    } else {
+                        window.rbiShowContentSkeleton(el, { cards: 3, label: 'Загрузка…' });
+                    }
+                }
             }
             return;
         }
@@ -1087,33 +1213,39 @@ export const AnalyticsRender = {
         const fp = _analyticsFilterFingerprint();
         const dataSig = _analyticsSourceDataSignature();
         const dataChanged = dataSig !== _analyticsDataSig;
-        const filterChanged = fp !== _analyticsFilterFp || wasDirty || dataChanged;
+        const filterFpChanged = fp !== _analyticsFilterFp;
+        // A9: dirty-флаг сам по себе НЕ инвалидирует paint — только смена фильтра
+        // или реального source-signature (иначе каждый фоновый sync → full rebuild).
+        const filterChanged = filterFpChanged || dataChanged;
 
         if (filterChanged) {
             // Инвалидируем in-flight canvas-превью и кэш отрисованных подвкладок.
             _analyticsRenderGen += 1;
             _ikoMemo.clear();
+            _lazyContractorsGalleryFilled = false;
+            _lazyContractorsGalleryData = null;
             for (const key in _chartInstances()) { if (_chartInstances()[key]) _chartInstances()[key].destroy(); }
             AnalyticsState.setChartInstances({});
             _analyticsFilterFp = fp;
             _analyticsDataSig = dataSig;
             _analyticsFilteredCache = getFilteredAnalyticsData();
             _analyticsRenderedTabs.clear();
+        } else if (wasDirty) {
+            // Тихий sync без смены данных/фильтров — снимаем dirty, UI не трогаем.
+            if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = false;
         }
 
         AnalyticsRender.renderAnalyticsModeSwitcher();
         AnalyticsRender.renderOnePagerModeToggle();
 
-        // Подвкладка уже собрана при текущем фильтре — DOM жив под .hidden, не пересобираем.
-        // history: собственный dirty / внешний пайплайн — всегда проходим ниже.
-        // ПК СК: reuse разрешён (см. analyticsTabCanReusePaint), иначе скелетон
-        // затирал shell и каждый заход снова «Чтение базы…» + полный dashboard.
-        // Не skip'аем «пустой» paint (нет данных / скелетон) — иначе залипание.
-        if (!filterChanged
+        // Stay-on-tab reuse: history/sk dirty НЕ сбрасывает живой экран
+        // (иначе каждый sync → skeleton «Загрузка истории…» / полный ПК СК).
+        // Dirty остаётся — refresh при следующем заходе (analyticsTabCanReusePaint).
+        const historyReuseOk = activeTab === 'sub-history' && _historySectionLooksPainted();
+        const tabReuseOk = activeTab !== 'sub-history'
             && _analyticsRenderedTabs.has(activeTab)
-            && activeTab !== 'sub-history'
-            && !(activeTab === 'sub-sk' && window.syncDirtyFlags && window.syncDirtyFlags.sk)
-            && _analyticsSectionLooksPainted(activeTab)) {
+            && _analyticsSectionLooksPainted(activeTab);
+        if (!filterChanged && (historyReuseOk || tabReuseOk)) {
             if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = false;
             return;
         }
@@ -1154,14 +1286,14 @@ export const AnalyticsRender = {
             else _analyticsRenderedTabs.delete(activeTab);
         }
         else if (activeTab === 'sub-history') {
-            // Если после sync стоял dirty — перезагрузить первую страницу Журнала
-            // перед render (на активной вкладке sync сознательно не трогал DOM).
+            // Dirty при первом paint / после смены фильтра — reload.
+            // Stay-on-tab с живым DOM уже отсечён historyReuseOk выше.
             if (window.syncDirtyFlags && window.syncDirtyFlags.history) {
                 window.syncDirtyFlags.history = false;
                 if (window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
                     const histEl = document.getElementById('history-list');
                     if (histEl && typeof window.rbiShowContentSkeleton === 'function') {
-                        window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка истории…' });
+                        window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка…' });
                     }
                     Promise.resolve(window.HistoryActions.loadRecords()).then(function () {
                         renderHistoryTab();
@@ -1177,6 +1309,7 @@ export const AnalyticsRender = {
             if (window.syncDirtyFlags) window.syncDirtyFlags.sk = false;
             // Гарантированно запускаем пайплайн ПК СК, он сам внутри разберется с кэшем.
             // analyticsMarkTabPainted('sub-sk') — в конце sk_renderMainTab (async).
+            // Stay-on-tab с живым shell уже отсечён tabReuseOk выше.
             if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') window.RBI.events.emit('sk:renderRequested', { view: 'mainTab' });
         }
         else if (activeTab === 'sub-rating') AnalyticsRender.renderRatingTab(); // Обратная совместимость
@@ -1320,8 +1453,9 @@ export const AnalyticsRender = {
         const groupedC = {};
         const causesCount = {};
 
-        // Глобальные массивы для фотогалерей
-        let allPhotosB3 = []; let allPhotosB2 = []; let allPhotosOK = [];
+        // A9: фотогалереи — lazy при открытии <details>, не на первом paint.
+        _lazyContractorsGalleryData = data;
+        _lazyContractorsGalleryFilled = false;
 
         data.forEach(i => {
             if (i.metrics) {
@@ -1340,35 +1474,9 @@ export const AnalyticsRender = {
             if (i.state) {
                 Object.keys(i.state).forEach(id => {
                     const s = i.state[id];
-
                     if (s === 'fail' || s === 'fail_escalated') {
                         let code = i.details && i.details[id] ? i.details[id].causeCode || 'C00' : 'C00';
                         causesCount[code] = (causesCount[code] || 0) + 1;
-                    }
-
-                    const photosArr = (i.photos && i.photos[id])
-                        ? (window.normalizeItemPhotos ? window.normalizeItemPhotos(i.photos[id]) : [].concat(i.photos[id]))
-                        : [];
-                    if (photosArr.length) {
-                        let defName = "Дефект";
-                        const tType = i.templateKey ? i.templateKey.split('_')[0] : '';
-                        const tKey = i.templateKey ? i.templateKey.replace(tType + '_', '') : '';
-                        const cl = tType === 'sys' && _getSystemTemplates()[tKey] ? _getSystemTemplates()[tKey].groups : (_templates().getUserTemplates()[tKey] ? _templates().getUserTemplates()[tKey].groups : []);
-                        const foundItem = getFlatList(cl).find(x => String(x.id) === String(id));
-                        if (foundItem) defName = foundItem.n;
-
-                        photosArr.forEach((photo) => {
-                            if (!photo) return;
-                            const photoObj = { photo: photo, name: defName, contr: i.contractorName, date: new Date(i.date).toLocaleDateString('ru-RU') };
-
-                            if (s === 'fail' || s === 'fail_escalated') {
-                                let isB3 = (s === 'fail_escalated') || (foundItem && foundItem.w === 3);
-                                if (isB3) allPhotosB3.push(photoObj);
-                                else allPhotosB2.push(photoObj);
-                            } else if (s === 'ok') {
-                                allPhotosOK.push(photoObj);
-                            }
-                        });
                     }
                 });
             }
@@ -1511,7 +1619,7 @@ export const AnalyticsRender = {
                 </div>
             </details>
 
-            <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-3 group [&_summary::-webkit-details-marker]:hidden">
+            <details id="analytics-photos-details" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-3 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
@@ -1522,19 +1630,24 @@ export const AnalyticsRender = {
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 space-y-4">
                     <div>
                         <h3 class="text-[10px] font-bold text-red-600 uppercase mb-2">Критический брак (B3)</h3>
-                        ${AnalyticsRender.initPhotoGallery('main_b3', allPhotosB3, true)}
+                        <div id="lazy-gallery-main_b3" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                     <div>
                         <h3 class="text-[10px] font-bold text-orange-600 uppercase mb-2">Значимые дефекты (B2)</h3>
-                        ${AnalyticsRender.initPhotoGallery('main_b2', allPhotosB2, false)}
+                        <div id="lazy-gallery-main_b2" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                     <div>
                         <h3 class="text-[10px] font-bold text-green-600 uppercase mb-2">Эталонные работы (OK)</h3>
-                        ${AnalyticsRender.initPhotoGallery('main_ok', allPhotosOK, false, 'text-green-700 bg-green-100 border-green-200', 'OK')}
+                        <div id="lazy-gallery-main_ok" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                 </div>
             </details>
         `;
+
+        const photosDetails = document.getElementById('analytics-photos-details');
+        if (photosDetails) {
+            photosDetails.addEventListener('toggle', rbiEnsureAnalyticsPhotoGalleries);
+        }
 
         setTimeout(() => {
             const trendContrsData = window.buildTrendChartData(data, 'contractorName', window.selectedChartFilters.contrs, window.trendGroupings.contrs);
@@ -3493,6 +3606,10 @@ if (typeof window !== 'undefined') {
     // renderContractorsSubTab/showContractorDetailView/renderReportsList).
     // =========================================================================
     window.renderCurrentAnalyticsTab = AnalyticsRender.renderCurrentAnalyticsTab.bind(AnalyticsRender);
+    // Методы на уже существующем window.AnalyticsRender — без новых top-level window.*.
+    AnalyticsRender.sectionLooksPainted = analyticsSectionLooksPainted;
+    AnalyticsRender.sourceDataIsStale = analyticsSourceDataIsStale;
+    AnalyticsRender.ensurePhotoGalleries = rbiEnsureAnalyticsPhotoGalleries;
     window.renderAnalyticsModeSwitcher = AnalyticsRender.renderAnalyticsModeSwitcher.bind(AnalyticsRender);
     window.renderOnePagerModeToggle = AnalyticsRender.renderOnePagerModeToggle.bind(AnalyticsRender);
     window.updateAnalyticsFilters = AnalyticsRender.updateAnalyticsFilters.bind(AnalyticsRender);

@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.408';
+const SW_VERSION = '18.57.420';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -166,6 +166,8 @@ const urlsToCache = [
   './js/modules/quality/features/history/history.actions.js',
   './js/modules/quality/features/history/history.render.js',
   './js/modules/quality/features/shared/multi-filter.js',
+  './js/modules/quality/features/shared/plan-pin-label.js',
+  './js/modules/quality/features/shared/plan-pin-print.js',
   './js/modules/quality/features/reference/reference.js',
 
   // Фаза 13 — SK Module

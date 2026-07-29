@@ -349,21 +349,8 @@
       if (type === 'sys' && _templates().getSystemTemplates()[key]) AuditState.setChecklist(_templates().getSystemTemplates()[key].groups);
       else if (type === 'user' && _templates().getUserTemplates()[key]) AuditState.setChecklist(_templates().getUserTemplates()[key].groups);
 
-      AuditState.resetSession(); assignPhotosMap({});
-
-      var pInp2 = document.getElementById('inp-project');
-      var cInp2 = document.getElementById('inp-contractor');
-      if (pInp2 && !pInp2.hasAttribute('readonly') && !pInp2.disabled) pInp2.value = '';
-      if (cInp2 && !cInp2.hasAttribute('readonly')) cInp2.value = '';
-      if (document.getElementById('inp-location')) document.getElementById('inp-location').value = '';
-      if (document.getElementById('inp-section')) document.getElementById('inp-section').value = '';
-      if (document.getElementById('inp-floor')) document.getElementById('inp-floor').value = '';
-      if (document.getElementById('inp-room')) document.getElementById('inp-room').value = '';
-      if (window.AuditState && typeof window.AuditState.clearPlanPin === 'function') window.AuditState.clearPlanPin();
-      try {
-        var _ind2 = document.getElementById('quality-plan-pin-indicator');
-        if (_ind2) { _ind2.classList.add('hidden'); _ind2.classList.remove('flex'); }
-      } catch (_e2) { /* ignore */ }
+      // Keep object; reset contractor + section/floor/room/pin + session (follow-up UX).
+      AuditActions.resetPinContextKeepProject({ clearContractor: true });
 
       AuditActions.saveSession();
 
@@ -379,6 +366,33 @@
       if (document.getElementById('tab-audit').classList.contains('active')) { window.render(); window.updateUI(); }
       if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
       emit('audit:state:changed', { action: 'template', key: val });
+    },
+
+    /**
+     * Reset pin/floor/section/room/session; keep inp-project.
+     * opts.clearContractor — also clear contractor (template change).
+     */
+    resetPinContextKeepProject: function (opts) {
+      opts = opts || {};
+      if (opts.clearContractor) {
+        var cInp = document.getElementById('inp-contractor');
+        if (cInp && !cInp.hasAttribute('readonly')) cInp.value = '';
+      }
+      if (document.getElementById('inp-location')) document.getElementById('inp-location').value = '';
+      if (document.getElementById('inp-section')) document.getElementById('inp-section').value = '';
+      if (document.getElementById('inp-floor')) document.getElementById('inp-floor').value = '';
+      if (document.getElementById('inp-room')) document.getElementById('inp-room').value = '';
+      if (window.AuditState && typeof window.AuditState.clearPlanPin === 'function') {
+        window.AuditState.clearPlanPin();
+      }
+      try {
+        var _ind = document.getElementById('quality-plan-pin-indicator');
+        if (_ind) { _ind.classList.add('hidden'); _ind.classList.remove('flex'); }
+        var roomPh = document.getElementById('inp-room');
+        if (roomPh) roomPh.placeholder = 'Оси/Пом.*';
+      } catch (_e) { /* ignore */ }
+      AuditState.resetSession();
+      assignPhotosMap({});
     },
 
     // =====================================================================
@@ -494,12 +508,32 @@
       var projVal = projInput.value.trim();
       var contrVal = contrInput.value.trim();
 
+      function _planPinOf(item) {
+        if (!item) return null;
+        if (item.planPin) return item.planPin;
+        if (item.metrics && item.metrics.planPin) return item.metrics.planPin;
+        return null;
+      }
+      function _samePlanPoint(a, b, eps) {
+        if (!a || !b) return false;
+        if (String(a.locationId) !== String(b.locationId)) return false;
+        var ax = Number(a.x), ay = Number(a.y), bx = Number(b.x), by = Number(b.y);
+        if (![ax, ay, bx, by].every(Number.isFinite)) return false;
+        var dx = ax - bx, dy = ay - by;
+        return Math.hypot(dx, dy) <= (eps == null ? 1.0 : eps);
+      }
+
       var _inspections = _getAllInspections();
       var isDuplicate = _inspections.some(function (item) {
-        return item.projectName === projVal &&
-          item.contractorName === contrVal &&
-          item.templateKey === AuditState.currentTemplateKey &&
-          item.location === locVal;
+        if (item.projectName !== projVal ||
+            item.contractorName !== contrVal ||
+            item.templateKey !== AuditState.currentTemplateKey) {
+          return false;
+        }
+        if (hasPlanPin) {
+          return _samePlanPoint(planPin, _planPinOf(item), 1.0);
+        }
+        return item.location === locVal;
       });
 
       if (isDuplicate) {
@@ -804,16 +838,29 @@
       }
 
       AuditState.resetSession(); assignPhotosMap({});
-      secInput.value = ''; floorInput.value = ''; roomInput.value = ''; locHidden.value = '';
-      if (window.AuditState && typeof window.AuditState.clearPlanPin === 'function') {
-        window.AuditState.clearPlanPin();
+      if (hasPlanPin) {
+        // Keep-floor: object / section / floor / location path stay; clear axes + pin coords.
+        if (roomInput) roomInput.value = '';
+        if (window.AuditState && typeof window.AuditState.clearPlanPin === 'function') {
+          window.AuditState.clearPlanPin();
+        }
+        try {
+          var _indSaveKeep = document.getElementById('quality-plan-pin-indicator');
+          if (_indSaveKeep) { _indSaveKeep.classList.add('hidden'); _indSaveKeep.classList.remove('flex'); }
+          if (roomInput) roomInput.placeholder = 'Оси/Пом.*';
+        } catch (_eSaveKeep) { /* ignore */ }
+      } else {
+        secInput.value = ''; floorInput.value = ''; roomInput.value = ''; locHidden.value = '';
+        if (window.AuditState && typeof window.AuditState.clearPlanPin === 'function') {
+          window.AuditState.clearPlanPin();
+        }
+        try {
+          var _indSave = document.getElementById('quality-plan-pin-indicator');
+          if (_indSave) { _indSave.classList.add('hidden'); _indSave.classList.remove('flex'); }
+          var roomPh = document.getElementById('inp-room');
+          if (roomPh) roomPh.placeholder = 'Оси/Пом.*';
+        } catch (_eSave) { /* ignore */ }
       }
-      try {
-        var _indSave = document.getElementById('quality-plan-pin-indicator');
-        if (_indSave) { _indSave.classList.add('hidden'); _indSave.classList.remove('flex'); }
-        var roomPh = document.getElementById('inp-room');
-        if (roomPh) roomPh.placeholder = 'Оси/Пом.*';
-      } catch (_eSave) { /* ignore */ }
 
       AuditActions.scheduleSessionSave();
 

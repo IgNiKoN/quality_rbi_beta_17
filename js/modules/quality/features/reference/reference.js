@@ -1346,6 +1346,7 @@ function buildCollapsibleFilterSummary(panelId) {
         push(document.getElementById('btn-hist-period-label'), 18);
         push(document.getElementById('btn-hist-project'), 20);
         push(document.getElementById('btn-hist-contractor'), 18);
+        push(document.getElementById('btn-hist-template'), 16);
         push(document.getElementById('btn-hist-inspector'), 16);
         if (!bits.length) {
             const period = _truncateFilterLabel(
