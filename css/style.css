@@ -3254,3 +3254,93 @@ body.ui-motion-off .rbi-acc {
     }
 }
 
+/* ============================================================
+   EXPERIMENT: visual-calm (ветка experiment/visual-calm)
+   Цель: облегчить восприятие — меньше теней/рамок/крика типографики.
+   Ширину холста НЕ трогаем. Откат: git checkout main
+   ============================================================ */
+
+/* Карточки: тень → почти плоско, бордер мягче */
+[data-theme="rbi-light-v2"] .bg-\[var\(--card-bg\)\],
+[data-theme="rbi-dark-v2"] .bg-\[var\(--card-bg\)\] {
+    box-shadow: none !important;
+    border-color: var(--line) !important;
+}
+
+[data-theme="rbi-light-v2"] .card-audit,
+[data-theme="rbi-light-v2"] .shadow-ios,
+[data-theme="rbi-light-v2"] .shadow-sm,
+[data-theme="rbi-dark-v2"] .card-audit,
+[data-theme="rbi-dark-v2"] .shadow-ios,
+[data-theme="rbi-dark-v2"] .shadow-sm {
+    box-shadow: none !important;
+}
+
+[data-theme="rbi-light-v2"] .sticky-top-panel,
+[data-theme="rbi-light-v2"] #analytics-filters-block,
+[data-theme="rbi-light-v2"] #hist-sticky-panel,
+[data-theme="rbi-dark-v2"] .sticky-top-panel,
+[data-theme="rbi-dark-v2"] #analytics-filters-block,
+[data-theme="rbi-dark-v2"] #hist-sticky-panel {
+    box-shadow: none !important;
+}
+
+/* Вложенные «серые подложки» — ближе к фону, меньше коробок */
+[data-theme="rbi-light-v2"] .bg-slate-50,
+[data-theme="rbi-light-v2"] .bg-slate-100 {
+    background-color: rgba(28, 43, 57, 0.03) !important;
+}
+
+[data-theme="rbi-light-v2"] .border-slate-100,
+[data-theme="rbi-light-v2"] .border-slate-200 {
+    border-color: var(--line) !important;
+}
+
+/* Мелкий SCREAMING CAPS → спокойнее */
+[data-theme="rbi-light-v2"] #app-root .font-black.uppercase,
+[data-theme="rbi-light-v2"] #main-header .font-black.uppercase,
+[data-theme="rbi-dark-v2"] #app-root .font-black.uppercase,
+[data-theme="rbi-dark-v2"] #main-header .font-black.uppercase {
+    font-weight: 700 !important;
+    letter-spacing: 0.04em;
+}
+
+[data-theme="rbi-light-v2"] #app-root .text-\[8px\].uppercase,
+[data-theme="rbi-light-v2"] #app-root .text-\[9px\].uppercase,
+[data-theme="rbi-light-v2"] #app-root .text-\[10px\].uppercase,
+[data-theme="rbi-dark-v2"] #app-root .text-\[8px\].uppercase,
+[data-theme="rbi-dark-v2"] #app-root .text-\[9px\].uppercase,
+[data-theme="rbi-dark-v2"] #app-root .text-\[10px\].uppercase {
+    font-weight: 600 !important;
+    opacity: 0.9;
+}
+
+/* Шапка: убрать подпись разработчика (шум) */
+#main-header .header-top-row .flex.flex-col > .text-\[8px\].tracking-widest:not(.hidden) {
+    display: none !important;
+}
+
+/* Details/секции настроек — меньше «тяжёлых» рамок */
+[data-theme="rbi-light-v2"] #tab-settings details.shadow-sm,
+[data-theme="rbi-dark-v2"] #tab-settings details.shadow-sm {
+    box-shadow: none !important;
+}
+
+[data-theme="rbi-light-v2"] #tab-settings details,
+[data-theme="rbi-dark-v2"] #tab-settings details {
+    border-color: var(--line) !important;
+}
+
+/* Кнопки-плашки в сетках: чуть легче фон */
+[data-theme="rbi-light-v2"] #app-root button.bg-slate-50,
+[data-theme="rbi-light-v2"] #app-root button.bg-slate-100 {
+    background-color: transparent !important;
+    border-color: var(--line) !important;
+}
+
+/* Нижняя/верхняя нав: без лишнего «панельного» веса */
+[data-theme="rbi-light-v2"] .bottom-nav,
+[data-theme="rbi-light-v2"] .header-fixed {
+    box-shadow: none !important;
+}
+
