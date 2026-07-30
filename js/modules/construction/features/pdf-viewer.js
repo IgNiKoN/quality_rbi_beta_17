@@ -239,34 +239,43 @@ window.UniversalPdfViewer = {
             const scaleY = ch / viewport.height;
             const initialScale = Math.min(scaleX, scaleY) * 0.95;
 
-            // БРОНЕБОЙНОЕ ЦЕНТРИРОВАНИЕ ЧЕРЕЗ CSS
-            // 1. Отвязываем контейнер от левого верхнего угла
-            container.classList.remove('top-0', 'left-0');
-            
-            // 2. Ставим центр чертежа ровно в центр экрана
-            container.style.left = '50%';
-            container.style.top = '50%';
-            container.style.marginLeft = `-${viewport.width / 2}px`;
-            container.style.marginTop = `-${viewport.height / 2}px`;
-            
-            // 3. Возвращаем стандартный центр для правильного зума к курсору
-            container.style.transformOrigin = '50% 50%';
+            // top-left + default origin 50% 50%; центр через RbiPlanPanzoom.center (не CSS margin / не origin 0 0)
+            container.classList.add('top-0', 'left-0');
+            container.style.left = '0';
+            container.style.top = '0';
+            container.style.marginLeft = '0';
+            container.style.marginTop = '0';
+            container.style.removeProperty('transform-origin');
 
-            // Инициализация Panzoom. Теперь координаты startX и startY = 0, 
-            // так как CSS уже идеально отцентрировал холст!
-            this.panzoomInstance = Panzoom(container, {
-                maxScale: 10,
-                minScale: 0.3,
-                step: 0.1,
-                startScale: initialScale,
-                startX: 0,
-                startY: 0,
-                pinchAndPan: true,
-                touchAction: 'none'
-            });
+            const pp = window.RbiPlanPanzoom;
+            const pzOpts = pp && typeof pp.baseOptions === 'function'
+                ? pp.baseOptions({
+                    maxScale: 10,
+                    minScale: 0.3,
+                    startScale: initialScale,
+                    startX: 0,
+                    startY: 0
+                })
+                : {
+                    maxScale: 10,
+                    minScale: 0.3,
+                    step: 0.5,
+                    startScale: initialScale,
+                    startX: 0,
+                    startY: 0,
+                    pinchAndPan: true,
+                    touchAction: 'none'
+                };
+
+            this.panzoomInstance = Panzoom(container, pzOpts);
 
             // Показываем контейнер
             container.style.visibility = 'visible';
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (pp && this.panzoomInstance) pp.center(this.panzoomInstance, wrapper, container);
+                });
+            });
 
             // Рендерим точки дефектов
             if (this.currentFloorId) {
@@ -297,7 +306,18 @@ window.UniversalPdfViewer = {
             };
             container.addEventListener('panzoomzoom', this._zoomListener);
 
-            wrapper.parentElement.addEventListener('wheel', this.panzoomInstance.zoomWithWheel);
+            if (this._wheelListener && wrapper) {
+                wrapper.removeEventListener('wheel', this._wheelListener);
+            }
+            this._wheelListener = (e) => {
+                if (!this.panzoomInstance) return;
+                if (pp) pp.wheelZoom(this.panzoomInstance, e, 0.3, 10);
+                else {
+                    e.preventDefault();
+                    this.panzoomInstance.zoomWithWheel(e, { step: 0.2 });
+                }
+            };
+            wrapper.addEventListener('wheel', this._wheelListener, { passive: false });
             container.onclick = (e) => this.handleCanvasClick(e);
 
         } catch (e) {
@@ -532,8 +552,11 @@ window.UniversalPdfViewer = {
             document.body.classList.remove('modal-open');
             if (pins) pins.innerHTML = ''; 
 
+            if (this._wheelListener && wrapper) {
+                wrapper.removeEventListener('wheel', this._wheelListener);
+                this._wheelListener = null;
+            }
             if (this.panzoomInstance) {
-                wrapper.parentElement.removeEventListener('wheel', this.panzoomInstance.zoomWithWheel);
                 this.panzoomInstance.destroy();
                 this.panzoomInstance = null;
             }

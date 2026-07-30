@@ -503,7 +503,9 @@ async function _openPlanViewer(floorId, viewerOpts) {
   let pointerDown = null;
   const PZ_MIN = 0.4;
   const PZ_MAX = 8;
-  const PZ_STEP = 0.2;
+  const pp = window.RbiPlanPanzoom;
+  const PZ_PINCH_STEP = (pp && pp.PINCH_STEP) || 0.5;
+  const PZ_BTN_STEP = (pp && pp.BTN_STEP) || 0.28;
 
   const chipsHtml = allKeys.length
     ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips>
@@ -568,7 +570,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
     ${contractorChipsHtml}
     <div class="relative flex-1 min-h-0" data-qpin-host>
       <div class="absolute inset-0 overflow-hidden bg-slate-800 touch-none" data-qpin-wrap>
-        <div class="absolute shadow-lg bg-white" data-qpin-stage style="touch-action:none;transform-origin:50% 50%">
+        <div class="absolute top-0 left-0 shadow-lg bg-white" data-qpin-stage style="touch-action:none">
           <canvas data-qpin-canvas class="block max-w-none"></canvas>
           <div data-qpin-pins class="absolute inset-0"></div>
         </div>
@@ -800,8 +802,8 @@ async function _openPlanViewer(floorId, viewerOpts) {
     if (!panzoom) return;
     const cur = panzoom.getScale() || 1;
     const next = dir > 0
-      ? Math.min(PZ_MAX, cur * Math.exp(PZ_STEP))
-      : Math.max(PZ_MIN, cur * Math.exp(-PZ_STEP));
+      ? Math.min(PZ_MAX, cur * Math.exp(PZ_BTN_STEP))
+      : Math.max(PZ_MIN, cur * Math.exp(-PZ_BTN_STEP));
     const wr = wrap.getBoundingClientRect();
     const focal = lastPointer || { clientX: wr.left + wr.width / 2, clientY: wr.top + wr.height / 2 };
     if (typeof panzoom.zoomToPoint === 'function') {
@@ -884,12 +886,11 @@ async function _openPlanViewer(floorId, viewerOpts) {
     canvas.height = viewport.height;
     stage.style.width = viewport.width + 'px';
     stage.style.height = viewport.height + 'px';
-    // Как в стройконтроль v1: CSS-центр + origin 50%/50% (было 0 0 → зум в угол на телефоне)
-    stage.style.left = '50%';
-    stage.style.top = '50%';
-    stage.style.marginLeft = (-viewport.width / 2) + 'px';
-    stage.style.marginTop = (-viewport.height / 2) + 'px';
-    stage.style.transformOrigin = '50% 50%';
+    stage.style.left = '0';
+    stage.style.top = '0';
+    stage.style.marginLeft = '0';
+    stage.style.marginTop = '0';
+    stage.style.removeProperty('transform-origin');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d недоступен');
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
@@ -897,29 +898,50 @@ async function _openPlanViewer(floorId, viewerOpts) {
 
     const factory = window.Panzoom;
     if (typeof factory === 'function') {
-      panzoom = factory(stage, {
-        maxScale: PZ_MAX,
-        minScale: PZ_MIN,
-        step: PZ_STEP,
-        startScale: 1,
-        startX: 0,
-        startY: 0,
-        cursor: 'grab',
-        excludeClass: 'panzoom-exclude',
-        pinchAndPan: true,
-        touchAction: 'none'
-      });
+      const pzOpts = pp && typeof pp.baseOptions === 'function'
+        ? pp.baseOptions({
+            maxScale: PZ_MAX,
+            minScale: PZ_MIN,
+            startScale: 1,
+            startX: 0,
+            startY: 0
+          })
+        : {
+            maxScale: PZ_MAX,
+            minScale: PZ_MIN,
+            step: PZ_PINCH_STEP,
+            startScale: 1,
+            startX: 0,
+            startY: 0,
+            pinchAndPan: true,
+            touchAction: 'none',
+            cursor: 'grab',
+            excludeClass: 'panzoom-exclude'
+          };
+      panzoom = factory(stage, pzOpts);
       overlay._qpinPanzoom = panzoom;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (pp && panzoom) pp.center(panzoom, wrap, stage);
+        });
+      });
       const onWheel = function (e) {
         if (!panzoom) return;
-        e.preventDefault();
-        panzoom.zoomWithWheel(e);
+        if (pp) pp.wheelZoom(panzoom, e, PZ_MIN, PZ_MAX);
+        else {
+          e.preventDefault();
+          panzoom.zoomWithWheel(e, { step: 0.2 });
+        }
         _renderPins({ scale: panzoom.getScale() });
       };
       wrap.addEventListener('wheel', onWheel, { passive: false });
       overlay._qpinOnWheel = onWheel;
+      let pinZoomTimer = null;
       stage.addEventListener('panzoomchange', function () {
-        _renderPins({ scale: _currentScale() });
+        clearTimeout(pinZoomTimer);
+        pinZoomTimer = setTimeout(function () {
+          _renderPins({ scale: _currentScale() });
+        }, 40);
       });
     }
 

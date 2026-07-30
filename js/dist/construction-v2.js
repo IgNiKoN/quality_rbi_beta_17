@@ -805,9 +805,13 @@ function spiderPositions(centerX, centerY, count, radiusPct = 5) {
   }
   return pts;
 }
-const PZ_STEP = 0.2;
+const PZ_PINCH_STEP = 0.5;
+const PZ_BTN_STEP = 0.28;
 const PZ_MIN = 0.4;
 const PZ_MAX = 8;
+function _planPz() {
+  return window.RbiPlanPanzoom || null;
+}
 function _pdfjs() {
   return window.pdfjsLib || null;
 }
@@ -911,12 +915,12 @@ class PlanViewer {
   }
   zoomIn() {
     if (!this.panzoom) return;
-    const next = Math.min(PZ_MAX, this.panzoom.getScale() * Math.exp(PZ_STEP));
+    const next = Math.min(PZ_MAX, this.panzoom.getScale() * Math.exp(PZ_BTN_STEP));
     this.panzoom.zoomToPoint(next, this._getZoomPoint());
   }
   zoomOut() {
     if (!this.panzoom) return;
-    const next = Math.max(PZ_MIN, this.panzoom.getScale() * Math.exp(-PZ_STEP));
+    const next = Math.max(PZ_MIN, this.panzoom.getScale() * Math.exp(-PZ_BTN_STEP));
     this.panzoom.zoomToPoint(next, this._getZoomPoint());
   }
   /**
@@ -932,10 +936,16 @@ class PlanViewer {
     const r = this.wrap.getBoundingClientRect();
     return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
   }
-  /** Сброс масштаба/пана к стартовому fit. */
+  /** Сброс масштаба/пана к стартовому fit + центр в окне. */
   fit() {
-    if (!this.panzoom) return;
-    this.panzoom.reset({ animate: true });
+    if (!this.panzoom || !this.wrap || !this.stage) return;
+    this.panzoom.reset({ animate: false });
+    const helper = _planPz();
+    const doCenter = () => {
+      if (!this.panzoom || !this.wrap || !this.stage) return;
+      if (helper) helper.center(this.panzoom, this.wrap, this.stage);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(doCenter));
   }
   getScale() {
     var _a;
@@ -958,7 +968,7 @@ class PlanViewer {
     this._destroyPanzoom();
     this.host.innerHTML = `
       <div class="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-900 touch-none" data-c2-plan-wrap>
-        <div class="absolute shadow-lg bg-white" data-c2-plan-stage style="touch-action:none;transform-origin:50% 50%">
+        <div class="absolute top-0 left-0 shadow-lg bg-white" data-c2-plan-stage style="touch-action:none">
           <canvas data-c2-plan-canvas class="block max-w-none"></canvas>
           <div data-c2-plan-zones class="absolute inset-0 pointer-events-none"></div>
           <div data-c2-plan-pins class="absolute inset-0 pointer-events-none"></div>
@@ -1010,11 +1020,11 @@ class PlanViewer {
     this.canvas.height = viewport.height;
     this.stage.style.width = `${viewport.width}px`;
     this.stage.style.height = `${viewport.height}px`;
-    this.stage.style.left = "50%";
-    this.stage.style.top = "50%";
-    this.stage.style.marginLeft = `${-viewport.width / 2}px`;
-    this.stage.style.marginTop = `${-viewport.height / 2}px`;
-    this.stage.style.transformOrigin = "50% 50%";
+    this.stage.style.left = "0";
+    this.stage.style.top = "0";
+    this.stage.style.marginLeft = "0";
+    this.stage.style.marginTop = "0";
+    this.stage.style.removeProperty("transform-origin");
     const ctx = this.canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d недоступен");
     await page.render({ canvasContext: ctx, viewport }).promise;
@@ -1184,23 +1194,54 @@ class PlanViewer {
     this._destroyPanzoom();
     const factory = _panzoomFactory();
     if (!factory || !this.stage || !this.wrap) return;
-    this.panzoom = factory(this.stage, {
+    const helper = _planPz();
+    const pinchStep = (helper == null ? void 0 : helper.PINCH_STEP) ?? PZ_PINCH_STEP;
+    const opts = helper ? helper.baseOptions({
       maxScale: PZ_MAX,
       minScale: PZ_MIN,
-      step: PZ_STEP,
+      startScale: 1,
+      startX: 0,
+      startY: 0
+    }) : {
+      maxScale: PZ_MAX,
+      minScale: PZ_MIN,
+      step: pinchStep,
       startScale: 1,
       startX: 0,
       startY: 0,
-      cursor: "grab",
-      excludeClass: "panzoom-exclude",
-      // Мобильный pinch: пан во время жеста + без нативного scroll/zoom страницы
       pinchAndPan: true,
-      touchAction: "none"
-    });
+      touchAction: "none",
+      cursor: "grab",
+      excludeClass: "panzoom-exclude"
+    };
+    this.panzoom = factory(this.stage, opts);
+    const doCenter = () => {
+      if (!this.panzoom || !this.wrap || !this.stage) return;
+      if (helper) helper.center(this.panzoom, this.wrap, this.stage);
+      else {
+        const wr = this.wrap.getBoundingClientRect();
+        const er = this.stage.getBoundingClientRect();
+        const dx = wr.left + wr.width / 2 - (er.left + er.width / 2);
+        const dy = wr.top + wr.height / 2 - (er.top + er.height / 2);
+        const s = this.panzoom.getScale() || 1;
+        const pan = this.panzoom.getPan();
+        this.panzoom.pan(pan.x + dx / s, pan.y + dy / s, { animate: false, force: true });
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(doCenter));
     this._onWheelBound = (e) => {
       if (!this.panzoom) return;
-      e.preventDefault();
-      this.panzoom.zoomWithWheel(e);
+      if (helper) helper.wheelZoom(this.panzoom, e, PZ_MIN, PZ_MAX);
+      else {
+        e.preventDefault();
+        const cur = this.panzoom.getScale() || 1;
+        let dy = e.deltaY;
+        if (e.deltaMode === 1) dy *= 16;
+        if (dy > 60) dy = 60;
+        if (dy < -60) dy = -60;
+        const next = Math.min(PZ_MAX, Math.max(PZ_MIN, cur * Math.exp(-dy * 16e-4)));
+        this.panzoom.zoomToPoint(next, { clientX: e.clientX, clientY: e.clientY });
+      }
     };
     this.wrap.addEventListener("wheel", this._onWheelBound, { passive: false });
     this._lastPointerClient = null;
