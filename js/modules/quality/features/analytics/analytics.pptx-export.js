@@ -147,14 +147,15 @@ async function _thumbDataUrl(photoRef) {
 }
 
 function _buildSummaryPayload(data) {
-    var sumUrk = 0;
     var sumB3 = 0;
     data.forEach(function (i) {
         if (!i.metrics) return;
-        sumUrk += Number(i.metrics.final) || 0;
         sumB3 += Number(i.metrics.n_B3_fail) || 0;
     });
-    var currAvgUrk = data.length > 0 ? Math.round(sumUrk / data.length) : 0;
+    var kpi = (typeof root.avgContractorRatingsFromChecks === 'function')
+        ? root.avgContractorRatingsFromChecks(data)
+        : { avgUrk: 0 };
+    var currAvgUrk = kpi.avgUrk;
 
     var groupedC = {};
     data.forEach(function (item) {

@@ -211,6 +211,10 @@ window.triggerSync = async function (mode = 'silent') {
                 }
 
                 if (Array.isArray(fetchedProjects)) {
+                    if (typeof ObjectDirectory !== 'undefined'
+                        && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
+                        fetchedProjects = ObjectDirectory.normalizeAssignedProjectsList(fetchedProjects);
+                    }
                     // Только approved-профиль имеет право заменить локальные подтверждённые объекты.
                     // pending/guest не должен стирать заявки пользователя.
                     if (fetchedCloudStatus === 'approved') {
@@ -243,9 +247,23 @@ window.triggerSync = async function (mode = 'silent') {
                             // Заявки на снятие, которые сервер уже применил (объект
                             // реально пропал из fetchedProjects) — больше не "в ожидании".
                             if (Array.isArray(appSettings.pendingUnassignProjects)) {
-                                appSettings.pendingUnassignProjects = appSettings.pendingUnassignProjects.filter(
-                                    key => fetchedProjects.includes(key)
+                                const fetchedSet = new Set(
+                                    (fetchedProjects || []).map(function (p) {
+                                        if (typeof ObjectDirectory !== 'undefined'
+                                            && typeof ObjectDirectory.resolveProjectId === 'function') {
+                                            return ObjectDirectory.resolveProjectId(p) || String(p);
+                                        }
+                                        return String(p);
+                                    })
                                 );
+                                appSettings.pendingUnassignProjects = appSettings.pendingUnassignProjects.filter(function (key) {
+                                    let id = key;
+                                    if (typeof ObjectDirectory !== 'undefined'
+                                        && typeof ObjectDirectory.resolveProjectId === 'function') {
+                                        id = ObjectDirectory.resolveProjectId(key) || key;
+                                    }
+                                    return fetchedSet.has(String(id)) || fetchedProjects.includes(key);
+                                });
                             }
                             needUiUpdate = true;
 
@@ -754,6 +772,7 @@ if (window.RbiStorageManager) {
                         if (document.getElementById('tab-settings')?.classList.contains('active')) {
                             if (typeof renderSettingsTab === 'function') renderSettingsTab();
                         }
+                        if (typeof window.updateHeaderBrandLogo === 'function') window.updateHeaderBrandLogo();
                     }
                 }
             }
@@ -965,6 +984,7 @@ if (window.RbiStorageManager) {
                     // Новые поля объекта
                     project_canonical_key: h.project_canonical_key || h.project_name || '',
                     project_display_name: h.project_display_name || h.project_name || '',
+                    projectId: h.projectId || h.project_id || '',
 
                     inspectorName: h.engineer_name || '',
                     contractorName: h.contractor_name || '',
@@ -2059,7 +2079,9 @@ if (window.RbiStorageManager) {
                             const isUnassignedProject = recProject === 'unknown' || recProject === '';
                             const projectOk = (!assignedProjects || assignedProjects.length === 0)
                                 ? isUnassignedProject
-                                : assignedProjects.includes(recProject);
+                                : (window.RBI.services.permissions && typeof window.RBI.services.permissions.isRecordInAssignedProjects === 'function'
+                                    ? window.RBI.services.permissions.isRecordInAssignedProjects(c, assignedProjects)
+                                    : assignedProjects.includes(recProject));
 
                             if (ownerOk && projectOk) allowedToPush = true;
                             else if (!ownerOk) blockReason = 'Запись создана другим инженером';
@@ -2155,6 +2177,7 @@ if (window.RbiStorageManager) {
 
                     // Формируем пакет самой проверки
                     const inspContractorId = String(c.contractorId || '').trim();
+                    const inspProjectId = String(c.projectId || c.project_id || '').trim();
                     const inspPayload = {
                         id: inspectionId, project_code: pCode,
                         project_name: c.project_display_name || c.projectName || '', project_canonical_key: c.project_canonical_key || c.projectName || '', project_display_name: c.project_display_name || c.projectName || '',
@@ -2167,6 +2190,9 @@ if (window.RbiStorageManager) {
                     };
                     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inspContractorId)) {
                         inspPayload.contractorId = inspContractorId;
+                    }
+                    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inspProjectId)) {
+                        inspPayload.projectId = inspProjectId;
                     }
                     inspectionsBatch.push(inspPayload);
 

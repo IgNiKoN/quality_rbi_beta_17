@@ -417,13 +417,146 @@
             };
         },
 
-        // Получить объект по canonical_key
+        // Получить объект по canonical_key (без учёта регистра)
         getObjectByKey(canonicalKey) {
             if (!canonicalKey) return null;
-
+            const clean = this.cleanString(canonicalKey);
             return this.objects.find(o =>
-                String(o.canonical_key) === String(canonicalKey)
+                this.cleanString(o.canonical_key || '') === clean
             ) || null;
+        },
+
+        getObjectById(id) {
+            if (!id) return null;
+            const sid = String(id).trim();
+            return this.objects.find(o => String(o.id || '') === sid) || null;
+        },
+
+        _isUuidLike(value) {
+            return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+        },
+
+        /**
+         * Резолв ссылки (UUID | canonical_key | display | synonym) → карточка объекта.
+         */
+        resolveObjectRef(ref) {
+            const raw = String(ref || '').trim();
+            if (!raw) return null;
+            if (this._isUuidLike(raw)) {
+                const byId = this.getObjectById(raw);
+                if (byId) return byId;
+            }
+            const byKey = this.getObjectByKey(raw);
+            if (byKey) return byKey;
+            const clean = this.cleanString(raw);
+            const byDisplay = this.objects.find(o =>
+                this.cleanString(o.display_name || o.name || '') === clean
+            );
+            if (byDisplay) return byDisplay;
+            if (this.aliases[raw]) {
+                const viaAlias = this.getObjectByKey(this.aliases[raw]);
+                if (viaAlias) return viaAlias;
+            }
+            const aliasKey = Object.keys(this.aliases || {}).find(a => this.cleanString(a) === clean);
+            if (aliasKey) {
+                const viaCleanAlias = this.getObjectByKey(this.aliases[aliasKey]);
+                if (viaCleanAlias) return viaCleanAlias;
+            }
+            const bySyn = this.objects.find(o =>
+                Array.isArray(o.synonyms) && o.synonyms.some(s => this.cleanString(s) === clean)
+            );
+            return bySyn || null;
+        },
+
+        /** UUID объекта из имени/ключа/id (пусто если не найден). */
+        resolveProjectId(ref) {
+            const obj = this.resolveObjectRef(ref);
+            return obj && obj.id ? String(obj.id) : '';
+        },
+
+        /**
+         * Нормализация assignedProjects → массив UUID (стабильный id узла locations.object).
+         * Нерезолвленные строки сохраняются как есть (переходный dual-read).
+         */
+        normalizeAssignedProjectsList(list) {
+            const arr = Array.isArray(list) ? list : [];
+            const out = [];
+            const seen = {};
+            arr.forEach((item) => {
+                const raw = String(item || '').trim();
+                if (!raw) return;
+                const obj = this.resolveObjectRef(raw);
+                const id = obj && obj.id ? String(obj.id) : raw;
+                if (seen[id]) return;
+                seen[id] = true;
+                out.push(id);
+            });
+            return out;
+        },
+
+        getDisplayForAssignedRef(ref) {
+            const obj = this.resolveObjectRef(ref);
+            if (obj) return obj.display_name || obj.canonical_key || String(ref || '');
+            return String(ref || '');
+        },
+
+        _recordProjectTokens(rec) {
+            if (!rec || typeof rec !== 'object') {
+                return { projectId: '', canonical: '', display: '', names: [] };
+            }
+            const projectId = String(rec.projectId || rec.project_id || '').trim();
+            const canonical = String(rec.project_canonical_key || '').trim();
+            const display = String(
+                rec.project_display_name
+                || rec.projectName
+                || rec.project_name
+                || rec.project_raw_name
+                || rec.project
+                || rec.display_name
+                || ''
+            ).trim();
+            const names = [canonical, display].filter(Boolean);
+            return { projectId, canonical, display, names };
+        },
+
+        /**
+         * Совпадение записи с assignedProjects: primary UUID projectId,
+         * fallback — cleanString canonical/display/synonym карточки.
+         */
+        isRecordInAssignedProjects(rec, assignedList) {
+            const assigned = Array.isArray(assignedList) ? assignedList : [];
+            if (!assigned.length) return false;
+            const tokens = this._recordProjectTokens(rec);
+            const assignedIds = this.normalizeAssignedProjectsList(assigned);
+
+            if (tokens.projectId && this._isUuidLike(tokens.projectId)) {
+                if (assignedIds.indexOf(tokens.projectId) >= 0) return true;
+            }
+
+            for (let i = 0; i < assignedIds.length; i++) {
+                const ref = assignedIds[i];
+                const obj = this.resolveObjectRef(ref);
+                if (obj) {
+                    if (tokens.projectId && String(obj.id) === tokens.projectId) return true;
+                    const objCleanKey = this.cleanString(obj.canonical_key || '');
+                    const objCleanDisplay = this.cleanString(obj.display_name || obj.name || '');
+                    for (let n = 0; n < tokens.names.length; n++) {
+                        const c = this.cleanString(tokens.names[n]);
+                        if (!c) continue;
+                        if (c === objCleanKey || c === objCleanDisplay) return true;
+                        if (Array.isArray(obj.synonyms) && obj.synonyms.some(s => this.cleanString(s) === c)) {
+                            return true;
+                        }
+                    }
+                } else {
+                    // Legacy assigned string без карточки — cleanString equals
+                    const refClean = this.cleanString(ref);
+                    for (let n = 0; n < tokens.names.length; n++) {
+                        if (refClean && refClean === this.cleanString(tokens.names[n])) return true;
+                    }
+                }
+            }
+            return false;
         },
 
         /**
@@ -446,7 +579,8 @@
             if (existing) return existing;
 
             await this._ensureLocationsObjectPeer(key, displayName, []);
-            return this.getObjectByKey(key) || {
+            await this.rebuildFromLocations();
+            return this.getObjectByKey(key) || this.resolveObjectRef(displayName) || {
                 id: key,
                 canonical_key: key,
                 display_name: displayName,
@@ -460,8 +594,352 @@
 
         // Получить красивое название по canonical_key
         getDisplayNameByKey(canonicalKey) {
-            const obj = this.getObjectByKey(canonicalKey);
+            const obj = this.resolveObjectRef(canonicalKey) || this.getObjectByKey(canonicalKey);
             return obj ? obj.display_name : canonicalKey;
+        },
+
+        /**
+         * Слить написание (raw) в канонический объект: synonym + remap assigned у профилей.
+         */
+        async mergeRawNameIntoObject(rawName, targetObjectIdOrKey) {
+            const raw = String(rawName || '').trim();
+            const target = this.resolveObjectRef(targetObjectIdOrKey);
+            if (!raw || !target || !target.id) {
+                return { ok: false, error: 'missing_raw_or_target' };
+            }
+            const loc = this._locationsSvc();
+            if (loc && typeof loc.updateNode === 'function') {
+                const cur = Array.isArray(target.synonyms) ? target.synonyms.map(String) : [];
+                if (!cur.some(s => this.cleanString(s) === this.cleanString(raw))) {
+                    cur.push(raw);
+                    await loc.updateNode(target.id, { synonyms: cur });
+                    await this.rebuildFromLocations();
+                }
+            }
+            this.aliases[raw] = target.canonical_key;
+
+            // Remap assignedProjects в облачных профилях: старая строка → UUID
+            let remappedProfiles = 0;
+            if (window.supabaseClient && window.syncConfig && window.syncConfig.enabled) {
+                const pCode = window.syncConfig.projectCode;
+                try {
+                    const { data: profiles } = await window.supabaseClient
+                        .from('rbi_engineer_profiles')
+                        .select('inspector_id, assigned_projects, settings')
+                        .eq('project_code', pCode);
+                    const list = Array.isArray(profiles) ? profiles : [];
+                    for (let i = 0; i < list.length; i++) {
+                        const p = list[i];
+                        const col = Array.isArray(p.assigned_projects) ? p.assigned_projects.slice() : [];
+                        const sett = (p.settings && typeof p.settings === 'object') ? Object.assign({}, p.settings) : {};
+                        const settArr = Array.isArray(sett.assignedProjects) ? sett.assignedProjects.slice() : [];
+                        const before = JSON.stringify(col) + JSON.stringify(settArr);
+                        const mapOne = (v) => {
+                            const s = String(v || '').trim();
+                            if (!s) return s;
+                            if (this.cleanString(s) === this.cleanString(raw) || s === target.canonical_key) {
+                                return String(target.id);
+                            }
+                            return s;
+                        };
+                        const nextCol = this.normalizeAssignedProjectsList(col.map(mapOne));
+                        const nextSett = this.normalizeAssignedProjectsList(settArr.map(mapOne));
+                        sett.assignedProjects = nextSett;
+                        if (JSON.stringify(nextCol) + JSON.stringify(nextSett) === before) continue;
+                        const perm = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                        if (perm && typeof perm.writeUserProjectAssignment === 'function') {
+                            await perm.writeUserProjectAssignment(p.inspector_id, nextCol, null, {
+                                assignedProjects: nextSett,
+                                requestedProjects: sett.requestedProjects
+                            });
+                        } else {
+                            await window.supabaseClient.from('rbi_engineer_profiles').update({
+                                assigned_projects: nextCol,
+                                settings: sett,
+                                updated_at: new Date().toISOString()
+                            }).eq('inspector_id', p.inspector_id);
+                        }
+                        remappedProfiles++;
+                    }
+                } catch (e) {
+                    console.warn('[ObjectDirectory.mergeRawNameIntoObject] profile remap', e);
+                }
+            }
+            return { ok: true, targetId: target.id, remappedProfiles };
+        },
+
+        _emptyProjectBackfillCounters() {
+            return { updated: 0, skipped: 0, already: 0, unmatched: 0, errors: 0 };
+        },
+
+        _legacyProjectBackfillTables() {
+            // Облако: snake_case. Quality — project_name / project_*_key;
+            // legacy construction — без project_canonical_key (object_id / floor_id).
+            const inspSelect = 'id, projectId, project_canonical_key, project_display_name, project_name, is_deleted';
+            const skSelect = 'id, projectId, project_canonical_key, project_display_name, project_raw_name, is_deleted';
+            const defectSelect = 'id, projectId, floor_id, is_deleted';
+            const acceptSelect = 'id, projectId, object_id, is_deleted';
+            return [
+                {
+                    key: 'rbi_inspections',
+                    cloudTable: 'rbi_inspections',
+                    localStore: (typeof STORES !== 'undefined' && STORES.HISTORY) ? STORES.HISTORY : 'app_history',
+                    cloudSelect: inspSelect
+                },
+                {
+                    key: 'sk_records',
+                    cloudTable: 'sk_records',
+                    localStore: (typeof STORES !== 'undefined' && STORES.SK_RECORDS) ? STORES.SK_RECORDS : 'sk_records',
+                    cloudSelect: skSelect
+                },
+                {
+                    key: 'construction_defects',
+                    cloudTable: 'construction_defects',
+                    localStore: (typeof STORES !== 'undefined' && STORES.CONST_DEFECTS) ? STORES.CONST_DEFECTS : 'construction_defects',
+                    cloudSelect: defectSelect
+                },
+                {
+                    key: 'construction_acceptance',
+                    cloudTable: 'construction_acceptance',
+                    localStore: (typeof STORES !== 'undefined' && STORES.CONST_ACCEPTANCE) ? STORES.CONST_ACCEPTANCE : 'construction_acceptance',
+                    cloudSelect: acceptSelect
+                }
+            ];
+        },
+
+        _resolveProjectIdFromConstructionLinks(rec) {
+            if (!rec) return '';
+            const oid = String(rec.object_id || rec.objectId || '').trim();
+            if (oid) {
+                if (this._isUuidLike(oid) && this.getObjectById(oid)) {
+                    return oid;
+                }
+                const viaDir = this.resolveProjectId(oid);
+                if (viaDir) return viaDir;
+                if (window.ConstManager && Array.isArray(window.ConstManager.objects)) {
+                    const cmObj = window.ConstManager.objects.find(o => o && String(o.id) === oid);
+                    if (cmObj) {
+                        const id = this.resolveProjectId(cmObj.canonical_key || cmObj.name || cmObj.display_name || '');
+                        if (id) return id;
+                    }
+                }
+            }
+            const fid = String(rec.floor_id || rec.floorId || '').trim();
+            if (fid && window.ConstManager) {
+                const floors = Array.isArray(window.ConstManager.floors) ? window.ConstManager.floors : [];
+                const buildings = Array.isArray(window.ConstManager.buildings) ? window.ConstManager.buildings : [];
+                const objects = Array.isArray(window.ConstManager.objects) ? window.ConstManager.objects : [];
+                const floor = floors.find(f => f && String(f.id) === fid);
+                const bld = floor
+                    ? buildings.find(b => b && String(b.id) === String(floor.building_id || ''))
+                    : null;
+                const cmObj = bld
+                    ? objects.find(o => o && String(o.id) === String(bld.object_id || ''))
+                    : null;
+                if (cmObj) {
+                    const id = this.resolveProjectId(cmObj.canonical_key || cmObj.name || cmObj.display_name || '');
+                    if (id) return id;
+                }
+            }
+            return '';
+        },
+
+        _classifyLegacyProjectId(rec) {
+            const existing = String(rec && (rec.projectId || rec.project_id) || '').trim();
+            if (this._isUuidLike(existing)) {
+                return { status: 'already', id: existing };
+            }
+            const tokens = this._recordProjectTokens(rec);
+            const candidates = [tokens.canonical, tokens.display].concat(tokens.names || []);
+            for (let i = 0; i < candidates.length; i++) {
+                const id = this.resolveProjectId(candidates[i]);
+                if (id) return { status: 'update', id: id };
+            }
+            const viaConst = this._resolveProjectIdFromConstructionLinks(rec);
+            if (viaConst) return { status: 'update', id: viaConst };
+
+            if (!tokens.canonical && !tokens.display
+                && !String(rec && (rec.object_id || rec.objectId || rec.floor_id || rec.floorId) || '').trim()) {
+                return { status: 'skipped', id: '' };
+            }
+            return { status: 'unmatched', id: '' };
+        },
+
+        async _patchLocalProjectId(storeName, rec, projectId) {
+            if (!rec || !rec.id || typeof dbPut !== 'function') return false;
+            rec.projectId = projectId;
+            if (Object.prototype.hasOwnProperty.call(rec, 'project_id')) {
+                rec.project_id = projectId;
+            }
+            const obj = this.getObjectById(projectId);
+            if (obj) {
+                if (!rec.project_canonical_key) rec.project_canonical_key = obj.canonical_key;
+                if (!rec.project_display_name) rec.project_display_name = obj.display_name;
+            }
+            await dbPut(storeName, rec);
+            if (storeName === ((typeof STORES !== 'undefined' && STORES.HISTORY) ? STORES.HISTORY : 'app_history')
+                && Array.isArray(window.contractorArray)) {
+                const mem = window.contractorArray.find(x => x && x.id === rec.id);
+                if (mem) {
+                    mem.projectId = projectId;
+                    if (obj) {
+                        if (!mem.project_canonical_key) mem.project_canonical_key = obj.canonical_key;
+                        if (!mem.project_display_name) mem.project_display_name = obj.display_name;
+                    }
+                }
+            }
+            return true;
+        },
+
+        async _updateCloudProjectId(cloudTable, id, projectId) {
+            if (!window.supabaseClient || !id || !this._isUuidLike(projectId)) {
+                throw new Error('cloud update unavailable');
+            }
+            const { error } = await window.supabaseClient
+                .from(cloudTable)
+                .update({ projectId: projectId })
+                .eq('id', id);
+            if (error) throw error;
+            return true;
+        },
+
+        async backfillProjectIdsOnLegacyRecords(opts) {
+            const options = opts || {};
+            const batchSize = Math.max(1, Math.min(200, Number(options.batchSize) || 50));
+            const onProgress = options.onProgress;
+
+            await this.init();
+
+            const tables = {};
+            const totals = this._emptyProjectBackfillCounters();
+            const cloudAvailable = !!(window.supabaseClient && window.syncConfig && window.syncConfig.enabled);
+            const pCode = String(window.syncConfig?.projectCode || '').trim();
+            const processedCloudIds = new Set();
+
+            const bump = (counters, field) => {
+                counters[field] = (counters[field] || 0) + 1;
+                totals[field] = (totals[field] || 0) + 1;
+            };
+
+            for (const table of this._legacyProjectBackfillTables()) {
+                const counters = this._emptyProjectBackfillCounters();
+                tables[table.key] = counters;
+
+                let localRows = [];
+                try {
+                    if (typeof dbGetAll === 'function') {
+                        localRows = await dbGetAll(table.localStore) || [];
+                    }
+                } catch (e) {
+                    console.warn('[objects.backfill] local read failed', table.key, e);
+                    bump(counters, 'errors');
+                }
+
+                for (let i = 0; i < localRows.length; i++) {
+                    const rec = localRows[i];
+                    if (!rec || rec._deleted === true || rec.is_deleted === true) continue;
+                    const decision = this._classifyLegacyProjectId(rec);
+                    if (decision.status === 'already') {
+                        bump(counters, 'already');
+                        if (rec.id) processedCloudIds.add(String(rec.id));
+                        continue;
+                    }
+                    if (decision.status === 'skipped') {
+                        bump(counters, 'skipped');
+                        continue;
+                    }
+                    if (decision.status === 'unmatched') {
+                        bump(counters, 'unmatched');
+                        continue;
+                    }
+                    try {
+                        await this._patchLocalProjectId(table.localStore, rec, decision.id);
+                        bump(counters, 'updated');
+                        if (cloudAvailable && rec.id) {
+                            try {
+                                await this._updateCloudProjectId(table.cloudTable, rec.id, decision.id);
+                                processedCloudIds.add(String(rec.id));
+                            } catch (cloudErr) {
+                                console.warn('[objects.backfill] cloud patch after local', table.key, rec.id, cloudErr);
+                                bump(counters, 'errors');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[objects.backfill] local patch failed', table.key, e);
+                        bump(counters, 'errors');
+                    }
+                    if (typeof onProgress === 'function') {
+                        onProgress({ phase: 'local', table: table.key, tables: tables, totals: totals, cloudAvailable: cloudAvailable });
+                    }
+                }
+
+                // Cloud-only pages (records not on device)
+                if (cloudAvailable && pCode) {
+                    let from = 0;
+                    let hasMore = true;
+                    while (hasMore) {
+                        let q = window.supabaseClient
+                            .from(table.cloudTable)
+                            .select(table.cloudSelect)
+                            .range(from, from + batchSize - 1);
+                        // project_code filter when column exists — inspections use it
+                        try {
+                            if (table.key === 'rbi_inspections' || table.key === 'sk_records') {
+                                q = q.eq('project_code', pCode);
+                            }
+                        } catch (_e) { /* ignore */ }
+
+                        const { data: page, error } = await q;
+                        if (error) {
+                            console.warn('[objects.backfill] cloud page', table.key, error);
+                            bump(counters, 'errors');
+                            break;
+                        }
+                        const rows = Array.isArray(page) ? page : [];
+                        if (rows.length < batchSize) hasMore = false;
+                        from += batchSize;
+
+                        for (let r = 0; r < rows.length; r++) {
+                            const rec = rows[r];
+                            if (!rec || rec.is_deleted === true) continue;
+                            if (rec.id && processedCloudIds.has(String(rec.id))) continue;
+                            const decision = this._classifyLegacyProjectId(rec);
+                            if (decision.status === 'already') {
+                                bump(counters, 'already');
+                                continue;
+                            }
+                            if (decision.status === 'skipped') {
+                                bump(counters, 'skipped');
+                                continue;
+                            }
+                            if (decision.status === 'unmatched') {
+                                bump(counters, 'unmatched');
+                                continue;
+                            }
+                            try {
+                                await this._updateCloudProjectId(table.cloudTable, rec.id, decision.id);
+                                bump(counters, 'updated');
+                            } catch (e) {
+                                console.warn('[objects.backfill] cloud-only patch', table.key, e);
+                                bump(counters, 'errors');
+                            }
+                        }
+                        if (typeof onProgress === 'function') {
+                            onProgress({ phase: 'cloud', table: table.key, tables: tables, totals: totals, cloudAvailable: true });
+                        }
+                        if (!rows.length) hasMore = false;
+                    }
+                }
+
+                if (typeof onProgress === 'function') {
+                    onProgress({ phase: 'table_done', table: table.key, tables: tables, totals: totals, cloudAvailable: cloudAvailable });
+                }
+            }
+
+            if (typeof onProgress === 'function') {
+                onProgress({ phase: 'done', tables: tables, totals: totals, cloudAvailable: cloudAvailable });
+            }
+            return { tables: tables, totals: totals, cloudAvailable: cloudAvailable };
         },
 
         // Сверка локальной офлайн-истории нового инженера со справочником объектов
@@ -710,13 +1188,13 @@
             const count = Array.isArray(this.objects) ? this.objects.length : 0;
             container.innerHTML = `
             <div class="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-3 rounded-xl mb-4 text-[10px] text-teal-800 dark:text-teal-300 shadow-sm leading-relaxed">
-                <b>C2b:</b> каталог объектов ведётся в <b>Настройки → Справочник локаций</b>
-                (иерархия object → building → …). Здесь только заявки на объекты.<br>
+                <b>C2b:</b> каталог объектов ведётся в <b>Настройки → Администрирование → Объекты и планы</b>
+                (иерархия object → building → …). Плоский CRUD здесь отключён.<br>
                 В locations сейчас объектов: <b>${count}</b>.
                 ${leftover ? `<br>OD leftover (локальный IDB без peer): <b>${leftover}</b> — без Apply/sync.` : ''}
             </div>
             <div class="text-center py-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-300 rounded-xl bg-white dark:bg-slate-800">
-                Плоский CRUD ObjectDirectory отключён
+                Редактирование — в Настройки → Администрирование
             </div>`;
         },
 
@@ -1139,6 +1617,34 @@
                 canonical_key: '',
                 display_name: rawName || 'Не указан'
             };
+        },
+
+        resolveProjectId: function (ref) {
+            return objectDirectory.resolveProjectId(ref);
+        },
+
+        resolveObjectRef: function (ref) {
+            return objectDirectory.resolveObjectRef(ref);
+        },
+
+        normalizeAssignedProjectsList: function (list) {
+            return objectDirectory.normalizeAssignedProjectsList(list);
+        },
+
+        isRecordInAssignedProjects: function (rec, assignedList) {
+            return objectDirectory.isRecordInAssignedProjects(rec, assignedList);
+        },
+
+        getDisplayForAssignedRef: function (ref) {
+            return objectDirectory.getDisplayForAssignedRef(ref);
+        },
+
+        mergeRawNameIntoObject: function (rawName, targetObjectIdOrKey) {
+            return objectDirectory.mergeRawNameIntoObject(rawName, targetObjectIdOrKey);
+        },
+
+        backfillProjectIdsOnLegacyRecords: function (opts) {
+            return objectDirectory.backfillProjectIdsOnLegacyRecords(opts);
         }
     };
 

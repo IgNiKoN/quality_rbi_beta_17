@@ -31,6 +31,9 @@ function prepareSkRecordForCloud(record, projectCode) {
         ...(isUuidLike(record.contractorId || record.contractor_id)
             ? { contractorId: String(record.contractorId || record.contractor_id).trim() }
             : {}),
+        ...(isUuidLike(record.projectId || record.project_id)
+            ? { projectId: String(record.projectId || record.project_id).trim() }
+            : {}),
 
         deadline: record.deadline || null,
         status_raw: record.status_raw || record.status || '',

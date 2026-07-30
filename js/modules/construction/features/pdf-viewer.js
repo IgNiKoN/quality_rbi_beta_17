@@ -260,7 +260,9 @@ window.UniversalPdfViewer = {
                 step: 0.1,
                 startScale: initialScale,
                 startX: 0,
-                startY: 0
+                startY: 0,
+                pinchAndPan: true,
+                touchAction: 'none'
             });
 
             // Показываем контейнер

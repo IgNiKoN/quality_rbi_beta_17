@@ -901,61 +901,21 @@ async function buildPhotoGridHTML(photos, title, titleColor, borderColor, bgCell
 
 /** Ключ группы подрядчика для рейтингов в отчётах (как в One-Pager). */
 function _reportContractorGroupKey(item) {
+    if (typeof window.contractorGroupKey === 'function') return window.contractorGroupKey(item);
     if (typeof window.trendContractorKey === 'function') return window.trendContractorKey(item);
     return (item.contractorName || 'Неизвестно') + ' ['
         + (item.project_display_name || item.projectName || 'Без объекта') + ']';
 }
 
 /**
- * Средние рейтинги по подрядчикам среза.
- * У каждого — getContractorMetrics (скользящие ≤15 внутри среза).
- * KPI: приоритет подрядчиков с N≥7, иначе fallback по всем с метриками.
+ * Средние рейтинги по подрядчикам среза (окно ≤15).
+ * Канон: math.utils.avgContractorRatingsFromChecks. Тендер — отдельно (вся история).
  */
 function _avgContractorRatingsFromChecks(items, keyFn) {
-    const grouped = {};
-    const keyOf = typeof keyFn === 'function' ? keyFn : _reportContractorGroupKey;
-    (items || []).forEach((item) => {
-        const k = keyOf(item);
-        (grouped[k] = grouped[k] || []).push(item);
-    });
-    let sumRel = 0, relN = 0, redContrCount = 0;
-    let sumUrk = 0, urkN = 0, sumDoc = 0, docN = 0;
-    let sumUrkAll = 0, urkAllN = 0, sumDocAll = 0, docAllN = 0;
-    let sumRelAll = 0, relAllN = 0;
-    for (const k in grouped) {
-        const m = typeof getContractorMetrics === 'function'
-            ? getContractorMetrics(grouped[k], _templates().getUserTemplates())
-            : null;
-        if (!m) continue;
-        sumUrkAll += m.baseUrkContrPerc;
-        urkAllN++;
-        sumRelAll += m.finalC;
-        relAllN++;
-        if (m.documentaryC != null) { sumDocAll += m.documentaryC; docAllN++; }
-        if (m.count >= 7) {
-            sumRel += m.finalC;
-            relN++;
-            sumUrk += m.baseUrkContrPerc;
-            urkN++;
-            if (m.documentaryC != null) { sumDoc += m.documentaryC; docN++; }
-            if (m.finalC < 70) redContrCount++;
-        }
+    if (typeof window.avgContractorRatingsFromChecks === 'function') {
+        return window.avgContractorRatingsFromChecks(items, keyFn || _reportContractorGroupKey);
     }
-    return {
-        contrCount: Object.keys(grouped).length,
-        avgUrk: urkN > 0
-            ? Math.round(sumUrk / urkN)
-            : (urkAllN > 0 ? Math.round(sumUrkAll / urkAllN) : 0),
-        avgDoc: docN > 0
-            ? Math.round(sumDoc / docN)
-            : (docAllN > 0 ? Math.round(sumDocAll / docAllN) : null),
-        avgReliability: relN > 0
-            ? Math.round(sumRel / relN)
-            : (relAllN > 0 ? Math.round(sumRelAll / relAllN) : null),
-        relN,
-        redContrCount,
-        redContrPerc: relN > 0 ? Math.round((redContrCount / relN) * 100) : null
-    };
+    return { contrCount: 0, avgUrk: 0, avgDoc: null, avgReliability: null, relN: 0, redContrCount: 0, redContrPerc: null };
 }
 
 // Расчет данных для плаката качества. Перенесено из export.js:generatePosterData (группа G1).
@@ -2826,9 +2786,6 @@ async function buildOnePagerV2Html(data, opts = {}) {
         return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || '—';
     };
 
-    let sumRel = 0, relN = 0;
-    let sumUrkC = 0, urkN = 0, sumDocC = 0, docN = 0;
-    let sumUrkAll = 0, urkAllN = 0, sumDocAll = 0, docAllN = 0;
     const ratingRel = [];
     for (const cName in groupedC) {
         const m = getContractorMetrics(groupedC[cName], _templates().getUserTemplates());
@@ -2841,28 +2798,16 @@ async function buildOnePagerV2Html(data, opts = {}) {
             doc: m.documentaryC != null ? m.documentaryC : null,
             workType: dominantWorkType(groupedC[cName])
         });
-        sumUrkAll += m.baseUrkContrPerc;
-        urkAllN++;
-        if (m.documentaryC != null) { sumDocAll += m.documentaryC; docAllN++; }
-        if (m.count >= 7) {
-            sumRel += m.finalC;
-            relN++;
-            sumUrkC += m.baseUrkContrPerc;
-            urkN++;
-            if (m.documentaryC != null) { sumDocC += m.documentaryC; docN++; }
-        }
     }
     ratingRel.sort((a, b) => b.val - a.val);
-    const avgReliability = relN > 0 ? Math.round(sumRel / relN) : null;
-    const currAvgUrk = urkN > 0
-        ? Math.round(sumUrkC / urkN)
-        : (urkAllN > 0 ? Math.round(sumUrkAll / urkAllN) : 0);
-    const currAvgDoc = docN > 0
-        ? Math.round(sumDocC / docN)
-        : (docAllN > 0 ? Math.round(sumDocAll / docAllN) : null);
+    const kpiNow = _avgContractorRatingsFromChecks(data);
+    const avgReliability = kpiNow.avgReliability;
+    const currAvgUrk = kpiNow.avgUrk;
+    const currAvgDoc = kpiNow.avgDoc;
+    const relN = kpiNow.relN;
     // Подрядчики с надёжностью в провале (ИУрК < 70%) — среди тех, у кого уже N≥7
-    const redContrCount = ratingRel.filter(r => r.count >= 7 && r.val < 70).length;
-    const redContrPerc = relN > 0 ? Math.round((redContrCount / relN) * 100) : null;
+    const redContrCount = kpiNow.redContrCount;
+    const redContrPerc = kpiNow.redContrPerc;
 
     const selPeriod = _reportPeriodSel();
     const now = new Date();
@@ -2880,40 +2825,11 @@ async function buildOnePagerV2Html(data, opts = {}) {
         const pInt = typeof getObjectIntegralMetrics === 'function'
             ? getObjectIntegralMetrics(prevData, _templates().getUserTemplates()) : null;
         if (pInt) prevIko = pInt.IKO;
-        const pGrouped = {};
-        prevData.forEach(item => {
-            const cKey = (typeof window.trendContractorKey === 'function')
-                ? window.trendContractorKey(item)
-                : ((item.contractorName || 'Неизвестно') + ' [' + (item.project_display_name || item.projectName || 'Без объекта') + ']');
-            (pGrouped[cKey] = pGrouped[cKey] || []).push(item);
-        });
-        let ps = 0, pn = 0, pred = 0;
-        let pUrk = 0, pUrkN = 0, pDoc = 0, pDocN = 0;
-        let pUrkAll = 0, pUrkAllN = 0, pDocAll = 0, pDocAllN = 0;
-        for (const k in pGrouped) {
-            const m = getContractorMetrics(pGrouped[k], _templates().getUserTemplates());
-            if (!m) continue;
-            pUrkAll += m.baseUrkContrPerc;
-            pUrkAllN++;
-            if (m.documentaryC != null) { pDocAll += m.documentaryC; pDocAllN++; }
-            if (m.count < 7) continue;
-            ps += m.finalC;
-            pn++;
-            pUrk += m.baseUrkContrPerc;
-            pUrkN++;
-            if (m.documentaryC != null) { pDoc += m.documentaryC; pDocN++; }
-            if (m.finalC < 70) pred++;
-        }
-        if (pn > 0) {
-            prevRel = Math.round(ps / pn);
-            prevRedContrCount = pred;
-        }
-        prevAvgUrk = pUrkN > 0
-            ? Math.round(pUrk / pUrkN)
-            : (pUrkAllN > 0 ? Math.round(pUrkAll / pUrkAllN) : 0);
-        prevAvgDoc = pDocN > 0
-            ? Math.round(pDoc / pDocN)
-            : (pDocAllN > 0 ? Math.round(pDocAll / pDocAllN) : null);
+        const pKpi = _avgContractorRatingsFromChecks(prevData);
+        prevAvgUrk = pKpi.avgUrk;
+        prevAvgDoc = pKpi.avgDoc;
+        prevRel = pKpi.avgReliability;
+        prevRedContrCount = pKpi.relN > 0 ? pKpi.redContrCount : null;
     }
 
     // Подпись тренда — в одной строке с ▲/▼, чтобы не вылезала из плитки KPI

@@ -638,9 +638,75 @@
         };
     }
 
+    // Ключ группы подрядчик×объект для KPI-рейтингов (как в аналитике/печати).
+    function contractorGroupKey(item) {
+        if (typeof window.trendContractorKey === 'function') return window.trendContractorKey(item);
+        const name = String((item && item.contractorName) || 'Неизвестно').trim() || 'Неизвестно';
+        const proj = String(
+            (item && (item.project_display_name || item.projectName || item.project_canonical_key)) || 'Без объекта'
+        ).trim() || 'Без объекта';
+        return name + ' [' + proj + ']';
+    }
+
+    /**
+     * Средние рейтинги по подрядчикам среза.
+     * У каждого — getContractorMetrics со скользящим окном ≤15 (useSlidingWindow=true).
+     * KPI: приоритет подрядчиков с N≥7, иначе fallback по всем с метриками.
+     * Исключение «вся история» — только тендер: getContractorMetrics(..., false) напрямую.
+     */
+    function avgContractorRatingsFromChecks(items, keyFn) {
+        const grouped = {};
+        const keyOf = typeof keyFn === 'function' ? keyFn : contractorGroupKey;
+        (items || []).forEach(function (item) {
+            const k = keyOf(item);
+            (grouped[k] = grouped[k] || []).push(item);
+        });
+        let sumRel = 0, relN = 0, redContrCount = 0;
+        let sumUrk = 0, urkN = 0, sumDoc = 0, docN = 0;
+        let sumUrkAll = 0, urkAllN = 0, sumDocAll = 0, docAllN = 0;
+        let sumRelAll = 0, relAllN = 0;
+        const templates = (window.RBI && window.RBI.services && window.RBI.services.templates)
+            ? window.RBI.services.templates.getUserTemplates()
+            : (typeof window.userTemplates !== 'undefined' ? window.userTemplates : {});
+        for (const k in grouped) {
+            const m = getContractorMetrics(grouped[k], templates);
+            if (!m) continue;
+            sumUrkAll += m.baseUrkContrPerc;
+            urkAllN++;
+            sumRelAll += m.finalC;
+            relAllN++;
+            if (m.documentaryC != null) { sumDocAll += m.documentaryC; docAllN++; }
+            if (m.count >= 7) {
+                sumRel += m.finalC;
+                relN++;
+                sumUrk += m.baseUrkContrPerc;
+                urkN++;
+                if (m.documentaryC != null) { sumDoc += m.documentaryC; docN++; }
+                if (m.finalC < 70) redContrCount++;
+            }
+        }
+        return {
+            contrCount: Object.keys(grouped).length,
+            avgUrk: urkN > 0
+                ? Math.round(sumUrk / urkN)
+                : (urkAllN > 0 ? Math.round(sumUrkAll / urkAllN) : 0),
+            avgDoc: docN > 0
+                ? Math.round(sumDoc / docN)
+                : (docAllN > 0 ? Math.round(sumDocAll / docAllN) : null),
+            avgReliability: relN > 0
+                ? Math.round(sumRel / relN)
+                : (relAllN > 0 ? Math.round(sumRelAll / relAllN) : null),
+            relN,
+            redContrCount,
+            redContrPerc: relN > 0 ? Math.round((redContrCount / relN) * 100) : null
+        };
+    }
+
     /* Публикация в window.* — обратная совместимость для потребителей вне RBI.utils.math */
     window.getProductMetrics = getProductMetrics;
     window.getContractorMetrics = getContractorMetrics;
+    window.avgContractorRatingsFromChecks = avgContractorRatingsFromChecks;
+    window.contractorGroupKey = contractorGroupKey;
     window.getDocumentaryScore = getDocumentaryScore;
     window.getFlatList = getFlatList;
     window.getExpertConclusion = getExpertConclusion;
@@ -655,6 +721,8 @@
     window.RBI.utils.math = {
         getProductMetrics: getProductMetrics,
         getContractorMetrics: getContractorMetrics,
+        avgContractorRatingsFromChecks: avgContractorRatingsFromChecks,
+        contractorGroupKey: contractorGroupKey,
         getDocumentaryScore: getDocumentaryScore,
         getFlatList: getFlatList,
         getObjectIntegralMetrics: getObjectIntegralMetrics,

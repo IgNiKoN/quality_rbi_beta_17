@@ -41,34 +41,60 @@ function _trendCatMatchesFilter(cat, allowedCats) {
     });
 }
 
+function _trendBucketLabel(d, period) {
+    if (period === 'YEAR') return d.getFullYear().toString();
+    if (period === 'QUARTER') return `Q${Math.floor(d.getMonth() / 3) + 1} '${d.getFullYear().toString().slice(-2)}`;
+    if (period === 'WEEK') return `Нед.${window.getWeekNumber(d)} '${d.getFullYear().toString().slice(-2)}`;
+    return d.toLocaleString('ru-RU', { month: 'short', year: '2-digit' });
+}
+
+function _trendPointValue(items, fieldName) {
+    if (!items || !items.length) return null;
+    const templates = (window.RBI && window.RBI.services && window.RBI.services.templates)
+        ? window.RBI.services.templates.getUserTemplates()
+        : (typeof window.userTemplates !== 'undefined' ? window.userTemplates : {});
+    // Линия одного подрядчика: УрК подрядчика (окно ≤15 внутри корзины).
+    if (fieldName === 'contractorName' && typeof window.getContractorMetrics === 'function') {
+        const m = window.getContractorMetrics(items, templates);
+        return m ? m.baseUrkContrPerc : null;
+    }
+    // TOTAL / вид работ / прочее: среднее по подрядчикам корзины (тот же канон KPI).
+    if (typeof window.avgContractorRatingsFromChecks === 'function') {
+        return window.avgContractorRatingsFromChecks(items).avgUrk;
+    }
+    let sum = 0, n = 0;
+    items.forEach((i) => {
+        if (!i || !i.metrics) return;
+        sum += Number(i.metrics.final) || 0;
+        n++;
+    });
+    return n > 0 ? Math.round(sum / n) : null;
+}
+
 // Перенесено из app.js 1:1 — умный генератор данных для трендовых графиков.
-// Вызывает window.getWeekNumber (перенесена в js/shared/math.utils.js,
-// classic-script, подключён раньше analytics.module.js в index.html).
+// Точка периода: канон ≤15 / среднее по подрядчикам (не среднее всех checks.final).
 function buildTrendChartData(data, fieldName, allowedCats = [], period = 'MONTH') {
     const timeMap = {}; const categoriesTotal = {};
+    const labelOrder = [];
     const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     sortedData.forEach(item => {
         if (!item.metrics) return;
         const d = new Date(item.date);
-        let tLabel = '';
+        const tLabel = _trendBucketLabel(d, period);
 
-        if (period === 'YEAR') tLabel = d.getFullYear().toString();
-        else if (period === 'QUARTER') tLabel = `Q${Math.floor(d.getMonth() / 3) + 1} '${d.getFullYear().toString().slice(-2)}`;
-        else if (period === 'WEEK') tLabel = `Нед.${window.getWeekNumber(d)} '${d.getFullYear().toString().slice(-2)}`;
-        else tLabel = d.toLocaleString('ru-RU', { month: 'short', year: '2-digit' });
-
-        // УМНОЕ ИМЯ: Подрядчик + Объект
         let cat = fieldName === 'TOTAL' ? 'Общий УрК' : (item[fieldName] || 'Неизвестно');
         if (fieldName === 'contractorName') {
             cat = trendContractorKey(item);
         }
         categoriesTotal[cat] = (categoriesTotal[cat] || 0) + 1;
 
-        if (!timeMap[tLabel]) timeMap[tLabel] = {};
-        if (!timeMap[tLabel][cat]) timeMap[tLabel][cat] = { sum: 0, cnt: 0 };
-        timeMap[tLabel][cat].sum += Number(item.metrics.final) || 0;
-        timeMap[tLabel][cat].cnt++;
+        if (!timeMap[tLabel]) {
+            timeMap[tLabel] = {};
+            labelOrder.push(tLabel);
+        }
+        if (!timeMap[tLabel][cat]) timeMap[tLabel][cat] = [];
+        timeMap[tLabel][cat].push(item);
     });
 
     let targetCats = [];
@@ -77,24 +103,22 @@ function buildTrendChartData(data, fieldName, allowedCats = [], period = 'MONTH'
         targetCats = Object.keys(categoriesTotal)
             .filter((c) => _trendCatMatchesFilter(c, allowedCats))
             .sort((a, b) => categoriesTotal[b] - categoriesTotal[a]);
-        // Сохраняем порядок выбора пользователя, если все ключи точные
         const exactOrdered = allowedCats.filter((c) => categoriesTotal[c]);
         if (exactOrdered.length === allowedCats.length) targetCats = exactOrdered;
     }
     else targetCats = Object.keys(categoriesTotal).sort((a, b) => categoriesTotal[b] - categoriesTotal[a]).slice(0, 10);
 
-    const labels = Object.keys(timeMap);
+    const labels = labelOrder.length ? labelOrder : Object.keys(timeMap);
     const colors = ['#4f46e5', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#db2777', '#d97706', '#059669', '#2563eb'];
 
     const datasets = targetCats.map((cat, i) => {
-        const dataPoints = labels.map(l => (timeMap[l][cat] ? Math.round(timeMap[l][cat].sum / timeMap[l][cat].cnt) : null));
+        const dataPoints = labels.map(l => _trendPointValue(timeMap[l] && timeMap[l][cat], fieldName));
         return {
             label: cat.length > 20 ? cat.substring(0, 20) + '...' : cat,
             data: dataPoints,
             borderColor: fieldName === 'TOTAL' ? '#4f46e5' : colors[i % colors.length],
             backgroundColor: fieldName === 'TOTAL' ? 'rgba(79, 70, 229, 0.1)' : colors[i % colors.length],
             fill: fieldName === 'TOTAL',
-            // Тоньше линии при до 10 подрядчиках — легенда и пересечения читаемее
             tension: 0.35, borderWidth: fieldName === 'TOTAL' ? 2 : 1.5, pointRadius: fieldName === 'TOTAL' ? 3 : 2, spanGaps: true
         };
     });
@@ -1226,8 +1250,13 @@ export const AnalyticsActions = {
                 return showToast("⚠️ За выбранный период нет данных для отчета!");
             }
 
-            let sumUrk = 0; currentData.forEach(i => { if (i.metrics) sumUrk += Number(i.metrics.final) || 0; });
-            const currAvgUrk = Math.round(sumUrk / currentData.length);
+            let currAvgUrk = 0;
+            if (typeof window.avgContractorRatingsFromChecks === 'function') {
+                currAvgUrk = window.avgContractorRatingsFromChecks(currentData).avgUrk;
+            } else {
+                let sumUrk = 0; currentData.forEach(i => { if (i.metrics) sumUrk += Number(i.metrics.final) || 0; });
+                currAvgUrk = Math.round(sumUrk / currentData.length);
+            }
 
             const currIntMetrics = typeof getObjectIntegralMetrics === 'function' ? getObjectIntegralMetrics(currentData, _templates().getUserTemplates()) : null;
             const IKO = currIntMetrics ? currIntMetrics.IKO : "0.00";

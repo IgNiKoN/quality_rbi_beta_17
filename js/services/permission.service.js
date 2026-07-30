@@ -449,13 +449,14 @@
 
             if (scope === 'ownProject') {
                 if (!assignedProjects || assignedProjects.length === 0) return [];
+                const self = this;
                 return records.filter(function (r) {
-                    const recProject = pick(r, projectFields);
-                    return assignedProjects.includes(recProject);
+                    return self.isRecordInAssignedProjects(r, assignedProjects);
                 });
             }
 
             if (scope === 'ownProjectOrOwnRecords') {
+                const self = this;
                 return records.filter(function (r) {
                     const recProject = pick(r, projectFields);
                     const uploadedBy = pick(r, ownerFields);
@@ -463,7 +464,7 @@
                     if (!assignedProjects || assignedProjects.length === 0) {
                         return isUnassignedProject && uploadedBy === currentEngineer;
                     }
-                    if (assignedProjects.includes(recProject)) return true;
+                    if (self.isRecordInAssignedProjects(r, assignedProjects)) return true;
                     if (isUnassignedProject && uploadedBy === currentEngineer) return true;
                     return false;
                 });
@@ -472,10 +473,11 @@
             if (scope === 'ownContractor') {
                 if (!assignedContractor) return [];
                 const assignedContractorValue = String(assignedContractor || '').trim();
+                const self = this;
                 return records.filter(function (r) {
-                    const recProject = pick(r, projectFields);
                     const contractorOk = matchesAny(r, contractorFields, assignedContractorValue);
-                    const projectOk = !assignedProjects || assignedProjects.length === 0 || assignedProjects.includes(recProject);
+                    const projectOk = !assignedProjects || assignedProjects.length === 0
+                        || self.isRecordInAssignedProjects(r, assignedProjects);
                     return contractorOk && projectOk;
                 });
             }
@@ -495,13 +497,52 @@
         // алиас колонки Supabase) и берёт непустой источник; пустой массив в первом
         // поле больше не блокирует fallback на второй (было: Array.isArray([]) === true
         // "съедал" реальные данные во втором поле — см. current_plan.md §2).
+        // Нормализует к UUID объекта (locations.object.id), когда справочник знает карточку.
         getAssignedProjects() {
             if (typeof appSettings === 'undefined') return [];
             const primary = Array.isArray(appSettings.assignedProjects) ? appSettings.assignedProjects : null;
             const secondary = Array.isArray(appSettings.assigned_projects) ? appSettings.assigned_projects : null;
-            if (primary && primary.length > 0) return primary;
-            if (secondary && secondary.length > 0) return secondary;
-            return primary || secondary || [];
+            let raw = [];
+            if (primary && primary.length > 0) raw = primary;
+            else if (secondary && secondary.length > 0) raw = secondary;
+            else raw = primary || secondary || [];
+
+            const od = window.ObjectDirectory || (window.RBI && window.RBI.services && window.RBI.services.objects);
+            if (od && typeof od.normalizeAssignedProjectsList === 'function') {
+                try { return od.normalizeAssignedProjectsList(raw); } catch (_e) { /* fall through */ }
+            }
+            if (window.RBI && window.RBI.services && window.RBI.services.objects
+                && typeof window.RBI.services.objects.normalizeAssignedProjectsList === 'function') {
+                try { return window.RBI.services.objects.normalizeAssignedProjectsList(raw); } catch (_e2) { /* fall through */ }
+            }
+            return raw;
+        },
+
+        /**
+         * Единый match: запись ∈ assignedProjects (UUID primary, cleanString fallback).
+         */
+        isRecordInAssignedProjects(rec, assignedList) {
+            const assigned = assignedList != null ? assignedList : this.getAssignedProjects();
+            const od = window.ObjectDirectory;
+            if (od && typeof od.isRecordInAssignedProjects === 'function') {
+                return od.isRecordInAssignedProjects(rec, assigned);
+            }
+            if (window.RBI && window.RBI.services && window.RBI.services.objects
+                && typeof window.RBI.services.objects.isRecordInAssignedProjects === 'function') {
+                return window.RBI.services.objects.isRecordInAssignedProjects(rec, assigned);
+            }
+            // Fallback без справочника: строгое includes по типичным полям
+            const list = Array.isArray(assigned) ? assigned : [];
+            if (!list.length || !rec) return false;
+            const candidates = [
+                rec.projectId, rec.project_id,
+                rec.project_canonical_key, rec.project_display_name,
+                rec.projectName, rec.project
+            ].map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+            for (let i = 0; i < candidates.length; i++) {
+                if (list.indexOf(candidates[i]) >= 0) return true;
+            }
+            return false;
         },
 
         // 11. Получить подрядчика пользователя
@@ -522,7 +563,11 @@
         async writeUserProjectAssignment(inspectorId, projectsArray, extraFields, settingsPatch) {
             if (!window.supabaseClient || !inspectorId) return { error: 'no_client_or_id' };
 
-            const safeProjects = Array.isArray(projectsArray) ? projectsArray : [];
+            let safeProjects = Array.isArray(projectsArray) ? projectsArray : [];
+            const od = window.ObjectDirectory;
+            if (od && typeof od.normalizeAssignedProjectsList === 'function') {
+                safeProjects = od.normalizeAssignedProjectsList(safeProjects);
+            }
             const nowIso = new Date().toISOString();
 
             try {
@@ -535,7 +580,13 @@
                 if (readError) throw readError;
 
                 const currentSettings = (rows && rows[0] && rows[0].settings) ? rows[0].settings : {};
-                const newSettings = Object.assign({}, currentSettings, settingsPatch || {}, {
+                const patch = Object.assign({}, settingsPatch || {});
+                if (patch.assignedProjects) {
+                    patch.assignedProjects = od && typeof od.normalizeAssignedProjectsList === 'function'
+                        ? od.normalizeAssignedProjectsList(patch.assignedProjects)
+                        : patch.assignedProjects;
+                }
+                const newSettings = Object.assign({}, currentSettings, patch, {
                     assignedProjects: safeProjects
                 });
 
@@ -695,6 +746,10 @@
 
         getAssignedProjects: function () {
             return permissions.getAssignedProjects();
+        },
+
+        isRecordInAssignedProjects: function (rec, assignedList) {
+            return permissions.isRecordInAssignedProjects(rec, assignedList);
         },
 
         getAssignedContractor: function () {

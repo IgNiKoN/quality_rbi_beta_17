@@ -567,8 +567,8 @@ async function _openPlanViewer(floorId, viewerOpts) {
     ${chipsHtml}
     ${contractorChipsHtml}
     <div class="relative flex-1 min-h-0" data-qpin-host>
-      <div class="absolute inset-0 overflow-hidden bg-slate-800 flex items-center justify-center" data-qpin-wrap>
-        <div class="relative shadow-lg bg-white" data-qpin-stage style="width:fit-content;transform-origin:0 0">
+      <div class="absolute inset-0 overflow-hidden bg-slate-800 touch-none" data-qpin-wrap>
+        <div class="absolute shadow-lg bg-white" data-qpin-stage style="touch-action:none;transform-origin:50% 50%">
           <canvas data-qpin-canvas class="block max-w-none"></canvas>
           <div data-qpin-pins class="absolute inset-0"></div>
         </div>
@@ -876,13 +876,20 @@ async function _openPlanViewer(floorId, viewerOpts) {
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
     const page = await pdf.getPage(1);
     const hostW = Math.max((host && host.clientWidth) || 640, 320);
+    const hostH = Math.max((host && host.clientHeight) || 400, 240);
     const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(2.2, Math.max(1.1, (hostW - 24) / base.width));
+    const scale = Math.min(2.2, Math.max(0.8, Math.min((hostW - 24) / base.width, (hostH - 24) / base.height)));
     const viewport = page.getViewport({ scale: scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     stage.style.width = viewport.width + 'px';
     stage.style.height = viewport.height + 'px';
+    // Как в стройконтроль v1: CSS-центр + origin 50%/50% (было 0 0 → зум в угол на телефоне)
+    stage.style.left = '50%';
+    stage.style.top = '50%';
+    stage.style.marginLeft = (-viewport.width / 2) + 'px';
+    stage.style.marginTop = (-viewport.height / 2) + 'px';
+    stage.style.transformOrigin = '50% 50%';
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d недоступен');
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
@@ -894,8 +901,13 @@ async function _openPlanViewer(floorId, viewerOpts) {
         maxScale: PZ_MAX,
         minScale: PZ_MIN,
         step: PZ_STEP,
+        startScale: 1,
+        startX: 0,
+        startY: 0,
         cursor: 'grab',
-        excludeClass: 'panzoom-exclude'
+        excludeClass: 'panzoom-exclude',
+        pinchAndPan: true,
+        touchAction: 'none'
       });
       overlay._qpinPanzoom = panzoom;
       const onWheel = function (e) {

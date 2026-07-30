@@ -582,7 +582,17 @@ let gameChartInstance = null;
   // === ПАНЕЛЬ РУКОВОДИТЕЛЯ: инъекция модалок ===
   // Перенесено из js/game.js (строка 1126).
   function gameInjectManagerModals() {
-    if (document.getElementById('manager-auth-modal')) return;
+    const existingAuth = document.getElementById('manager-auth-modal');
+    if (existingAuth) {
+      // Апгрейд со старой разметки (вкладка Объекты/Роли / без hint): пересобрать
+      if (document.getElementById('manager-tab-team') || !document.getElementById('manager-auth-hint')) {
+        existingAuth.remove();
+        const oldOverlay = document.getElementById('manager-panel-overlay');
+        if (oldOverlay) oldOverlay.remove();
+      } else {
+        return;
+      }
+    }
 
     const html = `
     <!-- ИСПРАВЛЕНИЕ: maxlength="6" -->
@@ -593,7 +603,7 @@ let gameChartInstance = null;
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 </div>
                 <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white">Доступ руководителя</h3>
-                <p class="text-[10px] text-slate-500 mt-1">Введите ПИН-код для доступа к HR-аналитике</p>
+                <p id="manager-auth-hint" class="text-[10px] text-slate-500 mt-1">Введите ПИН-код для доступа</p>
             </div>
             <input type="password" id="manager-pin-input" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center text-xl font-black tracking-widest outline-none mb-4 text-slate-800 dark:text-white focus:border-indigo-500 transition-colors" placeholder="••••••" maxlength="6">
             <button onclick="gameVerifyManagerPin()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">Войти</button>
@@ -622,10 +632,6 @@ let gameChartInstance = null;
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                         <span class="tab-text hidden sm:inline">Аудиты</span>
                     </button>
-                    <button onclick="switchManagerTab('team')" id="btn-man-team" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1 transition-all">
-                        <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        <span class="tab-text hidden sm:inline">Объекты / Роли</span>
-                    </button>
                     <button onclick="switchManagerTab('dev')" id="btn-man-dev" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1 transition-all">
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
                         <span class="tab-text hidden sm:inline">Бэклог</span>
@@ -638,6 +644,13 @@ let gameChartInstance = null;
             </div>
             
             <div class="flex-1 overflow-y-auto p-3 sm:p-4 custom-scrollbar bg-[var(--bg-main)] relative">
+                <div class="mb-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <div class="text-[10px] font-black uppercase text-teal-800 dark:text-teal-300">Команда и справочники</div>
+                        <p class="text-[9px] text-teal-700/80 dark:text-teal-400 font-bold leading-snug mt-0.5">Перенесены в Настройки → Администрирование (под замком).</p>
+                    </div>
+                    <button type="button" onclick="closeManagerPanel(); if (typeof window.openSettingsAdminTab === 'function') window.openSettingsAdminTab();" class="shrink-0 bg-teal-600 text-white px-3 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Открыть администрирование</button>
+                </div>
                 <!-- Вкладка 1: HR -->
                 <div id="manager-tab-hr" class="block">
                     <div id="manager-panel-content"></div>
@@ -657,110 +670,8 @@ let gameChartInstance = null;
                     </div>
                 </div>
 
-                <!-- Вкладка 3: КОМАНДА И ОБЪЕКТЫ (РЕДИЗАЙН) -->
-                <div id="manager-tab-team" class="hidden space-y-4">
-
-                    <!-- 1. ЗАЯВКИ НА ОБЪЕКТЫ -->
-                    <details class="bg-[var(--card-bg)] border border-orange-200 dark:border-orange-800 rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden" open>
-                        <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none bg-orange-50 dark:bg-orange-900/20 rounded-xl group-open:rounded-b-none group-open:border-b border-orange-200 dark:border-orange-800">
-                            <div>
-                                <h2 class="text-[11px] font-black uppercase text-orange-600 dark:text-orange-400 mb-0.5">Заявки на Объекты</h2>
-                                <p class="text-[9px] text-orange-700/70 dark:text-orange-500 font-bold leading-snug">Из ПК СК и от инженеров</p>
-                            </div>
-                            <button onclick="event.preventDefault(); ObjectDirectory.loadRequests(); this.closest('details').open = true;" class="bg-white dark:bg-slate-800 text-orange-600 border border-orange-200 dark:border-orange-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Проверить</button>
-                        </summary>
-                        <div id="obj-requests-list" class="p-2 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-xl">
-                            <div class="text-center py-4 text-xs text-[var(--text-muted)]">Нажмите "Проверить"</div>
-                        </div>
-                    </details>
-
-                    <!-- 2. СПРАВОЧНИК ОБЪЕКТОВ -->
-                    <details class="bg-[var(--card-bg)] border border-blue-200 dark:border-blue-800 rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                        <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none bg-blue-50 dark:bg-blue-900/20 rounded-xl group-open:rounded-b-none group-open:border-b border-blue-200 dark:border-blue-800">
-                            <div>
-                                <h2 class="text-[11px] font-black uppercase text-blue-600 dark:text-blue-400 mb-0.5">Справочник Объектов</h2>
-                                <p class="text-[9px] text-blue-700/70 dark:text-blue-500 font-bold leading-snug">База эталонных названий</p>
-                            </div>
-                            <span class="text-blue-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
-                        </summary>
-                        <div class="p-2 bg-[var(--hover-bg)] rounded-b-xl">
-                            <div class="flex gap-2 mb-3">
-                                <input type="text" id="inline-new-obj-name" class="input-base !py-2 text-[10px] bg-white dark:bg-slate-800" placeholder="Новый объект (напр: ЖК Легенда)">
-                                <button onclick="ObjectDirectory.addNewObjectInline()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[9px] font-black uppercase shadow-sm active:scale-95 shrink-0">Создать</button>
-                            </div>
-                            <div id="manager-objects-list" class="max-h-[50vh] overflow-y-auto custom-scrollbar"></div>
-                        </div>
-                    </details>
-
-                    <!-- 3. УПРАВЛЕНИЕ КОМАНДОЙ (РОЛИ) -->
-                    <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden" open>
-                        <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none bg-slate-50 dark:bg-slate-800/50 rounded-xl group-open:rounded-b-none group-open:border-b border-[var(--card-border)]">
-                            <div>
-                                <h2 class="text-[11px] font-black uppercase text-slate-800 dark:text-white mb-0.5">Команда (Доступы)</h2>
-                                <p class="text-[9px] text-slate-500 font-bold leading-snug">Назначение ролей и объектов</p>
-                            </div>
-                            <button onclick="event.preventDefault(); gameLoadRoles(); this.closest('details').open = true;" class="bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-[var(--card-border)] px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
-                        </summary>
-                        <div class="p-2 bg-[var(--hover-bg)] rounded-b-xl">
-                            <details class="mb-2 group/sub [&_summary::-webkit-details-marker]:hidden" open>
-                                <summary class="text-[10px] font-black uppercase text-orange-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-orange-50 dark:bg-orange-900/20 p-2 rounded-lg border border-orange-100 dark:border-orange-800">
-                                    <span>Заявки на доступ</span>
-                                    <span class="text-orange-400 transition-transform duration-300 group-open/sub:rotate-180">▼</span>
-                                </summary>
-                                <div id="manager-access-requests-list" class="space-y-2">
-                                    <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
-                                </div>
-                            </details>
-                            
-                            <details class="group/sub [&_summary::-webkit-details-marker]:hidden" open>
-                                <summary class="text-[10px] font-black uppercase text-slate-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <span>Активные пользователи</span>
-                                    <span class="text-slate-400 transition-transform duration-300 group-open/sub:rotate-180">▼</span>
-                                </summary>
-                                <div id="manager-team-list" class="space-y-2">
-                                    <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
-                                </div>
-                            </details>
-                            <div id="manager-roles-list" class="hidden"></div>
-                        </div>
-                    </details>
-
-                    <!-- 4. ЗАЯВКИ НА ПОДРЯДЧИКОВ -->
-                    <details class="bg-[var(--card-bg)] border border-yellow-200 dark:border-yellow-800 rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                        <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none bg-yellow-50 dark:bg-yellow-900/20 rounded-xl group-open:rounded-b-none group-open:border-b border-yellow-200 dark:border-yellow-800">
-                            <div>
-                                <h2 class="text-[11px] font-black uppercase text-yellow-600 dark:text-yellow-400 mb-0.5">Заявки на Подрядчиков</h2>
-                                <p class="text-[9px] text-yellow-700/70 dark:text-yellow-500 font-bold leading-snug">Из ПК СК и ручного ввода</p>
-                            </div>
-                            <button onclick="event.preventDefault(); gameLoadContractorRequests(); this.closest('details').open = true;" class="bg-white dark:bg-slate-800 text-yellow-600 border border-yellow-200 dark:border-yellow-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Проверить</button>
-                        </summary>
-                        <div id="manager-contractor-requests-list" class="p-2 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-xl">
-                            <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
-                        </div>
-                    </details>
-
-                    <!-- 5. СПРАВОЧНИК ПОДРЯДЧИКОВ -->
-                    <details class="bg-[var(--card-bg)] border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
-                        <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none bg-emerald-50 dark:bg-emerald-900/20 rounded-xl group-open:rounded-b-none group-open:border-b border-emerald-200 dark:border-emerald-800">
-                            <div>
-                                <h2 class="text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-400 mb-0.5">Справочник Подрядчиков</h2>
-                                <p class="text-[9px] text-emerald-700/70 dark:text-emerald-500 font-bold leading-snug">База эталонных названий</p>
-                            </div>
-                            <div class="flex gap-1.5 shrink-0">
-                                <button onclick="event.preventDefault(); gameFindContractorDuplicates();" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-md flex items-center gap-1">🤖 Поиск дублей</button>
-                                <button onclick="event.preventDefault(); gameLoadContractorDirectory(); this.closest('details').open = true;" class="bg-white dark:bg-slate-800 text-emerald-600 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
-                            </div>
-                        </summary>
-                        <div id="manager-contractor-directory-list" class="p-2 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-xl">
-                            <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
-                        </div>
-                    </details>
-                    </div>
-                
-                
-                <!-- Вкладка 4: БЭКЛОГ И ПЛАНЫ (Бывшая вкладка Разработчика) -->
-                <div id="manager-tab-dev" class="hidden">
-                    <!-- ПЛАНЫ РАЗРАБОТЧИКА -->
+                <!-- Вкладка: БЭКЛОГ И ПЛАНЫ -->
+                <div id="manager-tab-dev" class="hidden">                    <!-- ПЛАНЫ РАЗРАБОТЧИКА -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl shadow-sm mb-4">
                         <h2 class="text-[12px] font-black uppercase text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Опубликовать планы (Roadmap)</h2>
                         <div class="flex gap-2">
@@ -836,20 +747,45 @@ let gameChartInstance = null;
   // Перенесено из js/game.js (строка 1358).
   function gameOpenManagerPanelAuth() {
     gameInjectManagerModals();
-    document.getElementById('manager-pin-input').value = '';
-    document.getElementById('manager-auth-modal').style.display = 'flex';
+    if (!window._rbiAdminGatePending) {
+      window._rbiAdminGatePending = 'manager';
+    }
+    const hint = document.getElementById('manager-auth-hint');
+    if (hint) {
+      hint.textContent = window._rbiAdminGatePending === 'settings-admin'
+        ? 'Введите ПИН-код для вкладки Администрирование'
+        : 'Введите ПИН-код для панели руководителя';
+    }
+    if (typeof window.isAdminGateUnlocked === 'function' && window.isAdminGateUnlocked()) {
+      if (typeof window.gameCompleteAdminGate === 'function') {
+        window.gameCompleteAdminGate();
+      }
+      return;
+    }
+    const pinEl = document.getElementById('manager-pin-input');
+    if (pinEl) pinEl.value = '';
+    const modal = document.getElementById('manager-auth-modal');
+    if (modal) modal.style.display = 'flex';
   };
 
   // Перенесено из js/game.js (строка 1384).
   function switchManagerTab(tab) {
-    const tabs = ['hr', 'audit', 'team', 'dev', 'ai'];
+    const tabs = ['hr', 'audit', 'dev', 'ai'];
     const colors = {
       'hr': 'text-indigo-600 dark:text-indigo-400',
       'audit': 'text-indigo-600 dark:text-indigo-400',
-      'team': 'text-indigo-600 dark:text-indigo-400',
       'dev': 'text-emerald-600 dark:text-emerald-400',
       'ai': 'text-indigo-600 dark:text-indigo-400'
     };
+
+    if (tab === 'team') {
+      tab = 'hr';
+      if (typeof window.openSettingsAdminTab === 'function') {
+        closeManagerPanel();
+        window.openSettingsAdminTab();
+        return;
+      }
+    }
 
     tabs.forEach(t => {
       const btn = document.getElementById(`btn-man-${t}`);
@@ -875,28 +811,10 @@ let gameChartInstance = null;
       }
     });
 
-    if (tab === 'team') {
-      gameLoadRoles();
-
-      if (typeof ObjectDirectory !== 'undefined') {
-        ObjectDirectory.renderManagerPanel();
-        const reqList = document.getElementById('obj-requests-list');
-        if (reqList) reqList.innerHTML = '<div class="text-center py-4 text-xs text-[var(--text-muted)] animate-pulse">Загрузка заявок...</div>';
-        ObjectDirectory.loadRequests();
-      }
-
-      if (typeof gameLoadContractorDirectory === 'function') {
-        gameLoadContractorDirectory();
-      }
-
-      if (typeof gameLoadContractorRequests === 'function') {
-        gameLoadContractorRequests();
-      }
-    } else if (tab === 'dev') {
-      rbi_renderDevFeedbackTab();
-      ObjectDirectory.loadRequests();
+    if (tab === 'dev') {
+      if (typeof rbi_renderDevFeedbackTab === 'function') rbi_renderDevFeedbackTab();
     } else if (tab === 'ai') {
-      gameLoadAiKb();
+      if (typeof gameLoadAiKb === 'function') gameLoadAiKb();
     }
   };
 
@@ -2157,9 +2075,13 @@ let gameChartInstance = null;
 
     box.innerHTML = projectsArray.map(key => {
       let displayName = key;
-      if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.objects) {
-        const obj = ObjectDirectory.objects.find(o => o.canonical_key === key);
-        if (obj) displayName = obj.display_name;
+      if (typeof ObjectDirectory !== 'undefined') {
+        if (typeof ObjectDirectory.getDisplayForAssignedRef === 'function') {
+          displayName = ObjectDirectory.getDisplayForAssignedRef(key);
+        } else if (ObjectDirectory.objects) {
+          const obj = ObjectDirectory.objects.find(o => o.canonical_key === key || o.id === key);
+          if (obj) displayName = obj.display_name;
+        }
       }
 
       const safeKey = String(key).replace(/'/g, "\\'").replace(/"/g, '&quot;');

@@ -723,8 +723,16 @@ async function purgeDataOutsideAssignedProjects(assignedKeysArray) {
                 }
 
                 const pKey = item.project_canonical_key || item.projectName || item.project || item.project_display_name || '';
+                const keep = (() => {
+                    if (!pKey || pKey === 'Все' || pKey === 'Системная') return false;
+                    const permSvcMatch = (_ctx && _ctx.permissions) || window.RBI.services.permissions;
+                    if (permSvcMatch && typeof permSvcMatch.isRecordInAssignedProjects === 'function') {
+                        return permSvcMatch.isRecordInAssignedProjects(item, keysToKeep);
+                    }
+                    return keysToKeep.includes(pKey);
+                })();
 
-                if (pKey && pKey !== 'Все' && pKey !== 'Системная' && !keysToKeep.includes(pKey)) {
+                if (pKey && pKey !== 'Все' && pKey !== 'Системная' && !keep) {
                     // RBI NEW (Множественные фото к пункту чек-листа, B1): значение
                     // photos[itemId] может быть массивом — нормализуем перед .startsWith.
                     if (item.photos) Object.values(item.photos).forEach(rawValue => {

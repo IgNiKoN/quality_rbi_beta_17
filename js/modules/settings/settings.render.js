@@ -11,6 +11,7 @@ import { SettingsActions } from './settings.actions.js';
 import { mountContractorDirectoryUI } from './features/contractor-directory-ui.js';
 import { mountLocationDirectoryUI } from './features/location-directory-ui.js';
 import { mountContractorIdBackfillUI } from './features/contractor-id-backfill-ui.js';
+import { mountProjectIdBackfillUI } from './features/project-id-backfill-ui.js';
 import { mountRoleMatrixUI } from './features/role-matrix-ui.js';
 
 var SettingsRender = {
@@ -55,8 +56,11 @@ var SettingsRender = {
                     <div id="settings-subnav" class="flex flex-nowrap gap-1 p-1 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] overflow-x-auto no-scrollbar" role="tablist" aria-label="Подразделы настроек">
                         <button type="button" data-settings-subsection="platform" role="tab"
                             class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Платформа</button>
-                        <button type="button" data-settings-subsection="directories" role="tab"
-                            class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Справочники</button>
+                        <button type="button" data-settings-subsection="admin" role="tab" id="settings-subnav-admin"
+                            class="settings-subnav-btn flex-1 min-w-[5.5rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate inline-flex items-center justify-center gap-1">
+                            <svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Админ
+                        </button>
                         <button type="button" data-settings-subsection="quality" role="tab"
                             class="settings-subnav-btn flex-1 min-w-[4.75rem] px-2.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors truncate">Качество</button>
                         <button type="button" data-settings-subsection="construction" role="tab"
@@ -237,10 +241,10 @@ var SettingsRender = {
                                     data-settings-action="handleLogoUpload" data-settings-action-val-type="event" data-action-event="change">
                             </div>
                             <div id="brand-logo-preview"
-                                class="hidden mt-3 border border-slate-200 rounded-lg p-2 bg-slate-50 flex justify-between items-center shadow-inner">
-                                <img id="brand-logo-img" src="" class="h-10 object-contain rounded">
+                                class="hidden mt-3 border border-[var(--card-border)] rounded-lg p-2 bg-[var(--card-bg)] flex justify-between items-center shadow-inner">
+                                <img id="brand-logo-img" src="" class="h-10 max-w-[60%] object-contain bg-transparent">
                                 <button data-settings-action="removeBrandLogo"
-                                    class="text-red-500 text-[10px] font-bold px-3 py-1.5 bg-white rounded border border-red-200 shadow-sm active:scale-90">Удалить</button>
+                                    class="text-red-500 text-[10px] font-bold px-3 py-1.5 bg-[var(--card-bg)] rounded border border-red-200 dark:border-red-800 shadow-sm active:scale-90">Удалить</button>
                             </div>
                             <!-- УПРАВЛЕНИЕ КОРПОРАТИВНЫМ СТИЛЕМ -->
                             <div id="corp-branding-controls" class="mt-3"></div>
@@ -830,23 +834,7 @@ var SettingsRender = {
                     </button>
                 </div>
 
-                <!-- МИГРАЦИЯ ДАННЫХ: backfill contractorId (только admin) -->
-                <details id="contractor-id-backfill-section"
-                    class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-amber-800 dark:text-amber-300 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 transition-colors select-none group-open:border-b border-amber-200 dark:border-amber-800 rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
-                                </path>
-                            </svg>
-                            Миграция данных
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-amber-400">▼</span>
-                    </summary>
-                    <div id="contractor-id-backfill-root"></div>
-                </details>
+                <!-- Миграция перенесена в Настройки → Администрирование -->
 
                 <div class="flex flex-col gap-3 items-center mt-4 mb-6">
                     <button data-shell-action="checkForUpdates"
@@ -869,28 +857,15 @@ var SettingsRender = {
                     RBI Platform PWA<br>Developed by Igor Kondratiev
                 </div>
             </div>
-            <div id="settings-panel-directories" data-settings-panel="directories" class="space-y-3" hidden>
-                <!-- РОЛИ И ПРАВА (§23, только admin / canManageRoles) -->
-                <details id="settings-role-matrix-section"
-                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
-                    <summary
-                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                                </path>
-                            </svg>
-                            Роли и права
-                        </span>
-                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
-                    </summary>
-                    <div id="settings-role-matrix-root"></div>
-                </details>
+            <div id="settings-panel-admin" data-settings-panel="admin" class="space-y-3" hidden>
+                <p class="text-[10px] text-[var(--text-muted)] leading-snug px-1">
+                    Единая админка платформы: справочники, очереди заявок, команда и права.
+                    Объекты — SoT в «Объекты и планы»; инженеры привязываются к UUID этих объектов.
+                </p>
 
-                <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ (v2, параллельно legacy construction) -->
+                <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ -->
                 <details id="location-directory-section"
-                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden" open>
                     <summary
                         class="p-4 font-black text-[12px] text-teal-700 dark:text-teal-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-teal-50 dark:bg-teal-900/20 transition-colors select-none group-open:border-b border-teal-200 dark:border-teal-800 rounded-2xl group-open:rounded-b-none">
                         <span class="flex items-center gap-2">
@@ -904,6 +879,20 @@ var SettingsRender = {
                         <span class="transition-transform group-open:rotate-180 text-teal-400">▼</span>
                     </summary>
                     <div id="location-directory-root"></div>
+                </details>
+
+                <!-- ОЧЕРЕДЬ ЗАЯВОК НА ОБЪЕКТЫ -->
+                <details id="admin-object-requests-section"
+                    class="bg-[var(--card-bg)] border border-orange-200 dark:border-orange-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3" open>
+                    <summary
+                        class="p-4 font-black text-[12px] text-orange-700 dark:text-orange-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-orange-50 dark:bg-orange-900/20 transition-colors select-none group-open:border-b border-orange-200 dark:border-orange-800 rounded-2xl group-open:rounded-b-none">
+                        <span>Заявки на объекты</span>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); if (window.ObjectDirectory) ObjectDirectory.loadRequests();"
+                            class="bg-white dark:bg-slate-800 text-orange-600 border border-orange-200 dark:border-orange-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
+                    </summary>
+                    <div id="obj-requests-list" class="p-3 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-2xl">
+                        <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
+                    </div>
                 </details>
 
                 <!-- СПРАВОЧНИК ПОДРЯДЧИКОВ -->
@@ -922,6 +911,89 @@ var SettingsRender = {
                         <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
                     </summary>
                     <div id="contractor-directory-root"></div>
+                </details>
+
+                <!-- ОЧЕРЕДЬ ЗАЯВОК НА ПОДРЯДЧИКОВ -->
+                <details id="admin-contractor-requests-section"
+                    class="bg-[var(--card-bg)] border border-yellow-200 dark:border-yellow-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
+                    <summary
+                        class="p-4 font-black text-[12px] text-yellow-700 dark:text-yellow-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 transition-colors select-none group-open:border-b border-yellow-200 dark:border-yellow-800 rounded-2xl group-open:rounded-b-none">
+                        <span>Заявки на подрядчиков</span>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); if (typeof gameLoadContractorRequests === 'function') gameLoadContractorRequests();"
+                            class="bg-white dark:bg-slate-800 text-yellow-600 border border-yellow-200 dark:border-yellow-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
+                    </summary>
+                    <div id="manager-contractor-requests-list" class="p-3 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-2xl">
+                        <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
+                    </div>
+                </details>
+
+                <!-- КОМАНДА -->
+                <details id="admin-team-section"
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3" open>
+                    <summary
+                        class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
+                        <span>Команда (доступы и объекты)</span>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); if (typeof gameLoadRoles === 'function') gameLoadRoles();"
+                            class="bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-[var(--card-border)] px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
+                    </summary>
+                    <div class="p-3 bg-[var(--hover-bg)] rounded-b-2xl space-y-3">
+                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden" open>
+                            <summary class="text-[10px] font-black uppercase text-orange-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-orange-50 dark:bg-orange-900/20 p-2 rounded-lg border border-orange-100 dark:border-orange-800">
+                                <span>Заявки на доступ</span>
+                                <span class="text-orange-400">▼</span>
+                            </summary>
+                            <div id="manager-access-requests-list" class="space-y-2">
+                                <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
+                            </div>
+                        </details>
+                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden" open>
+                            <summary class="text-[10px] font-black uppercase text-slate-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <span>Активные пользователи</span>
+                                <span class="text-slate-400">▼</span>
+                            </summary>
+                            <div id="manager-team-list" class="space-y-2">
+                                <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
+                            </div>
+                        </details>
+                        <div id="manager-roles-list" class="hidden"></div>
+                    </div>
+                </details>
+
+                <!-- РОЛИ И ПРАВА -->
+                <details id="settings-role-matrix-section"
+                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
+                            Роли и права
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
+                    </summary>
+                    <div id="settings-role-matrix-root"></div>
+                </details>
+
+                <!-- МИГРАЦИЯ ДАННЫХ -->
+                <details id="contractor-id-backfill-section"
+                    class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-amber-800 dark:text-amber-300 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 transition-colors select-none group-open:border-b border-amber-200 dark:border-amber-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
+                                </path>
+                            </svg>
+                            Миграция данных
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-amber-400">▼</span>
+                    </summary>
+                    <div id="contractor-id-backfill-root"></div>
+                    <div id="project-id-backfill-root" class="border-t border-amber-200 dark:border-amber-800"></div>
                 </details>
             </div>
             <div id="settings-panel-quality" data-settings-panel="quality" class="space-y-3" hidden>
@@ -1244,7 +1316,7 @@ var SettingsRender = {
                         Отдельных настроек модуля стройконтроля пока нет. Справочник объектов и планов — общий для платформы.
                     </p>
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" data-settings-subsection-goto="directories"
+                        <button type="button" data-settings-subsection-goto="admin"
                             class="text-[10px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 px-3 py-2 rounded-lg active:scale-95 transition-transform">
                             Объекты и планы →
                         </button>
@@ -1444,18 +1516,86 @@ console.log('[SettingsRender] settings.render.js markup mounted');
     }
 
     var SETTINGS_SUBSECTION_KEY = 'rbi.settings.subsection';
-    var SETTINGS_SUBSECTIONS = ['platform', 'directories', 'quality', 'construction'];
+    var SETTINGS_SUBSECTIONS = ['platform', 'admin', 'quality', 'construction'];
+
+    function _normalizeSettingsSubsection(key) {
+        if (key === 'directories') return 'admin';
+        return key;
+    }
+
+    function _isAdminGateOk() {
+        return typeof window.isAdminGateUnlocked === 'function'
+            ? window.isAdminGateUnlocked()
+            : false;
+    }
+
+    function _canSeeAdminTab() {
+        try {
+            var p = (window.RBI && window.RBI.services && window.RBI.services.permissions) || null;
+            if (!p) return true;
+            if (typeof p.isAdmin === 'function' && p.isAdmin()) return true;
+            if (typeof p.isLeadership === 'function' && p.isLeadership()) return true;
+            if (typeof p.canManageHierarchy === 'function' && p.canManageHierarchy()) return true;
+            return false;
+        } catch (_e) {
+            return true;
+        }
+    }
+
+    function _mountAdminOpsContent() {
+        if (typeof window.ObjectDirectory !== 'undefined' && typeof window.ObjectDirectory.loadRequests === 'function') {
+            window.ObjectDirectory.loadRequests();
+        }
+        if (typeof window.gameLoadRoles === 'function') {
+            window.gameLoadRoles();
+        }
+        if (typeof window.gameLoadContractorRequests === 'function') {
+            window.gameLoadContractorRequests();
+        }
+        if (typeof mountLocationDirectoryUI === 'function') {
+            mountLocationDirectoryUI().catch(function () {});
+        }
+        if (typeof mountContractorDirectoryUI === 'function') {
+            mountContractorDirectoryUI().catch(function () {});
+        }
+        if (typeof mountContractorIdBackfillUI === 'function') {
+            mountContractorIdBackfillUI().catch(function () {});
+        }
+        if (typeof mountProjectIdBackfillUI === 'function') {
+            try { mountProjectIdBackfillUI(); } catch (_e) { /* ignore */ }
+        }
+        if (typeof mountRoleMatrixUI === 'function') {
+            mountRoleMatrixUI().catch(function () {});
+        }
+    }
 
     function _getSettingsSubsection() {
         try {
-            var v = sessionStorage.getItem(SETTINGS_SUBSECTION_KEY);
+            var v = _normalizeSettingsSubsection(sessionStorage.getItem(SETTINGS_SUBSECTION_KEY));
             if (SETTINGS_SUBSECTIONS.indexOf(v) !== -1) return v;
         } catch (e) { /* ignore */ }
         return 'platform';
     }
 
-    function _setSettingsSubsection(key) {
+    function _setSettingsSubsection(key, opts) {
+        opts = opts || {};
+        key = _normalizeSettingsSubsection(key);
         if (SETTINGS_SUBSECTIONS.indexOf(key) === -1) key = 'platform';
+
+        if (key === 'admin' && !opts.skipGate) {
+            if (!_isAdminGateOk()) {
+                window._rbiAdminGatePending = 'settings-admin';
+                if (typeof window.gameOpenManagerPanelAuth === 'function') {
+                    window.gameOpenManagerPanelAuth();
+                } else if (typeof gameOpenManagerPanelAuth === 'function') {
+                    gameOpenManagerPanelAuth();
+                } else {
+                    if (typeof showToast === 'function') showToast('⚠️ Замок админки недоступен');
+                }
+                return;
+            }
+        }
+
         try { sessionStorage.setItem(SETTINGS_SUBSECTION_KEY, key); } catch (e) { /* ignore */ }
         var root = document.getElementById('tab-settings');
         if (!root) return;
@@ -1473,7 +1613,25 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             btn.classList.toggle('text-slate-600', !active);
             btn.classList.toggle('dark:text-slate-300', !active);
         });
+        if (key === 'admin') {
+            _mountAdminOpsContent();
+        }
     }
+
+    window.unlockSettingsAdminTab = function () {
+        _setSettingsSubsection('admin', { skipGate: true });
+    };
+
+    window.openSettingsAdminTab = function () {
+        if (typeof window.switchTab === 'function') {
+            try { window.switchTab('tab-settings'); } catch (_e) { /* ignore */ }
+        } else if (window.location) {
+            window.location.hash = '#/quality/settings';
+        }
+        setTimeout(function () {
+            _setSettingsSubsection('admin');
+        }, 80);
+    };
 
     function _bindSettingsSubsectionNav() {
         var root = document.getElementById('tab-settings');
@@ -1496,7 +1654,18 @@ console.log('[SettingsRender] settings.render.js markup mounted');
 
     function _renderSettingsTab() {
         _bindSettingsSubsectionNav();
-        _setSettingsSubsection(_getSettingsSubsection());
+        var adminBtn = document.getElementById('settings-subnav-admin');
+        if (adminBtn) {
+            adminBtn.classList.toggle('hidden', !_canSeeAdminTab());
+        }
+        var initial = _getSettingsSubsection();
+        if (initial === 'admin' && !_isAdminGateOk()) {
+            initial = 'platform';
+        }
+        _setSettingsSubsection(initial, { skipGate: true });
+        if (initial === 'admin') {
+            _mountAdminOpsContent();
+        }
         // 1. Базовые селекторы оформления
         if (document.getElementById('set-theme')) document.getElementById('set-theme').value = _getSetting('theme') || 'auto';
         if (document.getElementById('set-fontsize')) document.getElementById('set-fontsize').value = _getSetting('fontSize') || 'medium';
@@ -1607,29 +1776,15 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             var brandLogo = _getSetting('brandLogo');
             if (brandLogo) {
                 logoPreview.classList.remove('hidden');
-                logoImg.removeAttribute('data-local-src');
-                logoImg.removeAttribute('data-prefer-thumb');
-                var needsHydrate = String(brandLogo).indexOf('http') === 0
-                    || String(brandLogo).indexOf('local://') === 0
-                    || String(brandLogo).indexOf('cloud://') === 0;
-                if (needsHydrate) {
-                    logoImg.src = window.rbiPhotoPlaceholder || '';
-                    logoImg.setAttribute('data-local-src', brandLogo);
-                    logoImg.setAttribute('data-prefer-thumb', '1');
-                    if (typeof window.rbiHydrateLocalImages === 'function') {
-                        window.rbiHydrateLocalImages(logoPreview);
-                    } else if (typeof PhotoManager !== 'undefined' && PhotoManager.getAsyncUrl) {
-                        PhotoManager.getAsyncUrl(brandLogo, { preferThumb: true }).then(function (u) {
-                            if (u) logoImg.src = u;
-                        });
-                    }
-                } else {
-                    logoImg.src = brandLogo;
-                }
+                _setBrandLogoImgSrc(logoImg, brandLogo);
             } else {
                 logoPreview.classList.add('hidden');
+                logoImg.removeAttribute('src');
+                logoImg.removeAttribute('data-local-src');
+                logoImg.removeAttribute('data-prefer-thumb');
             }
         }
+        _updateHeaderBrandLogo();
 
         if (typeof window.renderSyncUI === 'function') window.renderSyncUI();
         if (typeof mountLocationDirectoryUI === 'function') {
@@ -1646,6 +1801,13 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             mountContractorIdBackfillUI().catch(function (e) {
                 console.warn('[settings] contractor-id-backfill UI:', e);
             });
+        }
+        if (typeof mountProjectIdBackfillUI === 'function') {
+            try {
+                mountProjectIdBackfillUI();
+            } catch (e) {
+                console.warn('[settings] project-id-backfill UI:', e);
+            }
         }
         if (typeof mountRoleMatrixUI === 'function') {
             mountRoleMatrixUI().catch(function (e) {
@@ -1678,6 +1840,73 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             }
 
             brandControls.innerHTML = controlsHtml;
+        }
+    }
+
+    function _setBrandLogoImgSrc(imgEl, brandLogo) {
+        if (!imgEl) return;
+        imgEl.removeAttribute('data-local-src');
+        imgEl.removeAttribute('data-prefer-thumb');
+        var ref = String(brandLogo || '');
+        // Логотип нельзя грузить через preferThumb: JPEG-thumb без белой подложки
+        // запекает прозрачность PNG в чёрный фон.
+        var needsHydrate = ref.indexOf('http') === 0
+            || ref.indexOf('local://') === 0
+            || ref.indexOf('cloud://') === 0;
+        if (needsHydrate) {
+            imgEl.src = window.rbiPhotoPlaceholder || '';
+            imgEl.setAttribute('data-local-src', ref);
+            if (typeof window.rbiHydrateLocalImages === 'function') {
+                window.rbiHydrateLocalImages(imgEl.parentElement || imgEl);
+            } else if (typeof PhotoManager !== 'undefined' && PhotoManager.getAsyncUrl) {
+                PhotoManager.getAsyncUrl(ref).then(function (u) {
+                    if (u) imgEl.src = u;
+                });
+            }
+        } else {
+            imgEl.src = ref;
+        }
+    }
+
+    var _HEADER_ICON_SHIELD_CLS = 'w-9 h-9 bg-[var(--card-bg)] rounded-[10px] shadow-[0_2px_10px_rgba(0,0,0,0.06)] border border-[var(--card-border)] flex items-center justify-center shrink-0 overflow-hidden';
+    // Та же цветовая логика, что превью в настройках: токены темы, без белой плашки
+    var _HEADER_ICON_LOGO_CLS = 'h-9 w-auto max-w-[7.25rem] px-1.5 bg-[var(--card-bg)] rounded-[10px] shadow-[0_2px_10px_rgba(0,0,0,0.06)] border border-[var(--card-border)] flex items-center justify-center shrink-0 overflow-hidden';
+
+    function _updateHeaderBrandLogo() {
+        var iconBox = document.getElementById('header-brand-icon');
+        var shield = document.getElementById('header-brand-shield');
+        var logoImg = document.getElementById('header-brand-logo');
+        if (!shield || !logoImg) return;
+        var brandLogo = _getSetting('brandLogo');
+        if (brandLogo) {
+            shield.classList.add('hidden');
+            logoImg.classList.remove('hidden');
+            logoImg.className = 'object-contain';
+            if (iconBox) iconBox.className = _HEADER_ICON_LOGO_CLS;
+            var fit = function () {
+                if (!logoImg.naturalWidth || !logoImg.naturalHeight) return;
+                var maxH = 28;
+                var maxW = 108;
+                var ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+                var w = Math.min(maxW, Math.max(28, Math.round(maxH * ratio)));
+                var h = Math.min(maxH, Math.round(w / ratio));
+                logoImg.style.height = h + 'px';
+                logoImg.style.width = w + 'px';
+                logoImg.style.maxWidth = maxW + 'px';
+            };
+            logoImg.onload = fit;
+            _setBrandLogoImgSrc(logoImg, brandLogo);
+            if (logoImg.complete && logoImg.naturalWidth) fit();
+        } else {
+            logoImg.classList.add('hidden');
+            logoImg.removeAttribute('src');
+            logoImg.removeAttribute('data-local-src');
+            logoImg.removeAttribute('data-prefer-thumb');
+            logoImg.removeAttribute('style');
+            logoImg.onload = null;
+            logoImg.className = 'hidden h-7 w-auto max-w-[6.75rem] object-contain';
+            shield.classList.remove('hidden');
+            if (iconBox) iconBox.className = _HEADER_ICON_SHIELD_CLS;
         }
     }
 
@@ -1743,6 +1972,8 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             if (dashIcon) dashIcon.style.display = 'flex';
         }
 
+        _updateHeaderBrandLogo();
+
         setTimeout(function () {
             if (typeof window.updateBodyPadding === 'function') window.updateBodyPadding();
         }, 150);
@@ -1774,6 +2005,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
 
     window.renderSettingsTab = _renderSettingsTab;
     window.applySettingsToUI = _applySettingsToUI;
+    window.updateHeaderBrandLogo = _updateHeaderBrandLogo;
 
     console.log('[settings.render.js] window-proxies installed (renderSettingsTab, applySettingsToUI)');
 

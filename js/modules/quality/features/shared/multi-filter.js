@@ -258,10 +258,16 @@ function openMultiFilterModal(type, title, context) {
     if (!isManager && role !== 'guest') {
         if (assignedProjects.length > 0) {
             accessibleRbi = accessibleRbi.filter(i => {
+                if (permSvc && typeof permSvc.isRecordInAssignedProjects === 'function') {
+                    return permSvc.isRecordInAssignedProjects(i, assignedProjects);
+                }
                 const p = i.project_canonical_key || i.project_display_name || i.projectName;
                 return assignedProjects.includes(p);
             });
             accessibleSk = accessibleSk.filter(r => {
+                if (permSvc && typeof permSvc.isRecordInAssignedProjects === 'function') {
+                    return permSvc.isRecordInAssignedProjects(r, assignedProjects);
+                }
                 const p = r.project_canonical_key || r.project_display_name || r.display_name;
                 return assignedProjects.includes(p);
             });

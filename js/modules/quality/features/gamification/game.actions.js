@@ -573,28 +573,72 @@ function emit(eventName, detail) {
   };
   // Перенесено из js/game.js (строка 1124).
   const MANAGER_PIN_HASH = "1570722437";
+  const ADMIN_GATE_SESSION_KEY = 'rbi_admin_gate_ok';
+
+  function isAdminGateUnlocked() {
+    try {
+      return sessionStorage.getItem(ADMIN_GATE_SESSION_KEY) === '1';
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  function setAdminGateUnlocked() {
+    try {
+      sessionStorage.setItem(ADMIN_GATE_SESSION_KEY, '1');
+    } catch (_e) { /* ignore */ }
+  }
+
+  /**
+   * После успешного PIN: purpose в window._rbiAdminGatePending —
+   * 'manager' (панель) | 'settings-admin' (вкладка Администрирование).
+   */
+  function gameCompleteAdminGate() {
+    setAdminGateUnlocked();
+    const pending = window._rbiAdminGatePending || 'manager';
+    window._rbiAdminGatePending = null;
+
+    const modal = document.getElementById('manager-auth-modal');
+    if (modal) modal.style.display = 'none';
+
+    if (pending === 'settings-admin') {
+      if (typeof window.unlockSettingsAdminTab === 'function') {
+        window.unlockSettingsAdminTab();
+      }
+      return;
+    }
+
+    if (typeof openManagerPanelView === 'function') {
+      openManagerPanelView();
+    } else if (typeof window.openManagerPanelView === 'function') {
+      window.openManagerPanelView();
+    } else {
+      const view = document.getElementById('manager-panel-overlay');
+      if (view) {
+        view.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+      }
+    }
+    if (typeof gameRenderManagerAnalytics === 'function') {
+      gameRenderManagerAnalytics();
+    } else if (typeof window.gameRenderManagerAnalytics === 'function') {
+      window.gameRenderManagerAnalytics();
+    }
+  }
 
   // Перенесено из js/game.js (строка 1364).
   function gameVerifyManagerPin() {
     const pin = document.getElementById('manager-pin-input').value;
     if (hashString(pin) === MANAGER_PIN_HASH) {
-      document.getElementById('manager-auth-modal').style.display = 'none';
-      if (typeof openManagerPanelView === 'function') {
-        openManagerPanelView();
-      } else if (typeof window.openManagerPanelView === 'function') {
-        window.openManagerPanelView();
-      } else {
-        const view = document.getElementById('manager-panel-overlay');
-        if (view) {
-          view.classList.remove('hidden');
-          document.body.classList.add('modal-open');
-        }
-      }
-      gameRenderManagerAnalytics();
+      gameCompleteAdminGate();
     } else {
       showToast('❌ Неверный ПИН-код');
     }
   };
+
+  window.isAdminGateUnlocked = isAdminGateUnlocked;
+  window.setAdminGateUnlocked = setAdminGateUnlocked;
+  window.gameCompleteAdminGate = gameCompleteAdminGate;
 
   // Перенесено из js/game.js (строка 1452).
   function gameGenerateAuditPlan() {
@@ -927,8 +971,13 @@ function emit(eventName, detail) {
         return showToast("⚠️ За выбранный период нет данных для отчета!");
       }
 
-      let sumUrk = 0; currentData.forEach(i => { if (i.metrics) sumUrk += Number(i.metrics.final) || 0; });
-      const currAvgUrk = Math.round(sumUrk / currentData.length);
+      let currAvgUrk = 0;
+      if (typeof window.avgContractorRatingsFromChecks === 'function') {
+        currAvgUrk = window.avgContractorRatingsFromChecks(currentData).avgUrk;
+      } else {
+        let sumUrk = 0; currentData.forEach(i => { if (i.metrics) sumUrk += Number(i.metrics.final) || 0; });
+        currAvgUrk = Math.round(sumUrk / currentData.length);
+      }
 
       const currIntMetrics = typeof getObjectIntegralMetrics === 'function' ? getObjectIntegralMetrics(currentData, _templates().getUserTemplates()) : null;
       const IKO = currIntMetrics ? currIntMetrics.IKO : "0.00";
@@ -1879,16 +1928,23 @@ function emit(eventName, detail) {
 
   // === ПАНЕЛЬ РУКОВОДИТЕЛЯ: чипы закреплённых объектов ===
   // Перенесено из js/game.js (строка 3521).
-  function gameAddAssignedProjectFromSelect(domId, canonicalKey) {
-    if (!canonicalKey) return;
+  function gameAddAssignedProjectFromSelect(domId, objectRef) {
+    if (!objectRef) return;
     const input = document.getElementById(`proj_input_${domId}`);
     if (!input) return;
 
     let projectsArray = [];
     try { projectsArray = JSON.parse(input.value || '[]'); } catch (e) { projectsArray = []; }
 
-    if (!projectsArray.includes(canonicalKey)) {
-      projectsArray.push(canonicalKey);
+    let idToAdd = objectRef;
+    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
+      const resolved = ObjectDirectory.resolveProjectId(objectRef);
+      if (resolved) idToAdd = resolved;
+    }
+    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
+      projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray.concat([idToAdd]));
+    } else if (!projectsArray.includes(idToAdd)) {
+      projectsArray.push(idToAdd);
     }
 
     input.value = JSON.stringify(projectsArray);
@@ -1896,14 +1952,30 @@ function emit(eventName, detail) {
   };
 
   // Перенесено из js/game.js (строка 3537).
-  function gameRemoveAssignedProjectChip(domId, canonicalKey) {
+  function gameRemoveAssignedProjectChip(domId, objectRef) {
     const input = document.getElementById(`proj_input_${domId}`);
     if (!input) return;
 
     let projectsArray = [];
     try { projectsArray = JSON.parse(input.value || '[]'); } catch (e) { projectsArray = []; }
 
-    projectsArray = projectsArray.filter(v => v !== canonicalKey);
+    const refClean = (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString)
+      ? ObjectDirectory.cleanString(objectRef)
+      : String(objectRef || '').toLowerCase().trim();
+    const refId = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function')
+      ? ObjectDirectory.resolveProjectId(objectRef)
+      : '';
+
+    projectsArray = projectsArray.filter(v => {
+      const s = String(v || '');
+      if (s === objectRef || (refId && s === refId)) return false;
+      if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString
+          && ObjectDirectory.cleanString(s) === refClean) return false;
+      return true;
+    });
+    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
+      projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray);
+    }
     input.value = JSON.stringify(projectsArray);
     gameRenderAssignedProjectChips(domId);
   };
@@ -2070,7 +2142,7 @@ function emit(eventName, detail) {
                             <select id="req_action_${domId}_${idx}" class="input-base !py-1.5 !text-[10px]">
                                 <option value="ignore">Оставить в ожидании</option>
                                 ${projectObjects.map(o => `
-                                    <option value="link_${esc(o.canonical_key)}">
+                                    <option value="link_${esc(o.id || o.canonical_key)}">
                                         Связать с: ${esc(o.display_name)}
                                     </option>
                                 `).join('')}
@@ -2168,7 +2240,7 @@ function emit(eventName, detail) {
                             <input type="hidden" id="proj_input_${domId}" value="${projectsJsonStr}">
                             <select class="input-base !py-1.5 !text-[10px] mb-2 bg-white dark:bg-slate-800" onchange="gameAddAssignedProjectFromSelect('${domId}', this.value); this.value='';">
                                 <option value="">+ Добавить объект из справочника</option>
-                                ${projectObjects.map(o => `<option value="${esc(o.canonical_key)}">${esc(o.display_name)}</option>`).join('')}
+                                ${projectObjects.map(o => `<option value="${esc(o.id || o.canonical_key)}">${esc(o.display_name)}</option>`).join('')}
                             </select>
                             <div id="proj_chips_${domId}" class="flex flex-wrap gap-1"></div>
                         </div>
@@ -2191,19 +2263,61 @@ function emit(eventName, detail) {
             `;
       };
 
+      // Сводка ВСЕХ pending-заявок на объекты (в т.ч. у уже approved инженеров)
+      const objectRequestRows = [];
+      users.forEach((u) => {
+        const reqs = Array.isArray(u.settings?.requestedProjects) ? u.settings.requestedProjects : [];
+        const filtered = reqs.filter(r => r && r.source !== 'sk_import' && r.request_type !== 'directory');
+        filtered.forEach((req) => {
+          objectRequestRows.push({
+            engineer: u.engineer_name || u.inspector_name || 'Без имени',
+            inspectorId: u.inspector_id || '',
+            cloudStatus: u.cloud_status || 'pending',
+            raw: req.raw_name || req.display_name || 'Без названия',
+            type: req.request_type || 'assign'
+          });
+        });
+      });
+
+      let summaryHtml = '';
+      if (objectRequestRows.length > 0) {
+        summaryHtml = `
+            <div class="mb-3 bg-orange-50 border border-orange-200 rounded-xl p-3 shadow-sm">
+              <div class="text-[10px] font-black text-orange-800 uppercase tracking-wide mb-2">
+                Заявки на объекты (${objectRequestRows.length}) — откройте карточку инженера ниже и обработайте
+              </div>
+              <div class="space-y-1 max-h-40 overflow-y-auto">
+                ${objectRequestRows.map(r => `
+                  <div class="text-[10px] text-slate-700 flex gap-2 items-start">
+                    <span class="font-black shrink-0">${esc(r.engineer)}</span>
+                    <span class="text-slate-400">${r.type === 'unassign' ? '⬅️ снять' : '➡️ доступ'}</span>
+                    <span class="font-bold">${esc(r.raw)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+      }
+
       if (accessContainer) {
         if (pendingUsers.length > 0) {
-          accessContainer.innerHTML = pendingUsers.map(u => renderUserRow(u, 'pending')).join('');
+          accessContainer.innerHTML = summaryHtml + pendingUsers.map(u => renderUserRow(u, 'pending')).join('');
         } else {
-          accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">Заявок на доступ нет</div>';
+          accessContainer.innerHTML = summaryHtml
+            || '<div class="text-center py-4 text-[10px] text-slate-400">Заявок на доступ нет</div>';
+          if (summaryHtml && pendingUsers.length === 0) {
+            accessContainer.innerHTML = summaryHtml
+              + '<div class="text-center py-2 text-[10px] text-slate-400">Заявок на доступ в облако нет — есть заявки на объекты у активных (см. Команда)</div>';
+          }
         }
       }
 
       if (teamContainer) {
         if (activeUsers.length > 0) {
-          teamContainer.innerHTML = activeUsers.map(u => renderUserRow(u, 'active')).join('');
+          teamContainer.innerHTML = summaryHtml + activeUsers.map(u => renderUserRow(u, 'active')).join('');
         } else {
-          teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">Активных пользователей нет</div>';
+          teamContainer.innerHTML = summaryHtml
+            || '<div class="text-center py-4 text-[10px] text-slate-400">Активных пользователей нет</div>';
         }
       }
 
@@ -2381,22 +2495,44 @@ function emit(eventName, detail) {
 
         if (req.request_type === 'unassign' && action === 'unassign_confirm') {
           // Подтверждение заявки на снятие объекта (self-service снятие
-          // запрещено — current_plan.md §8): реально убираем canonical_key
+          // запрещено — current_plan.md §8): реально убираем id/canonical
           // из массива, который ниже пойдёт в writeUserProjectAssignment.
           const keyToRemove = req.canonical_key || req.raw_name;
-          projectsArray = projectsArray.filter(p => p !== keyToRemove);
+          const idToRemove = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function')
+            ? (ObjectDirectory.resolveProjectId(req.projectId || keyToRemove) || keyToRemove)
+            : keyToRemove;
+          projectsArray = projectsArray.filter(p => {
+            const s = String(p || '');
+            if (s === keyToRemove || s === idToRemove) return false;
+            if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString
+                && ObjectDirectory.cleanString(s) === ObjectDirectory.cleanString(keyToRemove)) return false;
+            return true;
+          });
           continue;
         }
 
         if (action.startsWith('link_')) {
-          // Привязка к существующему объекту
-          const canonicalKey = action.replace('link_', '');
-          if (!projectsArray.includes(canonicalKey)) projectsArray.push(canonicalKey);
+          // Привязка к существующему объекту (UUID или canonical)
+          const linkRef = action.replace('link_', '');
+          let projectId = linkRef;
+          if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
+            projectId = ObjectDirectory.resolveProjectId(linkRef) || linkRef;
+          }
+          if (!projectsArray.includes(projectId)) projectsArray.push(projectId);
 
-          // Сохраняем как синоним локально (в облако отправит sync.js)
-          if (req.raw_name && req.raw_name !== canonicalKey) {
+          // Сохраняем как синоним + merge spelling
+          if (req.raw_name && typeof ObjectDirectory !== 'undefined'
+              && typeof ObjectDirectory.mergeRawNameIntoObject === 'function') {
+            try {
+              await ObjectDirectory.mergeRawNameIntoObject(req.raw_name, projectId);
+            } catch (mergeErr) {
+              console.warn('[gameSaveUserAccess] merge synonym', mergeErr);
+            }
+          } else if (req.raw_name && req.raw_name !== linkRef) {
             const localObjs = await _storage().getAll('project_objects') || [];
-            const targetObj = localObjs.find(o => o.canonical_key === canonicalKey && o.project_code === projectCode);
+            const targetObj = localObjs.find(o =>
+              (o.id === projectId || o.canonical_key === linkRef) && o.project_code === projectCode
+            );
 
             if (targetObj) {
               const oldSynonyms = Array.isArray(targetObj.synonyms) ? targetObj.synonyms : [];
@@ -2406,41 +2542,37 @@ function emit(eventName, detail) {
                 targetObj.sync_status = 'not_synced';
                 targetObj.source = 'local';
                 await _storage().put('project_objects', targetObj);
-
-                const newAlias = {
-                  id: 'alias_' + Date.now().toString(36),
-                  project_code: projectCode,
-                  raw_name: req.raw_name,
-                  canonical_key: canonicalKey,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  sync_status: 'not_synced',
-                  source: 'local'
-                };
-                await _storage().put('object_aliases', newAlias);
               }
             }
           }
+          continue;
         }
 
         if (action === 'create') {
-          // Создание абсолютно нового объекта
-          const newKey = (typeof ObjectDirectory !== 'undefined') ? ObjectDirectory.cleanString(req.raw_name) : req.raw_name.toLowerCase().replace(/\s+/g, '_');
-
-          // Создаем в БД Supabase
-          await window.supabaseClient.from('project_objects').upsert({
-            id: 'obj_' + Date.now().toString(36),
-            project_code: projectCode,
-            canonical_key: newKey,
-            display_name: req.raw_name,
-            synonyms: [],
-            created_by: window.syncConfig.engineerName,
-            updated_at: new Date().toISOString(),
-            is_deleted: false
-          });
-
-          if (!projectsArray.includes(newKey)) projectsArray.push(newKey);
+          // Создание нового объекта через locations (UUID) + synonym из raw
+          let createdId = '';
+          if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.createFromLocation === 'function') {
+            const created = await ObjectDirectory.createFromLocation({
+              displayName: req.raw_name,
+              canonical_key: (typeof ObjectDirectory.cleanString === 'function')
+                ? ObjectDirectory.cleanString(req.raw_name)
+                : String(req.raw_name || '').toLowerCase().trim()
+            });
+            createdId = created && created.id ? String(created.id) : '';
+            if (req.raw_name && createdId && typeof ObjectDirectory.mergeRawNameIntoObject === 'function') {
+              try { await ObjectDirectory.mergeRawNameIntoObject(req.raw_name, createdId); } catch (_e) { /* ignore */ }
+            }
+          }
+          if (!createdId) {
+            const newKey = (typeof ObjectDirectory !== 'undefined') ? ObjectDirectory.cleanString(req.raw_name) : req.raw_name.toLowerCase().replace(/\s+/g, '_');
+            createdId = newKey;
+          }
+          if (!projectsArray.includes(createdId)) projectsArray.push(createdId);
         }
+      }
+
+      if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
+        projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray);
       }
 
       // Единая точка записи (permission.service.js) — обновляет ОБА поля
@@ -2470,6 +2602,23 @@ function emit(eventName, detail) {
       );
 
       if (error) throw error;
+
+      // Если правим текущего пользователя на этом устройстве — сразу чистим локаль
+      // от объектов вне нового списка assigned.
+      try {
+        const myId = window.syncConfig && window.syncConfig.projectCode && window.syncConfig.engineerName
+          ? `${window.syncConfig.projectCode}_${window.syncConfig.engineerName}`.replace(/\s+/g, '_')
+          : '';
+        if (myId && myId === inspectorId && typeof window.purgeDataOutsideAssignedProjects === 'function') {
+          if (typeof appSettings !== 'undefined') {
+            appSettings.assignedProjects = projectsArray;
+            appSettings.assigned_projects = projectsArray;
+          }
+          await window.purgeDataOutsideAssignedProjects(projectsArray);
+        }
+      } catch (purgeErr) {
+        console.warn('[gameSaveUserAccess] purge', purgeErr);
+      }
 
       showToast(`✅ Права успешно сохранены!`);
       localStorage.setItem('rbi_cloud_dirty', '1');

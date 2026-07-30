@@ -614,29 +614,38 @@
 
       var projectCanonicalKey = rawProjectValue;
       var projectDisplayName = rawProjectName;
+      var projectId = '';
 
-      if (typeof ObjectDirectory !== 'undefined' && Array.isArray(ObjectDirectory.objects)) {
-        var clean = ObjectDirectory.cleanString
-          ? ObjectDirectory.cleanString(rawProjectName)
-          : rawProjectName.toLowerCase().trim();
+      if (typeof ObjectDirectory !== 'undefined') {
+        var resolved = null;
+        if (typeof ObjectDirectory.resolveObjectRef === 'function') {
+          resolved = ObjectDirectory.resolveObjectRef(rawProjectValue)
+            || ObjectDirectory.resolveObjectRef(rawProjectName);
+        }
+        if (!resolved && Array.isArray(ObjectDirectory.objects)) {
+          var clean = ObjectDirectory.cleanString
+            ? ObjectDirectory.cleanString(rawProjectName)
+            : rawProjectName.toLowerCase().trim();
 
-        var foundObj = ObjectDirectory.objects.find(function (o) {
-          var displayClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.display_name || '') : String(o.display_name || '').toLowerCase().trim();
-          var keyClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.canonical_key || '') : String(o.canonical_key || '').toLowerCase().trim();
+          resolved = ObjectDirectory.objects.find(function (o) {
+            var displayClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.display_name || '') : String(o.display_name || '').toLowerCase().trim();
+            var keyClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.canonical_key || '') : String(o.canonical_key || '').toLowerCase().trim();
 
-          var synonymMatch = Array.isArray(o.synonyms)
-            ? o.synonyms.some(function (syn) {
-              var synClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(syn) : String(syn).toLowerCase().trim();
-              return synClean === clean;
-            })
-            : false;
+            var synonymMatch = Array.isArray(o.synonyms)
+              ? o.synonyms.some(function (syn) {
+                var synClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(syn) : String(syn).toLowerCase().trim();
+                return synClean === clean;
+              })
+              : false;
 
-          return displayClean === clean || keyClean === clean || synonymMatch;
-        });
+            return displayClean === clean || keyClean === clean || synonymMatch;
+          }) || null;
+        }
 
-        if (foundObj) {
-          projectCanonicalKey = foundObj.canonical_key || '';
-          projectDisplayName = foundObj.display_name || rawProjectName;
+        if (resolved) {
+          projectCanonicalKey = resolved.canonical_key || '';
+          projectDisplayName = resolved.display_name || rawProjectName;
+          projectId = resolved.id || '';
         }
       }
 
@@ -671,6 +680,7 @@
         projectName: projectDisplayName,
         project_canonical_key: projectCanonicalKey,
         project_display_name: projectDisplayName,
+        projectId: projectId || '',
         inspectorName: inspInput.value.trim(),
         contractorName: contractorNormalized.contractor_name || contrInput.value.trim(),
         contractor_name: contractorNormalized.contractor_name || contrInput.value.trim(),

@@ -238,8 +238,8 @@ export class PlanViewer {
     this.destroyed = false;
     this._destroyPanzoom();
     this.host.innerHTML = `
-      <div class="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-900 flex items-center justify-center" data-c2-plan-wrap>
-        <div class="relative shadow-lg bg-white" data-c2-plan-stage style="width:fit-content;touch-action:none">
+      <div class="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-900 touch-none" data-c2-plan-wrap>
+        <div class="absolute shadow-lg bg-white" data-c2-plan-stage style="touch-action:none;transform-origin:50% 50%">
           <canvas data-c2-plan-canvas class="block max-w-none"></canvas>
           <div data-c2-plan-zones class="absolute inset-0 pointer-events-none"></div>
           <div data-c2-plan-pins class="absolute inset-0 pointer-events-none"></div>
@@ -300,6 +300,12 @@ export class PlanViewer {
     this.canvas.height = viewport.height;
     this.stage.style.width = `${viewport.width}px`;
     this.stage.style.height = `${viewport.height}px`;
+    // Как в стройконтроль v1: CSS-центр + origin 50%/50%, иначе pinch на телефоне уезжает в угол
+    this.stage.style.left = '50%';
+    this.stage.style.top = '50%';
+    this.stage.style.marginLeft = `${-viewport.width / 2}px`;
+    this.stage.style.marginTop = `${-viewport.height / 2}px`;
+    this.stage.style.transformOrigin = '50% 50%';
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d недоступен');
@@ -507,8 +513,14 @@ export class PlanViewer {
       maxScale: PZ_MAX,
       minScale: PZ_MIN,
       step: PZ_STEP,
+      startScale: 1,
+      startX: 0,
+      startY: 0,
       cursor: 'grab',
-      excludeClass: 'panzoom-exclude'
+      excludeClass: 'panzoom-exclude',
+      // Мобильный pinch: пан во время жеста + без нативного scroll/zoom страницы
+      pinchAndPan: true,
+      touchAction: 'none'
     });
     this._onWheelBound = (e: WheelEvent) => {
       if (!this.panzoom) return;

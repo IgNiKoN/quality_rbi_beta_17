@@ -993,7 +993,13 @@ async function _renderTasksList(forceRender) {
 
     if (_permSvc3 && _permSvc3.isLeadership()) {
         if (currentRole === 'project_manager' && assignedProjects.length > 0) {
-            activeTasks = activeTasks.filter(function(t){ return assignedProjects.includes(t.project_canonical_key || t.project); });
+            activeTasks = activeTasks.filter(function(t){
+                if (window.RBI && window.RBI.services && window.RBI.services.permissions
+                    && typeof window.RBI.services.permissions.isRecordInAssignedProjects === 'function') {
+                    return window.RBI.services.permissions.isRecordInAssignedProjects(t, assignedProjects);
+                }
+                return assignedProjects.includes(t.project_canonical_key || t.project);
+            });
         }
     } else {
         activeTasks = activeTasks.filter(function(t){ return (t.engineerName || t.inspectorName) === currentEng || t.contractor === 'Системная'; });

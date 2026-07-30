@@ -1448,8 +1448,7 @@ export const AnalyticsRender = {
         }
         document.getElementById('contractors-chips-container').style.display = 'flex';
 
-        let sumUrkProd = 0, sumB1 = 0, sumB2 = 0, sumB3 = 0;
-        let sumDocProd = 0, cntDocProd = 0;
+        let sumB1 = 0, sumB2 = 0, sumB3 = 0;
         const groupedC = {};
         const causesCount = {};
 
@@ -1459,12 +1458,9 @@ export const AnalyticsRender = {
 
         data.forEach(i => {
             if (i.metrics) {
-                sumUrkProd += Number(i.metrics.final) || 0;
                 sumB1 += Number(i.metrics.n_B1_fail) || 0;
                 sumB2 += Number(i.metrics.n_B2_fail) || 0;
                 sumB3 += Number(i.metrics.n_B3_fail) || 0;
-                const docScore = _getDocumentaryScoreForItem(i);
-                if (docScore !== null && docScore !== undefined) { sumDocProd += docScore; cntDocProd++; }
             }
             const projectLabel = i.project_display_name || i.projectName || i.project_canonical_key || 'Без объекта';
             const cKey = i.contractorName + ' [' + projectLabel + ']';
@@ -1482,11 +1478,14 @@ export const AnalyticsRender = {
             }
         });
 
-        const avgUrkProd = Math.round(sumUrkProd / data.length);
-        const avgDocProd = cntDocProd > 0 ? Math.round(sumDocProd / cntDocProd) : null;
+        // KPI УрК/док/надёжность — среднее по подрядчикам (окно ≤15), как в печати One-Pager.
+        const kpiRatings = (typeof window.avgContractorRatingsFromChecks === 'function')
+            ? window.avgContractorRatingsFromChecks(data)
+            : { avgUrk: 0, avgDoc: null, avgReliability: null, relN: 0 };
+        const avgUrkProd = kpiRatings.avgUrk;
+        const avgDocProd = kpiRatings.avgDoc;
         const contrCount = Object.keys(groupedC).length;
 
-        let sumIntegralUrk = 0; let validContrCount = 0;
         let defaultSmartText = '';
         let cList = [];
 
@@ -1495,11 +1494,11 @@ export const AnalyticsRender = {
             const m = _contractorMetricsCached(cName, cData);
             if (m) {
                 cList.push({ name: cName, metrics: m });
-                if (m.count >= 7) { sumIntegralUrk += m.finalC; validContrCount++; }
             }
         }
 
-        const avgIntegralUrk = validContrCount > 0 ? Math.round(sumIntegralUrk / validContrCount) : 0;
+        const validContrCount = kpiRatings.relN || 0;
+        const avgIntegralUrk = kpiRatings.avgReliability != null ? kpiRatings.avgReliability : 0;
         if (defaultSmartText === '') defaultSmartText = 'Все подрядчики в зеленой зоне. Вмешательство не требуется.';
 
         const globalKey = 'global_main_analysis';
@@ -1523,11 +1522,11 @@ export const AnalyticsRender = {
         topContainer.innerHTML = `
             <div class="grid grid-cols-3 min-[500px]:grid-cols-5 gap-2 mb-2">
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний физический УрК всех изделий">Ср. УрК Изд.</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний УрК подрядчиков (окно до 15 проверок, приоритет N≥7)">Ср. УрК</div>
                     <div class="text-lg font-bold leading-none ${avgUrkProd < 70 ? 'text-red-600' : (avgUrkProd < 85 ? 'text-orange-500' : 'text-green-600')}">${avgUrkProd}%</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний УрК документации">Ср. УрК Докум.</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний УрК документации подрядчиков (окно до 15)">Ср. УрК Докум.</div>
                     <div class="text-lg font-bold leading-none ${avgDocProd === null ? 'text-slate-400' : (avgDocProd < 70 ? 'text-red-600' : (avgDocProd < 85 ? 'text-orange-500' : 'text-indigo-600'))}">${avgDocProd === null ? '—' : avgDocProd + '%'}</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
@@ -1822,17 +1821,18 @@ export const AnalyticsRender = {
             return;
         }
 
-        let sumUrk = 0; let sumB3 = 0; let sumDoc = 0; let cntDoc = 0;
+        let sumB3 = 0;
         data.forEach(i => {
             if (i.metrics) {
-                sumUrk += Number(i.metrics.final) || 0;
                 sumB3 += Number(i.metrics.n_B3_fail) || 0;
-                const docScore = _getDocumentaryScoreForItem(i);
-                if (docScore !== null && docScore !== undefined) { sumDoc += docScore; cntDoc++; }
             }
         });
-        const currAvgUrk = data.length > 0 ? Math.round(sumUrk / data.length) : 0;
-        const currAvgDoc = cntDoc > 0 ? Math.round(sumDoc / cntDoc) : null;
+        // KPI УрК/док — среднее по подрядчикам (окно ≤15), как в печати One-Pager.
+        const kpiRatings = (typeof window.avgContractorRatingsFromChecks === 'function')
+            ? window.avgContractorRatingsFromChecks(data)
+            : { avgUrk: 0, avgDoc: null };
+        const currAvgUrk = kpiRatings.avgUrk;
+        const currAvgDoc = kpiRatings.avgDoc;
 
         const groupedC = {};
         data.forEach(item => {
@@ -1911,8 +1911,10 @@ export const AnalyticsRender = {
 
         let prevAvgUrk = 0; let prevIko = "0.00"; let prevChecks = prevData.length; let prevContrsCount = 0;
         if (prevData.length > 0) {
-            let pSum = 0; prevData.forEach(i => pSum += (i.metrics?.final || 0));
-            prevAvgUrk = Math.round(pSum / prevData.length);
+            const prevKpi = (typeof window.avgContractorRatingsFromChecks === 'function')
+                ? window.avgContractorRatingsFromChecks(prevData)
+                : { avgUrk: 0 };
+            prevAvgUrk = prevKpi.avgUrk;
             const pGrouped = {}; prevData.forEach(i => pGrouped[i.contractorName] = true);
             prevContrsCount = Object.keys(pGrouped).length;
             const pInt = _getObjectIntegralMetricsCached(prevData);
@@ -1934,9 +1936,10 @@ export const AnalyticsRender = {
             const dStart = new Date(); dStart.setDate(now.getDate() - (i * 7) - 7);
             const dEnd = new Date(); dEnd.setDate(now.getDate() - (i * 7));
             const weekChecks = _allInspections.filter(c => { const d = new Date(c.date); return d >= dStart && d < dEnd; });
-            let wSum = 0; weekChecks.forEach(c => wSum += (c.metrics?.final || 0));
             sparkLabels.push(`-${i}н`);
-            sparkData.push(weekChecks.length > 0 ? Math.round(wSum / weekChecks.length) : null);
+            sparkData.push(weekChecks.length > 0 && typeof window.avgContractorRatingsFromChecks === 'function'
+                ? window.avgContractorRatingsFromChecks(weekChecks).avgUrk
+                : null);
         }
 
         let defaultChartContrs = [];
@@ -2449,17 +2452,17 @@ export const AnalyticsRender = {
 
         const projectsArray = Object.keys(projectsMap).map(pName => {
             const pData = projectsMap[pName];
-            let pSumUrk = 0; let redZone = 0; let b3Found = 0; let pSumDoc = 0; let pCntDoc = 0;
+            let redZone = 0; let b3Found = 0;
             pData.forEach(i => {
                 if (i.metrics) {
-                    pSumUrk += Number(i.metrics.final) || 0;
                     b3Found += Number(i.metrics.n_B3_fail) || 0;
-                    const docScore = _getDocumentaryScoreForItem(i);
-                    if (docScore !== null && docScore !== undefined) { pSumDoc += docScore; pCntDoc++; }
                 }
             });
-            const pAvgUrk = pData.length > 0 ? Math.round(pSumUrk / pData.length) : 0;
-            const pAvgDoc = pCntDoc > 0 ? Math.round(pSumDoc / pCntDoc) : null;
+            const pKpi = (typeof window.avgContractorRatingsFromChecks === 'function')
+                ? window.avgContractorRatingsFromChecks(pData)
+                : { avgUrk: 0, avgDoc: null };
+            const pAvgUrk = pKpi.avgUrk;
+            const pAvgDoc = pKpi.avgDoc;
             const pMetrics = _getObjectIntegralMetricsCached(pData);
             const IKO = pMetrics ? pMetrics.IKO : "0.00";
             if (pMetrics) redZone = pMetrics.redZonePerc;
@@ -2468,8 +2471,9 @@ export const AnalyticsRender = {
             const prevPData = prevProjectsMap[pName] || [];
             let pPrevAvgUrk = 0; let pPrevIKO = "0.00";
             if (prevPData.length > 0) {
-                let ppSum = 0; prevPData.forEach(i => ppSum += (i.metrics?.final || 0));
-                pPrevAvgUrk = Math.round(ppSum / prevPData.length);
+                pPrevAvgUrk = (typeof window.avgContractorRatingsFromChecks === 'function')
+                    ? window.avgContractorRatingsFromChecks(prevPData).avgUrk
+                    : 0;
                 const ppMetrics = _getObjectIntegralMetricsCached(prevPData);
                 if (ppMetrics) pPrevIKO = ppMetrics.IKO;
             }

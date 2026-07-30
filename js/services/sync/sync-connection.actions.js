@@ -67,10 +67,19 @@ window.pushObjectRequestToCloud = async function (requestedProject) {
     const currentSettings = existingProfile?.settings || {};
     const oldRequests = Array.isArray(currentSettings.requestedProjects) ? currentSettings.requestedProjects : [];
 
-    const existsCloud = oldRequests.some(p =>
-        p.raw_name === requestedProject.raw_name ||
-        (requestedProject.canonical_key && p.canonical_key === requestedProject.canonical_key)
-    );
+    const existsCloud = oldRequests.some(p => {
+        if (!p) return false;
+        if (requestedProject.canonical_key && p.canonical_key
+            && String(p.canonical_key) === String(requestedProject.canonical_key)) return true;
+        if (requestedProject.projectId && p.projectId
+            && String(p.projectId) === String(requestedProject.projectId)) return true;
+        const cleanFn = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.cleanString === 'function')
+            ? ObjectDirectory.cleanString.bind(ObjectDirectory)
+            : (s) => String(s || '').trim().toLowerCase();
+        const a = cleanFn(p.raw_name || p.display_name || p.canonical_key || '');
+        const b = cleanFn(requestedProject.raw_name || requestedProject.display_name || requestedProject.canonical_key || '');
+        return !!(a && b && a === b);
+    });
 
     const newRequests = existsCloud ? oldRequests : [...oldRequests, requestedProject];
     const newSettings = { ...currentSettings, requestedProjects: newRequests };
@@ -110,6 +119,7 @@ window.addAssignedProject = async function () {
     let canonicalKey = '';
     let displayName = rawValue;
     let requestStatus = 'pending';
+    let projectId = '';
 
     // Пытаемся сразу сопоставить объект со справочником
     if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeProjectName === 'function') {
@@ -126,6 +136,9 @@ window.addAssignedProject = async function () {
                 canonicalKey = normalized.canonical_key || '';
                 displayName = normalized.display_name || rawValue;
                 requestStatus = 'matched_pending_approval';
+                if (typeof ObjectDirectory.resolveProjectId === 'function') {
+                    projectId = ObjectDirectory.resolveProjectId(canonicalKey || displayName) || '';
+                }
             }
         } catch (e) {
             console.warn('[Objects] Не удалось нормализовать объект:', e);
@@ -136,14 +149,22 @@ window.addAssignedProject = async function () {
         raw_name: rawValue,
         canonical_key: canonicalKey,
         display_name: displayName,
+        projectId: projectId,
         status: requestStatus,
         created_at: new Date().toISOString()
     };
 
-    const existsLocal = appSettings.pendingAssignedProjects.some(p =>
-        p.raw_name === rawValue ||
-        (canonicalKey && p.canonical_key === canonicalKey)
-    );
+    const existsLocal = appSettings.pendingAssignedProjects.some(p => {
+        if (!p) return false;
+        if (canonicalKey && p.canonical_key && String(p.canonical_key) === String(canonicalKey)) return true;
+        if (projectId && p.projectId && String(p.projectId) === String(projectId)) return true;
+        const cleanFn = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.cleanString === 'function')
+            ? ObjectDirectory.cleanString.bind(ObjectDirectory)
+            : (s) => String(s || '').trim().toLowerCase();
+        const a = cleanFn(p.raw_name || p.display_name || '');
+        const b = cleanFn(rawValue);
+        return !!(a && b && a === b);
+    });
 
     if (!existsLocal) {
         appSettings.pendingAssignedProjects.push(requestedProject);
@@ -204,15 +225,29 @@ window.addAssignedProject = async function () {
 // Реальное удаление из assigned_projects/settings.assignedProjects выполняется
 // только через permission.service.js:writeUserProjectAssignment при подтверждении.
 window.removeAssignedProject = async function (val) {
-    if (typeof appSettings === 'undefined' || !Array.isArray(appSettings.assignedProjects) || !appSettings.assignedProjects.includes(val)) {
+    if (typeof appSettings === 'undefined' || !Array.isArray(appSettings.assignedProjects)) {
         return;
     }
+    let projectRef = val;
+    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
+        projectRef = ObjectDirectory.resolveProjectId(val) || val;
+    }
+    const assigned = appSettings.assignedProjects;
+    const hasMatch = assigned.some(function (a) {
+        if (a === val || a === projectRef) return true;
+        if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
+            return ObjectDirectory.resolveProjectId(a) === projectRef;
+        }
+        return false;
+    });
+    if (!hasMatch) return;
 
     if (!Array.isArray(appSettings.pendingUnassignProjects)) {
         appSettings.pendingUnassignProjects = [];
     }
-    if (!appSettings.pendingUnassignProjects.includes(val)) {
-        appSettings.pendingUnassignProjects.push(val);
+    if (!appSettings.pendingUnassignProjects.includes(projectRef)
+        && !appSettings.pendingUnassignProjects.includes(val)) {
+        appSettings.pendingUnassignProjects.push(projectRef);
     }
 
     if (typeof dbPut === 'function') {
@@ -389,13 +424,18 @@ window.initCloudConnection = async function () {
             const profileCloudStatus = profile.cloud_status || 'pending';
 
             if (profileCloudStatus === 'approved') {
+                let assigned = [];
                 if (Array.isArray(profile.assigned_projects)) {
-                    appSettings.assignedProjects = profile.assigned_projects;
+                    assigned = profile.assigned_projects;
                 } else if (profile.settings && Array.isArray(profile.settings.assignedProjects)) {
-                    appSettings.assignedProjects = profile.settings.assignedProjects;
-                } else {
-                    appSettings.assignedProjects = [];
+                    assigned = profile.settings.assignedProjects;
                 }
+                if (typeof ObjectDirectory !== 'undefined'
+                    && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
+                    assigned = ObjectDirectory.normalizeAssignedProjectsList(assigned);
+                }
+                appSettings.assignedProjects = assigned;
+                appSettings.assigned_projects = assigned;
 
                 appSettings.pendingAssignedProjects = [];
             } else {

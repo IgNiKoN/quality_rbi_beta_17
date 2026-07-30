@@ -10,6 +10,11 @@ const PhotoManager = {
     // от blob: ObjectURL на слабых устройствах без полной очистки UI.
     _lruKeys: [],
     MEMORY_URL_LIMIT: 80,
+    // Превью для карточек (TWI, аудит, задачи…): раньше 150px/0.72 — мыло на retina.
+    // THUMB_VERSION↑ → старые thumbData пересобираются при следующем preferThumb.
+    THUMB_MAX_EDGE: 512,
+    THUMB_JPEG_Q: 0.86,
+    THUMB_VERSION: 2,
 
     async init() {
         console.log(`[PhotoManager] Инициализация`);
@@ -46,10 +51,11 @@ const PhotoManager = {
         }
     },
 
-    // Canvas-превью ~150px (JPEG) из dataURL/ArrayBuffer — для списков.
-    // Старые фото без thumbData получают превью при первом getAsyncUrl(..., { preferThumb:true }).
-    async _makeThumbFromDataUrl(dataUrl, maxEdge = 150) {
+    // Canvas-превью для списков/карточек (JPEG). Размер — THUMB_MAX_EDGE.
+    // Старые фото без thumbData / со старым THUMB_VERSION — при preferThumb.
+    async _makeThumbFromDataUrl(dataUrl, maxEdge) {
         if (!dataUrl || !String(dataUrl).startsWith('data:')) return null;
+        maxEdge = maxEdge || this.THUMB_MAX_EDGE;
         try {
             const img = await new Promise((resolve, reject) => {
                 const el = new Image();
@@ -64,8 +70,14 @@ const PhotoManager = {
             const canvas = document.createElement('canvas');
             canvas.width = Math.max(1, w);
             canvas.height = Math.max(1, h);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            const thumbUrl = canvas.toDataURL('image/jpeg', 0.72);
+            const tctx = canvas.getContext('2d');
+            // JPEG не хранит альфу — без белой подложки прозрачность PNG становится чёрной
+            tctx.fillStyle = '#ffffff';
+            tctx.fillRect(0, 0, canvas.width, canvas.height);
+            tctx.imageSmoothingEnabled = true;
+            tctx.imageSmoothingQuality = 'high';
+            tctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const thumbUrl = canvas.toDataURL('image/jpeg', this.THUMB_JPEG_Q);
             return base64ToArrayBuffer(thumbUrl);
         } catch (e) {
             console.warn('[PhotoManager] thumb failed', e);
@@ -73,8 +85,9 @@ const PhotoManager = {
         }
     },
 
-    async _makeThumbFromBuffer(buffer, mimeType, maxEdge = 150) {
+    async _makeThumbFromBuffer(buffer, mimeType, maxEdge) {
         if (!buffer) return null;
+        maxEdge = maxEdge || this.THUMB_MAX_EDGE;
         const blob = arrayBufferToBlob(buffer, mimeType || 'image/webp');
         const tmpUrl = URL.createObjectURL(blob);
         try {
@@ -91,14 +104,39 @@ const PhotoManager = {
             const canvas = document.createElement('canvas');
             canvas.width = Math.max(1, w);
             canvas.height = Math.max(1, h);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            return base64ToArrayBuffer(canvas.toDataURL('image/jpeg', 0.72));
+            const tctx = canvas.getContext('2d');
+            tctx.fillStyle = '#ffffff';
+            tctx.fillRect(0, 0, canvas.width, canvas.height);
+            tctx.imageSmoothingEnabled = true;
+            tctx.imageSmoothingQuality = 'high';
+            tctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            return base64ToArrayBuffer(canvas.toDataURL('image/jpeg', this.THUMB_JPEG_Q));
         } catch (e) {
             console.warn('[PhotoManager] thumb-from-buffer failed', e);
             return null;
         } finally {
             try { URL.revokeObjectURL(tmpUrl); } catch (_) { /* ignore */ }
         }
+    },
+
+    _thumbNeedsRebuild(record) {
+        if (!record) return true;
+        const buf = record.thumbData || record.thumb_data;
+        if (!buf) return true;
+        const ver = record.thumbVersion != null ? record.thumbVersion : record.thumb_version;
+        return ver !== this.THUMB_VERSION;
+    },
+
+    _applyThumbToRecord(record, thumbBuf) {
+        if (!record || !thumbBuf) return;
+        record.thumbData = thumbBuf;
+        record.thumb_data = thumbBuf;
+        record.thumbMimeType = 'image/jpeg';
+        record.thumb_mime_type = 'image/jpeg';
+        record.thumbVersion = this.THUMB_VERSION;
+        record.thumb_version = this.THUMB_VERSION;
+        record.thumbMaxEdge = this.THUMB_MAX_EDGE;
+        record.thumb_max_edge = this.THUMB_MAX_EDGE;
     },
 
     _thumbCacheKey(id) {
@@ -111,7 +149,7 @@ const PhotoManager = {
         const id = 'local://' + prefix + '_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1000);
         const mimeType = base64Data.match(/data:(.*?);/)?.[1] || 'image/webp';
         const buffer = await base64ToArrayBuffer(base64Data);
-        const thumbBuffer = await this._makeThumbFromDataUrl(base64Data, 150);
+        const thumbBuffer = await this._makeThumbFromDataUrl(base64Data);
         const now = new Date().toISOString();
 
         await dbPut(STORES.PHOTOS, {
@@ -123,6 +161,10 @@ const PhotoManager = {
             thumb_data: thumbBuffer || null,
             thumbMimeType: thumbBuffer ? 'image/jpeg' : '',
             thumb_mime_type: thumbBuffer ? 'image/jpeg' : '',
+            thumbVersion: thumbBuffer ? this.THUMB_VERSION : 0,
+            thumb_version: thumbBuffer ? this.THUMB_VERSION : 0,
+            thumbMaxEdge: thumbBuffer ? this.THUMB_MAX_EDGE : 0,
+            thumb_max_edge: thumbBuffer ? this.THUMB_MAX_EDGE : 0,
             sizeBytes: buffer.byteLength,
             size_bytes: buffer.byteLength,
             createdAt: now,
@@ -219,18 +261,12 @@ const PhotoManager = {
 
                 if (preferThumb) {
                     let thumbBuf = record.thumbData || record.thumb_data;
-                    if (!thumbBuf) {
+                    if (this._thumbNeedsRebuild(record)) {
                         thumbBuf = await this._makeThumbFromBuffer(
                             record.data,
-                            record.mimeType || record.mime_type || 'image/webp',
-                            150
+                            record.mimeType || record.mime_type || 'image/webp'
                         );
-                        if (thumbBuf) {
-                            record.thumbData = thumbBuf;
-                            record.thumb_data = thumbBuf;
-                            record.thumbMimeType = 'image/jpeg';
-                            record.thumb_mime_type = 'image/jpeg';
-                        }
+                        if (thumbBuf) this._applyThumbToRecord(record, thumbBuf);
                     }
                     await dbPut(STORES.PHOTOS, record);
                     if (thumbBuf) {
