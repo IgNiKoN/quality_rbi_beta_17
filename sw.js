@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.436';
+const SW_VERSION = '18.57.438';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -127,6 +127,8 @@ const urlsToCache = [
   './js/modules/settings/features/feedback.js',
   './js/modules/settings/features/contractor-directory-ui.js',
   './js/modules/settings/features/contractor-id-backfill-ui.js',
+  './js/modules/settings/features/project-id-backfill-ui.js',
+  './js/modules/settings/features/cloud-deleted-purge-ui.js',
   './js/modules/settings/features/role-matrix-ui.js',
   './js/modules/settings/features/location-directory-ui.js',
   './js/modules/settings/index.js',

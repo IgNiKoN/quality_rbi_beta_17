@@ -12,6 +12,7 @@ import { mountContractorDirectoryUI } from './features/contractor-directory-ui.j
 import { mountLocationDirectoryUI } from './features/location-directory-ui.js';
 import { mountContractorIdBackfillUI } from './features/contractor-id-backfill-ui.js';
 import { mountProjectIdBackfillUI } from './features/project-id-backfill-ui.js';
+import { mountCloudDeletedPurgeUI } from './features/cloud-deleted-purge-ui.js';
 import { mountRoleMatrixUI } from './features/role-matrix-ui.js';
 
 var SettingsRender = {
@@ -977,6 +978,24 @@ var SettingsRender = {
                     <div id="settings-role-matrix-root"></div>
                 </details>
 
+                <!-- ОБЛАКО: HARD-DELETE soft-deleted -->
+                <details id="cloud-deleted-purge-section"
+                    class="bg-[var(--card-bg)] border border-rose-200 dark:border-rose-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-rose-800 dark:text-rose-300 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-rose-50 dark:bg-rose-900/20 transition-colors select-none group-open:border-b border-rose-200 dark:border-rose-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                            Облако · удалённые
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-rose-400">▼</span>
+                    </summary>
+                    <div id="cloud-deleted-purge-root"></div>
+                </details>
+
                 <!-- МИГРАЦИЯ ДАННЫХ -->
                 <details id="contractor-id-backfill-section"
                     class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
@@ -1564,6 +1583,9 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (typeof mountProjectIdBackfillUI === 'function') {
             try { mountProjectIdBackfillUI(); } catch (_e) { /* ignore */ }
         }
+        if (typeof mountCloudDeletedPurgeUI === 'function') {
+            try { mountCloudDeletedPurgeUI(); } catch (_e) { /* ignore */ }
+        }
         if (typeof mountRoleMatrixUI === 'function') {
             mountRoleMatrixUI().catch(function () {});
         }
@@ -1807,6 +1829,13 @@ console.log('[SettingsRender] settings.render.js markup mounted');
                 mountProjectIdBackfillUI();
             } catch (e) {
                 console.warn('[settings] project-id-backfill UI:', e);
+            }
+        }
+        if (typeof mountCloudDeletedPurgeUI === 'function') {
+            try {
+                mountCloudDeletedPurgeUI();
+            } catch (e) {
+                console.warn('[settings] cloud-deleted-purge UI:', e);
             }
         }
         if (typeof mountRoleMatrixUI === 'function') {
