@@ -3315,11 +3315,6 @@ body.ui-motion-off .rbi-acc {
     opacity: 0.9;
 }
 
-/* Шапка: убрать подпись разработчика (шум) */
-#main-header .header-top-row .flex.flex-col > .text-\[8px\].tracking-widest:not(.hidden) {
-    display: none !important;
-}
-
 /* Details/секции настроек — меньше «тяжёлых» рамок */
 [data-theme="rbi-light-v2"] #tab-settings details.shadow-sm,
 [data-theme="rbi-dark-v2"] #tab-settings details.shadow-sm {
