@@ -549,7 +549,7 @@ const AppModeManager = {
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     <span class="nav-text">БЗ</span>
                 </div>
-                <div class="nav-item" data-path="#/quality/settings">
+                <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">Настройки</span>
                 </div>
@@ -578,7 +578,7 @@ const AppModeManager = {
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg>
                     <span class="nav-text">Отчеты СК</span>
                 </div>
-                 <div class="nav-item" data-path="#/quality/settings">
+                 <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">Настройки</span>
                 </div>
@@ -610,7 +610,7 @@ const AppModeManager = {
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"></path></svg>
                     <span class="nav-text">Кабинет</span>
                 </div>
-                <div class="nav-item" data-path="#/quality/settings">
+                <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">Настройки</span>
                 </div>
@@ -662,7 +662,7 @@ async function togglePushSettings(element) {
 
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification("RBI Quality Pro", {
+                    registration.showNotification("RBI Platform", {
                         body: "Уведомления успешно настроены! Тумблер активирован.",
                         icon: "./icons/icon-512-2.png",
                         badge: "./icons/icon-512-2.png",
@@ -1011,8 +1011,18 @@ function startDemoMode(silent = false) {
     _setIsDemoMode(true);
     document.body.classList.add('demo-mode');
 
-    const fabExit = document.getElementById('fab-exit-demo');
-    if (fabExit && !silent) { fabExit.classList.remove('hidden'); fabExit.style.display = 'flex'; }
+    if (window.RBI && window.RBI.shellDesktop && typeof window.RBI.shellDesktop.syncDemoExitPlacement === 'function') {
+        window.RBI.shellDesktop.syncDemoExitPlacement();
+    } else {
+        const fabExit = document.getElementById('fab-exit-demo');
+        if (fabExit) {
+            fabExit.classList.remove('hidden');
+            fabExit.style.display = 'flex';
+            fabExit.style.pointerEvents = 'auto';
+            fabExit.style.visibility = 'visible';
+            fabExit.style.opacity = '1';
+        }
+    }
 
     const now = new Date();
     const randomDay = (min, max) => {
@@ -1130,10 +1140,14 @@ function startDemoMode(silent = false) {
     for (let i = 0; i < 80; i++) window.gameActionLogs.push({ id: 'l' + i, date: randomDay(1, 30), inspector: 'Иванов И.И.', action: ['create_twi', 'ai_generate', 'comment_written', 'task_completed_on_time', 'practice_published', 'etalon_accepted'][Math.floor(Math.random() * 6)] });
 
     // 14. НАСТРОЙКИ ИНТЕРФЕЙСА ДЛЯ ДЕМО
-    document.getElementById('inp-project').value = 'ЖК "Демонстрационный"';
-    document.getElementById('inp-inspector').value = 'Иванов И.И.';
-    document.getElementById('inp-contractor').value = 'ООО "Фасад-Мастер"';
-    document.getElementById('inp-section').value = 'Корпус 1, секция 2';
+    var setVal = function (id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+    setVal('inp-project', 'ЖК "Демонстрационный"');
+    setVal('inp-inspector', 'Иванов И.И.');
+    setVal('inp-contractor', 'ООО "Фасад-Мастер"');
+    setVal('inp-section', 'Корпус 1, секция 2');
 
     _session().setTemplateKey('sys_nvf_facade');
     if (document.getElementById('checklist-selector')) document.getElementById('checklist-selector').value = _session().getTemplateKey();
@@ -1144,9 +1158,13 @@ function startDemoMode(silent = false) {
     _session().getState()['108'] = 'ok'; _session().setPhotoRaw('108', demoPhotoGood);
     _session().getState()['109'] = 'fail'; _session().getDetails()['109'] = { causeCode: 'C01', comment: '[Нарушение технологии] Отклонение' }; _session().setPhotoRaw('109', demoPhotoBad);
 
-    document.getElementById('empty-checklist-state').style.display = 'none';
-    document.getElementById('audit-items').style.display = 'block';
-    document.getElementById('audit-actions').style.display = 'grid';
+    var emptyState = document.getElementById('empty-checklist-state');
+    if (emptyState) emptyState.style.display = 'none';
+    var auditItems = document.getElementById('audit-items');
+    if (auditItems) auditItems.style.display = 'block';
+    var auditActions = document.getElementById('audit-actions');
+    if (auditActions) auditActions.style.display = 'grid';
+
     if (typeof window.rbi_enrichDemoModeV2 === 'function') {
         window.rbi_enrichDemoModeV2({
             demoPhotoGood,
@@ -1184,8 +1202,12 @@ function exitDemoMode() {
     _setIsDemoMode(false);
     document.body.classList.remove('demo-mode');
 
-    const fabExit = document.getElementById('fab-exit-demo');
-    if (fabExit) { fabExit.classList.add('hidden'); fabExit.style.display = 'none'; }
+    if (window.RBI && window.RBI.shellDesktop && typeof window.RBI.shellDesktop.syncDemoExitPlacement === 'function') {
+        window.RBI.shellDesktop.syncDemoExitPlacement();
+    } else {
+        const fabExit = document.getElementById('fab-exit-demo');
+        if (fabExit) { fabExit.classList.add('hidden'); fabExit.style.display = 'none'; }
+    }
 
     // ВОССТАНАВЛИВАЕМ ВСЁ
     _session().replaceState(JSON.parse(JSON.stringify(realState)));

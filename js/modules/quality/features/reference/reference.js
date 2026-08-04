@@ -1240,7 +1240,8 @@ function changeRefTemplate(selectEl) {
 window.changeRefTemplate = changeRefTemplate;
 
 // === ПЕРЕКЛЮЧАТЕЛЬ ПОДВКЛАДОК СПРАВОЧНИКА ===
-function switchReferenceSubTab(tabId, btnElement) {
+function switchReferenceSubTab(tabId, btnElement, opts) {
+    var fromRouter = !!(opts && opts.fromRouter);
     document.querySelectorAll('.ref-sub-section').forEach(el => el.classList.add('hidden'));
 
     const btnContainer = document.getElementById('reference-subtabs-block');
@@ -1254,6 +1255,9 @@ function switchReferenceSubTab(tabId, btnElement) {
     const targetTab = document.getElementById(tabId);
     if (targetTab) targetTab.classList.remove('hidden');
 
+    if (!btnElement && btnContainer) {
+        btnElement = btnContainer.querySelector('.sub-tab-btn[data-action-arg="' + tabId + '"]');
+    }
     if (btnElement) {
         btnElement.classList.add('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400', 'active');
         btnElement.classList.remove('text-[var(--text-muted)]');
@@ -1279,6 +1283,10 @@ function switchReferenceSubTab(tabId, btnElement) {
             });
         }
     }
+
+    if (!fromRouter && window.AppRouter && typeof window.AppRouter.navigateSub === 'function') {
+        window.AppRouter.navigateSub('#/quality/reference', tabId);
+    }
 }
 window.switchReferenceSubTab = switchReferenceSubTab;
 
@@ -1295,10 +1303,10 @@ window.switchReferenceSubTab = switchReferenceSubTab;
 function _isAutoCollapseFiltersEnabled() {
     try {
         var v = window.appSettings && window.appSettings.autoCollapseFilters;
-        if (v === false || v === 'manual') return false;
-        return true;
+        // Явно auto/true — авто; иначе manual (в т.ч. дефолт и legacy false)
+        return v === true || v === 'auto';
     } catch (_) {
-        return true;
+        return false;
     }
 }
 
@@ -1486,8 +1494,10 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
         if (collapsed) {
             // Блокируем ложный expand от скачка scrollY при ужатии панели
             ignoreExpandUntil = Date.now() + 650;
-            // После анти-дребезга: если уже у верха и scroll-событий больше нет — развернуть
+            // Только авто: после анти-дребезга у верха снова раскрыть.
+            // В manual этот таймер ломал клик «свернуть» (сразу снова expand).
             setTimeout(function () {
+                if (!_isAutoCollapseFiltersEnabled()) return;
                 if (collapsed && currentScrollY() <= EXPAND_AT_Y) {
                     setCollapsed(false);
                 }

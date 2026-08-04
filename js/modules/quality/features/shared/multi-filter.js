@@ -438,7 +438,7 @@ function _scheduleAnalyticsRenderFromFilter() {
         if (typeof window.renderCurrentAnalyticsTab === 'function') {
             window.renderCurrentAnalyticsTab();
         }
-    }, 200);
+    }, 400);
 }
 // Период/даты и мультифильтры — одна точка debounce (data-analytics-action).
 window.scheduleRenderCurrentAnalyticsTab = _scheduleAnalyticsRenderFromFilter;

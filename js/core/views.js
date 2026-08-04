@@ -130,8 +130,21 @@ window.AppViews = {
             try { window.ensureEngineerMarkup(); } catch (_) { /* ignore */ }
         }
         if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
+        var tabEl = document.getElementById('tab-engineer');
+        var alreadyMounted = !!(tabEl && tabEl.classList.contains('active') && tabEl.querySelector('#engineer-subtabs-block'));
         switchViewNode('tab-engineer', false); // ТУТ FALSE
-        if (typeof rbi_renderEngineerTab === 'function') rbi_renderEngineerTab();
+        var subId = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
+            ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/engineer')
+            : null;
+        subId = subId || 'eng-sub-tasks';
+        if (alreadyMounted && typeof window.rbi_switchEngineerSubTab === 'function') {
+            window.rbi_switchEngineerSubTab(subId, null, { fromRouter: true });
+        } else {
+            if (typeof rbi_renderEngineerTab === 'function') rbi_renderEngineerTab();
+            if (typeof window.rbi_switchEngineerSubTab === 'function') {
+                window.rbi_switchEngineerSubTab(subId, null, { fromRouter: true });
+            }
+        }
         if (typeof updateFabButton === 'function') updateFabButton('tab-engineer');
     },
 
@@ -140,6 +153,19 @@ window.AppViews = {
         // до любого paint / desktop.show / defer-ветки.
         if (typeof window.ensureAnalyticsMarkup === 'function') {
             try { window.ensureAnalyticsMarkup(); } catch (_) { /* ignore */ }
+        }
+
+        var anaTab = document.getElementById('tab-analytics');
+        var anaAlready = !!(anaTab && anaTab.classList.contains('active')
+            && anaTab.querySelector('#analytics-subtabs-block'));
+        if (anaAlready && window.AppRouter && window.AppRouter.sameFamily
+            && window.AppRouter.sameFamily(window.AppRouter.activePath, window.location.hash)) {
+            var subFromHash = window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/analytics');
+            if (subFromHash && typeof switchAnalyticsSubTab === 'function') {
+                switchAnalyticsSubTab(subFromHash, null, { fromRouter: true });
+                if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
+                return;
+            }
         }
 
         // Re-entry во время sync на уже открытой Аналитике → только dirty (§5).
@@ -186,8 +212,38 @@ window.AppViews = {
         if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
         switchViewNode('tab-analytics', false); // Шапка скрыта
 
+        function _syncAnalyticsSubFromHash() {
+            var targetTab = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
+                ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/analytics')
+                : null;
+            targetTab = targetTab
+                || (window.AnalyticsState && window.AnalyticsState.activeSubTab)
+                || window.currentActiveAnalyticsTab;
+            if (!targetTab || typeof switchAnalyticsSubTab !== 'function') return;
+            var btn = document.querySelector('#analytics-subtabs-block button[data-action-arg="' + targetTab + '"]');
+            switchAnalyticsSubTab(targetTab, btn || null, { fromRouter: true });
+            if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
+        }
+
         if (wantDesk && desk && typeof desk.show === 'function') {
+            var deskTarget = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
+                ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/analytics')
+                : null;
             desk.show();
+            // desk.show может выставить дефолт; вернуть slug из hash (или сохранённый target)
+            var forceTab = deskTarget
+                || (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function'
+                    ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/analytics')
+                    : null);
+            if (forceTab && typeof switchAnalyticsSubTab === 'function') {
+                var forceBtn = document.querySelector('#analytics-subtabs-block button[data-action-arg="' + forceTab + '"]');
+                switchAnalyticsSubTab(forceTab, forceBtn || null, { fromRouter: true });
+                // Если desk.show успел переписать hash на дефолт — вернуть
+                if (window.AppRouter && typeof window.AppRouter.navigateSub === 'function') {
+                    window.AppRouter.navigateSub('#/quality/analytics', forceTab, true);
+                }
+            }
+            if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
             return;
         }
 
@@ -195,30 +251,9 @@ window.AppViews = {
 
         // Внутренняя функция: выполнить рендер активной подвкладки
         function _doRender() {
-            // Источник активной подвкладки — AnalyticsState.activeSubTab (устанавливается
-            // при восстановлении из localStorage в analytics.module.js:init), НЕ bare
-            // window.currentActiveAnalyticsTab — та переменная выставляется только внутри
-            // switchAnalyticsSubTab()/renderCurrentAnalyticsTab() и на самом первом входе
-            // (после restore из localStorage, до первого клика по подвкладке) остаётся
-            // undefined, поэтому старая проверка `typeof currentActiveAnalyticsTab !==
-            // 'undefined'` была всегда false и код проваливался в renderCurrentAnalyticsTab()
-            // напрямую — та функция не снимает hidden с DOM-контейнера подвкладки.
-            var targetTab = (window.AnalyticsState && window.AnalyticsState.activeSubTab)
-                || window.currentActiveAnalyticsTab;
-
-            if (targetTab) {
-                // Кнопки подвкладок переведены на data-analytics-action/data-action-arg
-                // (см. analytics.render.js:renderMarkup) — старый селектор по onclick
-                // никогда не находил кнопку, из-за чего switchAnalyticsSubTab (снимает
-                // hidden с нужного #sub-* контейнера) не вызывался при первом входе.
-                var btn = document.querySelector(`#analytics-subtabs-block button[data-action-arg="${targetTab}"]`);
-                if (btn && typeof switchAnalyticsSubTab === 'function') {
-                    switchAnalyticsSubTab(targetTab, btn);
-                } else if (typeof renderCurrentAnalyticsTab === 'function') {
-                    renderCurrentAnalyticsTab();
-                }
-            } else if (typeof renderCurrentAnalyticsTab === 'function') {
-                renderCurrentAnalyticsTab();
+            _syncAnalyticsSubFromHash();
+            if (!((window.AnalyticsState && window.AnalyticsState.activeSubTab) || window.currentActiveAnalyticsTab)) {
+                if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
             }
             if (typeof updateFabButton === 'function') updateFabButton('tab-analytics');
         }
@@ -275,10 +310,23 @@ window.AppViews = {
         if (typeof window.ensureReferenceMarkup === 'function') {
             try { window.ensureReferenceMarkup(); } catch (_) { /* ignore */ }
         }
+        var tabEl = document.getElementById('tab-reference');
+        var alreadyMounted = !!(tabEl && tabEl.classList.contains('active') && tabEl.querySelector('#reference-subtabs-block'));
         switchViewNode('tab-reference', false); // ТУТ FALSE
         if (typeof updateFabButton === 'function') updateFabButton('tab-reference');
-        if (typeof window.renderReferenceTab === 'function') {
-            try { window.renderReferenceTab(); } catch (_) { /* ignore */ }
+        var subId = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
+            ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/reference')
+            : null;
+        subId = subId || 'ref-sub-checklists';
+        if (alreadyMounted && typeof window.switchReferenceSubTab === 'function') {
+            window.switchReferenceSubTab(subId, null, { fromRouter: true });
+        } else {
+            if (typeof window.renderReferenceTab === 'function') {
+                try { window.renderReferenceTab(); } catch (_) { /* ignore */ }
+            }
+            if (typeof window.switchReferenceSubTab === 'function') {
+                window.switchReferenceSubTab(subId, null, { fromRouter: true });
+            }
         }
 
         if (window.syncDirtyFlags && window.syncDirtyFlags.reference) {
@@ -296,10 +344,39 @@ window.AppViews = {
         if (typeof window.ensureSettingsMarkup === 'function') {
             try { window.ensureSettingsMarkup(); } catch (_) { /* ignore */ }
         }
+        var tabEl = document.getElementById('tab-settings');
+        var alreadyOn = !!(tabEl && tabEl.classList.contains('active')
+            && tabEl.querySelector('#settings-subnav'));
+        var hash = window.location.hash || '';
+        if (alreadyOn && window.AppRouter && typeof window.AppRouter.sameFamily === 'function'
+            && window.AppRouter.sameFamily(window.AppRouter.activePath, hash)) {
+            // Подвкладки настроек: только sync секции — без switchViewNode (мигание #main-header / логотипа)
+            var sub = (typeof window.AppRouter.subTabIdFromPath === 'function')
+                ? window.AppRouter.subTabIdFromPath(hash, '#/settings')
+                : null;
+            sub = sub || 'platform';
+            if (typeof window.setSettingsSubsection === 'function') {
+                window.setSettingsSubsection(sub, {
+                    fromRouter: true,
+                    skipGate: sub !== 'admin'
+                });
+            }
+            try {
+                if (window.__settingsDesktop && typeof window.__settingsDesktop.syncChrome === 'function') {
+                    window.__settingsDesktop.syncChrome();
+                }
+            } catch (_) { /* ignore */ }
+            return;
+        }
         switchViewNode('tab-settings', false); // ТУТ FALSE
         if (typeof renderSettingsTab === 'function') renderSettingsTab(); // <-- ВСТАВКА: Отрисовка данных из памяти
         if (typeof updateStorageInfo === 'function') updateStorageInfo();
         if (typeof updateFabButton === 'function') updateFabButton('tab-settings');
+        try {
+            if (window.__settingsDesktop && typeof window.__settingsDesktop.sync === 'function') {
+                window.__settingsDesktop.sync();
+            }
+        } catch (_) { /* ignore */ }
     },
 
     // === РАЗДЕЛ 2: СТРОЙКОНТРОЛЬ (НОВЫЙ) ===
@@ -373,6 +450,8 @@ document.addEventListener('DOMContentLoaded', () => {
     AppRouter.addRoute('#/quality/engineer', window.AppViews.renderEngineer);
     AppRouter.addRoute('#/quality/analytics', window.AppViews.renderAnalytics);
     AppRouter.addRoute('#/quality/reference', window.AppViews.renderReference);
+    AppRouter.addRoute('#/settings', window.AppViews.renderSettings);
+    // Legacy alias — resolveRoute longest-prefix; normalizeSubPath перепишет hash
     AppRouter.addRoute('#/quality/settings', window.AppViews.renderSettings);
     
    // Стройконтроль

@@ -13,14 +13,16 @@
     /* Владение appSettings (Реальная изоляция модулей, часть 3, Группа B):
        перенесено 1:1 из js/core/bootstrap.js — сервис теперь единственный
        владелец объявления, window.appSettings остаётся синхронизированной
-       живой ссылкой (потребители мутируют её через appSettings.prop = x). */
-    var _appSettings = {
+       живой ссылкой (потребители мутируют её через appSettings.prop = x).
+       DEFAULT_SETTINGS — единственный источник для reset / сверки UI-ключей. */
+    var DEFAULT_SETTINGS = {
         userRole: 'engineer', // Локально по умолчанию работаем как инженер
         cloudStatus: 'offline', // offline / pending / approved / blocked
         assignedProjects: [], // Закрепленные объекты: canonical_key
         assignedContractor: '',
         brandColor: '#1c2b39', // Темно-синий RBI
         brandLogo: '', // Логотип (Base64)
+        isBrandingCustomized: false,
         autoReportEnabled: false, // Фоновые отчеты
         autoReportDay: '1', // Число месяца
         autoReportType: 'global_onepager', // Тип отчета
@@ -35,7 +37,7 @@
         swipeEnabled: false,
         autoCollapseOk: false,
         /** Панели фильтров аналитики/истории: 'auto' (скролл) | 'manual' (только клик) */
-        autoCollapseFilters: 'auto',
+        autoCollapseFilters: 'manual',
         /** Микровзаимодействия UI (hover/skeleton/toast spring); false = выкл */
         uiMotionEnabled: true,
         /** Жёсткая блокировка pull-to-refresh (Android): overscroll none + touch preventDefault */
@@ -78,6 +80,7 @@
         aiCorpPwd: '',
         aiAuto: false,
         apiKey: '',
+        usePersonalKey: false,
         dashboardMode: 'compact',
         // Legacy (fallback) + раздельные режимы по вкладкам: 'cards' | 'list'
         knowledgeViewMode: 'cards',
@@ -103,6 +106,7 @@
         taskFmeaDay: '5',         // Пятница
         taskMonthReportDay: '1'   // 1-е число месяца
     };
+    var _appSettings = Object.assign({}, DEFAULT_SETTINGS);
     window.appSettings = _appSettings;
 
     var _listeners = [];
@@ -139,6 +143,13 @@
          */
         getAll: function () {
             return Object.assign({}, _getSettings());
+        },
+
+        /**
+         * Копия заводских UI/prefs (для reset). Не включает runtime-мутации.
+         */
+        getDefaults: function () {
+            return Object.assign({}, DEFAULT_SETTINGS);
         },
 
         /**

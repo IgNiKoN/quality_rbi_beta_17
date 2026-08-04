@@ -40,7 +40,19 @@ function isDesktopViewport() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN;
 }
 
+function isQualityMode() {
+  try {
+    if (window.AppModeManager && window.AppModeManager.currentMode) {
+      return window.AppModeManager.currentMode === 'quality';
+    }
+  } catch (_) { /* ignore */ }
+  return /#\/quality\//i.test(String(location.hash || ''));
+}
+
 function isEngineerActive() {
+  if (!isQualityMode()) return false;
+  const hash = String(location.hash || '');
+  if (hash && !/#\/quality\/engineer/i.test(hash)) return false;
   const tab = document.getElementById(TAB_ID);
   return !!(tab && tab.classList.contains('active'));
 }
@@ -2444,8 +2456,21 @@ function bindHooks() {
   };
 
   window.addEventListener('hashchange', function () {
-    queueMicrotask(syncEngineerDesktop);
+    queueMicrotask(function () {
+      setTimeout(syncEngineerDesktop, 0);
+      setTimeout(syncEngineerDesktop, 80);
+    });
   });
+
+  // AppRouter.navigate использует replaceState — hashchange не всегда приходит.
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('appMode:changed', function () {
+      queueMicrotask(function () {
+        setTimeout(syncEngineerDesktop, 0);
+        setTimeout(syncEngineerDesktop, 100);
+      });
+    });
+  }
 
   document.addEventListener('click', function (e) {
     const subBtn = e.target.closest('#engineer-subtabs-block .sub-tab-btn');

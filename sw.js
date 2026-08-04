@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.58.0';
-const SW_VERSION = '18.58.2';
+const SW_VERSION = '18.58.23';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -12,10 +12,12 @@ const urlsToCache = [
   './report.html',
   './css/style.css',
   './css/app-shell.desktop.css',
+  './css/rbi-ui.css',
   './css/analytics.desktop.css',
   './css/audit.desktop.css',
   './css/engineer.desktop.css',
   './css/knowledge.desktop.css',
+  './css/settings.desktop.css',
   // PWA / сплэш / push (иначе офлайн без иконок и «Добавить на экран»)
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -80,6 +82,7 @@ const urlsToCache = [
   './js/shared/notify.utils.js',
   './js/shared/error-log.utils.js',
   './js/shared/touch-gestures.utils.js',
+  './js/shared/ui-motion.utils.js',
   './js/shared/snake-game.utils.js',
   './js/shared/checklist-runner.js',
   './js/core/bootstrap.js',
@@ -125,6 +128,7 @@ const urlsToCache = [
   './js/services/session.service.js',
   './js/modules/settings/settings.manifest.js',
   './js/modules/settings/settings.render.js',
+  './js/modules/settings/settings.desktop.render.js',
   './js/modules/settings/settings.actions.js',
   './js/modules/settings/settings.module.js',
   './js/modules/settings/features/tutorial.js',
@@ -420,7 +424,7 @@ self.addEventListener('fetch', event => {
 // Слушаем приход Push-уведомления с сервера
 self.addEventListener('push', function (event) {
   // Если сервер прислал данные, берем их. Иначе ставим заглушку.
-  const data = event.data ? event.data.json() : { title: 'RBI Quality', body: 'У вас новое уведомление' };
+  const data = event.data ? event.data.json() : { title: 'RBI Platform', body: 'У вас новое уведомление' };
 
   const options = {
     body: data.body,

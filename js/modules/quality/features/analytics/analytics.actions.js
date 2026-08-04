@@ -479,7 +479,8 @@ export const AnalyticsActions = {
     // Перенесено из analytics.legacy.js: единая функция переключения
     // подвкладок аналитики.
     // =========================================================================
-    switchAnalyticsSubTab(tabId, btnElement) {
+    switchAnalyticsSubTab(tabId, btnElement, opts) {
+        const fromRouter = !!(opts && opts.fromRouter);
         AnalyticsState.setActiveSubTab(tabId);
         window.currentActiveAnalyticsTab = tabId;
 
@@ -497,6 +498,9 @@ export const AnalyticsActions = {
         if (targetTab) targetTab.classList.remove('hidden');
 
         // Красим активную кнопку
+        if (!btnElement) {
+            btnElement = document.querySelector(`#analytics-subtabs-block button[data-action-arg="${tabId}"]`);
+        }
         if (btnElement) {
             btnElement.classList.add('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400');
             btnElement.classList.remove('text-[var(--text-muted)]');
@@ -555,6 +559,9 @@ export const AnalyticsActions = {
         // Дать браузеру отрисовать «Загрузка…», иначе тяжёлый sync-render
         // блокирует main thread и экран остаётся пустым/старым.
         // Живой UI при sync-defer не трогаем; пустой после teardown — рисуем.
+        if (!fromRouter && window.AppRouter && typeof window.AppRouter.navigateSub === 'function') {
+            window.AppRouter.navigateSub('#/quality/analytics', tabId);
+        }
         if (deferring && alreadyPainted) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;

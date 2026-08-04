@@ -14,7 +14,7 @@ body.rbi-audit-desktop-wide.has-desk-topbar {
 
 body.rbi-audit-desktop-wide.has-desk-topbar #app-root,
 body.rbi-audit-desktop-wide.has-desk-topbar #app-root.rbi-audit-desktop-wide {
-  padding-top: 52px !important;
+  padding-top: var(--desk-topbar-h) !important;
   margin-top: 0 !important;
 }
 
@@ -31,7 +31,7 @@ body.rbi-audit-desktop-wide.has-desk-topbar #app-content {
   min-width: 0;
 }
 
-/* ===== CHROME — зоны ===== */
+/* ===== CHROME — как subtabs у аналитики/БЗ: sticky full-bleed под desk topbar ===== */
 .audit-desk-chrome {
   display: flex;
   flex-direction: column;
@@ -41,6 +41,50 @@ body.rbi-audit-desktop-wide.has-desk-topbar #app-content {
   border: 0;
   border-radius: 0;
   padding: 0;
+}
+
+.audit-desk-chrome-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+/* Sticky audit topbar-strip — css/rbi-ui.css (layout inner + brand ниже) */
+
+.audit-desk-topbar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.audit-desk-topbar-label {
+  font-size: var(--rbi-subtab-fs, 13px);
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.audit-desk-topbar-sub {
+  font-size: var(--rbi-subtab-fs, 13px);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.audit-desk-topbar-tpl {
+  display: flex;
+  align-items: center;
+  flex: 0 1 320px;
+  min-width: 180px;
+  max-width: 360px;
 }
 
 .audit-desk-zone {
@@ -80,6 +124,7 @@ body.rbi-audit-desktop-wide.has-desk-topbar #app-content {
   color: var(--text-muted);
 }
 
+/* legacy headstrip (на случай старого DOM до rebuild) */
 .audit-desk-zone-headstrip {
   display: flex;
   flex-wrap: wrap;
@@ -157,6 +202,16 @@ body.rbi-audit-desktop-wide #header-checklist-container {
   box-shadow: none;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+/* Компактный селектор в sticky-полоске 48px */
+body.rbi-audit-desktop-wide .audit-desk-topbar-strip #header-checklist-container {
+  min-height: 34px;
+  margin-top: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--card-bg));
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--card-border));
 }
 
 body.rbi-audit-desktop-wide #header-checklist-container:hover {
@@ -396,34 +451,7 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   white-space: nowrap;
 }
 
-.audit-desk-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.7rem;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 750;
-  border: 1px solid var(--card-border, var(--card-border));
-  background: var(--card-bg);
-  color: var(--text-main, var(--text-main));
-  cursor: pointer;
-}
-
-.audit-desk-btn:hover {
-  background: var(--hover-bg, var(--hover-bg));
-}
-
-.audit-desk-btn.primary {
-  background: var(--primary, var(--primary));
-  border-color: var(--primary, var(--primary));
-  color: #fff;
-}
-
-.audit-desk-btn.primary:hover {
-  background: var(--primary-hover, var(--primary-hover));
-}
+/* .audit-desk-btn — alias в css/rbi-ui.css (.rbi-btn) */
 
 .audit-desk-plan-stage {
   position: relative;
@@ -443,18 +471,79 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 1rem;
   padding: 1.25rem;
   text-align: center;
   color: var(--text-muted);
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
+    var(--bg-main);
+}
+
+.audit-desk-plan-art {
+  width: min(72%, 280px);
+  opacity: 0.95;
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--text-main) 8%, transparent));
+}
+
+.audit-desk-plan-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.audit-desk-plan-art-frame {
+  stroke: color-mix(in srgb, var(--primary) 45%, var(--card-border));
+  stroke-width: 2;
+  fill: color-mix(in srgb, var(--card-bg) 88%, var(--bg-main));
+}
+
+.audit-desk-plan-art-grid {
+  stroke: color-mix(in srgb, var(--card-border) 80%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.audit-desk-plan-art-room {
+  fill: color-mix(in srgb, var(--primary) 7%, var(--card-bg));
+  stroke: color-mix(in srgb, var(--primary) 28%, var(--card-border));
+  stroke-width: 1.25;
+}
+
+.audit-desk-plan-art-pin {
+  fill: color-mix(in srgb, var(--primary) 18%, transparent);
+  stroke: var(--primary);
+  stroke-width: 1.75;
+}
+
+.audit-desk-plan-art-pin-core {
+  fill: var(--primary);
+}
+
+.audit-desk-plan-empty-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 34ch;
+}
+
+.audit-desk-plan-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-main);
 }
 
 .audit-desk-plan-empty p {
   margin: 0;
   font-size: 12px;
   font-weight: 650;
-  max-width: 28ch;
+  max-width: 34ch;
   line-height: 1.45;
+  color: var(--text-muted);
 }
 
 .audit-desk-plan-canvas-wrap {
@@ -607,5 +696,29 @@ body.rbi-audit-desktop-wide #dash-expanded-view .text-\[9px\] {
 @media (max-width: 1279px) {
   #audit-desktop-shell {
     display: contents;
+  }
+}
+
+
+/* === Density tiers (≥1920 / ≥2560) ===
+   Осмотр — на всю рабочую ширину (не узкая колонка с полями по бокам). */
+@media (min-width: 1920px) {
+  #audit-desktop-shell {
+    gap: calc(0.75rem * var(--desk-gap-bump));
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: calc(0.5rem * var(--desk-gap-bump));
+    padding-right: calc(0.5rem * var(--desk-gap-bump));
+    box-sizing: border-box;
+  }
+
+  .audit-desk-chrome {
+    gap: calc(0.65rem * var(--desk-gap-bump));
+  }
+
+  .audit-desk-chrome-body {
+    gap: calc(0.65rem * var(--desk-gap-bump));
   }
 }

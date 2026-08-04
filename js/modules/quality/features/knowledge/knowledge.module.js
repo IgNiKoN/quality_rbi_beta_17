@@ -1221,9 +1221,29 @@ function processNodeImport(event) {
 
 // === 2. ОТКРЫТИЕ УНИВЕРСАЛЬНОЙ ЧИТАЛКИ ИНСТРУКЦИЙ (БЕЗ ЭМОДЗИ) ===
 // Перенесено из js/app.js (строки 776-1232).
+// Gen-token: быстрое переключение карт отменяет устаревшие decode/fetch (iPhone OOM).
+let _twiViewerGen = 0;
+
+function _twiViewerPreferThumb() {
+    try {
+        return !(window.matchMedia && window.matchMedia('(min-width: 1280px)').matches);
+    } catch (_) {
+        return true;
+    }
+}
+
 async function _twiViewerLoadPhotoMeta(ref) {
     if (!ref) return null;
-    const url = await PhotoManager.getAsyncUrl(ref) || window.getPhotoSrc(ref);
+    let url = null;
+    try {
+        if (window.PhotoManager && typeof window.PhotoManager.getAsyncUrl === 'function') {
+            url = await window.PhotoManager.getAsyncUrl(
+                ref,
+                _twiViewerPreferThumb() ? { preferThumb: true } : undefined
+            );
+        }
+    } catch (_) { /* ignore */ }
+    if (!url) url = window.getPhotoSrc ? window.getPhotoSrc(ref) : null;
     if (!url) return null;
     const dims = await new Promise(function (resolve) {
         try {
@@ -1299,6 +1319,7 @@ function _twiViewerPhotosHtml(items) {
 window.openTwiViewer = async function (twiId) {
     const card = customTwiCards.find(c => c.id === twiId);
     if (!card) return showToast('Ошибка: Инструкция не найдена');
+    const gen = ++_twiViewerGen;
     if (typeof gameLogAction === 'function') {
         _gameLogAction('open_twi', twiId);
     }
@@ -1337,8 +1358,24 @@ window.openTwiViewer = async function (twiId) {
         footer.classList.remove('hidden');
         content.classList.remove('p-0');
 
-        let resolvedGood = card.photoGood ? await PhotoManager.getAsyncUrl(card.photoGood) || window.getPhotoSrc(card.photoGood) : null;
-        let resolvedBad = card.photoBad ? await PhotoManager.getAsyncUrl(card.photoBad) || window.getPhotoSrc(card.photoBad) : null;
+        let resolvedGood = null;
+        let resolvedBad = null;
+        try {
+            if (card.photoGood) {
+                resolvedGood = await PhotoManager.getAsyncUrl(
+                    card.photoGood,
+                    _twiViewerPreferThumb() ? { preferThumb: true } : undefined
+                ) || window.getPhotoSrc(card.photoGood);
+            }
+            if (gen !== _twiViewerGen) return;
+            if (card.photoBad) {
+                resolvedBad = await PhotoManager.getAsyncUrl(
+                    card.photoBad,
+                    _twiViewerPreferThumb() ? { preferThumb: true } : undefined
+                ) || window.getPhotoSrc(card.photoBad);
+            }
+        } catch (_) { /* ignore */ }
+        if (gen !== _twiViewerGen) return;
 
         let photoGoodHtml = resolvedGood ? `
             <div class="relative rounded-xl overflow-hidden shadow-sm border-2 border-green-500 cursor-pointer active:scale-95 transition-transform bg-slate-50 dark:bg-slate-900" onclick="openPhotoViewer('${card.photoGood}')">
@@ -1400,7 +1437,9 @@ window.openTwiViewer = async function (twiId) {
         let stepsHtml = '<div class="p-4 space-y-4">';
         if (card.steps && card.steps.length > 0) {
             for (let step of card.steps) {
+                if (gen !== _twiViewerGen) return;
                 const stepPhotos = await _twiViewerResolveStepPhotos(step.photo);
+                if (gen !== _twiViewerGen) return;
                 const photoHtml = _twiViewerPhotosHtml(stepPhotos);
 
                 stepsHtml += `
@@ -1419,10 +1458,12 @@ window.openTwiViewer = async function (twiId) {
             stepsHtml += `<div class="text-center text-slate-500 text-sm font-bold py-10">Шаги не заполнены</div>`;
         }
         stepsHtml += '</div>';
+        if (gen !== _twiViewerGen) return;
         content.innerHTML = stepsHtml;
     }
     // === ТИП 3: ВНЕШНИЙ PDF-ДОКУМЕНТ ===
     else if (card.type === 'PDF') {
+        if (gen !== _twiViewerGen) return;
         await window.rbiOpenPdfInTwiViewer(
             card.pdfData,
             card.title,
@@ -1498,6 +1539,7 @@ window.openTwiViewer = async function (twiId) {
             content.innerHTML = `<div class="flex flex-col items-center justify-center h-full p-6 text-center"><div class="text-sm font-bold text-slate-500">PDF файл отсутствует.</div></div>`;
         }
     }
+    if (gen !== _twiViewerGen) return;
     // === СКВОЗНЫЕ ССЫЛКИ (ЭКОСИСТЕМА) ===
     let crossLinksHtml = '';
     // Ссылка на Видео
@@ -1536,6 +1578,7 @@ window.openTwiViewer = async function (twiId) {
             </div>
         `);
     }
+    if (gen !== _twiViewerGen) return;
     const overlay = document.getElementById('twi-viewer-overlay');
     overlay.style.display = 'flex';
     document.body.classList.add('modal-open');

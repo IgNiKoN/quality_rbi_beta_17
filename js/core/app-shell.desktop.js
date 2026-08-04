@@ -19,13 +19,27 @@
     var nav2 = document.getElementById('app-nav2');
     if (!nav2) return;
 
+    // Сохраняем FAB демо, если он уже внутри nav2 (innerHTML его уничтожит)
+    var fab = document.getElementById('fab-exit-demo');
+    if (fab && nav2.contains(fab)) {
+      document.body.appendChild(fab);
+    }
+
     if (html) {
       var label = MODE_LABELS[modeId] || modeId || '';
-      var nav2Html = String(html)
+      // Настройки — platform chrome (низ #app-sidebar), не экран модуля
+      var cleaned = String(html).replace(
+        /<div class="nav-item"[^>]*data-path="#\/settings"[^>]*>[\s\S]*?<\/div>\s*/g,
+        ''
+      );
+      var nav2Html = cleaned
         .replace(/\bclass="nav-item"/g, 'class="app-nav2-item"')
         .replace(/<span class="nav-text">БЗ<\/span>/g, '<span class="app-nav2-text">База знаний</span>')
         .replace(/<span class="nav-text">/g, '<span class="app-nav2-text">');
-      nav2.innerHTML = '<div class="app-nav2-label">' + label + '</div>' + nav2Html;
+      nav2.innerHTML =
+        '<div class="app-nav2-label-row">' +
+        '<div class="app-nav2-label">' + label + '</div>' +
+        '</div>' + nav2Html;
       nav2.hidden = false;
     } else {
       nav2.innerHTML = '';
@@ -33,6 +47,48 @@
     }
 
     setModeChip(modeId);
+    syncDemoExitPlacement();
+  }
+
+  /** Демо-выход: на ≥1280 — в шапке nav2 рядом с названием модуля; иначе fixed FAB. */
+  function syncDemoExitPlacement() {
+    var fab = document.getElementById('fab-exit-demo');
+    if (!fab) return;
+
+    var inDemo = document.body.classList.contains('demo-mode');
+    var nav2 = document.getElementById('app-nav2');
+    var row = nav2 && nav2.querySelector('.app-nav2-label-row');
+    var useNav2 = inDemo && row && document.body.classList.contains('has-app-nav2') &&
+      nav2 && !nav2.hidden && window.innerWidth >= NAV2_MIN;
+
+    if (useNav2) {
+      fab.classList.add('fab-exit-demo--nav2');
+      fab.classList.remove('hidden');
+      fab.style.display = 'inline-flex';
+      fab.style.pointerEvents = 'auto';
+      fab.style.visibility = 'visible';
+      fab.style.opacity = '1';
+      var lab = fab.querySelector('.fab-exit-demo-label');
+      if (lab) lab.textContent = 'Демо';
+      fab.title = 'Выйти из демо-режима';
+      if (fab.parentElement !== row) row.appendChild(fab);
+    } else {
+      fab.classList.remove('fab-exit-demo--nav2');
+      if (fab.parentElement !== document.body) document.body.appendChild(fab);
+      var lab2 = fab.querySelector('.fab-exit-demo-label');
+      if (lab2) lab2.textContent = 'Выйти из демо';
+      fab.title = 'Выйти из демо';
+      if (inDemo) {
+        fab.classList.remove('hidden');
+        fab.style.display = 'flex';
+        fab.style.pointerEvents = 'auto';
+        fab.style.visibility = 'visible';
+        fab.style.opacity = '1';
+      } else {
+        fab.classList.add('hidden');
+        fab.style.display = 'none';
+      }
+    }
   }
 
   function setModeChip(modeId) {
@@ -53,6 +109,7 @@
     if (deskTopbar) deskTopbar.hidden = !hasDeskTopbar;
     document.body.classList.toggle('has-desk-topbar', hasDeskTopbar);
 
+    syncDemoExitPlacement();
     return { hasNav2: hasNav2, hasDeskTopbar: hasDeskTopbar };
   }
 
@@ -77,6 +134,11 @@
     fillNav2: fillNav2,
     setModeChip: setModeChip,
     updateChrome: updateChrome,
-    renderDeskUser: renderDeskUser
+    renderDeskUser: renderDeskUser,
+    syncDemoExitPlacement: syncDemoExitPlacement
   };
+
+  window.addEventListener('resize', function () {
+    try { syncDemoExitPlacement(); } catch (_) { /* ignore */ }
+  });
 })();

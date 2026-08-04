@@ -9,6 +9,9 @@
 /** @type {boolean} */
 let _painting = false;
 
+/** @type {number} */
+let _previewGen = 0;
+
 /** @type {{ twiId: string|null, blobUrl: string|null }} */
 let _sel = { twiId: null, blobUrl: null };
 
@@ -128,6 +131,7 @@ async function resolvePhotoUrl(ref) {
   const PM = typeof window.PhotoManager !== 'undefined' ? window.PhotoManager : null;
   try {
     if (PM && typeof PM.getAsyncUrl === 'function') {
+      // Desktop preview — полный файл; preferThumb только на mobile viewer.
       const u = await PM.getAsyncUrl(ref);
       if (u) return u;
     }
@@ -863,9 +867,11 @@ function paintViewerHead(viewer, card) {
   viewer.appendChild(head);
 }
 
-async function paintInspectorBody(host, card) {
+async function paintInspectorBody(host, card, gen) {
   const goodMeta = card.photoGood ? await loadPhotoMeta(card.photoGood) : null;
+  if (gen != null && gen !== _previewGen) return;
   const badMeta = card.photoBad ? await loadPhotoMeta(card.photoBad) : null;
+  if (gen != null && gen !== _previewGen) return;
 
   const bothPortrait =
     goodMeta &&
@@ -906,7 +912,7 @@ async function paintInspectorBody(host, card) {
   bindPhotoClicks(host);
 }
 
-async function paintWorkerBody(host, card) {
+async function paintWorkerBody(host, card, gen) {
   const steps = Array.isArray(card.steps) ? card.steps : [];
   if (!steps.length) {
     host.innerHTML =
@@ -927,7 +933,9 @@ async function paintWorkerBody(host, card) {
           : [];
     const metas = [];
     for (let j = 0; j < refs.length; j++) {
+      if (gen != null && gen !== _previewGen) return;
       const meta = await loadPhotoMeta(refs[j]);
+      if (gen != null && gen !== _previewGen) return;
       if (meta) metas.push(meta);
     }
 
@@ -978,11 +986,12 @@ async function paintWorkerBody(host, card) {
   bindPhotoClicks(host);
 }
 
-async function paintPdfBody(host, card) {
+async function paintPdfBody(host, card, gen) {
   host.innerHTML =
     '<div class="kb-desk-twi-pdf-frame"><div class="kb-desk-twi-pdf-loading">Загрузка PDF…</div></div>';
   const frame = host.querySelector('.kb-desk-twi-pdf-frame');
   const src = await resolvePdfSrc(card);
+  if (gen != null && gen !== _previewGen) return;
   if (_sel.twiId !== card.id) return;
 
   revokePreviewBlob();
@@ -1003,6 +1012,7 @@ async function paintPdfBody(host, card) {
 
 async function paintTwiPreview(viewer, card) {
   if (!viewer || !card) return;
+  const gen = ++_previewGen;
   viewer.innerHTML = '';
   viewer.classList.add('kb-desk-twi-viewer--active');
   paintViewerHead(viewer, card);
@@ -1012,13 +1022,14 @@ async function paintTwiPreview(viewer, card) {
   viewer.appendChild(body);
 
   const typeKey = cardTypeKey(card);
-  if (typeKey === 'INSPECTOR') await paintInspectorBody(body, card);
-  else if (typeKey === 'WORKER') await paintWorkerBody(body, card);
-  else if (typeKey === 'PDF') await paintPdfBody(body, card);
+  if (typeKey === 'INSPECTOR') await paintInspectorBody(body, card, gen);
+  else if (typeKey === 'WORKER') await paintWorkerBody(body, card, gen);
+  else if (typeKey === 'PDF') await paintPdfBody(body, card, gen);
   else {
     body.innerHTML =
       '<div class="kb-desk-twi-viewer-empty">Неизвестный тип карты</div>';
   }
+  if (gen !== _previewGen) return;
 
   // cross-links
   let links = '';
@@ -1062,6 +1073,8 @@ async function paintTwiPreview(viewer, card) {
 }
 
 function selectTwi(twiId, rail) {
+  _previewGen += 1; // invalidate in-flight preview before switching
+  revokePreviewBlob();
   _sel.twiId = twiId;
   if (rail) {
     rail.querySelectorAll('.kb-desk-twi-rail-row.is-active').forEach(function (el) {

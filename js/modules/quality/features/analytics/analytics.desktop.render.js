@@ -1876,7 +1876,11 @@ function afterTabPaint(tabId) {
 }
 
 function doRenderActiveTab() {
-  const targetTab = (window.AnalyticsState && window.AnalyticsState.activeSubTab)
+  const fromHash = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
+    ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/analytics')
+    : null;
+  const targetTab = fromHash
+    || (window.AnalyticsState && window.AnalyticsState.activeSubTab)
     || window.currentActiveAnalyticsTab
     || 'sub-contractors';
 
@@ -1885,7 +1889,9 @@ function doRenderActiveTab() {
 
   const btn = document.querySelector('#analytics-subtabs-block button[data-action-arg="' + targetTab + '"]');
   if (btn && winHasFn('switchAnalyticsSubTab')) {
-    winCall('switchAnalyticsSubTab', targetTab, btn);
+    winCall('switchAnalyticsSubTab', targetTab, btn, { fromRouter: true });
+  } else if (winHasFn('switchAnalyticsSubTab')) {
+    winCall('switchAnalyticsSubTab', targetTab, null, { fromRouter: true });
   } else if (winHasFn('renderCurrentAnalyticsTab')) {
     winCall('renderCurrentAnalyticsTab');
   }

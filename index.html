@@ -23,10 +23,12 @@
 
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="./css/app-shell.desktop.css">
+    <link rel="stylesheet" href="./css/rbi-ui.css">
     <link rel="stylesheet" href="./css/analytics.desktop.css">
     <link rel="stylesheet" href="./css/audit.desktop.css">
     <link rel="stylesheet" href="./css/engineer.desktop.css">
     <link rel="stylesheet" href="./css/knowledge.desktop.css">
+    <link rel="stylesheet" href="./css/settings.desktop.css">
 
     <script src="./libs/chart.umd.min.js"></script>
 
@@ -110,7 +112,7 @@
                 </span>
             </div>
             <div class="splash-subtitle">
-                PLATFORM MANAGEMENT SYSTEM
+                Construction OS
             </div>
             <div class="splash-loader">
                 <div class="loader-bar"></div>
@@ -733,7 +735,7 @@
     <script>
         window.RBI_APP_VERSION = {
             app: '18.58.0',
-            sw: '18.58.2',
+            sw: '18.58.8',
             buildDate: '2026-08-04'
         };
     </script>
@@ -857,6 +859,7 @@
     <script type="module" src="js/modules/settings/features/tutorial.js"></script>
     <script type="module" src="js/modules/settings/features/role-matrix-ui.js"></script>
     <script type="module" src="js/modules/settings/settings.render.js"></script>
+    <script type="module" src="js/modules/settings/settings.desktop.render.js"></script>
     <script type="module" src="js/modules/settings/settings.actions.js"></script>
     <script type="module" src="js/modules/settings/settings.module.js"></script>
 
@@ -895,7 +898,7 @@
             <path stroke-linecap="round" stroke-linejoin="round"
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
         </svg>
-        <span class="text-[10px] font-black uppercase tracking-wider">Выйти из демо</span>
+        <span class="fab-exit-demo-label text-[10px] font-black uppercase tracking-wider">Выйти из демо</span>
     </button>
 
     <!-- tutorial-overlay + tutorial-tooltip перенесено в js/modules/settings/features/tutorial.js -->

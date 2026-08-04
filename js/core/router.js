@@ -7,6 +7,79 @@ window.AppRouter = {
     activePath: null,
 
     /**
+     * Подвкладки: bare `#/quality/engineer` → `#/quality/engineer/tasks`,
+     * Back ходит между slug'ами одной семьи без heavy teardown.
+     */
+    subTabMaps: {
+        '#/quality/engineer': {
+            defaultSlug: 'tasks',
+            slugToId: {
+                tasks: 'eng-sub-tasks',
+                badges: 'eng-sub-badges',
+                meetings: 'eng-sub-meetings',
+                impact: 'eng-sub-impact',
+                fmea: 'eng-sub-fmea'
+            },
+            idToSlug: {
+                'eng-sub-tasks': 'tasks',
+                'eng-sub-badges': 'badges',
+                'eng-sub-meetings': 'meetings',
+                'eng-sub-impact': 'impact',
+                'eng-sub-fmea': 'fmea'
+            }
+        },
+        '#/quality/analytics': {
+            defaultSlug: 'contractors',
+            slugToId: {
+                contractors: 'sub-contractors',
+                onepager: 'sub-onepager',
+                schedule: 'sub-schedule',
+                sk: 'sub-sk',
+                history: 'sub-history'
+            },
+            idToSlug: {
+                'sub-contractors': 'contractors',
+                'sub-onepager': 'onepager',
+                'sub-schedule': 'schedule',
+                'sub-sk': 'sk',
+                'sub-history': 'history'
+            }
+        },
+        '#/quality/reference': {
+            defaultSlug: 'checklists',
+            slugToId: {
+                checklists: 'ref-sub-checklists',
+                docs: 'ref-sub-docs',
+                nodes: 'ref-sub-nodes',
+                twi: 'ref-sub-twi',
+                practices: 'ref-sub-practices'
+            },
+            idToSlug: {
+                'ref-sub-checklists': 'checklists',
+                'ref-sub-docs': 'docs',
+                'ref-sub-nodes': 'nodes',
+                'ref-sub-twi': 'twi',
+                'ref-sub-practices': 'practices'
+            }
+        },
+        '#/settings': {
+            defaultSlug: 'platform',
+            slugToId: {
+                platform: 'platform',
+                admin: 'admin',
+                quality: 'quality',
+                construction: 'construction'
+            },
+            idToSlug: {
+                platform: 'platform',
+                admin: 'admin',
+                quality: 'quality',
+                construction: 'construction'
+            }
+        }
+    },
+
+    /**
      * Тяжёлые маршруты: полный teardown view при уходе (не CSS-hide).
      * Перед очисткой DOM — flush черновиков (RBIFormDraft).
      * Remount каркаса — ensure* / rbiEnsureTabMarkup в AppViews.render*.
@@ -50,6 +123,13 @@ window.AppRouter = {
         '#/quality/audit': {
             containerId: 'tab-audit',
             teardown: function () {
+                // Desktop shell живёт sibling'ом в #app-root (не внутри #tab-audit) —
+                // сначала вернуть DOM-куски и снять shell, иначе Осмотр остаётся поверх СК.
+                try {
+                    if (window.__auditDesktop && typeof window.__auditDesktop.teardown === 'function') {
+                        window.__auditDesktop.teardown();
+                    }
+                } catch (_) { /* ignore */ }
                 if (typeof window.rbiTeardownTabView === 'function') {
                     window.rbiTeardownTabView('tab-audit');
                 } else {
@@ -61,6 +141,13 @@ window.AppRouter = {
         '#/quality/engineer': {
             containerId: 'tab-engineer',
             teardown: function () {
+                try {
+                    if (window.__engineerDesktop && typeof window.__engineerDesktop.teardown === 'function') {
+                        window.__engineerDesktop.teardown();
+                    } else if (window.EngineerDesktopRender && typeof window.EngineerDesktopRender.teardown === 'function') {
+                        window.EngineerDesktopRender.teardown();
+                    }
+                } catch (_) { /* ignore */ }
                 if (typeof window.rbiTeardownTabView === 'function') {
                     window.rbiTeardownTabView('tab-engineer');
                 } else {
@@ -72,6 +159,13 @@ window.AppRouter = {
         '#/quality/reference': {
             containerId: 'tab-reference',
             teardown: function () {
+                try {
+                    if (window.__knowledgeDesktop && typeof window.__knowledgeDesktop.teardown === 'function') {
+                        window.__knowledgeDesktop.teardown();
+                    } else if (window.KnowledgeDesktopRender && typeof window.KnowledgeDesktopRender.teardown === 'function') {
+                        window.KnowledgeDesktopRender.teardown();
+                    }
+                } catch (_) { /* ignore */ }
                 if (typeof window.rbiTeardownTabView === 'function') {
                     window.rbiTeardownTabView('tab-reference');
                 } else {
@@ -80,9 +174,14 @@ window.AppRouter = {
                 }
             }
         },
-        '#/quality/settings': {
+        '#/settings': {
             containerId: 'tab-settings',
             teardown: function () {
+                try {
+                    if (window.__settingsDesktop && typeof window.__settingsDesktop.teardown === 'function') {
+                        window.__settingsDesktop.teardown();
+                    }
+                } catch (_) { /* ignore */ }
                 if (typeof window.rbiTeardownTabView === 'function') {
                     window.rbiTeardownTabView('tab-settings');
                 } else {
@@ -128,9 +227,9 @@ window.AppRouter = {
 
     init() {
         console.log("Умный Роутер запущен");
-        
+
         window.addEventListener('popstate', () => this.renderRoute());
-        
+
         document.body.addEventListener('click', (e) => {
             const navItem = e.target.closest('[data-path]');
             if (navItem) {
@@ -150,6 +249,114 @@ window.AppRouter = {
         this.routes[path] = renderFunction;
     },
 
+    /** Самый длинный ключ heavyRoutes / subTabMaps / routes, который является prefix path. */
+    familyBase(path) {
+        const p = String(path || '');
+        let best = null;
+        let bestLen = -1;
+        const consider = (key) => {
+            if (!key || key === '*') return;
+            if (p === key || p.startsWith(key + '/')) {
+                if (key.length > bestLen) {
+                    best = key;
+                    bestLen = key.length;
+                }
+            }
+        };
+        Object.keys(this.heavyRoutes || {}).forEach(consider);
+        Object.keys(this.subTabMaps || {}).forEach(consider);
+        Object.keys(this.routes || {}).forEach(consider);
+        return best;
+    },
+
+    sameFamily(a, b) {
+        const fa = this.familyBase(a);
+        const fb = this.familyBase(b);
+        return !!(fa && fb && fa === fb);
+    },
+
+    /** Bare `#/quality/engineer` → `#/quality/engineer/tasks`.
+     * Legacy `#/quality/settings` → `#/settings/...` (platform surface). */
+    normalizeSubPath(path) {
+        let p = String(path || '');
+        // Alias: старый quality-scoped путь → платформенный
+        if (p === '#/quality/settings' || p.indexOf('#/quality/settings/') === 0) {
+            p = '#/settings' + p.slice('#/quality/settings'.length);
+        }
+        const maps = this.subTabMaps || {};
+        for (const base of Object.keys(maps)) {
+            if (p === base || p === base + '/') {
+                return base + '/' + maps[base].defaultSlug;
+            }
+        }
+        return p;
+    },
+
+    resolveRoute(path) {
+        const p = String(path || '');
+        if (this.routes[p]) return this.routes[p];
+        let bestFn = null;
+        let bestLen = -1;
+        Object.keys(this.routes || {}).forEach((key) => {
+            if (key === '*') return;
+            if ((p === key || p.startsWith(key + '/')) && key.length > bestLen) {
+                bestFn = this.routes[key];
+                bestLen = key.length;
+            }
+        });
+        return bestFn || this.routes['*'] || null;
+    },
+
+    resolveHeavy(path) {
+        const p = String(path || '');
+        if (this.heavyRoutes[p]) return { base: p, entry: this.heavyRoutes[p] };
+        let best = null;
+        let bestLen = -1;
+        Object.keys(this.heavyRoutes || {}).forEach((key) => {
+            if ((p === key || p.startsWith(key + '/')) && key.length > bestLen) {
+                best = key;
+                bestLen = key.length;
+            }
+        });
+        return best ? { base: best, entry: this.heavyRoutes[best] } : null;
+    },
+
+    subTabIdFromPath(path, base) {
+        const map = this.subTabMaps && this.subTabMaps[base];
+        if (!map) return null;
+        const p = String(path || '');
+        if (p !== base && !p.startsWith(base + '/')) {
+            return map.slugToId[map.defaultSlug] || null;
+        }
+        const rest = p.slice(base.length).replace(/^\//, '');
+        const slug = (rest.split('/')[0] || map.defaultSlug);
+        return map.slugToId[slug] || map.slugToId[map.defaultSlug] || null;
+    },
+
+    slugFromSubTabId(base, tabId) {
+        const map = this.subTabMaps && this.subTabMaps[base];
+        if (!map) return null;
+        if (map.idToSlug[tabId]) return map.idToSlug[tabId];
+        if (map.slugToId[tabId]) return tabId;
+        return map.defaultSlug;
+    },
+
+    /**
+     * Переход на подвкладку: `navigateSub('#/quality/engineer', 'eng-sub-meetings')`
+     * или slug `'meetings'`.
+     */
+    navigateSub(base, slugOrId, replace) {
+        const map = this.subTabMaps && this.subTabMaps[base];
+        if (!map) {
+            this.navigate(base, !!replace);
+            return;
+        }
+        const slug = this.slugFromSubTabId(base, slugOrId) || map.defaultSlug;
+        const path = base + '/' + slug;
+        if ((window.location.hash || '') === path) return;
+        this.navigate(path, !!replace);
+    },
+
     navigate(path, replace = false) {
         // 1. Запоминаем скролл текущей вкладки перед уходом
         const currentPath = window.location.hash || '#/quality/audit';
@@ -166,8 +373,12 @@ window.AppRouter = {
 
     _teardownHeavyIfNeeded(leavingPath, enteringPath) {
         if (!leavingPath || leavingPath === enteringPath) return;
-        const entry = this.heavyRoutes[leavingPath];
-        if (!entry || typeof entry.teardown !== 'function') return;
+        // Подвкладки одной семьи (engineer/tasks → engineer/meetings) — без wipe
+        if (this.sameFamily(leavingPath, enteringPath)) return;
+
+        const resolved = this.resolveHeavy(leavingPath);
+        if (!resolved || !resolved.entry || typeof resolved.entry.teardown !== 'function') return;
+        const entry = resolved.entry;
 
         // Глобальный flush отложенных scheduleSave (localStorage), до любого DOM wipe
         try {
@@ -190,15 +401,21 @@ window.AppRouter = {
 
     renderRoute() {
         let path = window.location.hash || '#/quality/audit';
-        const renderFunction = this.routes[path] || this.routes['*'];
-        
+        const normalized = this.normalizeSubPath(path);
+        if (normalized !== path) {
+            this.navigate(normalized, true);
+            return;
+        }
+
+        const renderFunction = this.resolveRoute(path);
+
         if (renderFunction) {
             this._teardownHeavyIfNeeded(this.activePath, path);
             renderFunction();
             this.activePath = path;
             this.updateNavHighlight(path);
 
-            // 3. Восстанавливаем скролл. 
+            // 3. Восстанавливаем скролл.
             // Ждем 60мс, чтобы скрипт шапки успел пересчитать отступы (padding)
             setTimeout(() => {
                 const savedScroll = this.scrollPositions[path] || 0;
@@ -208,11 +425,30 @@ window.AppRouter = {
     },
 
     updateNavHighlight(path) {
-        document.querySelectorAll('#main-bottom-nav .nav-item[data-path], #app-nav2 .app-nav2-item[data-path]').forEach(item => {
-            if (item.dataset.path === path) {
+        const p = String(path || '');
+        document.querySelectorAll(
+            '#main-bottom-nav .nav-item[data-path], #app-nav2 .app-nav2-item[data-path], #app-sidebar [data-path]'
+        ).forEach(item => {
+            const itemPath = item.dataset.path || '';
+            const active = itemPath && (p === itemPath || p.startsWith(itemPath + '/'));
+            if (active) {
                 item.classList.add('active');
             } else {
                 item.classList.remove('active');
+            }
+        });
+        // Mode icons in sidebar: path-independent — sync with AppModeManager
+        const onSettings = /^#\/settings(\/|$)/i.test(p);
+        let mode = null;
+        try {
+            mode = window.AppModeManager && window.AppModeManager.currentMode;
+        } catch (_) { mode = null; }
+        document.querySelectorAll('#app-sidebar [data-sidebar-module-id]').forEach(function (el) {
+            const id = el.getAttribute('data-sidebar-module-id');
+            if (onSettings) {
+                el.classList.remove('active');
+            } else {
+                el.classList.toggle('active', !!(mode && id === mode));
             }
         });
     }
@@ -224,7 +460,7 @@ window.switchTab = function (tabId, navElement = null) {
         'tab-engineer': '#/quality/engineer',
         'tab-analytics': '#/quality/analytics',
         'tab-reference': '#/quality/reference',
-        'tab-settings': '#/quality/settings'
+        'tab-settings': '#/settings'
     };
 
     if (routeMap[tabId]) {

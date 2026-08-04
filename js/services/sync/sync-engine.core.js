@@ -343,11 +343,20 @@ window.triggerSync = async function (mode = 'silent') {
                             engineerName: 1,
                             key: 1
                         };
-                        Object.keys(cloudSettingsBag).forEach((k) => {
+                        Object.keys(cloudSettingsBlob).forEach((k) => {
                             if (AUTH_PREF_KEYS[k]) return;
-                            appSettings[k] = cloudSettingsBag[k];
+                            appSettings[k] = cloudSettingsBlob[k];
                         });
                         appSettings.settingsUpdatedAt = cloudPrefsTs;
+                        // Зеркало темы в localStorage — иначе reload перетирает облачную тему
+                        try {
+                            const t = appSettings.theme;
+                            if (typeof window.rbiSaveThemePreference === 'function') {
+                                window.rbiSaveThemePreference(t || 'auto');
+                            } else if (t) {
+                                localStorage.setItem('rbi_theme_preference', t);
+                            }
+                        } catch (_) { /* ignore */ }
                         needUiUpdate = true;
                         console.log('[Sync] UI-настройки профиля подтянуты из облака.');
                     }

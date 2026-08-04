@@ -185,7 +185,35 @@ if (typeof window !== 'undefined') window.rbiPhotoGalleries = rbiPhotoGalleries;
 // module-scope, НЕ на window.* (см. _ai/current_plan.md §7 «Нельзя
 // трогать» / проверка №3 — новые top-level window.* не добавляются).
 // =========================================================================
-const ANALYTICS_GALLERY_PAGE_SIZE = 16;
+const ANALYTICS_GALLERY_PAGE_SIZE = 8;
+
+// Очередь гидрации галереи: на iPhone параллельный getAsyncUrl → OOM / белый экран.
+const GALLERY_HYDRATE_CONCURRENCY = 2;
+let _hydrateQueue = [];
+let _hydrateActive = 0;
+
+function _clearGalleryHydrateQueue() {
+    _hydrateQueue = [];
+}
+
+function _enqueueGalleryHydrate(task) {
+    _hydrateQueue.push(task);
+    _pumpGalleryHydrateQueue();
+}
+
+function _pumpGalleryHydrateQueue() {
+    while (_hydrateActive < GALLERY_HYDRATE_CONCURRENCY && _hydrateQueue.length) {
+        const task = _hydrateQueue.shift();
+        _hydrateActive += 1;
+        Promise.resolve()
+            .then(task)
+            .catch(function () { /* ignore */ })
+            .then(function () {
+                _hydrateActive -= 1;
+                _pumpGalleryHydrateQueue();
+            });
+    }
+}
 
 // Полный (неотфильтрованный по странице) photosArray на galleryId — нужен
 // для «Показать ещё» без повторного прохода родительского рендера.
@@ -437,9 +465,12 @@ function clearAnalyticsViewRuntimeCaches() {
     } catch (_) { /* ignore */ }
     _galleryFullData.clear();
     _photoThumbCache.clear();
+    _clearGalleryHydrateQueue();
     _ikoMemo.clear();
     _lazyContractorsGalleryData = null;
     _lazyContractorsGalleryFilled = false;
+    _lazyDetailGalleryFilled = false;
+    _lazyDetailGalleryPayload = null;
     _analyticsRenderGen += 1;
     _analyticsFilteredCache = null;
     _analyticsFilterFp = '';
@@ -529,21 +560,24 @@ function _restoreExpandedReports(listDiv, expandedProjects) {
 // toDataURL() бросает SecurityError (баг найден на реальных данных: превью
 // оставались белыми плейсхолдерами, хотя открытие оригинала в просмотрщике
 // через обычный <img src> работало, т.к. там CORS не требуется).
-async function _resolvePhotoRealSrc(photoRef) {
+async function _resolvePhotoRealSrc(photoRef, opts) {
     // photos[itemId] после B1 — массив; String([u1,u2]) → "u1,u2" → Storage 400.
     if (Array.isArray(photoRef)) photoRef = photoRef[0];
     const ref = String(photoRef || '');
     if (!ref) return null;
     if (ref.startsWith('data:')) return ref;
     if (window.PhotoManager && typeof window.PhotoManager.getAsyncUrl === 'function') {
-        return await window.PhotoManager.getAsyncUrl(ref);
+        const preferThumb = !(opts && opts.full);
+        return await window.PhotoManager.getAsyncUrl(
+            ref,
+            preferThumb ? { preferThumb: true } : undefined
+        );
     }
     if (ref.startsWith('local://') || ref.startsWith('cloud://')) return null;
     return ref;
 }
 
-// Полное фото для галереи аналитики/подрядчика (не ~150px preferThumb).
-// Кэш — готовые blob:/data:-URL, без даунскейла в canvas.
+// Превью для ленты галереи: preferThumb (лёгкий), не полный файл.
 async function _getGalleryPhotoSrc(photoRef) {
     if (!photoRef) return null;
     if (Array.isArray(photoRef)) photoRef = photoRef[0];
@@ -557,7 +591,7 @@ async function _getGalleryPhotoSrc(photoRef) {
 
     let realSrc = null;
     try {
-        realSrc = await _resolvePhotoRealSrc(photoRef);
+        realSrc = await _resolvePhotoRealSrc(photoRef, { full: false });
     } catch (e) {
         realSrc = null;
     }
@@ -663,35 +697,88 @@ function rbiEnsureAnalyticsPhotoGalleries(ev) {
     }
 }
 
-// Подтягивает полные фото для порции галереи (не thumb-превью).
+/** Детализация подрядчика: галереи только при открытии details. */
+let _lazyDetailGalleryFilled = false;
+let _lazyDetailGalleryPayload = null;
+
+function rbiEnsureDetailPhotoGalleries(ev) {
+    const details = ev && ev.target;
+    if (details && details.tagName === 'DETAILS' && !details.open) return;
+    if (_lazyDetailGalleryFilled) return;
+    const payload = _lazyDetailGalleryPayload;
+    if (!payload) return;
+    _lazyDetailGalleryFilled = true;
+    const { allPhotosB3, allPhotosB2, allPhotosOK } = payload;
+    const slotB3 = document.getElementById('lazy-gallery-det_b3');
+    const slotB2 = document.getElementById('lazy-gallery-det_b2');
+    const slotOk = document.getElementById('lazy-gallery-det_ok');
+    if (slotB3) {
+        slotB3.outerHTML = allPhotosB3.length > 0
+            ? AnalyticsRender.initPhotoGallery('det_b3', allPhotosB3, true)
+            : '<div class="text-xs text-slate-400">Нет фото B3</div>';
+    }
+    if (slotB2) {
+        slotB2.outerHTML = allPhotosB2.length > 0
+            ? AnalyticsRender.initPhotoGallery('det_b2', allPhotosB2, false)
+            : '<div class="text-xs text-slate-400">Нет фото B2</div>';
+    }
+    if (slotOk) {
+        slotOk.outerHTML = allPhotosOK.length > 0
+            ? AnalyticsRender.initPhotoGallery(
+                'det_ok', allPhotosOK, false,
+                'text-green-700 bg-green-100 border-green-200', 'OK'
+            )
+            : '<div class="text-xs text-slate-400">Нет фото эталонов</div>';
+    }
+}
+
+// Подтягивает превью (preferThumb) для порции галереи — очередь max 2 на iPhone.
 function _hydrateGalleryPhotos(galleryId, entries, renderGen) {
     const gen = (renderGen === undefined) ? _analyticsRenderGen : renderGen;
     const wrap = document.getElementById(`gallery-wrap-${galleryId}`);
     if (wrap && typeof window.rbiHydrateLocalImages === 'function') {
-        Promise.resolve(window.rbiHydrateLocalImages(wrap)).then(() => {
-            if (gen !== _analyticsRenderGen || !wrap) return;
-            wrap.querySelectorAll('img[data-photo-idx]').forEach((img) => {
-                const idx = Number(img.getAttribute('data-photo-idx'));
-                const entry = entries.find((e) => e.idx === idx);
-                if (!entry) return;
-                const ph = window.rbiPhotoPlaceholder || '';
-                if (img.src && img.src !== ph && !img.getAttribute('data-local-src')) {
-                    _setPhotoThumbCache(entry.photoRef, img.src);
-                }
-            });
-        }).catch(() => {});
-    }
-    const placeholder = window.rbiPhotoPlaceholder || '';
-    entries.forEach(({ photoRef, idx }) => {
-        if (_photoThumbCache.has(photoRef)) return;
-        _getGalleryPhotoSrc(photoRef).then((src) => {
-            if (!src) return;
+        _enqueueGalleryHydrate(function () {
             if (gen !== _analyticsRenderGen) return;
-            const img = document.querySelector(`#gallery-wrap-${galleryId} img[data-photo-idx="${idx}"]`);
-            if (!img) return;
-            img.src = src;
-            img.removeAttribute('data-local-src');
-            if (img.src === placeholder) return;
+            return Promise.resolve(window.rbiHydrateLocalImages(wrap)).then(function () {
+                if (gen !== _analyticsRenderGen || !wrap) return;
+                wrap.querySelectorAll('img[data-photo-idx]').forEach(function (img) {
+                    const idx = Number(img.getAttribute('data-photo-idx'));
+                    const entry = entries.find(function (e) { return e.idx === idx; });
+                    if (!entry) return;
+                    const ph = window.rbiPhotoPlaceholder || '';
+                    if (img.src && img.src !== ph && !img.getAttribute('data-local-src')) {
+                        _setPhotoThumbCache(entry.photoRef, img.src);
+                    }
+                });
+            }).catch(function () { /* ignore */ });
+        });
+    }
+    entries.forEach(function (item) {
+        const photoRef = item.photoRef;
+        const idx = item.idx;
+        if (_photoThumbCache.has(photoRef)) {
+            const cached = _photoThumbCache.get(photoRef);
+            const img = document.querySelector(
+                '#gallery-wrap-' + galleryId + ' img[data-photo-idx="' + idx + '"]'
+            );
+            if (img && cached) {
+                img.src = cached;
+                img.removeAttribute('data-local-src');
+            }
+            return;
+        }
+        _enqueueGalleryHydrate(function () {
+            if (gen !== _analyticsRenderGen) return;
+            return _getGalleryPhotoSrc(photoRef).then(function (src) {
+                if (!src) return;
+                if (gen !== _analyticsRenderGen) return;
+                const img = document.querySelector(
+                    '#gallery-wrap-' + galleryId + ' img[data-photo-idx="' + idx + '"]'
+                );
+                if (!img) return;
+                img.src = src;
+                img.removeAttribute('data-local-src');
+            });
         });
     });
 }
@@ -1257,17 +1344,27 @@ export const AnalyticsRender = {
         const filterChanged = filterFpChanged || dataChanged;
 
         if (filterChanged) {
-            // Инвалидируем in-flight canvas-превью и кэш отрисованных подвкладок.
+            // Инвалидируем in-flight превью и кэш отрисованных подвкладок.
             _analyticsRenderGen += 1;
+            _clearGalleryHydrateQueue();
             _ikoMemo.clear();
             _lazyContractorsGalleryFilled = false;
             _lazyContractorsGalleryData = null;
+            _lazyDetailGalleryFilled = false;
+            _lazyDetailGalleryPayload = null;
             for (const key in _chartInstances()) { if (_chartInstances()[key]) _chartInstances()[key].destroy(); }
             AnalyticsState.setChartInstances({});
             _analyticsFilterFp = fp;
             _analyticsDataSig = dataSig;
             _analyticsFilteredCache = getFilteredAnalyticsData();
             _analyticsRenderedTabs.clear();
+            // Progressive: сразу показать «обновление», чтобы экран не был пустым.
+            const listEl = document.getElementById('contractors-list-container');
+            if (activeTab === 'sub-contractors' && listEl && typeof window.rbiShowContentSkeleton === 'function') {
+                try {
+                    window.rbiShowContentSkeleton(listEl, { cards: 3, label: 'Обновление…' });
+                } catch (_) { /* ignore */ }
+            }
         } else if (wasDirty) {
             // Тихий sync без смены данных/фильтров — снимаем dirty, UI не трогаем.
             if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = false;
@@ -1701,7 +1798,12 @@ export const AnalyticsRender = {
             photosDetails.addEventListener('toggle', rbiEnsureAnalyticsPhotoGalleries);
         }
 
+        // Progressive: сначала список, графики — после paint с проверкой gen.
+        AnalyticsRender.renderContractorsListOnly(data);
+
+        const chartGen = _analyticsRenderGen;
         setTimeout(() => {
+            if (chartGen !== _analyticsRenderGen) return;
             const trendContrsData = window.buildTrendChartData(data, 'contractorName', window.selectedChartFilters.contrs, window.trendGroupings.contrs);
             const ctxTrendC = document.getElementById('chart_eng_trend_contrs')?.getContext('2d');
             if (ctxTrendC) {
@@ -1709,6 +1811,7 @@ export const AnalyticsRender = {
                 _chartInstances()['chart_eng_trend_contrs'] = new Chart(ctxTrendC, { type: 'line', data: trendContrsData, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { position: 'right', labels: { boxWidth: 8, font: { size: 9 } } } } } });
             }
 
+            if (chartGen !== _analyticsRenderGen) return;
             let causesLabels = []; let causesData = [];
             Object.keys(causesCount).sort((a, b) => causesCount[b] - causesCount[a]).forEach(code => {
                 const name = _defectCauses().find(c => c.code === code)?.name || 'Иное';
@@ -1720,6 +1823,7 @@ export const AnalyticsRender = {
                 _chartInstances()['chart_eng_causes'] = new Chart(ctxCauses, { type: 'bar', indexAxis: 'y', data: { labels: causesLabels, datasets: [{ data: causesData, backgroundColor: '#f59e0b', borderRadius: 4 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
             }
 
+            if (chartGen !== _analyticsRenderGen) return;
             cList.sort((a, b) => b.metrics.finalC - a.metrics.finalC);
             const compLabels = cList.map(c => c.name.length > 10 ? c.name.substring(0, 10) + '...' : c.name);
             const compData = cList.map(c => c.metrics.finalC);
@@ -1730,9 +1834,7 @@ export const AnalyticsRender = {
                 if (_chartInstances()['chart_eng_compare']) _chartInstances()['chart_eng_compare'].destroy();
                 _chartInstances()['chart_eng_compare'] = new Chart(ctxComp, { type: 'bar', data: { labels: compLabels, datasets: [{ data: compData, backgroundColor: compColors, borderRadius: 4 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } } });
             }
-        }, 100);
-
-        AnalyticsRender.renderContractorsListOnly(data);
+        }, 120);
     },
 
 
@@ -3194,7 +3296,7 @@ export const AnalyticsRender = {
                     ${defectsListHtml}
                 </div>
             </details>
-            <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
+            <details id="contractor-detail-photos" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
                     <span class="flex items-center gap-2">📸 Фотогалереи (Брак и Эталоны)</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
@@ -3202,22 +3304,31 @@ export const AnalyticsRender = {
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 space-y-4">
                     <div>
                         <h3 class="text-[10px] font-black text-red-600 uppercase mb-2">Критический брак (B3)</h3>
-                        ${allPhotosB3.length > 0 ? AnalyticsRender.initPhotoGallery('det_b3', allPhotosB3, true) : '<div class="text-xs text-slate-400">Нет фото B3</div>'}
+                        <div id="lazy-gallery-det_b3" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                     <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
                         <h3 class="text-[10px] font-black text-orange-600 uppercase mb-2">Значимые дефекты (B2)</h3>
-                        ${allPhotosB2.length > 0 ? AnalyticsRender.initPhotoGallery('det_b2', allPhotosB2, false) : '<div class="text-xs text-slate-400">Нет фото B2</div>'}
+                        <div id="lazy-gallery-det_b2" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                     <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
                         <h3 class="text-[10px] font-black text-green-600 uppercase mb-2">Эталонные работы (OK)</h3>
-                        ${allPhotosOK.length > 0 ? AnalyticsRender.initPhotoGallery('det_ok', allPhotosOK, false, 'text-green-700 bg-green-100 border-green-200', 'OK') : '<div class="text-xs text-slate-400">Нет фото эталонов</div>'}
+                        <div id="lazy-gallery-det_ok" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
                     </div>
                 </div>
             </details>
             
         `;
 
+        _lazyDetailGalleryFilled = false;
+        _lazyDetailGalleryPayload = { allPhotosB3, allPhotosB2, allPhotosOK };
+        const detPhotos = document.getElementById('contractor-detail-photos');
+        if (detPhotos) {
+            detPhotos.addEventListener('toggle', rbiEnsureDetailPhotoGalleries);
+        }
+
+        const detailChartGen = _analyticsRenderGen;
         setTimeout(() => {
+            if (detailChartGen !== _analyticsRenderGen) return;
             const ctxL = document.getElementById('chart_detail_line')?.getContext('2d');
             if (ctxL) {
                 const prev = _chartInstances()['chart_detail_line'];

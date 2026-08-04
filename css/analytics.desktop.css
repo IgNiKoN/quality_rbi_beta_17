@@ -47,82 +47,8 @@ body.rbi-analytics-desktop-wide #analytics-desktop-toolbar {
   box-sizing: border-box;
 }
 
-/* Subtabs: sticky under topbar, full-bleed edge-to-edge; content below keeps #app-root inset */
-body.rbi-analytics-desktop-wide #analytics-subtabs-block,
-body.nav-pos-bottom.rbi-analytics-desktop-wide #analytics-subtabs-block,
-body.nav-pos-top.rbi-analytics-desktop-wide #analytics-subtabs-block,
-body.nav-pos-auto.rbi-analytics-desktop-wide #analytics-subtabs-block {
-  position: -webkit-sticky !important;
-  position: sticky !important;
-  top: 0 !important;
-  bottom: auto !important;
-  left: auto !important;
-  right: auto !important;
-  width: calc(100% + 2rem) !important;
-  max-width: none !important;
-  margin: 0 -1rem !important;
-  padding: 0 !important;
-  z-index: 40 !important;
-  transform: none !important;
-  background: var(--card-bg) !important;
-  box-shadow: none !important;
-  box-sizing: border-box !important;
-  transition: none !important;
-}
-
-body.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
-body.nav-pos-bottom.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
-body.nav-pos-top.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
-body.nav-pos-auto.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block {
-  top: 52px !important;
-}
-
-body.rbi-analytics-desktop-wide #analytics-subtabs-block > div {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: stretch !important;
-  justify-content: stretch !important;
-  gap: 0 !important;
-  width: 100% !important;
-  max-width: none !important;
-  height: 48px !important;
-  padding: 0 !important;
-  background: var(--card-bg) !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--card-border) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  overflow-x: auto !important;
-  backdrop-filter: none !important;
-}
-
-body.rbi-analytics-desktop-wide #analytics-subtabs-block .sub-tab-btn {
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
-  height: 100% !important;
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  text-transform: none !important;
-  padding: 0 10px !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border-bottom: 2px solid transparent !important;
-  color: var(--text-muted) !important;
-  white-space: nowrap !important;
-}
-
-body.rbi-analytics-desktop-wide #analytics-subtabs-block .sub-tab-btn svg {
-  width: 16px !important;
-  height: 16px !important;
-}
-
-/* Active state follows switchAnalyticsSubTab (bg-white), not the static HTML `active` class */
+/* Subtabs sticky/strip/btn — css/rbi-ui.css
+ * Analytics: legacy switch красит bg-white / text-indigo-600 как active */
 body.rbi-analytics-desktop-wide #analytics-subtabs-block .sub-tab-btn.bg-white,
 body.rbi-analytics-desktop-wide #analytics-subtabs-block .sub-tab-btn.text-indigo-600 {
   color: var(--primary) !important;
@@ -345,7 +271,7 @@ body.rbi-analytics-desktop-wide.has-desk-topbar {
 }
 
 body.rbi-analytics-desktop-wide.has-desk-topbar #app-root.rbi-analytics-desktop-wide {
-  padding-top: 52px !important;
+  padding-top: var(--desk-topbar-h) !important;
 }
 
 body.rbi-analytics-desktop-wide #analytics-desktop-shell {
@@ -3098,4 +3024,56 @@ body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-emp
   color: var(--text-muted);
   border: 1px dashed var(--card-border);
   border-radius: 12px;
+}
+
+
+/* === Density tiers (≥1920 / ≥2560) === */
+@media (min-width: 1920px) {
+  body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-split,
+  body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-split {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    gap: calc(0.85rem * var(--desk-gap-bump));
+  }
+
+  body.rbi-analytics-desktop-wide #sub-contractors.ana-desk-split {
+    gap: calc(0.85rem * var(--desk-gap-bump));
+  }
+
+  body.rbi-analytics-desktop-wide .ana-desk-kpi-strip {
+    gap: calc(0.5rem * var(--desk-gap-bump));
+  }
+
+  body.rbi-analytics-desktop-wide .ana-desk-kpi-strip .k,
+  body.rbi-analytics-desktop-wide .ana-desk-sev-strip .k {
+    font-size: calc(0.65rem * var(--desk-type-bump));
+  }
+
+  body.rbi-analytics-desktop-wide .ana-desk-kpi-strip .v,
+  body.rbi-analytics-desktop-wide .ana-desk-sev-strip .v {
+    font-size: calc(1.15rem * var(--desk-type-bump));
+  }
+
+  /* History/SK/contractors: detail на всю колонку (таблицы). Читаемый кап — у contractor content. */
+  body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-detail,
+  body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-detail,
+  body.rbi-analytics-desktop-wide #contractor-detail-view {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.rbi-analytics-desktop-wide #contractor-detail-content {
+    max-width: var(--desk-read-max);
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (min-width: 2560px) {
+  body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-split,
+  body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-split {
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  }
 }

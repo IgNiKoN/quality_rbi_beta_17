@@ -32,7 +32,19 @@ function isDesktopViewport() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN;
 }
 
+function isQualityMode() {
+  try {
+    if (window.AppModeManager && window.AppModeManager.currentMode) {
+      return window.AppModeManager.currentMode === 'quality';
+    }
+  } catch (_) { /* ignore */ }
+  return /#\/quality\//i.test(String(location.hash || ''));
+}
+
 function isAuditActive() {
+  if (!isQualityMode()) return false;
+  const hash = String(location.hash || '');
+  if (hash && !/#\/quality\/audit/i.test(hash)) return false;
   const tab = document.getElementById('tab-audit');
   return !!(tab && tab.classList.contains('active'));
 }
@@ -197,7 +209,8 @@ function ensureShell() {
 
   let shell = document.getElementById(SHELL_ID);
   // Старая раскладка без side / без единой headstrip — пересобрать
-  if (shell && (!document.getElementById('audit-desktop-side') || !shell.querySelector('.audit-desk-zone-headstrip'))) {
+  if (shell && (!document.getElementById('audit-desktop-side')
+      || !shell.querySelector('.audit-desk-topbar-strip'))) {
     restoreHeaderPieces();
     if (tab.parentElement !== appRoot) {
       appRoot.insertBefore(tab, shell);
@@ -214,23 +227,27 @@ function ensureShell() {
     chrome.id = CHROME_ID;
     chrome.className = 'audit-desk-chrome';
     chrome.innerHTML = ''
-      + '<div class="audit-desk-zone audit-desk-zone-headstrip">'
-      + '  <div class="audit-desk-chrome-titles">'
-      + '    <h2 class="audit-desk-chrome-title">Осмотр</h2>'
-      + '    <p class="audit-desk-chrome-sub" data-audit-desk-chrome-sub>Выберите чек-лист и заполните объект</p>'
+      + '<div class="audit-desk-topbar-strip" data-audit-desk-topbar-strip>'
+      + '  <div class="audit-desk-topbar-strip-inner">'
+      + '    <div class="audit-desk-topbar-brand">'
+      + '      <span class="audit-desk-topbar-label">Осмотр</span>'
+      + '      <span class="audit-desk-topbar-sub" data-audit-desk-chrome-sub>Выберите чек-лист</span>'
+      + '    </div>'
+      + '    <div class="audit-desk-topbar-tpl" data-audit-desk-slot-checklist></div>'
       + '  </div>'
-      + '  <div class="audit-desk-zone-tpl" data-audit-desk-slot-checklist></div>'
       + '</div>'
-      + '<div class="audit-desk-zone audit-desk-zone-object">'
-      + '  <div class="audit-desk-zone-head">'
-      + '    <div class="audit-desk-zone-label">Объект проверки</div>'
-      + '    <p class="audit-desk-zone-hint">Подрядчик, место и привязка к плану</p>'
+      + '<div class="audit-desk-chrome-body">'
+      + '  <div class="audit-desk-zone audit-desk-zone-object">'
+      + '    <div class="audit-desk-zone-head">'
+      + '      <div class="audit-desk-zone-label">Объект проверки</div>'
+      + '      <p class="audit-desk-zone-hint">Подрядчик, место и привязка к плану</p>'
+      + '    </div>'
+      + '    <div class="audit-desk-chrome-form" data-audit-desk-slot-data></div>'
       + '  </div>'
-      + '  <div class="audit-desk-chrome-form" data-audit-desk-slot-data></div>'
-      + '</div>'
-      + '<div class="audit-desk-zone audit-desk-zone-groups" data-audit-desk-slot-nav-wrap>'
-      + '  <div class="audit-desk-zone-label">Группы пунктов</div>'
-      + '  <div data-audit-desk-slot-nav></div>'
+      + '  <div class="audit-desk-zone audit-desk-zone-groups" data-audit-desk-slot-nav-wrap>'
+      + '    <div class="audit-desk-zone-label">Группы пунктов</div>'
+      + '    <div data-audit-desk-slot-nav></div>'
+      + '  </div>'
       + '</div>';
 
     const work = document.createElement('div');
@@ -255,8 +272,26 @@ function ensureShell() {
       + '  <button type="button" class="audit-desk-btn" data-audit-desk-clear-pin hidden>Снять</button>'
       + '</div>'
       + '<div class="audit-desk-plan-stage" data-audit-desk-plan-stage>'
-      + '  <div class="audit-desk-plan-empty" data-audit-desk-plan-empty>'
-      + '    <p>Точку на плане ставьте кнопкой «на плане» рядом с полем осей.</p>'
+      + '  <div class="audit-desk-plan-empty" data-audit-desk-plan-empty data-empty-kind="nopin">'
+      + '    <div class="audit-desk-plan-art" aria-hidden="true">'
+      + '      <svg viewBox="0 0 240 168" fill="none" xmlns="http://www.w3.org/2000/svg">'
+      + '        <rect x="12" y="12" width="216" height="144" rx="6" class="audit-desk-plan-art-frame"/>'
+      + '        <path d="M12 56h216M12 112h216M80 12v144M160 12v144" class="audit-desk-plan-art-grid"/>'
+      + '        <rect x="28" y="28" width="40" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="92" y="28" width="56" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="172" y="28" width="40" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="28" y="72" width="56" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="108" y="72" width="48" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="172" y="72" width="40" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <rect x="28" y="120" width="184" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+      + '        <circle cx="132" cy="86" r="7" class="audit-desk-plan-art-pin"/>'
+      + '        <circle cx="132" cy="86" r="3" class="audit-desk-plan-art-pin-core"/>'
+      + '      </svg>'
+      + '    </div>'
+      + '    <div class="audit-desk-plan-empty-copy">'
+      + '      <div class="audit-desk-plan-empty-title">План не выбран</div>'
+      + '      <p>Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.</p>'
+      + '    </div>'
       + '  </div>'
       + '</div>';
 
@@ -316,7 +351,7 @@ function syncChromeSubtitle() {
   const sub = document.querySelector('[data-audit-desk-chrome-sub]');
   if (sub) {
     sub.textContent = name === 'Не выбран'
-      ? 'Выберите чек-лист и заполните объект'
+      ? 'Выберите чек-лист'
       : name;
   }
 
@@ -371,6 +406,48 @@ function restoreTabAudit() {
   }
 }
 
+function planEmptyHtml(kind) {
+  const titles = {
+    nopin: 'План не выбран',
+    nopdf: 'Нет PDF у этажа',
+    nopdfjs: 'Превью недоступно',
+    fail: 'Не удалось загрузить план'
+  };
+  const hints = {
+    nopin: 'Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.',
+    nopdf: 'Выберите другой этаж через «на плане» в форме объекта.',
+    nopdfjs: 'PDF.js не загружен. Откройте точку через «на плане» в форме.',
+    fail: 'Повторите через «на плане» в форме объекта.'
+  };
+  const title = titles[kind] || titles.nopin;
+  const hint = hints[kind] || hints.nopin;
+  // Схематичный «чертёж» — декоративная заглушка, не настоящий план
+  const art = ''
+    + '<div class="audit-desk-plan-art" aria-hidden="true">'
+    + '  <svg viewBox="0 0 240 168" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    + '    <rect x="12" y="12" width="216" height="144" rx="6" class="audit-desk-plan-art-frame"/>'
+    + '    <path d="M12 56h216M12 112h216M80 12v144M160 12v144" class="audit-desk-plan-art-grid"/>'
+    + '    <rect x="28" y="28" width="40" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="92" y="28" width="56" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="172" y="28" width="40" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="28" y="72" width="56" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="108" y="72" width="48" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="172" y="72" width="40" height="28" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <rect x="28" y="120" width="184" height="20" rx="2" class="audit-desk-plan-art-room"/>'
+    + '    <circle cx="132" cy="86" r="7" class="audit-desk-plan-art-pin"/>'
+    + '    <circle cx="132" cy="86" r="3" class="audit-desk-plan-art-pin-core"/>'
+    + '  </svg>'
+    + '</div>';
+  return ''
+    + '<div class="audit-desk-plan-empty" data-audit-desk-plan-empty data-empty-kind="' + kind + '">'
+    + art
+    + '  <div class="audit-desk-plan-empty-copy">'
+    + '    <div class="audit-desk-plan-empty-title">' + title + '</div>'
+    + '    <p>' + hint + '</p>'
+    + '  </div>'
+    + '</div>';
+}
+
 function paintPlanPanel() {
   const stage = document.querySelector('[data-audit-desk-plan-stage]');
   const meta = document.querySelector('[data-audit-desk-plan-meta]');
@@ -384,10 +461,7 @@ function paintPlanPanel() {
 
   if (!pin || pin.x == null || pin.y == null) {
     if (meta) meta.textContent = '';
-    stage.innerHTML = ''
-      + '<div class="audit-desk-plan-empty" data-audit-desk-plan-empty>'
-      + '  <p>Точку на плане ставьте кнопкой «на плане» рядом с полем осей.</p>'
-      + '</div>';
+    stage.innerHTML = planEmptyHtml('nopin');
     return;
   }
 
@@ -404,10 +478,7 @@ function paintPlanPanel() {
   }
 
   if (!plan || !plan.pdf_url) {
-    stage.innerHTML = ''
-      + '<div class="audit-desk-plan-empty">'
-      + '  <p>У этажа нет PDF. Выберите другой этаж через «на плане» в форме объекта.</p>'
-      + '</div>';
+    stage.innerHTML = planEmptyHtml('nopdf');
     return;
   }
 
@@ -419,8 +490,7 @@ function paintPlanPanel() {
 async function renderPdfPreview(stage, pdfUrl, pin, token) {
   const pdfjs = window.pdfjsLib;
   if (!pdfjs) {
-    stage.innerHTML = ''
-      + '<div class="audit-desk-plan-empty"><p>PDF.js не загружен. Откройте точку через «на плане» в форме.</p></div>';
+    stage.innerHTML = planEmptyHtml('nopdfjs');
     return;
   }
 
@@ -460,10 +530,7 @@ async function renderPdfPreview(stage, pdfUrl, pin, token) {
   } catch (e) {
     if (token !== _previewToken) return;
     console.warn('[audit.desktop] plan preview failed', e);
-    stage.innerHTML = ''
-      + '<div class="audit-desk-plan-empty">'
-      + '  <p>Не удалось загрузить превью. Повторите через «на плане» в форме объекта.</p>'
-      + '</div>';
+    stage.innerHTML = planEmptyHtml('fail');
   }
 }
 
@@ -526,8 +593,21 @@ function bindHooks() {
   });
 
   window.addEventListener('hashchange', function () {
-    queueMicrotask(syncAuditDesktop);
+    queueMicrotask(function () {
+      setTimeout(syncAuditDesktop, 0);
+      setTimeout(syncAuditDesktop, 80);
+    });
   });
+
+  // AppRouter.navigate использует replaceState — hashchange не всегда приходит.
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('appMode:changed', function () {
+      queueMicrotask(function () {
+        setTimeout(syncAuditDesktop, 0);
+        setTimeout(syncAuditDesktop, 100);
+      });
+    });
+  }
 
   if (window.AppViews && typeof window.AppViews.renderAudit === 'function') {
     _origRenderAudit = window.AppViews.renderAudit;

@@ -775,6 +775,18 @@ var SettingsRender = {
                     </div>
                 </details>
 
+                <!-- ОНБОРДИНГ ПЛАТФОРМЫ -->
+                <div class="bg-[var(--card-bg)] border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-sm p-4 flex justify-between items-center gap-3 mb-3">
+                    <div class="min-w-0">
+                        <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight">Онбординг платформы</div>
+                        <div class="text-[10px] text-[var(--text-muted)] mt-1">Полный интерактивный тур по RBI Platform · Construction OS (Осмотр, Инженер, Аналитика, БЗ, СК, настройки)</div>
+                    </div>
+                    <button type="button" data-settings-action="startInteractiveTutorial"
+                        class="shrink-0 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-transform shadow-sm">
+                        Старт
+                    </button>
+                </div>
+
                  <!-- ИСТОРИЯ ИЗМЕНЕНИЙ (CHANGELOG) -->
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm p-4 flex justify-between items-center mb-3">
                     <div>
@@ -854,8 +866,10 @@ var SettingsRender = {
                             class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg> О приложении и Безопасности</button><br>
-                    RBI Platform PWA<br>Developed by Igor Kondratiev
+                        </svg> О платформе</button><br>
+                    <span class="font-black text-slate-600 dark:text-slate-300 tracking-wide">RBI Platform</span><br>
+                    Construction OS · ОС управления строительством<br>
+                    Developed by Igor Kondratiev
                 </div>
             </div>
             <div id="settings-panel-admin" data-settings-panel="admin" class="space-y-3" hidden>
@@ -866,7 +880,7 @@ var SettingsRender = {
 
                 <!-- СПРАВОЧНИК ЛОКАЦИЙ / ПЛАНОВ -->
                 <details id="location-directory-section"
-                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden" open>
+                    class="bg-[var(--card-bg)] border border-teal-200 dark:border-teal-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
                     <summary
                         class="p-4 font-black text-[12px] text-teal-700 dark:text-teal-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-teal-50 dark:bg-teal-900/20 transition-colors select-none group-open:border-b border-teal-200 dark:border-teal-800 rounded-2xl group-open:rounded-b-none">
                         <span class="flex items-center gap-2">
@@ -884,7 +898,7 @@ var SettingsRender = {
 
                 <!-- ОЧЕРЕДЬ ЗАЯВОК НА ОБЪЕКТЫ -->
                 <details id="admin-object-requests-section"
-                    class="bg-[var(--card-bg)] border border-orange-200 dark:border-orange-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3" open>
+                    class="bg-[var(--card-bg)] border border-orange-200 dark:border-orange-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
                     <summary
                         class="p-4 font-black text-[12px] text-orange-700 dark:text-orange-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-orange-50 dark:bg-orange-900/20 transition-colors select-none group-open:border-b border-orange-200 dark:border-orange-800 rounded-2xl group-open:rounded-b-none">
                         <span>Заявки на объекты</span>
@@ -930,7 +944,7 @@ var SettingsRender = {
 
                 <!-- КОМАНДА -->
                 <details id="admin-team-section"
-                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3" open>
+                    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3">
                     <summary
                         class="p-4 font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)] rounded-2xl group-open:rounded-b-none">
                         <span>Команда (доступы и объекты)</span>
@@ -938,7 +952,7 @@ var SettingsRender = {
                             class="bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-[var(--card-border)] px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Обновить</button>
                     </summary>
                     <div class="p-3 bg-[var(--hover-bg)] rounded-b-2xl space-y-3">
-                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden" open>
+                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden">
                             <summary class="text-[10px] font-black uppercase text-orange-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-orange-50 dark:bg-orange-900/20 p-2 rounded-lg border border-orange-100 dark:border-orange-800">
                                 <span>Заявки на доступ</span>
                                 <span class="text-orange-400">▼</span>
@@ -947,7 +961,7 @@ var SettingsRender = {
                                 <div class="text-center py-4 text-xs text-[var(--text-muted)]">Загрузка...</div>
                             </div>
                         </details>
-                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden" open>
+                        <details class="group/sub [&_summary::-webkit-details-marker]:hidden">
                             <summary class="text-[10px] font-black uppercase text-slate-500 mb-2 cursor-pointer flex justify-between items-center select-none bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <span>Активные пользователи</span>
                                 <span class="text-slate-400">▼</span>
@@ -1653,20 +1667,29 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (key === 'admin') {
             _mountAdminOpsContent();
         }
+        if (!opts.fromRouter && window.AppRouter && typeof window.AppRouter.navigateSub === 'function') {
+            window.AppRouter.navigateSub('#/settings', key);
+        }
     }
+
+    window.setSettingsSubsection = _setSettingsSubsection;
 
     window.unlockSettingsAdminTab = function () {
         _setSettingsSubsection('admin', { skipGate: true });
     };
 
     window.openSettingsAdminTab = function () {
+        if (window.AppRouter && typeof window.AppRouter.navigate === 'function') {
+            window.AppRouter.navigate('#/settings/admin');
+            return;
+        }
         if (typeof window.switchTab === 'function') {
             try { window.switchTab('tab-settings'); } catch (_e) { /* ignore */ }
         } else if (window.location) {
-            window.location.hash = '#/quality/settings';
+            window.location.hash = '#/settings/admin';
         }
         setTimeout(function () {
-            _setSettingsSubsection('admin');
+            _setSettingsSubsection('admin', { fromRouter: true });
         }, 80);
     };
 
@@ -1695,11 +1718,19 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (adminBtn) {
             adminBtn.classList.toggle('hidden', !_canSeeAdminTab());
         }
-        var initial = _getSettingsSubsection();
+        var initial = null;
+        if (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function') {
+            var hash = window.location.hash || '';
+            if (/#\/settings\//i.test(hash) || /#\/quality\/settings\//i.test(hash)) {
+                initial = window.AppRouter.subTabIdFromPath(hash, '#/settings');
+            }
+        }
+        if (!initial) initial = _getSettingsSubsection();
         if (initial === 'admin' && !_isAdminGateOk()) {
             initial = 'platform';
         }
-        _setSettingsSubsection(initial, { skipGate: true });
+        var fromHash = !!(window.location.hash || '').match(/#\/(?:quality\/)?settings\//i);
+        _setSettingsSubsection(initial, { skipGate: true, fromRouter: fromHash });
         if (initial === 'admin') {
             _mountAdminOpsContent();
         }
@@ -1711,7 +1742,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (document.getElementById('set-auto-collapse-filters')) {
             var acf = _getSetting('autoCollapseFilters');
             document.getElementById('set-auto-collapse-filters').value =
-                (acf === false || acf === 'manual') ? 'manual' : 'auto';
+                (acf === true || acf === 'auto') ? 'auto' : 'manual';
         }
         var _kbViewGet = window.getKnowledgeViewMode;
         var _kbViewFallback = _getSetting('knowledgeViewMode') || 'cards';

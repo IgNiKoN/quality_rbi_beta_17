@@ -688,6 +688,20 @@ body.modal-open {
     overflow-y: auto;
 }
 
+.app-sidebar-spacer {
+    flex: 1 1 auto;
+    min-height: 8px;
+    width: 100%;
+    pointer-events: none;
+}
+
+.app-sidebar-item--settings {
+    margin-top: auto;
+    border-top: 1px solid var(--card-border);
+    border-radius: 12px 12px 0 0;
+    padding-top: 10px;
+}
+
 .app-sidebar-item {
     display: flex;
     flex-direction: column;
@@ -1567,10 +1581,10 @@ body.nav-pos-bottom .sticky-subnav {
 }
 
 
-/* На широких экранах (ПК) — прижимаем к правому краю контейнера */
+/* На широких экранах (ПК) — правый нижний угол viewport (не центр колонки) */
 @media (min-width: 896px) {
     #fab-download-btn {
-        right: calc(50vw - 26rem + 8px);
+        right: 24px;
     }
 }
 
@@ -2073,6 +2087,18 @@ input[list]::-webkit-calendar-picker-indicator {
     border-radius: inherit;
 }
 
+#tutorial-overlay.hidden {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+#tutorial-tooltip.hidden {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
 #tut-highlight-box {
     position: fixed !important;
     /* Строго fixed, чтобы не прыгало при скролле */
@@ -2081,7 +2107,7 @@ input[list]::-webkit-calendar-picker-indicator {
     background-color: transparent !important;
     border-radius: 12px !important;
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    pointer-events: none;
+    pointer-events: none !important;
     opacity: 0;
 }
 
@@ -2102,6 +2128,20 @@ input[list]::-webkit-calendar-picker-indicator {
     transform: translateX(-50%) scale(1) !important;
     opacity: 1;
     visibility: visible;
+}
+
+/* Выход из демо: mobile/tablet — fixed; на ≥1280 уезжает в nav2 (.fab-exit-demo--nav2) */
+#fab-exit-demo {
+    z-index: 10040 !important;
+}
+#fab-exit-demo:not(.fab-exit-demo--nav2) {
+    /* чуть выше активных контролов контента на узком ПК без nav2 */
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+    body.has-app-sidebar #fab-exit-demo:not(.fab-exit-demo--nav2) {
+        left: 96px !important;
+        top: 10px !important;
+    }
 }
 
 /* === ФИКС ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ (v16.8.7) === */

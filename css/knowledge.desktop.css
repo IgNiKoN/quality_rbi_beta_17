@@ -20,7 +20,7 @@ body.rbi-knowledge-desktop-wide.has-desk-topbar {
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #app-root,
 body.rbi-knowledge-desktop-wide.has-desk-topbar #app-root.rbi-knowledge-desktop-wide {
-  padding-top: 52px !important;
+  padding-top: var(--desk-topbar-h) !important;
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #app-content {
@@ -39,84 +39,8 @@ body.rbi-knowledge-desktop-wide #tab-reference > .ref-sub-section {
   margin-top: 0.75rem !important;
 }
 
-/* ── Sticky knowledge subtabs ─────────────────────────────────────────── */
-
-body.rbi-knowledge-desktop-wide #reference-subtabs-block,
-body.nav-pos-bottom.rbi-knowledge-desktop-wide #reference-subtabs-block,
-body.nav-pos-top.rbi-knowledge-desktop-wide #reference-subtabs-block,
-body.nav-pos-auto.rbi-knowledge-desktop-wide #reference-subtabs-block {
-  position: -webkit-sticky !important;
-  position: sticky !important;
-  top: 0 !important;
-  bottom: auto !important;
-  left: auto !important;
-  right: auto !important;
-  width: calc(100% + 2rem) !important;
-  max-width: none !important;
-  margin: 0 -1rem !important;
-  padding: 0 !important;
-  z-index: 40 !important;
-  transform: none !important;
-  background: var(--card-bg) !important;
-  box-shadow: none !important;
-  box-sizing: border-box !important;
-  /* Tailwind transition-all на #reference-subtabs-block иначе анимирует top 70→52 */
-  transition: none !important;
-}
-
-body.rbi-knowledge-desktop-wide.has-desk-topbar #reference-subtabs-block,
-body.nav-pos-bottom.rbi-knowledge-desktop-wide.has-desk-topbar #reference-subtabs-block,
-body.nav-pos-top.rbi-knowledge-desktop-wide.has-desk-topbar #reference-subtabs-block,
-body.nav-pos-auto.rbi-knowledge-desktop-wide.has-desk-topbar #reference-subtabs-block {
-  top: 52px !important;
-}
-
-body.rbi-knowledge-desktop-wide #reference-subtabs-block > div {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: stretch !important;
-  justify-content: stretch !important;
-  gap: 0 !important;
-  width: 100% !important;
-  max-width: none !important;
-  height: 48px !important;
-  padding: 0 !important;
-  background: var(--card-bg) !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--card-border) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  overflow-x: auto !important;
-  backdrop-filter: none !important;
-}
-
-body.rbi-knowledge-desktop-wide #reference-subtabs-block .sub-tab-btn {
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
-  height: 100% !important;
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  text-transform: none !important;
-  padding: 0 10px !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border-bottom: 2px solid transparent !important;
-  color: var(--text-muted) !important;
-  white-space: nowrap !important;
-}
-
-body.rbi-knowledge-desktop-wide #reference-subtabs-block .sub-tab-btn svg {
-  width: 16px !important;
-  height: 16px !important;
-  flex-shrink: 0 !important;
-}
-
+/* Sticky knowledge subtabs — css/rbi-ui.css
+ * Ignore leftover bg-white; only .active drives underline */
 body.rbi-knowledge-desktop-wide #reference-subtabs-block .sub-tab-btn.bg-white,
 body.rbi-knowledge-desktop-wide #reference-subtabs-block .sub-tab-btn.text-indigo-600 {
   background: transparent !important;
@@ -3888,5 +3812,63 @@ body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-photo-empty {
 
   body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-meta-row {
     grid-template-columns: 100px 1fr !important;
+  }
+}
+
+
+/* === Density tiers (≥1920 / ≥2560) — rails + reading max-width === */
+@media (min-width: 1920px) {
+  body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-split {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) !important;
+    gap: calc(12px * var(--desk-gap-bump)) !important;
+  }
+  body.rbi-knowledge-desktop-wide #ref-sub-docs .kb-desk-docs-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-split {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) !important;
+    gap: calc(12px * var(--desk-gap-bump)) !important;
+  }
+
+  /* Pane (viewer) на всю колонку split; кап+центр у тел чтения (не PDF/docs — им нужна ширина) */
+  body.rbi-knowledge-desktop-wide #ref-sub-docs .kb-desk-docs-viewer,
+  body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-viewer,
+  body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-viewer,
+  body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-viewer,
+  body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-viewer {
+    max-width: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-viewer-body,
+  body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-viewer-body,
+  body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-viewer-body,
+  body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-viewer-body {
+    max-width: var(--desk-read-max) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  body.rbi-knowledge-desktop-wide #ref-sub-docs .kb-desk-docs-viewer-title,
+  body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-viewer-title,
+  body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-viewer-title,
+  body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-viewer-title,
+  body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-cl-doc-title {
+    font-size: calc(1.05em * var(--desk-type-bump)) !important;
+  }
+}
+
+@media (min-width: 2560px) {
+  body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-split {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr) !important;
+  }
+  body.rbi-knowledge-desktop-wide #ref-sub-docs .kb-desk-docs-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-split,
+  body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-split {
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr) !important;
   }
 }

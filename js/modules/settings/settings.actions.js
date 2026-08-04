@@ -77,13 +77,15 @@
             var data = await _storage().get(_storage().stores().SETTINGS, 'user_prefs');
             if (data) Object.assign(window.appSettings, data);
 
-            var savedTheme = _rbiGetSavedThemePreference();
-
-            if (savedTheme) {
-                window.appSettings.theme = savedTheme;
-            } else if (!RBI_ALLOWED_THEMES_LOCAL.includes(window.appSettings.theme)) {
-                window.appSettings.theme = 'auto';
-                _rbiSaveThemePreference('auto');
+            // IDB/user_prefs — источник истины после sync между устройствами.
+            // localStorage только зеркало для ранней отрисовки; раньше он
+            // перетирал облачную тему при reload.
+            if (RBI_ALLOWED_THEMES_LOCAL.includes(window.appSettings.theme)) {
+                _rbiSaveThemePreference(window.appSettings.theme);
+            } else {
+                var savedTheme = _rbiGetSavedThemePreference();
+                window.appSettings.theme = savedTheme || 'auto';
+                _rbiSaveThemePreference(window.appSettings.theme);
             }
 
         } catch (e) {
@@ -164,54 +166,42 @@
     function _resetSettingsToDefault() {
         if (!confirm('Сбросить все настройки к значениям по умолчанию?')) return;
 
-        var defaults = {
-            userRole: 'engineer',
-            cloudStatus: 'offline',
-            assignedProjects: [],
-            assignedContractor: '',
-            contractorName: '',
-            theme: 'auto', engineerName: '', defaultProject: '', fontSize: 'medium', navPosition: 'auto', swipeEnabled: false,
-            autoCollapseOk: false, autoCollapseFilters: 'auto', uiMotionEnabled: true, hardOverscrollLock: false, defaultGroupsCollapsed: false, fastMode: false,
-            soundEnabled: true, autoSave: true, aiEnabled: false, autoCacheCloudFiles: true, pushEnabled: false, storageMode: 'adaptive',
-            storageAutoCleanupEnabled: true,
-            storageSilentCleanupEnabled: true,
-            storageKeepAllIfFreeMB: 2048,
-            storageSoftCleanupFreeMB: 1000,
-            storageNormalCleanupFreeMB: 500,
-            storageCriticalCleanupFreeMB: 250,
-            storageSoftThresholdPercent: 60,
-            storageCleanupThresholdPercent: 80,
-            storageCriticalThresholdPercent: 90,
-            storageInspectionPhotoTtlDays: 60,
-            storageKnowledgeFileTtlDays: 45,
-            storageReportTtlDays: 30,
-            storageTwiTtlDays: 90,
-            storageNodeTtlDays: 90,
-            storagePracticeTtlDays: 60,
-            storageDocTtlDays: 60,
-            storageCleanupOnlyCloudBackedFiles: true,
-            storageLastCleanupAt: null,
-            storagePersistentRequestedAt: null,
-            storagePersistentGranted: false, aiAuto: false, apiKey: '', dashboardMode: 'compact',
-            knowledgeViewMode: 'cards',
-            knowledgeViewModeTwi: 'cards',
-            knowledgeViewModeDocs: 'cards',
-            knowledgeViewModeNodes: 'cards',
-            knowledgeViewModePractices: 'cards',
-            knowledgeViewModeReports: 'cards',
-            knowledgeViewModeMeetings: 'cards',
-            knowledgeViewModeFmea: 'cards',
-            anaEngPareto: true, anaOpTrend: true, anaOpLeader: true, anaEngAi: true, anaEngPhotos: true, anaOpTopDefects: true,
-            autoBackupEnabled: false, autoBackupDay: '5', autoBackupShare: false, autoManagerEnabled: false, autoManagerDay: '5',
-            brandColor: '#1c2b39', brandLogo: '', autoReportEnabled: false, autoReportDay: '1', autoReportType: 'global_onepager'
+        var svc = (window.SettingsActions && window.SettingsActions._ctx && window.SettingsActions._ctx.settings) ||
+                  (window.RBI && window.RBI.services && window.RBI.services.settings);
+        var defaults = (svc && typeof svc.getDefaults === 'function')
+            ? svc.getDefaults()
+            : {
+                theme: 'auto', fontSize: 'medium', navPosition: 'auto', dashboardMode: 'compact',
+                autoCollapseFilters: 'manual', uiMotionEnabled: true, swipeEnabled: false
+            };
+
+        // Роль/объекты/имя — из профиля sync, не трогаем «заводским» сбросом UI
+        var AUTH_KEEP = {
+            userRole: 1,
+            cloudStatus: 1,
+            assignedProjects: 1,
+            pendingAssignedProjects: 1,
+            pendingUnassignProjects: 1,
+            assignedContractor: 1,
+            contractorName: 1,
+            engineerName: 1,
+            defaultProject: 1
         };
+        var preserved = {};
+        Object.keys(AUTH_KEEP).forEach(function (k) {
+            if (window.appSettings && Object.prototype.hasOwnProperty.call(window.appSettings, k)) {
+                preserved[k] = window.appSettings[k];
+            }
+        });
+
         // Мутируем существующий объект, чтобы не разрывать ссылку с app.js (let appSettings)
         Object.keys(window.appSettings).forEach(function (k) { delete window.appSettings[k]; });
-        Object.assign(window.appSettings, defaults);
-        _rbiSaveThemePreference('auto');
+        Object.assign(window.appSettings, defaults, preserved);
         window.appSettings.theme = 'auto';
+        window.appSettings.settingsUpdatedAt = Date.now();
+        _rbiSaveThemePreference('auto');
 
-        _saveSettings('dummy', 'dummy');
+        _saveSettings('theme', 'auto');
         if (typeof window.renderSettingsTab === 'function') window.renderSettingsTab();
         if (typeof window.applySettingsToUI === 'function') window.applySettingsToUI();
 
@@ -316,7 +306,7 @@
         document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-[14px] flex items-center justify-center border border-slate-200 dark:border-slate-700 mx-auto"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>`;
         document.getElementById('modal-title').innerHTML = `
     <div style="text-align: center;">
-        RBI Quality <span class="splash-pro">PRO</span>
+        RBI <span class="splash-pro">Platform</span>
     </div>
 `;
 
@@ -324,70 +314,72 @@
         <div class="space-y-4 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300">
             
             <div class="text-center font-bold text-indigo-600 dark:text-indigo-400 mb-2">
-                Система управления качеством на основе данных <br> (Data-Driven Quality)
+                Construction OS<br>
+                <span class="font-medium text-[11px] text-slate-500 dark:text-slate-400">Операционная система управления строительством</span>
             </div>
 
             <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-4 rounded-xl shadow-sm">
                 <h4 class="font-black text-indigo-800 dark:text-indigo-300 mb-2 uppercase tracking-wider flex items-center gap-1.5"><span class="text-lg"></span> Архитектура и Безопасность</h4>
-                <p class="mb-2">Приложение построено по технологии <b>PWA (Progressive Web App)</b> и работает полностью автономно.</p>
+                <p class="mb-2">Платформа построена по технологии <b>PWA (Progressive Web App)</b> и работает полностью автономно.</p>
                 <ul class="list-disc pl-4 space-y-1.5 text-[11px] text-indigo-900 dark:text-indigo-200 mb-3">
-                    <li><b>Offline-First:</b> Приложение является "клиентским контейнером". Все проверки, фотографии, PDF-файлы и созданные справочники сохраняются <b>исключительно в изолированной базе данных (IndexedDB) вашего устройства</b>.</li>
-                    <li><b>Локальные вычисления:</b> Вся сложная математика, генерация аналитики и сборка PDF-отчетов происходит за счет процессора вашего телефона/ПК. Данные не передаются на сторонние серверы для обработки.</li>
+                    <li><b>Offline-First:</b> Клиентский контейнер: проверки, фото, PDF и справочники живут <b>в IndexedDB вашего устройства</b>.</li>
+                    <li><b>Локальные вычисления:</b> Аналитика и PDF собираются на устройстве — данные не уходят на сторонние серверы для обработки.</li>
                 </ul>
                 <div class="bg-white/60 dark:bg-indigo-950/50 p-2.5 rounded-lg border border-indigo-200 dark:border-indigo-700/50 text-[10px] font-bold leading-snug text-indigo-800 dark:text-indigo-300">
-                    🔒 <b>О размещении:</b> Так как это моя личная разработка, приложение базируется на личном сервере <b>rbi-q.ru</b> и не планируется к переносу на иные коммерческие серверы. Это абсолютно безопасно для корпоративного использования, так как сервер отдает только программный "каркас" (HTML/CSS/JS). Демо-данные и встроенные чек-листы скомпилированы из открытых источников (ГОСТ, СП). Реальные коммерческие данные со строек <b>никогда не покидают ваше устройство, без явного согласия и подключения к серверу синхронизации </b>.
+                    🔒 <b>О размещении:</b> Каркас (HTML/CSS/JS) отдаётся с <b>rbi-q.ru</b>. Демо и системные чек-листы — из открытых источников (ГОСТ, СП). Коммерческие данные строек <b>не покидают устройство без явного согласия и подключения синхронизации</b>.
                 </div>
             </div>
 
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl shadow-sm">
     <h4 class="font-black text-slate-800 dark:text-white mb-3 uppercase tracking-wider flex items-center gap-1.5">
         <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-        Единая экосистема управления качеством жизненного цикла объекта
+        Продукты на едином ядре платформы
     </h4>
 
     <div class="space-y-3 text-[11px]">
         <div>
-            <b class="text-slate-900 dark:text-white text-[12px]">1. Контроль качества (RBI Quality):</b><br>
+            <b class="text-slate-900 dark:text-white text-[12px]">1. RBI Quality — управление качеством:</b><br>
             Осмотр по чек‑листам (B1/B2/B3), эскалация >1,5x, фото с разметкой. Расчёт УрК, ИУрК, ИКО, Impact Score, стабильности подрядчика. Геймификация инженеров (XP, ранги, ачивки), планировщик задач с ИИ.
         </div>
         <div class="border-t border-slate-100 dark:border-slate-700 pt-2">
-            <b class="text-slate-900 dark:text-white text-[12px]">2. Стройконтроль (Construction Control):</b><br>
-            Иерархия объект → корпус → этаж, привязка PDF‑планов, нанесение дефектов с координатами. Журнал заявок на приёмку работ, выделение зон на плане. Импорт из ПК Стройконтроль, расчёт ИСД, CMI, KPI инженеров СК, AI‑генерация писем прорабам.
+            <b class="text-slate-900 dark:text-white text-[12px]">2. RBI Construction Control — стройконтроль:</b><br>
+            Иерархия объект → корпус → этаж, PDF‑планы, дефекты с координатами. Журнал приёмки, зоны на плане. Импорт из ПК Стройконтроль, ИСД, CMI, KPI инженеров СК, AI‑письма прорабам.
         </div>
         <div class="border-t border-slate-100 dark:border-slate-700 pt-2">
             <b class="text-slate-900 dark:text-white text-[12px]">3. Аналитика и отчёты:</b><br>
-            Динамические графики (тренды, Парето, тепловые карты), One‑Pager с ИИ‑резюме, QR‑код для публичного доступа. Глобальная сводка по компании, рейтинги подрядчиков и инженеров. Выгрузка в PDF (A3/A4) и Excel, брендирование отчётов.
+            Тренды, Парето, тепловые карты, One‑Pager с ИИ‑резюме, QR для публичного доступа. Сводки, рейтинги, PDF/Excel, брендирование.
         </div>
         <div class="border-t border-slate-100 dark:border-slate-700 pt-2">
             <b class="text-slate-900 dark:text-white text-[12px]">4. База знаний (TWI, узлы, НД):</b><br>
-            Визуальные стандарты TWI (технадзор / рабочие инструкции / регламенты), технические узлы со спецификациями, справочник ГОСТ/СП с полнотекстовым поиском и AI‑чатом. Лучшие практики и акты‑эталоны, привязка к чек‑листам.
+            Визуальные стандарты TWI, технические узлы, ГОСТ/СП с поиском и AI‑чатом. Практики и эталоны, привязка к чек‑листам.
         </div>
         <div class="border-t border-slate-100 dark:border-slate-700 pt-2">
-            <b class="text-slate-900 dark:text-white text-[12px]">5. Offline‑синхронизация и ролевая модель:</b><br>
-            Полная автономная работа (Offline‑First) с последующей синхронизацией через Supabase. Роли: гость, подрядчик, инженер, руководитель проекта, заместитель, директор, администратор. Разграничение доступа к объектам, данным, функциям (RLS на сервере + клиентская маршрутизация).
+            <b class="text-slate-900 dark:text-white text-[12px]">5. Offline‑синхронизация и роли:</b><br>
+            Offline‑First + sync через Supabase. Роли от гостя до администратора, RLS и клиентская маршрутизация по объектам.
         </div>
         <div class="border-t border-slate-100 dark:border-slate-700 pt-2">
-            <b class="text-slate-900 dark:text-white text-[12px]">6. Искусственный интеллект (DeepSeek):</b><br>
-            Генерация управленческих резюме, прогноз рисков, автозаполнение FMEA и TWI, AI‑чат по нормативной базе, маршрутизация задач, анализ обратной связи. Работает как в онлайн, так и в гибридном режиме.
+            <b class="text-slate-900 dark:text-white text-[12px]">6. ИИ (DeepSeek):</b><br>
+            Управленческие резюме, прогноз рисков, FMEA/TWI, чат по НД, маршрутизация задач — онлайн и гибрид.
         </div>
     </div>
 
     <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 italic">
-        ⚙️ В разработке / планах: передача квартир (шахматка + акты), гарантийное обслуживание, охрана труда и безопасность, управляющая компания. Полная цифровизация жизненного цикла объекта.
+        ⚙️ Дальше на ядре: передача квартир, гарантия, охрана труда, УК и другие продукты жизненного цикла объекта.
     </div>
 </div>
 
             <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-4 rounded-xl shadow-sm">
                 <h4 class="font-black text-amber-800 dark:text-amber-400 mb-2 uppercase tracking-wider flex items-center gap-1.5"><span class="text-lg">🚀</span> Ближайшее развитие (Roadmap)</h4>
                 <ul class="list-disc pl-4 text-[11px] text-amber-900 dark:text-amber-200 space-y-1.5">
-                    <li><b>Завершение Beta-тестирования:</b> Обкатка приложения на реальных строительных объектах, выявление и исправление "плавающих" багов.</li>
-                    <li><b>Глубокая оптимизация:</b> Ускорение рендеринга интерфейса при огромных массивах данных, улучшение алгоритмов сжатия загружаемых фотографий.</li>
-                    <li><b>Наполнение Базы Знаний:</b> Масштабная оцифровка нормативной документации (СП, ГОСТ), создание системных чек-листов, библиотеки узлов и эталонных TWI-карт для всех основных видов СМР.</li>
+                    <li><b>Завершение Beta:</b> обкатка на реальных объектах, стабилизация.</li>
+                    <li><b>Оптимизация:</b> рендер больших данных, сжатие фото.</li>
+                    <li><b>База знаний:</b> СП/ГОСТ, системные чек‑листы, узлы и TWI по основным видам СМР.</li>
                 </ul>
             </div>
             
             <div class="text-center text-[9px] text-slate-400 uppercase tracking-widest font-black mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
-                Спроектировано и разработано для профессионального управления качеством<br>
+                RBI Platform · Construction OS<br>
+                Операционная система управления строительством
             </div>
         </div>
     `;

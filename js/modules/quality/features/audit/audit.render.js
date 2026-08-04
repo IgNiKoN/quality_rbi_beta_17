@@ -273,15 +273,15 @@ import { AuditActions } from './audit.actions.js';
                             <div class="flex items-center gap-2">
                                 <div
                                     class="text-[11px] font-black uppercase tracking-tight text-slate-800 dark:text-white">
-                                    Обучение
+                                    Онбординг
                                 </div>
                                 <span
                                     class="text-[7px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded-md dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300">
-                                    Интерактивный тур
+                                    44 шага
                                 </span>
                             </div>
                             <div class="text-[9.5px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                                Пошаговый маршрут по осмотрам, задачам, TWI, ПК СК и аналитике.
+                                Полный тур по платформе: Осмотр, Инженер, Аналитика, БЗ, СК и настройки (ПК и телефон).
                             </div>
                         </div>
 
