@@ -244,6 +244,13 @@ console.log('[RBI Module] construction.render loaded');
 // консистентности.
 // =========================================================================
 (function mountConstructionMarkup() {
+  if (typeof window.rbiEnsureTabMarkup === 'function' && typeof ConstructionRender !== 'undefined') {
+    var html = function () { return ConstructionRender.renderMarkup(); };
+    window.rbiEnsureTabMarkup('tab-construction-defects', html, '#const-object-select');
+    window.rbiEnsureTabMarkup('tab-transfer', html, '#transfer-object-select');
+    window.rbiEnsureTabMarkup('tab-construction-acceptance', html, '#acceptance-list-container');
+    return;
+  }
   if (document.getElementById('tab-construction-defects')) return;
   var root = window.RBI && window.RBI.services && window.RBI.services.shell
     ? window.RBI.services.shell.getContentRoot()
@@ -251,6 +258,21 @@ console.log('[RBI Module] construction.render loaded');
   if (!root) return;
   root.insertAdjacentHTML('beforeend', ConstructionRender.renderMarkup());
 }());
+
+window.ensureConstructionMarkup = function (tabId) {
+  var id = tabId || 'tab-construction-defects';
+  var markers = {
+    'tab-construction-defects': '#const-object-select',
+    'tab-transfer': '#transfer-object-select',
+    'tab-construction-acceptance': '#acceptance-list-container'
+  };
+  if (typeof window.rbiEnsureTabMarkup === 'function') {
+    return window.rbiEnsureTabMarkup(id, function () {
+      return ConstructionRender.renderMarkup();
+    }, markers[id] || null);
+  }
+  return !!document.getElementById(id);
+};
 
 console.log('[ConstructionRender] construction.render.js markup mounted');
 

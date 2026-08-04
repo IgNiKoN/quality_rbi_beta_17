@@ -622,6 +622,11 @@ const AppModeManager = {
 
         nav.innerHTML = html;
 
+        if (window.RBI && window.RBI.shellDesktop && typeof window.RBI.shellDesktop.fillNav2 === 'function') {
+            window.RBI.shellDesktop.fillNav2(html, this.currentMode);
+        }
+
+        if (typeof updateBodyPadding === 'function') updateBodyPadding();
         if (window.AppRouter) window.AppRouter.updateNavHighlight(window.location.hash);
     }
 };

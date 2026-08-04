@@ -546,7 +546,15 @@ export async function buildMeetingProtocolHtml(meet) {
         }).join('');
     }
 
-    const meetDate = meet.date ? new Date(meet.date).toLocaleDateString('ru-RU') : '';
+    const meetDate = (function (raw) {
+        const s = String(raw || '').trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return m[3] + '.' + m[2] + '.' + m[1];
+        if (!raw) return '';
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('ru-RU');
+    })(meet.date);
     const author = _esc(meet.author || '');
 
     return `

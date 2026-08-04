@@ -767,7 +767,8 @@ body.modal-open {
        (viewport - 88px), что и .header-fixed/.bottom-nav.nav-auto (left:88px).
        box-sizing:border-box обязателен — иначе padding расширяет body
        за пределы 100vw (см. правило body{width:100vw}), и overflow-x:clip
-       обрезает содержимое справа вместо визуального сдвига влево. */
+       обрезает содержимое справа вместо визуального сдвига влево.
+       Desktop shell B (nav2 / topbar / full-width) — в css/app-shell.desktop.css. */
     body.has-app-sidebar {
         box-sizing: border-box;
         padding-left: 88px;

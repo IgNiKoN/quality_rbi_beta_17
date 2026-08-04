@@ -359,6 +359,22 @@
             return window.renderBadPhoto(src);
         },
 
+        refreshTwiPhotoCandidates: function (opts) {
+            if (typeof window.refreshTwiPhotoCandidates !== 'function') {
+                console.warn('[RBI Knowledge Service] window.refreshTwiPhotoCandidates недоступен');
+                return;
+            }
+            return window.refreshTwiPhotoCandidates(opts);
+        },
+
+        cycleTwiConstructorPhoto: function (side) {
+            if (typeof window.cycleTwiConstructorPhoto !== 'function') {
+                console.warn('[RBI Knowledge Service] window.cycleTwiConstructorPhoto недоступен');
+                return;
+            }
+            return window.cycleTwiConstructorPhoto(side);
+        },
+
         openItemHelp: function (id, event) {
             if (typeof window.openItemHelpMenu !== 'function') {
                 console.warn('[RBI Knowledge Service] window.openItemHelpMenu недоступен');

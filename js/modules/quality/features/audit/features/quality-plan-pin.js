@@ -70,15 +70,27 @@ function _updateLocationFromStructured() {
   if (typeof fn === 'function') fn();
 }
 
+/** Sections under a building. */
+function _sectionsUnderBuilding(loc, buildingId) {
+  return (loc.getChildren(buildingId) || []).filter(function (n) {
+    return !n.nodeType || n.nodeType === 'section';
+  });
+}
+
+/** Floors under one section. */
+function _floorsUnderSection(loc, sectionId) {
+  return (loc.getChildren(sectionId) || []).filter(function (n) {
+    return n.nodeType === 'floor';
+  });
+}
+
 /** Floors under a building (building → sections → floors). */
 function _floorsUnderBuilding(loc, buildingId) {
-  const sections = loc.getChildren(buildingId) || [];
+  const sections = _sectionsUnderBuilding(loc, buildingId);
   const floors = [];
   for (let i = 0; i < sections.length; i++) {
-    const kids = loc.getChildren(sections[i].id) || [];
-    for (let j = 0; j < kids.length; j++) {
-      if (kids[j].nodeType === 'floor') floors.push(kids[j]);
-    }
+    const kids = _floorsUnderSection(loc, sections[i].id);
+    for (let j = 0; j < kids.length; j++) floors.push(kids[j]);
   }
   return floors;
 }
@@ -348,6 +360,7 @@ function _showPicker(onPickFloor) {
   let step = 'object';
   let objectId = null;
   let buildingId = null;
+  let sectionId = null;
 
   // Entry A: if form project is linked → start at building under that object
   const projEl = document.getElementById('inp-project');
@@ -385,6 +398,28 @@ function _showPicker(onPickFloor) {
     if (e.target === overlay) close();
   });
 
+  const showFloorsForSection = function (sid) {
+    sectionId = sid;
+    step = 'floor';
+    stepLabel.textContent = 'Этаж';
+    renderList(_floorsUnderSection(loc, sectionId), 'Нет этажей');
+  };
+
+  /** After корпус: always offer секции when they exist; else flat floors. */
+  const afterBuilding = function (bid) {
+    buildingId = bid;
+    const sections = _sectionsUnderBuilding(loc, buildingId);
+    if (sections.length === 0) {
+      step = 'floor';
+      stepLabel.textContent = 'Этаж';
+      renderList(_floorsUnderBuilding(loc, buildingId), 'Нет этажей');
+      return;
+    }
+    step = 'section';
+    stepLabel.textContent = 'Секция';
+    renderList(sections, 'Нет секций');
+  };
+
   const renderList = function (items, emptyMsg) {
     if (!items.length) {
       listEl.innerHTML = `<div class="p-4 text-center text-[11px] text-slate-400 font-bold uppercase">${_escape(emptyMsg)}</div>`;
@@ -409,10 +444,9 @@ function _showPicker(onPickFloor) {
             'Нет корпусов'
           );
         } else if (step === 'building') {
-          buildingId = id;
-          step = 'floor';
-          stepLabel.textContent = 'Этаж';
-          renderList(_floorsUnderBuilding(loc, buildingId), 'Нет этажей');
+          afterBuilding(id);
+        } else if (step === 'section') {
+          showFloorsForSection(id);
         } else if (step === 'floor') {
           close();
           onPickFloor(id);

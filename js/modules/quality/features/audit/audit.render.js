@@ -871,6 +871,12 @@ import { AuditActions } from './audit.actions.js';
   // список чек-листов останется пустым при первой загрузке (см. план блока).
   // =========================================================================
   (function mountAuditMarkup() {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+      window.rbiEnsureTabMarkup('tab-audit', function () {
+        return AuditRender.renderMarkup();
+      }, '#empty-checklist-state');
+      return;
+    }
     if (document.getElementById('tab-audit')) return;
     var root = window.RBI && window.RBI.services && window.RBI.services.shell
       ? window.RBI.services.shell.getContentRoot()
@@ -878,6 +884,15 @@ import { AuditActions } from './audit.actions.js';
     if (!root) return;
     root.insertAdjacentHTML('afterbegin', AuditRender.renderMarkup());
   }());
+
+  window.ensureAuditMarkup = function () {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+      return window.rbiEnsureTabMarkup('tab-audit', function () {
+        return AuditRender.renderMarkup();
+      }, '#empty-checklist-state');
+    }
+    return !!document.getElementById('tab-audit');
+  };
 
   // =========================================================================
   // МОДАЛКИ РАСЧЕТОВ (По клику на мини-дашборд)

@@ -317,6 +317,7 @@ function _floorsUnderBuilding(loc, buildingId) {
     const sections = loc.getChildren(buildingId) || [];
     const floors = [];
     for (let i = 0; i < sections.length; i++) {
+        if (sections[i].nodeType && sections[i].nodeType !== 'section') continue;
         const kids = loc.getChildren(sections[i].id) || [];
         for (let j = 0; j < kids.length; j++) {
             if (kids[j].nodeType === 'floor') floors.push(kids[j]);
@@ -343,7 +344,7 @@ function _resolveLocationObject(loc, projectName) {
     }) || null;
 }
 
-/** PDF floors for a location object: { id, name, buildingName }[] */
+/** PDF floors for a location object with building/section meta. */
 function _pdfFloorsForObject(loc, objectNode) {
     if (!loc || !objectNode) return [];
     const buildings = (loc.getChildren(objectNode.id) || []).filter(function (n) {
@@ -351,14 +352,25 @@ function _pdfFloorsForObject(loc, objectNode) {
     });
     const rows = [];
     buildings.forEach(function (b) {
-        _floorsUnderBuilding(loc, b.id).forEach(function (f) {
-            const plan = loc.getPlanForFloor(f.id);
-            if (!plan || !plan.pdf_url) return;
-            rows.push({
-                id: String(f.id),
-                name: f.displayName || f.id,
-                buildingName: b.displayName || '',
-                buildingsCount: buildings.length
+        const sections = (loc.getChildren(b.id) || []).filter(function (n) {
+            return !n.nodeType || n.nodeType === 'section';
+        });
+        sections.forEach(function (s) {
+            const kids = loc.getChildren(s.id) || [];
+            kids.forEach(function (f) {
+                if (f.nodeType !== 'floor') return;
+                const plan = loc.getPlanForFloor(f.id);
+                if (!plan || !plan.pdf_url) return;
+                rows.push({
+                    id: String(f.id),
+                    name: f.displayName || f.id,
+                    buildingId: String(b.id),
+                    buildingName: b.displayName || '',
+                    buildingsCount: buildings.length,
+                    sectionId: String(s.id),
+                    sectionName: s.displayName || 'Секция',
+                    sectionsCount: sections.length
+                });
             });
         });
     });
@@ -374,11 +386,88 @@ function _pinItemsOnFloor(filteredArr, floorId) {
     });
 }
 
-function _floorRowLabel(row) {
+/** Floor button label inside a section group (building prefix only if multi-building & flat). */
+function _floorRowLabel(row, grouped) {
+    if (grouped) return row.name;
     if (row.buildingsCount > 1 && row.buildingName) {
         return row.buildingName + ' · ' + row.name;
     }
     return row.name;
+}
+
+/** Group PDF floor rows: building → section → floors. */
+function _groupPdfFloors(floors) {
+    const buildings = [];
+    const bMap = new Map();
+    (floors || []).forEach(function (row) {
+        const bKey = row.buildingId || row.buildingName || '_';
+        let b = bMap.get(bKey);
+        if (!b) {
+            b = {
+                buildingId: row.buildingId,
+                buildingName: row.buildingName || '',
+                buildingsCount: row.buildingsCount || 1,
+                sections: [],
+                sMap: new Map()
+            };
+            bMap.set(bKey, b);
+            buildings.push(b);
+        }
+        const sKey = row.sectionId || row.sectionName || '_';
+        let s = b.sMap.get(sKey);
+        if (!s) {
+            s = {
+                sectionId: row.sectionId,
+                sectionName: row.sectionName || 'Секция',
+                floors: []
+            };
+            b.sMap.set(sKey, s);
+            b.sections.push(s);
+        }
+        s.floors.push(row);
+    });
+    buildings.forEach(function (b) { delete b.sMap; });
+    return buildings;
+}
+
+function _floorBtnHtml(row, count, grouped) {
+    const countCls = count === 0
+        ? 'text-slate-400 dark:text-slate-500'
+        : 'text-indigo-600 dark:text-indigo-400';
+    const emptyHint = count === 0
+        ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">пусто</span>'
+        : '';
+    return `<button type="button" data-hist-plans-floor="${_escAttr(row.id)}"
+        class="w-full text-left flex items-center justify-between gap-2 px-3 py-2.5 mb-1.5 last:mb-0 rounded-xl box-border
+               bg-white dark:bg-slate-800 border border-[var(--card-border)]
+               hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20
+               transition-colors">
+        <span class="min-w-0 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escHtml(_floorRowLabel(row, grouped))}</span>
+        <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(count === 1 ? 'точка' : (count > 1 && count < 5 ? 'точки' : 'точек'))}${emptyHint}</span>
+    </button>`;
+}
+
+/** Build floors HTML with building/section group headers. Returns { html, totalPins }. */
+function _buildGroupedFloorRowsHtml(floors, filteredArr) {
+    let totalPins = 0;
+    const groups = _groupPdfFloors(floors);
+    const showBuilding = groups.length > 1;
+    const parts = [];
+    groups.forEach(function (b) {
+        if (showBuilding && b.buildingName) {
+            parts.push(`<div class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-2 mb-1 first:mt-0">${_escHtml(b.buildingName)}</div>`);
+        }
+        b.sections.forEach(function (s) {
+            parts.push(`<div class="text-[10px] font-bold text-indigo-600/80 dark:text-indigo-400/90 mt-1.5 mb-1 px-0.5">${_escHtml(s.sectionName)}</div>`);
+            s.floors.forEach(function (row) {
+                const pinItems = _pinItemsOnFloor(filteredArr, row.id);
+                _histPlansFloorItems.set(String(row.id), pinItems);
+                totalPins += pinItems.length;
+                parts.push(_floorBtnHtml(row, pinItems.length, true));
+            });
+        });
+    });
+    return { html: parts.join(''), totalPins: totalPins };
 }
 
 let _histPlansDelegationBound = false;
@@ -433,6 +522,8 @@ function _renderHistoryPlansList(filteredArr) {
         return;
     }
 
+    // Как desktop History plans: объекты из проверок + объекты справочника с PDF
+    // (новые планы без актов иначе не попадают в мобильный список).
     const projectNames = [];
     const seenProj = new Set();
     (filteredArr || []).forEach(function (item) {
@@ -442,6 +533,19 @@ function _renderHistoryPlansList(filteredArr) {
             projectNames.push(pName);
         }
     });
+    try {
+        const objects = (typeof loc.listNodes === 'function'
+            ? loc.listNodes({ nodeType: 'object', parentId: null })
+            : []) || [];
+        objects.forEach(function (o) {
+            const name = o.displayName || o.canonical_key;
+            if (!name || seenProj.has(name)) return;
+            if (_pdfFloorsForObject(loc, o).length) {
+                seenProj.add(name);
+                projectNames.push(name);
+            }
+        });
+    } catch (_e) { /* ignore */ }
     projectNames.sort(_histCollator().compare);
 
     const blocks = [];
@@ -451,28 +555,9 @@ function _renderHistoryPlansList(filteredArr) {
         const floors = _pdfFloorsForObject(loc, obj);
         if (!floors.length) return;
 
-        let totalPins = 0;
-        const floorRows = floors.map(function (row) {
-            const pinItems = _pinItemsOnFloor(filteredArr, row.id);
-            _histPlansFloorItems.set(String(row.id), pinItems);
-            const count = pinItems.length;
-            totalPins += count;
-            const countCls = count === 0
-                ? 'text-slate-400 dark:text-slate-500'
-                : 'text-indigo-600 dark:text-indigo-400';
-            const emptyHint = count === 0
-                ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">пусто</span>'
-                : '';
-            // Padding на родителе + без scale: иначе overflow .rbi-acc-inner обрезает border/shadow.
-            return `<button type="button" data-hist-plans-floor="${_escAttr(row.id)}"
-                class="w-full text-left flex items-center justify-between gap-2 px-3 py-2.5 mb-1.5 last:mb-0 rounded-xl box-border
-                       bg-white dark:bg-slate-800 border border-[var(--card-border)]
-                       hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20
-                       transition-colors">
-                <span class="min-w-0 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escHtml(_floorRowLabel(row))}</span>
-                <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(count === 1 ? 'точка' : (count > 1 && count < 5 ? 'точки' : 'точек'))}${emptyHint}</span>
-            </button>`;
-        }).join('');
+        const grouped = _buildGroupedFloorRowsHtml(floors, filteredArr);
+        const totalPins = grouped.totalPins;
+        const floorRows = grouped.html;
 
         const pEsc = _escAttr(pName);
         const floorsLabel = floors.length === 1

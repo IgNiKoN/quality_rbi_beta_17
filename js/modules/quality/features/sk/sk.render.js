@@ -368,6 +368,26 @@ function sk_renderDashboard() {
         activeRecords = activeRecords.filter(function (r) { return r.source === 'cloud' || r.syncStatus === 'synced' || r.sync_status === 'synced'; });
     }
 
+    // Multifilter без периода — база для тренда (всегда «за всё время»).
+    if (_analyticsFilters().project.length > 0) {
+        var fProj0 = _analyticsFilters().project;
+        activeRecords = activeRecords.filter(function (r) { return fProj0.includes(r.project_display_name) || fProj0.includes(r.project_canonical_key) || fProj0.includes(r.display_name); });
+    }
+    if (_analyticsFilters().contractor.length > 0) {
+        var fContr0 = _analyticsFilters().contractor;
+        activeRecords = activeRecords.filter(function (r) { return fContr0.includes(r.contractor_name) || fContr0.includes(r.contractor_canonical_key) || fContr0.includes(r.contractor); });
+    }
+    if (_analyticsFilters().inspector.length > 0) {
+        var fInsp0 = _analyticsFilters().inspector;
+        activeRecords = activeRecords.filter(function (r) { return fInsp0.includes(r.issued_by) || fInsp0.includes(r.inspector); });
+    }
+    if (_analyticsFilters().template.length > 0) {
+        var fTmpl0 = _analyticsFilters().template.map(function (t) { return t.toLowerCase(); });
+        activeRecords = activeRecords.filter(function (r) { return fTmpl0.includes((r.category || '').toLowerCase()); });
+    }
+
+    var trendRecords = activeRecords.slice();
+
     var selPeriod = document.getElementById('global-filter-period') && document.getElementById('global-filter-period').value || 'D30';
     var now = new Date();
     var periodNorm = typeof window.normalizeAnalyticsPeriod === 'function' ? window.normalizeAnalyticsPeriod(selPeriod) : selPeriod;
@@ -382,25 +402,8 @@ function sk_renderDashboard() {
         activeRecords = activeRecords.filter(function (r) { return r.date_issued && new Date(r.date_issued) >= fromP; });
     }
 
-    if (_analyticsFilters().project.length > 0) {
-        var fProj = _analyticsFilters().project;
-        activeRecords = activeRecords.filter(function (r) { return fProj.includes(r.project_display_name) || fProj.includes(r.project_canonical_key) || fProj.includes(r.display_name); });
-    }
-    if (_analyticsFilters().contractor.length > 0) {
-        var fContr = _analyticsFilters().contractor;
-        activeRecords = activeRecords.filter(function (r) { return fContr.includes(r.contractor_name) || fContr.includes(r.contractor_canonical_key) || fContr.includes(r.contractor); });
-    }
-    if (_analyticsFilters().inspector.length > 0) {
-        var fInsp = _analyticsFilters().inspector;
-        activeRecords = activeRecords.filter(function (r) { return fInsp.includes(r.issued_by) || fInsp.includes(r.inspector); });
-    }
-    if (_analyticsFilters().template.length > 0) {
-        var fTmpl = _analyticsFilters().template.map(function (t) { return t.toLowerCase(); });
-        activeRecords = activeRecords.filter(function (r) { return fTmpl.includes((r.category || '').toLowerCase()); });
-    }
-
-    if (activeRecords.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-slate-300 text-slate-400 text-[11px] font-bold uppercase tracking-widest shadow-sm">За выбранный период и фильтрам замечаний нет.</div>`;
+    if (trendRecords.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-slate-300 text-slate-400 text-[11px] font-bold uppercase tracking-widest shadow-sm">За выбранным фильтрам замечаний нет.</div>`;
         return;
     }
 
@@ -753,10 +756,10 @@ function sk_renderDashboard() {
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> Тренд открытых замечаний</span>
+                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> Тренд открытых замечаний <span class="text-[9px] font-bold text-slate-400 normal-case tracking-normal">· за всё время</span></span>
                 <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
-            <div class="p-3" style="height: 180px; position: relative; width: 100%;"><canvas id="sk-trend-chart"></canvas></div>
+            <div class="p-3" style="height: 240px; position: relative; width: 100%;"><canvas id="sk-trend-chart"></canvas></div>
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
@@ -777,31 +780,65 @@ function sk_renderDashboard() {
         var ctxTrend = document.getElementById('sk-trend-chart');
         if (ctxTrend && typeof Chart !== 'undefined') {
             var monthsSet = new Set();
-            activeRecords.forEach(function (r) {
-                if (r.date_issued) { var d = new Date(r.date_issued); monthsSet.add(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+            trendRecords.forEach(function (r) {
+                if (r.date_issued) {
+                    var dIss = new Date(r.date_issued);
+                    monthsSet.add(dIss.getFullYear() + '-' + String(dIss.getMonth() + 1).padStart(2, '0'));
+                }
+                if (r.date_resolved) {
+                    var dRes = new Date(r.date_resolved);
+                    monthsSet.add(dRes.getFullYear() + '-' + String(dRes.getMonth() + 1).padStart(2, '0'));
+                }
             });
             var sortedMonths = Array.from(monthsSet).sort();
-            var labels = [], dataOpen = [], dataNew = [];
+            var labels = [], dataOpen = [], dataNew = [], dataOverdue = [], dataClosed = [], dataCum = [];
             sortedMonths.forEach(function (mKey) {
                 var parts2 = mKey.split('-'); var year2 = parts2[0]; var month2 = parts2[1];
                 var endOfMonth = new Date(year2, month2, 0, 23, 59, 59);
                 var startOfMonth = new Date(year2, month2 - 1, 1, 0, 0, 0);
                 labels.push(endOfMonth.toLocaleString('ru-RU', { month: 'short', year: '2-digit' }));
-                var openCount = 0, newCount = 0;
-                activeRecords.forEach(function (r) {
+                var openCount = 0, newCount = 0, overdueCount = 0, closedCount = 0, cumCount = 0;
+                trendRecords.forEach(function (r) {
                     if (!r.date_issued) return;
                     var issued = new Date(r.date_issued);
+                    if (issued > endOfMonth) return;
                     var resolved = r.date_resolved ? new Date(r.date_resolved) : null;
+                    var deadline = r.deadline ? new Date(r.deadline) : null;
+                    var openAtEom = !resolved || resolved > endOfMonth;
+                    cumCount++;
                     if (issued >= startOfMonth && issued <= endOfMonth) newCount++;
-                    if (issued <= endOfMonth && (!resolved || resolved > endOfMonth)) openCount++;
+                    if (openAtEom) {
+                        openCount++;
+                        if (deadline && deadline < endOfMonth) overdueCount++;
+                    }
+                    if (resolved && resolved <= endOfMonth) closedCount++;
                 });
-                dataOpen.push(openCount); dataNew.push(newCount);
+                dataOpen.push(openCount);
+                dataNew.push(newCount);
+                dataOverdue.push(overdueCount);
+                dataClosed.push(closedCount);
+                dataCum.push(cumCount);
             });
             if (window.skTrendChartInstance) window.skTrendChartInstance.destroy();
             window.skTrendChartInstance = new Chart(ctxTrend, {
                 type: 'line',
-                data: { labels: labels, datasets: [{ label: 'Открыто на конец мес.', data: dataOpen, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 2, pointRadius: 4, fill: true, tension: 0.3 }, { label: 'Выдано новых', data: dataNew, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0)', borderWidth: 2, borderDash: [5, 5], pointRadius: 3, fill: false, tension: 0.3 }] },
-                options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } }, scales: { y: { beginAtZero: true } } }
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Открыто на конец мес.', data: dataOpen, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 },
+                        { label: 'Просрочено на конец мес.', data: dataOverdue, borderColor: '#f59e0b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, fill: false, tension: 0.3 },
+                        { label: 'Закрыто на конец мес.', data: dataClosed, borderColor: '#22c55e', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, fill: false, tension: 0.3 },
+                        { label: 'Выдано новых', data: dataNew, borderColor: '#6366f1', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], pointRadius: 3, fill: false, tension: 0.3 },
+                        { label: 'Накоплено выдано', data: dataCum, borderColor: '#64748b', backgroundColor: 'transparent', borderWidth: 2, borderDash: [2, 4], pointRadius: 2, fill: false, tension: 0.25 }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 8, font: { size: 8 }, padding: 8 } } },
+                    scales: { y: { beginAtZero: true } }
+                }
             });
         }
     }, 100);

@@ -55,6 +55,9 @@
     getBottomNavEl: function () {
       return document.getElementById('main-bottom-nav');
     },
+    getNav2El: function () {
+      return document.getElementById('app-nav2');
+    },
     showToast: function (message) {
       if (typeof window.showToast === 'function') {
         return window.showToast(message);
@@ -76,8 +79,12 @@
     },
     renderUserBlock: function (userContext) {
       var el = this.getUserBlockEl();
-      if (!el || !userContext) return;
-      el.textContent = userContext.name + ' \u00b7 ' + userContext.role;
+      if (el && userContext) {
+        el.textContent = userContext.name + ' \u00b7 ' + userContext.role;
+      }
+      if (window.RBI && window.RBI.shellDesktop && typeof window.RBI.shellDesktop.renderDeskUser === 'function') {
+        window.RBI.shellDesktop.renderDeskUser(userContext);
+      }
     },
     renderCompanyBlock: function () {
       var header = this.getHeaderEl();

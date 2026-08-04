@@ -73,7 +73,7 @@ if (typeof window !== 'undefined') {
 // т.к. потребители (analytics.render.js/analytics.actions.js) мутируют их через
 // window.trendGroupings[type] = .../window.selectedChartFilters[type] = ... —
 // оборачивание в объект потребовало бы правки потребителей, что вне объёма).
-let trendGroupings = { contrs: 'MONTH', works: 'MONTH', global: 'MONTH', onepager: 'MONTH' };
+let trendGroupings = { contrs: 'MONTH', works: 'MONTH', global: 'MONTH', onepager: 'WEEK' };
 window.trendGroupings = trendGroupings;
 let selectedChartFilters = { contrs: [], works: [], onepager: [] }; // Пустой массив = Авто
 window.selectedChartFilters = selectedChartFilters;

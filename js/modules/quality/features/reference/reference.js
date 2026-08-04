@@ -800,6 +800,12 @@ function renderReferenceMarkup() {
 }
 
 (function mountReferenceMarkup() {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+        window.rbiEnsureTabMarkup('tab-reference', function () {
+            return renderReferenceMarkup();
+        }, '#reference-subtabs-block');
+        return;
+    }
     if (document.getElementById('tab-reference')) return;
     var root = window.RBI && window.RBI.services && window.RBI.services.shell
         ? window.RBI.services.shell.getContentRoot()
@@ -807,6 +813,15 @@ function renderReferenceMarkup() {
     if (!root) return;
     root.insertAdjacentHTML('beforeend', renderReferenceMarkup());
 }());
+
+window.ensureReferenceMarkup = function () {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+        return window.rbiEnsureTabMarkup('tab-reference', function () {
+            return renderReferenceMarkup();
+        }, '#reference-subtabs-block');
+    }
+    return !!document.getElementById('tab-reference');
+};
 
 // =========================================================================
 // РАЗМЕТКА МОДАЛКИ «КОНСТРУКТОР ШАБЛОНОВ» (перенос из index.html:682-734,
@@ -1269,14 +1284,13 @@ window.switchReferenceSubTab = switchReferenceSubTab;
 
 // === СВОРАЧИВАЕМЫЕ ПАНЕЛИ ФИЛЬТРОВ ===
 // Режим: autoCollapseFilters = 'auto' | 'manual' (настройки интерфейса).
-// Авто (как в лучших мобильных UI):
-//   • у верха — развёрнуто;
+// Авто — как шапка Осмотра (header-collapsed):
 //   • ушли вниз за порог — свернуть;
-//   • развернуть снова только у верха (не при скролле вверх и не у низа);
-//   • ручное раскрытие mid-page — держим открытым, пока пользователь снова
-//     не уйдёт заметно вниз (иначе авто сразу схлопывает — плохо).
-// Анимация всегда iOS spring (cubic-bezier) — и по клику, и по скроллу.
-// Панели: #analytics-filters-block и #hist-sticky-panel.
+//   • развернуть снова только у верха страницы (не mid-page при скролле вверх);
+//   • ручное раскрытие mid-page держим, пока снова не уйдут заметно вниз;
+//   • короткий экран (мало контента) — авто НЕ трогает панель (иначе
+//     collapse↔expand по высоте даёт дребезг).
+// Анимация iOS spring. Панели: #analytics-filters-block и #hist-sticky-panel.
 
 function _isAutoCollapseFiltersEnabled() {
     try {
@@ -1406,8 +1420,16 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
     let userHoldOpen = false;
     let holdOpenFromY = 0;
     let ignoreAutoUntil = 0;
+    // После авто-collapse высота документа падает → scrollY может уехать ≤ порога
+    // разворота — без этого окна панель сразу снова раскрывается или «залипает».
+    let ignoreExpandUntil = 0;
+    let lastScrollY = window.scrollY || document.documentElement.scrollTop || 0;
     const SPRING_TRANSITION =
         'max-height 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    // Как шапка Осмотра (bootstrap.js): collapse >50 вниз, expand только <50 у верха.
+    var COLLAPSE_AFTER_Y = 50;
+    var EXPAND_AT_Y = 50;
+    var HOLD_RELEASE_DELTA = 56;
 
     body.style.transition = SPRING_TRANSITION;
 
@@ -1415,10 +1437,21 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
         return window.scrollY || document.documentElement.scrollTop || 0;
     }
 
+    function isVisuallyCollapsed() {
+        return body.style.maxHeight === '0px' || body.style.opacity === '0';
+    }
+
     function setCollapsed(val) {
         if (collapsed === val) {
             pendingCollapsed = null;
-            return;
+            // DOM мог разъехаться со стейтом (desktop max-height:none / teardown)
+            if (val === false && isVisuallyCollapsed()) {
+                /* fall through to re-apply expand styles */
+            } else if (val === true && !isVisuallyCollapsed() && body.style.maxHeight && body.style.maxHeight !== '0px') {
+                /* fall through to re-apply collapse styles */
+            } else {
+                return;
+            }
         }
         if (isAnimating) {
             pendingCollapsed = val;
@@ -1450,12 +1483,27 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
             }
         }
 
+        if (collapsed) {
+            // Блокируем ложный expand от скачка scrollY при ужатии панели
+            ignoreExpandUntil = Date.now() + 650;
+            // После анти-дребезга: если уже у верха и scroll-событий больше нет — развернуть
+            setTimeout(function () {
+                if (collapsed && currentScrollY() <= EXPAND_AT_Y) {
+                    setCollapsed(false);
+                }
+            }, 680);
+        }
+
         setTimeout(function () {
             if (!collapsed) body.style.overflow = 'visible';
             isAnimating = false;
             if (pendingCollapsed !== null && pendingCollapsed !== collapsed) {
                 var next = pendingCollapsed;
                 pendingCollapsed = null;
+                // Не применяем отложенный collapse, если уже вернулись к верху
+                if (next === true && currentScrollY() <= EXPAND_AT_Y) {
+                    return;
+                }
                 setCollapsed(next);
             } else {
                 pendingCollapsed = null;
@@ -1491,11 +1539,7 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
         });
     }
 
-    // Гистерезис + hold после ручного раскрытия.
-    var COLLAPSE_AFTER_Y = 80;
-    var EXPAND_AT_Y = 28;
-    var HOLD_RELEASE_DELTA = 56;
-
+    // Как шапка Осмотра: свернуть при уходе вниз, развернуть только у верха.
     window.addEventListener('scroll', function () {
         if (!_isAutoCollapseFiltersEnabled()) return;
         if (!_collapsiblePanelIsOnScreen(panel)) return;
@@ -1507,17 +1551,27 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
             document.body ? document.body.scrollHeight : 0
         );
 
-        if (docH <= viewH + 250) {
-            userHoldOpen = false;
-            ignoreAutoUntil = 0;
-            setCollapsed(false);
+        // Мало контента: авто не дёргаем (раньше setCollapsed(false) на каждый
+        // scroll → collapse менял высоту → снова expand → дребезг).
+        if (docH <= viewH + 80) {
+            lastScrollY = y;
             return;
         }
 
+        const goingDown = y > lastScrollY + 2;
+        lastScrollY = y;
+
+        // У верха — всегда развернуть (как снятие header-collapsed при scrollY < 50).
         if (y <= EXPAND_AT_Y) {
+            if (Date.now() < ignoreExpandUntil) {
+                return;
+            }
             userHoldOpen = false;
             ignoreAutoUntil = 0;
-            if (collapsed) setCollapsed(false);
+            if (collapsed || isVisuallyCollapsed()) {
+                if (!collapsed) collapsed = true; // чтобы setCollapsed не early-return
+                setCollapsed(false);
+            }
             return;
         }
 
@@ -1526,7 +1580,6 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
                 holdOpenFromY = Math.max(holdOpenFromY, y);
                 return;
             }
-            // Сворачиваем только после осознанного ухода вниз от точки раскрытия.
             if (y >= holdOpenFromY + HOLD_RELEASE_DELTA) {
                 userHoldOpen = false;
                 if (!collapsed) setCollapsed(true);
@@ -1534,10 +1587,10 @@ function initCollapsiblePanel(panelId, bodyId, headerId, iconId) {
             return;
         }
 
-        if (y >= COLLAPSE_AFTER_Y) {
+        // Сворачиваем только при скролле ВНИЗ за порог (не при скролле вверх).
+        if (goingDown && y >= COLLAPSE_AFTER_Y) {
             if (!collapsed) setCollapsed(true);
         }
-        // Между EXPAND_AT_Y и COLLAPSE_AFTER_Y — держим текущее состояние (антидребезг).
     }, { passive: true });
 }
 window.initCollapsiblePanel = initCollapsiblePanel;

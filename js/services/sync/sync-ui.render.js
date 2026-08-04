@@ -2,14 +2,17 @@
 window.renderSyncUI = function () {
     const container = document.getElementById('sync-settings-block');
     const headerIndicator = document.getElementById('header-sync-status');
-    if (headerIndicator) {
-        headerIndicator.ondblclick = () => {
+    const deskIndicator = document.getElementById('desk-sync-status');
+    const syncTargets = [headerIndicator, deskIndicator].filter(Boolean);
+
+    syncTargets.forEach(function (el) {
+        el.ondblclick = () => {
             if (window.syncConfig.enabled && window.syncConfig.projectCode) {
                 window.forceSyncObjects();
             }
         };
-    }
-    if (headerIndicator) {
+    });
+    if (syncTargets.length) {
         const cloudSvg = `
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 18H7a4 4 0 1 1 1-7.9A5 5 0 0 1 19 10a4 4 0 0 1 0 8z"/>
@@ -21,18 +24,17 @@ window.renderSyncUI = function () {
         <path d="M21 12a9 9 0 0 1-9 9"/>
     </svg>`;
 
+        let html;
         if (window.syncConfig.enabled) {
             if (window.isSyncing) {
-                // СИНХРОНИЗАЦИЯ → INDIGO
-                headerIndicator.innerHTML = `<div class="text-indigo-500 flex items-center justify-center">${loadingSvg}</div>`;
+                html = `<div class="text-indigo-500 flex items-center justify-center">${loadingSvg}</div>`;
             } else {
-                // ОНЛАЙН → GREEN
-                headerIndicator.innerHTML = `<div class="text-green-500 flex items-center justify-center">${cloudSvg}</div>`;
+                html = `<div class="text-green-500 flex items-center justify-center">${cloudSvg}</div>`;
             }
         } else {
-            // ОФФЛАЙН → GRAY
-            headerIndicator.innerHTML = `<div class="text-slate-400 flex items-center justify-center">${cloudSvg}</div>`;
+            html = `<div class="text-slate-400 flex items-center justify-center">${cloudSvg}</div>`;
         }
+        syncTargets.forEach(function (el) { el.innerHTML = html; });
     }
 
     if (!container) return;

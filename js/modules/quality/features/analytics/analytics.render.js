@@ -358,6 +358,33 @@ function invalidateAnalyticsFilterCache() {
 }
 window.invalidateAnalyticsFilterCache = invalidateAnalyticsFilterCache;
 
+/**
+ * Каркас #tab-analytics после teardown (innerHTML='') или первого монтирования.
+ * Узел .view-section сохраняем — нужен switchViewNode / навигации по id.
+ */
+function ensureAnalyticsMarkup() {
+    var root = window.RBI && window.RBI.services && window.RBI.services.shell
+        ? window.RBI.services.shell.getContentRoot()
+        : document.getElementById('app-content');
+    var tab = document.getElementById('tab-analytics');
+    if (tab && tab.querySelector('#analytics-subtabs-block')) return true;
+
+    var html = AnalyticsRender.renderMarkup();
+    if (!tab) {
+        if (!root) return false;
+        root.insertAdjacentHTML('beforeend', html);
+        return !!document.getElementById('tab-analytics');
+    }
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = String(html).trim();
+    var fresh = tmp.firstElementChild;
+    if (!fresh) return false;
+    tab.innerHTML = fresh.innerHTML;
+    return !!tab.querySelector('#analytics-subtabs-block');
+}
+window.ensureAnalyticsMarkup = ensureAnalyticsMarkup;
+
 /** Пометить подвкладку как отрисованную (async-пайплайны вроде ПК СК / График). */
 function analyticsMarkTabPainted(tabId) {
     if (!tabId) return;
@@ -395,6 +422,31 @@ function _getObjectIntegralMetricsCached(data) {
     }
     return metrics;
 }
+
+/**
+ * Полный сброс runtime-кэшей вкладки при route-teardown (галереи/thumbs/paint reuse).
+ * AnalyticsState (фильтры, subTab) не трогаем — они живут вне DOM.
+ */
+function clearAnalyticsViewRuntimeCaches() {
+    try {
+        _photoThumbCache.forEach(function (thumb) {
+            if (typeof thumb === 'string' && thumb.indexOf('blob:') === 0) {
+                try { URL.revokeObjectURL(thumb); } catch (_) { /* ignore */ }
+            }
+        });
+    } catch (_) { /* ignore */ }
+    _galleryFullData.clear();
+    _photoThumbCache.clear();
+    _ikoMemo.clear();
+    _lazyContractorsGalleryData = null;
+    _lazyContractorsGalleryFilled = false;
+    _analyticsRenderGen += 1;
+    _analyticsFilteredCache = null;
+    _analyticsFilterFp = '';
+    _analyticsDataSig = '';
+    _analyticsRenderedTabs.clear();
+}
+window.clearAnalyticsViewRuntimeCaches = clearAnalyticsViewRuntimeCaches;
 
 // =========================================================================
 // UI вкладки «Отчёты» (группировка по объекту + чипсы doc_kind + клиентская
@@ -1165,38 +1217,24 @@ export const AnalyticsRender = {
     // Перенесено из analytics.legacy.js: главный рендер текущей вкладки.
     // =========================================================================
     renderCurrentAnalyticsTab() {
-        // Единый хелпер §5 (sync-ui-defer): sync не full-render'ит открытую Аналитику.
-        if (typeof window.shouldDeferFullRender === 'function'
+        // Единый хелпер §5 (sync-ui-defer): sync не full-render'ит УЖЕ открытую
+        // живую Аналитику. Но после route-teardown секция пустая — первый paint
+        // обязателен, иначе «Загрузка…» висит до конца sync (История/ПК СК/График).
+        const activeTabEarly = (AnalyticsState && AnalyticsState.activeSubTab) || 'sub-contractors';
+        const deferringNow = typeof window.shouldDeferFullRender === 'function'
             ? window.shouldDeferFullRender('analytics')
             : (!!(document.getElementById('tab-analytics')?.classList.contains('active'))
-                && !!(window.isSyncing || window._rbiDeferActiveViewFullRender))) {
+                && !!(window.isSyncing || window._rbiDeferActiveViewFullRender));
+        if (deferringNow && analyticsSectionLooksPainted(activeTabEarly)) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
-            // A9: не затирать уже отрисованный UI скелетоном —
-            // иначе flush видит skeleton и делает full-rebuild по кругу.
-            // История / ПК СК / График — тот же паттерн, что Подрядчики/Сводка.
-            const activeTabDefer = AnalyticsState.activeSubTab || 'sub-contractors';
-            if (!analyticsSectionLooksPainted(activeTabDefer)) {
-                const skeletonTargets = {
-                    'sub-contractors': 'contractors-list-container',
-                    'sub-onepager': 'onepager-content-container',
-                    'sub-history': 'history-list',
-                    'sub-schedule': 'schedule-container',
-                    'sub-sk': 'sk-main-container'
-                };
-                const elId = skeletonTargets[activeTabDefer];
-                const el = elId ? document.getElementById(elId) : null;
-                if (el && typeof window.rbiShowContentSkeleton === 'function'
-                    && !(el.querySelector && el.querySelector('.rbi-skeleton-wrap'))) {
-                    // ПК СК: не сносить shell, если dashboard уже есть.
-                    if (activeTabDefer === 'sub-sk' && document.getElementById('sk-view-dashboard')) {
-                        /* keep shell */
-                    } else {
-                        window.rbiShowContentSkeleton(el, { cards: 3, label: 'Загрузка…' });
-                    }
-                }
-            }
             return;
+        }
+        if (deferringNow) {
+            // Пусто / скелетон после teardown — помечаем dirty, но НЕ return:
+            // ниже нарисуем из памяти (HistoryState / skRecords / scheduleData).
+            if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
+            else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
         }
 
         // В оригинале (analytics.legacy.js) `currentActiveAnalyticsTab` объявлялась
@@ -1286,21 +1324,36 @@ export const AnalyticsRender = {
             else _analyticsRenderedTabs.delete(activeTab);
         }
         else if (activeTab === 'sub-history') {
-            // Dirty при первом paint / после смены фильтра — reload.
-            // Stay-on-tab с живым DOM уже отсечён historyReuseOk выше.
-            if (window.syncDirtyFlags && window.syncDirtyFlags.history) {
+            // Dirty: если записи уже в памяти — сначала рисуем (без «Загрузка…» на минуту IDB),
+            // затем тихо перезагружаем. Пустая память — skeleton + loadRecords.
+            const histDirty = !!(window.syncDirtyFlags && window.syncDirtyFlags.history);
+            const hasMem = !!(window.HistoryState && Array.isArray(window.HistoryState.allRecords)
+                && window.HistoryState.allRecords.length > 0);
+            if (histDirty) {
                 window.syncDirtyFlags.history = false;
+            }
+            if (histDirty && hasMem) {
+                renderHistoryTab();
+                initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
                 if (window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
-                    const histEl = document.getElementById('history-list');
-                    if (histEl && typeof window.rbiShowContentSkeleton === 'function') {
-                        window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка…' });
-                    }
                     Promise.resolve(window.HistoryActions.loadRecords()).then(function () {
-                        renderHistoryTab();
-                        initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
-                    });
-                    return;
+                        if (AnalyticsState.activeSubTab === 'sub-history') {
+                            renderHistoryTab();
+                        }
+                    }).catch(function () { /* ignore */ });
                 }
+                return;
+            }
+            if (histDirty && !hasMem && window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
+                const histEl = document.getElementById('history-list');
+                if (histEl && typeof window.rbiShowContentSkeleton === 'function') {
+                    window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка…' });
+                }
+                Promise.resolve(window.HistoryActions.loadRecords()).then(function () {
+                    renderHistoryTab();
+                    initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
+                });
+                return;
             }
             renderHistoryTab();
             initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
@@ -1932,10 +1985,15 @@ export const AnalyticsRender = {
         };
 
         const sparkLabels = []; const sparkData = [];
+        const sparkBase = (window.AnalyticsActions && typeof window.AnalyticsActions.applyAnalyticsEntityFilters === 'function')
+            ? window.AnalyticsActions.applyAnalyticsEntityFilters(
+                _allInspections.filter(i => i && i.inspection_type !== 'sk_acceptance')
+            )
+            : _allInspections.filter(i => i && i.inspection_type !== 'sk_acceptance');
         for (let i = 5; i >= 0; i--) {
             const dStart = new Date(); dStart.setDate(now.getDate() - (i * 7) - 7);
             const dEnd = new Date(); dEnd.setDate(now.getDate() - (i * 7));
-            const weekChecks = _allInspections.filter(c => { const d = new Date(c.date); return d >= dStart && d < dEnd; });
+            const weekChecks = sparkBase.filter(c => { const d = new Date(c.date); return d >= dStart && d < dEnd; });
             sparkLabels.push(`-${i}н`);
             sparkData.push(weekChecks.length > 0 && typeof window.avgContractorRatingsFromChecks === 'function'
                 ? window.avgContractorRatingsFromChecks(weekChecks).avgUrk
@@ -2212,14 +2270,17 @@ export const AnalyticsRender = {
 
                         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm flex flex-col">
                             <div class="flex justify-between items-center mb-2 gap-2">
-                                <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase min-w-0">Динамика уровня качества</div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase">Динамика уровня качества</div>
+                                    <div class="text-[8px] font-semibold text-slate-400 mt-0.5">${(window.AnalyticsActions && typeof window.AnalyticsActions.onePagerTrendWindowHint === 'function') ? window.AnalyticsActions.onePagerTrendWindowHint(window.trendGroupings.onepager || 'WEEK') : '12 нед. · вне фильтра периода'}</div>
+                                </div>
                                 <div class="flex gap-1 shrink-0">
                                     <button onclick="openChartFilterModal('onepager')" class="text-[9px] font-bold border border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 rounded px-2 py-1 active:scale-95 shadow-sm flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Линии
                                     </button>
                                     <select onchange="updateTrendCharts('onepager', this.value)" class="text-[9px] font-semibold border border-indigo-200 text-indigo-700 bg-white dark:bg-slate-800 dark:text-indigo-300 rounded px-1 py-1 outline-none cursor-pointer shadow-sm">
-                                        <option value="WEEK" ${window.trendGroupings.onepager === 'WEEK' ? 'selected' : ''}>Недели</option>
-                                        <option value="MONTH" ${(window.trendGroupings.onepager || 'MONTH') === 'MONTH' ? 'selected' : ''}>Месяцы</option>
+                                        <option value="WEEK" ${(window.trendGroupings.onepager || 'WEEK') === 'WEEK' ? 'selected' : ''}>Недели</option>
+                                        <option value="MONTH" ${window.trendGroupings.onepager === 'MONTH' ? 'selected' : ''}>Месяцы</option>
                                     </select>
                                 </div>
                             </div>
@@ -2370,7 +2431,11 @@ export const AnalyticsRender = {
 
             const ctxLine = document.getElementById('op-line-chart');
             if (ctxLine) {
-                const trendData = window.buildTrendChartData(data, 'contractorName', activeLineFilters, window.trendGroupings.onepager || 'MONTH');
+                const opGrouping = (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
+                const trendSource = (window.AnalyticsActions && typeof window.AnalyticsActions.getOnePagerTrendSourceData === 'function')
+                    ? window.AnalyticsActions.getOnePagerTrendSourceData(opGrouping)
+                    : data;
+                const trendData = window.buildTrendChartData(trendSource, 'contractorName', activeLineFilters, opGrouping);
                 trendData.datasets.forEach(ds => { ds.borderWidth = 1.5; ds.pointRadius = 2; });
 
                 if (_chartInstances()['op-line-chart']) _chartInstances()['op-line-chart'].destroy();
@@ -3596,12 +3661,7 @@ if (typeof window !== 'undefined') {
     // сохранён для консистентности.
     // =========================================================================
     (function mountAnalyticsMarkup() {
-        if (document.getElementById('tab-analytics')) return;
-        var root = window.RBI && window.RBI.services && window.RBI.services.shell
-            ? window.RBI.services.shell.getContentRoot()
-            : document.getElementById('app-content');
-        if (!root) return;
-        root.insertAdjacentHTML('beforeend', AnalyticsRender.renderMarkup());
+        ensureAnalyticsMarkup();
     }());
 
     // =========================================================================

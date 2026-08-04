@@ -10,6 +10,8 @@
     var DEFAULT_DELAY = 1000;
     var _timers = Object.create(null);
     var _bindings = Object.create(null);
+    /** key → collectFn для отложенных scheduleSave (нужен flush при route-teardown). */
+    var _pending = Object.create(null);
 
     function _storageKey(key) {
         return PREFIX + String(key || '');
@@ -128,11 +130,14 @@
         scheduleSave: function (key, collectFn, delayMs) {
             if (!key || typeof collectFn !== 'function') return;
             if (_timers[key]) clearTimeout(_timers[key]);
+            _pending[key] = collectFn;
             var delay = typeof delayMs === 'number' ? delayMs : DEFAULT_DELAY;
             _timers[key] = setTimeout(function () {
                 delete _timers[key];
+                var fn = _pending[key];
+                delete _pending[key];
                 try {
-                    FormDraft.set(key, collectFn());
+                    if (fn) FormDraft.set(key, fn());
                 } catch (e) {
                     console.warn('[RBIFormDraft] collect/save failed:', key, e);
                 }
@@ -146,6 +151,7 @@
                 clearTimeout(_timers[key]);
                 delete _timers[key];
             }
+            delete _pending[key];
             try {
                 FormDraft.set(key, collectFn());
             } catch (e) {
@@ -165,7 +171,7 @@
             };
             rootEl.addEventListener('input', handler, true);
             rootEl.addEventListener('change', handler, true);
-            _bindings[key] = { root: rootEl, handler: handler };
+            _bindings[key] = { root: rootEl, handler: handler, collectFn: collectFn };
         },
 
         unbindAutoSave: function (key) {
@@ -180,6 +186,42 @@
                 clearTimeout(_timers[key]);
                 delete _timers[key];
             }
+            delete _pending[key];
+        },
+
+        /** Сбросить все отложенные scheduleSave в localStorage (до очистки DOM). */
+        flushPending: function () {
+            Object.keys(_timers).forEach(function (key) {
+                clearTimeout(_timers[key]);
+                delete _timers[key];
+                var fn = _pending[key];
+                delete _pending[key];
+                if (typeof fn !== 'function') return;
+                try { FormDraft.set(key, fn()); } catch (e) {
+                    console.warn('[RBIFormDraft] flushPending failed:', key, e);
+                }
+            });
+        },
+
+        /**
+         * Сохранить и отвязать autosave только для черновиков внутри rootEl
+         * (уход с вкладки не должен unbind'ить формы на других вкладках).
+         */
+        flushBindingsIn: function (rootEl) {
+            if (!rootEl) return;
+            Object.keys(_bindings).forEach(function (key) {
+                var b = _bindings[key];
+                if (!b || !b.root) return;
+                try {
+                    if (!rootEl.contains(b.root)) return;
+                } catch (e) { return; }
+                if (typeof b.collectFn === 'function') {
+                    try { FormDraft.set(key, b.collectFn()); } catch (err) {
+                        console.warn('[RBIFormDraft] flushBindingsIn failed:', key, err);
+                    }
+                }
+                FormDraft.unbindAutoSave(key);
+            });
         }
     };
 

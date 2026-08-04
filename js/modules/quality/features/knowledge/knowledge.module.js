@@ -413,6 +413,96 @@ window.getMagicTwiCandidates = function () {
     });
 };
 
+// Кандидаты OK/FAIL из локальных осмотров для пункта чек-листа (конструктор TWI).
+// Паттерн как leftCandidates/rightCandidates в отчёте по повторяющимся дефектам.
+window._twiPhotoPick = window._twiPhotoPick || { good: [], bad: [] };
+
+function _twiLookupItemField(map, itemId) {
+    if (!map || itemId == null || itemId === '') return undefined;
+    if (map[itemId] != null) return map[itemId];
+    var sid = String(itemId);
+    if (map[sid] != null) return map[sid];
+    var n = Number(itemId);
+    if (!Number.isNaN(n) && map[n] != null) return map[n];
+    return undefined;
+}
+
+function _twiPushUniquePhotos(arr, raw) {
+    var list = (typeof window.normalizeItemPhotos === 'function')
+        ? window.normalizeItemPhotos(raw)
+        : [].concat(raw || []).filter(Boolean);
+    for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (p && arr.indexOf(p) === -1) arr.push(p);
+    }
+}
+
+function collectTwiItemPhotoCandidates(checklistKey, itemId) {
+    var good = [];
+    var bad = [];
+    if (!checklistKey || !itemId || itemId === 'ALL') return { good: good, bad: bad };
+    var inspections = _getAllInspections() || [];
+    for (var i = 0; i < inspections.length; i++) {
+        var check = inspections[i];
+        if (!check || check.templateKey !== checklistKey || !check.state || !check.photos) continue;
+        var s = _twiLookupItemField(check.state, itemId);
+        var photosRaw = _twiLookupItemField(check.photos, itemId);
+        if (!s || !photosRaw) continue;
+        if (s === 'ok') _twiPushUniquePhotos(good, photosRaw);
+        else if (s === 'fail' || s === 'fail_escalated') _twiPushUniquePhotos(bad, photosRaw);
+    }
+    return { good: good, bad: bad };
+}
+
+function refreshTwiPhotoCandidates(opts) {
+    opts = opts || {};
+    var checklistEl = document.getElementById('twi-checklist-select');
+    var itemEl = document.getElementById('twi-item-select');
+    var checklistKey = checklistEl ? checklistEl.value : '';
+    var itemId = itemEl ? itemEl.value : '';
+    window._twiPhotoPick = collectTwiItemPhotoCandidates(checklistKey, itemId);
+    if (opts.rerender === false) return window._twiPhotoPick;
+    var goodCont = document.getElementById('twi-photo-good-container');
+    var badCont = document.getElementById('twi-photo-bad-container');
+    if (goodCont) {
+        if (goodCont.dataset.photo) renderGoodPhoto(goodCont.dataset.photo);
+        else removeTwiGoodPhoto();
+    }
+    if (badCont) {
+        if (badCont.dataset.photo) renderBadPhoto(badCont.dataset.photo);
+        else removeTwiBadPhoto();
+    }
+    return window._twiPhotoPick;
+}
+
+function _escTwiPhotoAttr(src) {
+    return String(src || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function cycleTwiConstructorPhoto(side) {
+    var pick = window._twiPhotoPick || { good: [], bad: [] };
+    var isGood = side === 'GOOD';
+    var list = isGood ? (pick.good || []) : (pick.bad || []);
+    var cont = document.getElementById(isGood ? 'twi-photo-good-container' : 'twi-photo-bad-container');
+    if (!cont) return;
+    if (!list.length) {
+        if (typeof triggerTwiMarkupUpload === 'function') return triggerTwiMarkupUpload(side);
+        return;
+    }
+    var cur = cont.dataset.photo || '';
+    var idx = list.indexOf(cur);
+    var next;
+    if (idx < 0) {
+        next = list[0];
+    } else if (list.length < 2) {
+        return;
+    } else {
+        next = list[(idx + 1) % list.length];
+    }
+    if (isGood) renderGoodPhoto(next);
+    else renderBadPhoto(next);
+}
+
 // === КОНТЕКСТНОЕ МЕНЮ TWI ===
 let currentActionTwiId = null;
 
@@ -567,6 +657,7 @@ function populateTwiItemSelect(selectedItemId = null) {
         autoFillTwiNorm();
     } else {
         document.getElementById('twi-auto-norm-text').innerText = 'Справочная информация не найдена';
+        refreshTwiPhotoCandidates();
     }
 }
 
@@ -577,6 +668,7 @@ function autoFillTwiNorm() {
 
     if (!checklistKey || !itemId || itemId === 'ALL') {
         normTextEl.innerText = 'Общая инструкция (Норматив не привязан)';
+        refreshTwiPhotoCandidates();
         return;
     }
 
@@ -593,6 +685,7 @@ function autoFillTwiNorm() {
         normTextEl.innerText = 'Норматив для этого пункта не заполнен';
         normTextEl.dataset.raw = '';
     }
+    refreshTwiPhotoCandidates();
 }
 
 window.searchNormFromTwi = function () {
@@ -766,26 +859,62 @@ function closeTwiConstructor() {
 
 function renderGoodPhoto(localUrl) {
     const cont = document.getElementById('twi-photo-good-container');
-    cont.dataset.photo = localUrl;
-    cont.innerHTML = `<div class="relative w-full h-40 md:h-64 rounded-lg overflow-hidden border border-green-300 shadow-sm mt-1 bg-slate-50 dark:bg-slate-900"><img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-contain"><button onclick="removeTwiGoodPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-md">✕</button></div>`;
+    if (!cont) return;
+    cont.dataset.photo = localUrl || '';
+    if (!localUrl) return removeTwiGoodPhoto();
+    const pick = window._twiPhotoPick || { good: [], bad: [] };
+    const list = pick.good || [];
+    const idx = list.indexOf(localUrl);
+    const esc = _escTwiPhotoAttr(localUrl);
+    const counter = list.length > 1
+        ? `<span class="absolute bottom-2 left-2 bg-black/60 text-white text-[9px] font-black px-1.5 py-0.5 rounded pointer-events-none">${(idx >= 0 ? idx + 1 : 1)}/${list.length}</span>`
+        : '';
+    const cycleBtn = list.length > 1
+        ? `<button type="button" onclick="event.stopPropagation();cycleTwiConstructorPhoto('GOOD')" class="absolute bottom-2 right-2 min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100/95 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600 shadow-md" title="Сменить из осмотров">↻</button>`
+        : '';
+    cont.innerHTML = `<div class="relative w-full h-40 md:h-64 rounded-lg overflow-hidden border border-green-300 shadow-sm mt-1 bg-slate-50 dark:bg-slate-900 cursor-pointer" onclick="openPhotoViewer('${esc}')"><img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-contain pointer-events-none"><button type="button" onclick="event.stopPropagation();removeTwiGoodPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-md">✕</button>${counter}${cycleBtn}</div>`;
     if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(cont);
 }
 function removeTwiGoodPhoto() {
     const cont = document.getElementById('twi-photo-good-container');
+    if (!cont) return;
     cont.dataset.photo = '';
-    cont.innerHTML = `<button onclick="triggerTwiMarkupUpload('GOOD')" class="w-full h-full min-h-[80px] bg-white dark:bg-slate-800 border border-dashed border-green-300 py-4 rounded-lg text-[10px] font-bold text-green-600 active:scale-95 transition-all">➕ Загрузить фото</button>`;
+    const pick = window._twiPhotoPick || { good: [], bad: [] };
+    const list = pick.good || [];
+    const fromMem = list.length
+        ? `<button type="button" onclick="cycleTwiConstructorPhoto('GOOD')" class="w-full mt-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 py-2.5 rounded-lg text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-300 active:scale-95 transition-all">Из осмотров (${list.length})</button>`
+        : '';
+    cont.innerHTML = `<button type="button" onclick="triggerTwiMarkupUpload('GOOD')" class="w-full h-full min-h-[80px] bg-white dark:bg-slate-800 border border-dashed border-green-300 py-4 rounded-lg text-[10px] font-bold text-green-600 active:scale-95 transition-all">➕ Загрузить фото</button>${fromMem}`;
 }
 
 function renderBadPhoto(localUrl) {
     const cont = document.getElementById('twi-photo-bad-container');
-    cont.dataset.photo = localUrl;
-    cont.innerHTML = `<div class="relative w-full h-40 md:h-64 rounded-lg overflow-hidden border border-red-300 shadow-sm mt-1 bg-slate-50 dark:bg-slate-900"><img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-contain"><button onclick="removeTwiBadPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-md">✕</button></div>`;
+    if (!cont) return;
+    cont.dataset.photo = localUrl || '';
+    if (!localUrl) return removeTwiBadPhoto();
+    const pick = window._twiPhotoPick || { good: [], bad: [] };
+    const list = pick.bad || [];
+    const idx = list.indexOf(localUrl);
+    const esc = _escTwiPhotoAttr(localUrl);
+    const counter = list.length > 1
+        ? `<span class="absolute bottom-2 left-2 bg-black/60 text-white text-[9px] font-black px-1.5 py-0.5 rounded pointer-events-none">${(idx >= 0 ? idx + 1 : 1)}/${list.length}</span>`
+        : '';
+    const cycleBtn = list.length > 1
+        ? `<button type="button" onclick="event.stopPropagation();cycleTwiConstructorPhoto('BAD')" class="absolute bottom-2 right-2 min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100/95 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600 shadow-md" title="Сменить из осмотров">↻</button>`
+        : '';
+    cont.innerHTML = `<div class="relative w-full h-40 md:h-64 rounded-lg overflow-hidden border border-red-300 shadow-sm mt-1 bg-slate-50 dark:bg-slate-900 cursor-pointer" onclick="openPhotoViewer('${esc}')"><img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-contain pointer-events-none"><button type="button" onclick="event.stopPropagation();removeTwiBadPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-md">✕</button>${counter}${cycleBtn}</div>`;
     if (typeof window.rbiHydrateLocalImages === 'function') window.rbiHydrateLocalImages(cont);
 }
 function removeTwiBadPhoto() {
     const cont = document.getElementById('twi-photo-bad-container');
+    if (!cont) return;
     cont.dataset.photo = '';
-    cont.innerHTML = `<button onclick="triggerTwiMarkupUpload('BAD')" class="w-full h-full min-h-[80px] bg-white dark:bg-slate-800 border border-dashed border-red-300 py-4 rounded-lg text-[10px] font-bold text-red-600 active:scale-95 transition-all">➕ Загрузить фото</button>`;
+    const pick = window._twiPhotoPick || { good: [], bad: [] };
+    const list = pick.bad || [];
+    const fromMem = list.length
+        ? `<button type="button" onclick="cycleTwiConstructorPhoto('BAD')" class="w-full mt-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 py-2.5 rounded-lg text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-300 active:scale-95 transition-all">Из осмотров (${list.length})</button>`
+        : '';
+    cont.innerHTML = `<button type="button" onclick="triggerTwiMarkupUpload('BAD')" class="w-full h-full min-h-[80px] bg-white dark:bg-slate-800 border border-dashed border-red-300 py-4 rounded-lg text-[10px] font-bold text-red-600 active:scale-95 transition-all">➕ Загрузить фото</button>${fromMem}`;
 }
 
 function handleTwiPdfUpload(event) {
@@ -2670,6 +2799,7 @@ function _rbiApplyTwiNewDraft(p) {
         document.getElementById('twi-preparation-input').value = p.preparation || '';
         if (p.photoGood) renderGoodPhoto(p.photoGood);
         if (p.photoBad) renderBadPhoto(p.photoBad);
+        refreshTwiPhotoCandidates();
     } else if (type === 'PDF') {
         if (p.pdfData) renderPdfFile(p.pdfName || 'doc.pdf', p.pdfSize || '', p.pdfData);
     } else {
@@ -2769,6 +2899,7 @@ window.openTwiConstructor = function (editId) {
 
                 if (card.photoGood) renderGoodPhoto(card.photoGood);
                 if (card.photoBad) renderBadPhoto(card.photoBad);
+                refreshTwiPhotoCandidates();
             } else if (card.type === 'PDF') {
                 if (card.pdfData) renderPdfFile(card.pdfName, card.pdfSize, card.pdfData);
             } else {
@@ -3878,6 +4009,9 @@ window.renderPdfFile          = renderPdfFile;
 window.removeTwiPdf           = removeTwiPdf;
 window.renderGoodPhoto        = renderGoodPhoto;
 window.renderBadPhoto         = renderBadPhoto;
+window.collectTwiItemPhotoCandidates = collectTwiItemPhotoCandidates;
+window.refreshTwiPhotoCandidates = refreshTwiPhotoCandidates;
+window.cycleTwiConstructorPhoto = cycleTwiConstructorPhoto;
 window.addTwiStep             = addTwiStep;
 window.removeTwiPhoto         = removeTwiPhoto;
 window.triggerTwiPhotoUpload  = triggerTwiPhotoUpload;

@@ -140,16 +140,44 @@ export const AnalyticsModule = {
     },
 
     mount(container, ctx) {
+        if (typeof window.ensureAnalyticsMarkup === 'function') {
+            window.ensureAnalyticsMarkup();
+        }
         const subTab = (ctx && ctx.subTab) || AnalyticsState.activeSubTab;
         AnalyticsRender.render(subTab);
     },
 
-    unmount() {
-        // Уничтожить Chart.js-инстансы, чтобы не утекала память
+    /**
+     * Route-teardown при уходе с #/quality/analytics (AppRouter).
+     * Уничтожает Chart.js / desktop-shell / DOM-каркас и runtime-кэши галерей.
+     * НЕ снимает EventBus-подписки init() — иначе при возврате на вкладку
+     * sync:completed / renderRequested молчат до полной перезагрузки модуля.
+     */
+    teardownView() {
+        const desk = window.AnalyticsDesktopRender;
+        if (desk && typeof desk.teardown === 'function') {
+            try { desk.teardown(); } catch (_) { /* ignore */ }
+        }
+
         Object.values(AnalyticsState.chartInstances || {}).forEach(function (ch) {
             try { if (ch && typeof ch.destroy === 'function') ch.destroy(); } catch (_) {}
         });
         AnalyticsState.setChartInstances({});
+
+        if (typeof window.clearAnalyticsViewRuntimeCaches === 'function') {
+            try { window.clearAnalyticsViewRuntimeCaches(); } catch (_) { /* ignore */ }
+        }
+
+        if (typeof window.rbiTeardownTabView === 'function') {
+            window.rbiTeardownTabView('tab-analytics');
+        } else {
+            const tab = document.getElementById('tab-analytics');
+            if (tab) tab.innerHTML = '';
+        }
+    },
+
+    unmount() {
+        AnalyticsModule.teardownView();
 
         if (typeof AnalyticsModule._syncUnsubscribe === 'function') {
             AnalyticsModule._syncUnsubscribe();
@@ -162,8 +190,11 @@ export const AnalyticsModule = {
     }
 };
 
-if (typeof window !== 'undefined' && window.RBI && window.RBI.registry) {
-    window.RBI.registry.register('module.analytics', AnalyticsModule);
+if (typeof window !== 'undefined') {
+    window.AnalyticsModule = AnalyticsModule;
+    if (window.RBI && window.RBI.registry) {
+        window.RBI.registry.register('module.analytics', AnalyticsModule);
+    }
 }
 
 console.log('[AnalyticsModule] analytics.module.js loaded (ES module)');

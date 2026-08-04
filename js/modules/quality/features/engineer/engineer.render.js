@@ -277,6 +277,12 @@
   // сохранён для консистентности.
   // =========================================================================
   (function mountEngineerMarkup() {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+      window.rbiEnsureTabMarkup('tab-engineer', function () {
+        return EngineerRender.renderMarkup();
+      }, '#engineer-subtabs-block');
+      return;
+    }
     if (document.getElementById('tab-engineer')) return;
     var root = window.RBI && window.RBI.services && window.RBI.services.shell
       ? window.RBI.services.shell.getContentRoot()
@@ -284,6 +290,15 @@
     if (!root) return;
     root.insertAdjacentHTML('beforeend', EngineerRender.renderMarkup());
   }());
+
+  window.ensureEngineerMarkup = function () {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+      return window.rbiEnsureTabMarkup('tab-engineer', function () {
+        return EngineerRender.renderMarkup();
+      }, '#engineer-subtabs-block');
+    }
+    return !!document.getElementById('tab-engineer');
+  };
 })();
 
 console.log('[EngineerRender] engineer.render.js loaded');

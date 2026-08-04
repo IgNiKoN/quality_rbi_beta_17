@@ -1,8 +1,8 @@
 /* Файл: sw.js */
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
-const APP_VERSION = '18.57.0';
-const SW_VERSION = '18.57.440';
+const APP_VERSION = '18.58.0';
+const SW_VERSION = '18.58.2';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -11,6 +11,11 @@ const urlsToCache = [
   './index.html',
   './report.html',
   './css/style.css',
+  './css/app-shell.desktop.css',
+  './css/analytics.desktop.css',
+  './css/audit.desktop.css',
+  './css/engineer.desktop.css',
+  './css/knowledge.desktop.css',
   // PWA / сплэш / push (иначе офлайн без иконок и «Добавить на экран»)
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -79,6 +84,7 @@ const urlsToCache = [
   './js/shared/checklist-runner.js',
   './js/core/bootstrap.js',
   './js/core/app-shell.js',
+  './js/core/app-shell.desktop.js',
 
   // Ядро модульной архитектуры
   './js/core/rbi-core.js',
@@ -143,6 +149,12 @@ const urlsToCache = [
   // Фаза 9 — Knowledge Module
   './js/modules/quality/features/knowledge/knowledge.manifest.js',
   './js/modules/quality/features/knowledge/knowledge.module.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.render.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.checklists.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.docs.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.twi.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.nodes.js',
+  './js/modules/quality/features/knowledge/knowledge.desktop.practices.js',
   './js/modules/quality/features/knowledge/knowledge.state.js',
   './js/modules/quality/features/knowledge/knowledge.actions.js',
   './js/modules/quality/features/knowledge/knowledge.render.js',
@@ -162,6 +174,10 @@ const urlsToCache = [
   './js/modules/quality/features/analytics/analytics.actions.js',
   './js/modules/quality/features/analytics/analytics.render.js',
   './js/modules/quality/features/analytics/analytics.pptx-export.js',
+  './js/modules/quality/features/analytics/analytics.desktop.render.js',
+  './js/modules/quality/features/analytics/history.desktop.content.js',
+  './js/modules/quality/features/analytics/sk.desktop.content.js',
+  './js/modules/quality/features/analytics/schedule.desktop.content.js',
 
   // Фаза 12 — History Module
   './js/modules/quality/features/history/history.module.js',
@@ -186,6 +202,7 @@ const urlsToCache = [
   './js/modules/quality/features/audit/audit.state.js',
   './js/modules/quality/features/audit/audit.actions.js',
   './js/modules/quality/features/audit/audit.render.js',
+  './js/modules/quality/features/audit/audit.desktop.render.js',
   './js/modules/quality/features/audit/features/quality-plan-pin.js',
 
   // Фаза 15 — Construction Module
@@ -238,6 +255,7 @@ const urlsToCache = [
   './js/modules/quality/features/engineer/engineer.state.js',
   './js/modules/quality/features/engineer/engineer.actions.js',
   './js/modules/quality/features/engineer/engineer.render.js',
+  './js/modules/quality/features/engineer/engineer.desktop.render.js',
 
   // Блок 29 — Schedule Module (Wrapper, Шаг 1/10)
   './js/modules/quality/features/schedule/schedule.module.js',

@@ -988,6 +988,9 @@ async function _renderTasksList(forceRender) {
 
     if (_permSvc3 ? !_permSvc3.canViewWeeklyPlan() : ['guest', 'contractor'].includes(currentRole)) {
         container.innerHTML = '<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] text-[var(--text-muted)] font-bold text-[11px] uppercase shadow-sm">План недоступен для вашей роли</div>';
+        if (typeof window.__rbiAfterTasksListRender === 'function') {
+            try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
+        }
         return;
     }
 
@@ -1196,6 +1199,9 @@ async function _renderTasksList(forceRender) {
     var _engineerAbsence = _getEngineerAbsence();
     if (_engineerAbsence.isActive) {
         container.innerHTML = globalActionsHtml + '<div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-6 text-center text-slate-600 shadow-sm"><div class="font-black uppercase mb-1">Режим: ' + _engineerAbsence.reason + '</div>Инспекции приостановлены.</div>';
+        if (typeof window.__rbiAfterTasksListRender === 'function') {
+            try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
+        }
         return;
     }
 
@@ -1441,10 +1447,16 @@ async function _renderTasksList(forceRender) {
         container.innerHTML = globalActionsHtml + filtersHtml +
             '<div class="text-center py-6 text-slate-400 font-bold text-[11px] uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">' +
             'Нет задач в этой категории</div>';
+        if (typeof window.__rbiAfterTasksListRender === 'function') {
+            try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
+        }
         return;
     }
 
     container.innerHTML = globalActionsHtml + filtersHtml + accordionsHtml;
+    if (typeof window.__rbiAfterTasksListRender === 'function') {
+        try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
+    }
 }
 
 // =========================================================================

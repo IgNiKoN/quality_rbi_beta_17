@@ -566,19 +566,39 @@ export function renderMeetingTab(options) {
         const authorShort = m.author ? m.author.split(' ')[0] : 'Инженер';
         const resolvedCount = m.agenda ? m.agenda.filter(a => a.isDone).length : 0;
         const totalCount = m.agenda ? m.agenda.length : 0;
-        const dateStr = new Date(m.date).toLocaleDateString('ru-RU');
+        const dateStr = (function (raw) {
+            const s = String(raw || '').trim();
+            const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return m[3] + '.' + m[2] + '.' + m[1];
+            const d = new Date(raw);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('ru-RU');
+        })(m.date);
+        const periodLabel = (function (meet) {
+            if (meet.periodText) return String(meet.periodText);
+            if (meet.period === 'MONTH') return '30 дней';
+            if (meet.period === 'ALL') return 'Всё время';
+            if (meet.period === 'WEEK') return '7 дней';
+            return '';
+        })(m);
         const memoPreview = _meetingPlainPreview(m.memoText, 160);
         const thumb = m.qDayPhoto
             ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(m.qDayPhoto, { preferThumb: true }) : ('src="' + window.getPhotoSrc(m.qDayPhoto) + '"')} class="w-full h-full object-cover">`
             : _meetingPhotoPlaceholder('thumb');
+        const metaLine = [
+            dateStr ? `Проведено ${dateStr}` : '',
+            periodLabel ? `Разбор за ${periodLabel}` : '',
+            `Вопросов ${resolvedCount}/${totalCount}`,
+            authorShort
+        ].filter(Boolean).join(' · ');
 
         if (isListView) {
             return `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm flex items-center gap-2.5 p-2 active:scale-[0.99] transition-transform relative cursor-pointer" onclick="rbi_openSavedMeeting('${m.id}')">
                 <div class="w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--card-border)]">${thumb}</div>
                 <div class="min-w-0 flex-1">
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white truncate leading-tight">${m.title}</div>
-                    <div class="text-[9px] font-bold text-slate-400 truncate mt-0.5">Вопросов ${resolvedCount}/${totalCount} · ${authorShort} · ${dateStr}</div>
+                    <div class="text-[12px] font-bold text-slate-800 dark:text-white leading-snug">${m.title}</div>
+                    <div class="text-[9px] font-bold text-slate-400 mt-0.5 leading-snug">${metaLine}</div>
                 </div>
                 <button onclick="event.stopPropagation(); openUniversalActionSheet('${m.id}', 'meeting', '${safeTitle}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-400 hover:bg-[var(--hover-bg)] active:scale-90">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
@@ -599,13 +619,13 @@ export function renderMeetingTab(options) {
                 </button>
             </div>
             <div class="p-3 flex flex-col flex-1 min-w-0">
-                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 truncate">${m.title}</div>
-                <div class="text-[9px] font-bold text-[var(--text-muted)] mb-2">Вопросов: ${resolvedCount}/${totalCount}</div>
+                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 leading-snug">${m.title}</div>
+                <div class="text-[9px] font-bold text-[var(--text-muted)] mb-2 leading-snug">${metaLine}</div>
                 <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 mb-2 flex-1">
                     ${memoPreview}
                 </div>
                 <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center gap-2">
-                    <div class="text-[9px] font-bold text-[var(--text-muted)] truncate min-w-0">
+                    <div class="text-[9px] font-bold text-[var(--text-muted)] min-w-0 leading-snug">
                         <svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         ${authorShort}
                     </div>
@@ -1556,6 +1576,9 @@ export async function executeMeetingSetup(taskId) {
     const period = document.getElementById('meet-setup-period')?.value || 'WEEK';
     window._meetingSetupProject = _meetingFormatProjectNameForSave(isAll, selected);
     window._meetingSetupProjects = isAll ? ['__ALL__'] : selected.slice();
+    window._meetingSetupPeriod = period;
+    window._meetingSetupPeriodText =
+        period === 'MONTH' ? '30 дней' : period === 'ALL' ? 'Всё время' : '7 дней';
 
     let finalData = _getAllInspections().filter(c => selectedContrs.includes(c.contractorName));
     finalData = finalData.filter(c => _meetingInspectionMatchesProjects(c, isAll, selected));
@@ -1593,9 +1616,13 @@ export function createMeeting(customData = null) {
     let weekChecks = customData;
 
     let periodText = "7 дней";
-    const selectedPeriod = document.getElementById('meet-setup-period')?.value;
+    const selectedPeriod = document.getElementById('meet-setup-period')?.value || window._meetingSetupPeriod;
     if (selectedPeriod === 'MONTH') periodText = "30 дней";
     if (selectedPeriod === 'ALL') periodText = "Всё время";
+    if (selectedPeriod) {
+        window._meetingSetupPeriod = selectedPeriod;
+        window._meetingSetupPeriodText = periodText;
+    }
 
     const weekMetrics = typeof getObjectIntegralMetrics === 'function' ? getObjectIntegralMetrics(weekChecks, _templates().getUserTemplates()) : null;
     const iko = weekMetrics ? weekMetrics.IKO : '0.00';
@@ -2221,6 +2248,8 @@ export async function saveMeetingMemo() {
         memoText: text,
         agenda: agendaData,
         notes: extraNotes,
+        period: window._meetingSetupPeriod || 'WEEK',
+        periodText: window._meetingSetupPeriodText || '7 дней',
         qDayPhoto: document.getElementById('meeting-photo-preview')?.dataset?.photo || null,
         createdAt: meetDate,
         updatedAt: meetDate

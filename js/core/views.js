@@ -116,6 +116,9 @@ window.rbi_backFromModePlaceholder = function () {
 window.AppViews = {
     // === РАЗДЕЛ 1: КАЧЕСТВО (СУЩЕСТВУЮЩИЙ) ===
     renderAudit() {
+        if (typeof window.ensureAuditMarkup === 'function') {
+            try { window.ensureAuditMarkup(); } catch (_) { /* ignore */ }
+        }
         if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
         switchViewNode('tab-audit', true); // ТУТ TRUE (шапка нужна)
         if (typeof updateUI === 'function') updateUI();
@@ -123,6 +126,9 @@ window.AppViews = {
     },
     
     renderEngineer() {
+        if (typeof window.ensureEngineerMarkup === 'function') {
+            try { window.ensureEngineerMarkup(); } catch (_) { /* ignore */ }
+        }
         if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
         switchViewNode('tab-engineer', false); // ТУТ FALSE
         if (typeof rbi_renderEngineerTab === 'function') rbi_renderEngineerTab();
@@ -130,8 +136,48 @@ window.AppViews = {
     },
 
     renderAnalytics() {
+        // После route-teardown (#tab-analytics.innerHTML='') каркас нужно вернуть
+        // до любого paint / desktop.show / defer-ветки.
+        if (typeof window.ensureAnalyticsMarkup === 'function') {
+            try { window.ensureAnalyticsMarkup(); } catch (_) { /* ignore */ }
+        }
+
         // Re-entry во время sync на уже открытой Аналитике → только dirty (§5).
+        // Но breakpoint desktop↔mobile всегда применяем shell/teardown — иначе
+        // после сужения UI залипает в mobile при обратном растягивании.
+        var desk = window.AnalyticsDesktopRender;
+        var wantDesk = !!(desk && typeof desk.isDesktop === 'function' && desk.isDesktop());
+        var deskShellOn = !!(desk && typeof desk.isShellApplied === 'function'
+            ? desk.isShellApplied()
+            : document.getElementById('analytics-desktop-shell'));
+
+        // Resize watcher нужен и на mobile-входе, иначе expand ≥1280 молчит.
+        if (desk && typeof desk.bindResizeWatcher === 'function') {
+            desk.bindResizeWatcher(function () {
+                if (typeof window.AppViews !== 'undefined' && window.AppViews.renderAnalytics) {
+                    window.AppViews.renderAnalytics();
+                }
+            });
+        }
+
+        if (desk && typeof desk.teardown === 'function' && !wantDesk) {
+            try { desk.teardown(); } catch (_) { /* ignore */ }
+            deskShellOn = false;
+        }
+
         if (typeof window.shouldDeferFullRender === 'function' && window.shouldDeferFullRender('analytics')) {
+            // После teardown на mobile всё равно нужен mobile-paint списка,
+            // иначе остаётся пусто / HTML таблицы до смены вкладки.
+            if (!wantDesk) {
+                try {
+                    if (typeof updateAnalyticsFilters === 'function') updateAnalyticsFilters();
+                    if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
+                } catch (_) { /* ignore */ }
+            } else if (desk && typeof desk.show === 'function' && !deskShellOn) {
+                // Expand ≥1280 во время defer: shell обязателен, dirty недостаточен.
+                try { desk.show(); } catch (_) { /* ignore */ }
+                return;
+            }
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
             return;
@@ -139,6 +185,12 @@ window.AppViews = {
 
         if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
         switchViewNode('tab-analytics', false); // Шапка скрыта
+
+        if (wantDesk && desk && typeof desk.show === 'function') {
+            desk.show();
+            return;
+        }
+
         if (typeof updateAnalyticsFilters === 'function') updateAnalyticsFilters();
 
         // Внутренняя функция: выполнить рендер активной подвкладки
@@ -220,9 +272,14 @@ window.AppViews = {
     },
 
     renderReference() {
-        
+        if (typeof window.ensureReferenceMarkup === 'function') {
+            try { window.ensureReferenceMarkup(); } catch (_) { /* ignore */ }
+        }
         switchViewNode('tab-reference', false); // ТУТ FALSE
         if (typeof updateFabButton === 'function') updateFabButton('tab-reference');
+        if (typeof window.renderReferenceTab === 'function') {
+            try { window.renderReferenceTab(); } catch (_) { /* ignore */ }
+        }
 
         if (window.syncDirtyFlags && window.syncDirtyFlags.reference) {
             if (typeof window.rbi_reloadReferenceMemory === 'function') {
@@ -236,6 +293,9 @@ window.AppViews = {
     },
 
     renderSettings() {
+        if (typeof window.ensureSettingsMarkup === 'function') {
+            try { window.ensureSettingsMarkup(); } catch (_) { /* ignore */ }
+        }
         switchViewNode('tab-settings', false); // ТУТ FALSE
         if (typeof renderSettingsTab === 'function') renderSettingsTab(); // <-- ВСТАВКА: Отрисовка данных из памяти
         if (typeof updateStorageInfo === 'function') updateStorageInfo();
@@ -244,6 +304,9 @@ window.AppViews = {
 
     // === РАЗДЕЛ 2: СТРОЙКОНТРОЛЬ (НОВЫЙ) ===
     renderConstructionDefects() { 
+        if (typeof window.ensureConstructionMarkup === 'function') {
+            try { window.ensureConstructionMarkup('tab-construction-defects'); } catch (_) { /* ignore */ }
+        }
         if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
         switchViewNode('tab-construction-defects', true); // ТУТ TRUE (нужна шапка с режимами)
         
@@ -253,6 +316,9 @@ window.AppViews = {
         }
     },
     renderConstructionAcceptance() { 
+        if (typeof window.ensureConstructionMarkup === 'function') {
+            try { window.ensureConstructionMarkup('tab-construction-acceptance'); } catch (_) { /* ignore */ }
+        }
         if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
         switchViewNode('tab-construction-acceptance', true); 
         if (window.ConstructionActions && typeof window.ConstructionActions.initAcceptance === 'function') window.ConstructionActions.initAcceptance(); 
@@ -268,6 +334,9 @@ window.AppViews = {
     
     // === РАЗДЕЛЫ-ЗАГЛУШКИ ===
     renderTransfer() { 
+        if (typeof window.ensureConstructionMarkup === 'function') {
+            try { window.ensureConstructionMarkup('tab-transfer'); } catch (_) { /* ignore */ }
+        }
         // Если мы не в Стройконтроле, переключаемся на Стройконтроль
         if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
         

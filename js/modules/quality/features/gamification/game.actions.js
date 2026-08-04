@@ -14,12 +14,25 @@ import {
 } from './game.state.js';
 import { gameRenderDashboard, rbi_renderFmeaRegistry, rbi_addManualFmeaRow, gameRenderAssignedProjectChips } from './game.render.js';
 
+/** Module-scope: id FMEA, открытого в #fmea-workspace для редактирования. */
+let currentEditingFmeaId = null;
+
 function emit(eventName, detail) {
     document.dispatchEvent(new CustomEvent(eventName, { detail: detail || {} }));
     var events = GameActions._ctx && GameActions._ctx.events;
     if (events && typeof events.emit === 'function') {
       events.emit(eventName, detail || {});
     }
+  }
+
+  // DOM-id карточки пользователя в панели «Команда».
+  // Нельзя просто заменить «чужие» символы на '_': кириллические ФИО
+  // одинаковой длины схлопывались в один id → getElementById читал чужой
+  // <select> роли и при сохранении роль сбрасывалась на «инженер».
+  function gameDomIdFromInspectorId(inspectorId) {
+    return String(inspectorId || '').replace(/[^a-zA-Z0-9_-]/g, function (ch) {
+      return '_' + ch.codePointAt(0).toString(16) + '_';
+    });
   }
 
   // Перенесено из js/game.js (строка 6): изоляция isDemoMode через
@@ -1158,7 +1171,11 @@ function emit(eventName, detail) {
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
     }
-    rbi_renderFmeaRegistry();
+    if (typeof window.rbi_renderFmeaRegistry === 'function') {
+      window.rbi_renderFmeaRegistry();
+    } else {
+      rbi_renderFmeaRegistry();
+    }
     var _tasksSvc4 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
     _tasksSvc4.generateWeeklyPlan(true); // Пересчет задач
     showToast("🗑️ Отчет удален");
@@ -1170,7 +1187,7 @@ function emit(eventName, detail) {
   // рендером), рендер финального workspace HTML — уже здесь же, 1:1 как
   // в оригинале (решение по граничному случаю зафиксировано в отчёте).
   function rbi_loadFmeaToWorkspace(id) {
-    const record = _getFmea().find(m => m.id === id);
+    const record = _getFmea().find(m => String(m.id) === String(id));
     if (!record) return;
 
     currentEditingFmeaId = id; // Глобально запоминаем ID
@@ -1271,7 +1288,12 @@ function emit(eventName, detail) {
     if (typeof window.rbiHydrateLocalImages === 'function') {
       window.rbiHydrateLocalImages(workspace);
     }
-    rbi_renderFmeaRegistry(); // Перерисовываем архив, чтобы убрать открытый файл
+    // Prefer window.* so desktop wraps (engineer.desktop) can remount chrome
+    if (typeof window.rbi_renderFmeaRegistry === 'function') {
+      window.rbi_renderFmeaRegistry();
+    } else {
+      rbi_renderFmeaRegistry();
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast("Отчет открыт для редактирования");
   };
@@ -1448,7 +1470,11 @@ function emit(eventName, detail) {
     }
 
     showToast("💾 FMEA Отчет сохранен! Задача выполнена.");
-    rbi_renderFmeaRegistry();
+    if (typeof window.rbi_renderFmeaRegistry === 'function') {
+      window.rbi_renderFmeaRegistry();
+    } else {
+      rbi_renderFmeaRegistry();
+    }
     window.RBI.events.emit('tasks:refresh', {});
     // Тихо пересчитываем план, чтобы проверить, появились ли новые системные дефекты
     var _tasksSvc5 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
@@ -2016,7 +2042,7 @@ function emit(eventName, detail) {
       .replace(/'/g, "\\'")
       .replace(/\n/g, ' ');
 
-    const safeId = (v) => String(v || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeId = gameDomIdFromInspectorId;
 
     try {
       // 1. БЕРЕМ ОБЪЕКТЫ ИЗ ЛОКАЛЬНОГО СПРАВОЧНИКА (чтобы мгновенно видеть добавленные вручную)
@@ -2430,7 +2456,7 @@ function emit(eventName, detail) {
   async function gameSaveUserAccess(inspectorId, engineerName) {
     if (!window.supabaseClient) return showToast("❌ Облако не подключено");
 
-    const domId = String(inspectorId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const domId = gameDomIdFromInspectorId(inspectorId);
 
     const role = document.getElementById(`role_select_${domId}`)?.value || 'guest';
     const cloudStatus = document.getElementById(`status_select_${domId}`)?.value || 'pending';

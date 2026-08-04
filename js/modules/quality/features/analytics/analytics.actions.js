@@ -390,11 +390,6 @@ export const AnalyticsActions = {
     getFilteredAnalyticsData() {
         const selPeriod = document.getElementById('global-filter-period')?.value || 'D30';
 
-        const fProj = _analyticsFilters('analytics').project;
-        const fContr = _analyticsFilters('analytics').contractor;
-        const fInsp = _analyticsFilters('analytics').inspector;
-        const fTmpl = _analyticsFilters('analytics').template;
-
         let arr = AnalyticsActions.getAnalyticsDataSource(_analyticsMode());
         const now = new Date();
         // Жёстко отсекаем проверки Стройконтроля из аналитики качества.
@@ -424,17 +419,51 @@ export const AnalyticsActions = {
             arr = arr.filter(i => new Date(i.date) >= from);
         }
 
+        return AnalyticsActions.applyAnalyticsEntityFilters(arr);
+    },
+
+    /**
+     * Entity filters (project / contractor / inspector / template) shared by
+     * KPI slice and one-pager trend window.
+     */
+    applyAnalyticsEntityFilters(arr) {
+        const f = _analyticsFilters('analytics');
+        const fProj = f.project || [];
+        const fContr = f.contractor || [];
+        const fInsp = f.inspector || [];
+        const fTmpl = f.template || [];
+        let out = arr || [];
         if (fProj.length > 0) {
-            arr = arr.filter(i => {
+            out = out.filter(i => {
                 const p = i.project_display_name || i.projectName || i.project_canonical_key || '';
                 return fProj.includes(p) || fProj.includes(i.project_canonical_key);
             });
         }
-        if (fContr.length > 0) arr = arr.filter(i => fContr.includes(i.contractorName));
-        if (fInsp.length > 0) arr = arr.filter(i => fInsp.includes(i.inspectorName));
-        if (fTmpl.length > 0) arr = arr.filter(i => fTmpl.includes(i.templateTitle));
+        if (fContr.length > 0) out = out.filter(i => fContr.includes(i.contractorName));
+        if (fInsp.length > 0) out = out.filter(i => fInsp.includes(i.inspectorName));
+        if (fTmpl.length > 0) out = out.filter(i => fTmpl.includes(i.templateTitle));
+        return out;
+    },
 
-        return arr;
+    /**
+     * One-pager «Динамика уровня качества»: own lookback, ignores global D30/CUSTOM.
+     * WEEK → 12 weeks; MONTH → 6 months. Entity filters still apply.
+     */
+    getOnePagerTrendSourceData(grouping) {
+        const g = grouping || (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
+        const lookbackDays = g === 'MONTH' ? 180 : 84;
+        let arr = AnalyticsActions.getAnalyticsDataSource(_analyticsMode());
+        arr = arr.filter(i => i.inspection_type !== 'sk_acceptance');
+        const now = new Date();
+        const from = new Date(now);
+        from.setDate(now.getDate() - lookbackDays);
+        arr = arr.filter(i => new Date(i.date) >= from);
+        return AnalyticsActions.applyAnalyticsEntityFilters(arr);
+    },
+
+    onePagerTrendWindowHint(grouping) {
+        const g = grouping || (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
+        return g === 'MONTH' ? '6 мес. · вне фильтра периода' : '12 нед. · вне фильтра периода';
     },
 
     // =========================================================================
@@ -501,7 +530,15 @@ export const AnalyticsActions = {
             'sub-schedule': 'schedule-container',
             'sub-sk': 'sk-main-container'
         };
-        if (!canReuse && !alreadyPainted && typeof window.rbiShowContentSkeleton === 'function') {
+        // История с данными в памяти — без skeleton (иначе «долгая загрузка» на IDB).
+        const histHasMem = tabId === 'sub-history'
+            && window.HistoryState && Array.isArray(window.HistoryState.allRecords)
+            && window.HistoryState.allRecords.length > 0;
+        const skHasMem = tabId === 'sub-sk'
+            && Array.isArray(window.skRecords) && window.skRecords.length > 0;
+        const schedReady = tabId === 'sub-schedule' && Array.isArray(window.rbi_scheduleData);
+        if (!canReuse && !alreadyPainted && !histHasMem && !skHasMem && !schedReady
+            && typeof window.rbiShowContentSkeleton === 'function') {
             const skShellAlive = tabId === 'sub-sk' && !!document.getElementById('sk-view-dashboard');
             if (!skShellAlive) {
                 const elId = skeletonTargets[tabId];
@@ -517,8 +554,7 @@ export const AnalyticsActions = {
 
         // Дать браузеру отрисовать «Загрузка…», иначе тяжёлый sync-render
         // блокирует main thread и экран остаётся пустым/старым.
-        // При sync-defer + уже нарисованной секции — не вызываем render
-        // (он только markDirty и выйдет); иначе rAF всё равно ок.
+        // Живой UI при sync-defer не трогаем; пустой после teardown — рисуем.
         if (deferring && alreadyPainted) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
@@ -679,6 +715,7 @@ export const AnalyticsActions = {
             }
             // Фильтр линий подрядчиков на Сводке: полный ререндер, чтобы
             // сохранить автологику «до 10» при пустом фильтре.
+            // Trend chart uses own lookback (not global D30) inside renderOnePagerSubTab.
             if (type === 'onepager' && typeof window.renderOnePagerSubTab === 'function') {
                 window.renderOnePagerSubTab(data);
             }
@@ -789,6 +826,9 @@ export const AnalyticsActions = {
                 // Вставляем фото
                 window.RBI.services.knowledge.renderGoodPhoto(photoGood);
                 window.RBI.services.knowledge.renderBadPhoto(photoBad);
+                if (typeof window.refreshTwiPhotoCandidates === 'function') {
+                    window.refreshTwiPhotoCandidates();
+                }
 
                 showToast('✨ Магия сработала! Допишите текст и сохраните (+100 XP).');
             }, 300);
@@ -1423,6 +1463,7 @@ if (typeof window !== 'undefined') {
     // =========================================================================
     window.getAnalyticsDataSource = AnalyticsActions.getAnalyticsDataSource.bind(AnalyticsActions);
     window.getFilteredAnalyticsData = AnalyticsActions.getFilteredAnalyticsData.bind(AnalyticsActions);
+    window.getOnePagerTrendSourceData = AnalyticsActions.getOnePagerTrendSourceData.bind(AnalyticsActions);
     window.setAnalyticsDataMode = AnalyticsActions.setAnalyticsDataMode.bind(AnalyticsActions);
     window.switchAnalyticsSubTab = AnalyticsActions.switchAnalyticsSubTab.bind(AnalyticsActions);
     window.toggleDateRange = AnalyticsActions.toggleDateRange.bind(AnalyticsActions);

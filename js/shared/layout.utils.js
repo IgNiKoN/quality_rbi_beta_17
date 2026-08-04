@@ -17,6 +17,14 @@ function updateBodyPadding() {
     const hasSidebar = !!sidebarEl && window.innerWidth >= 768 && getComputedStyle(sidebarEl).display !== 'none';
     document.body.classList.toggle('has-app-sidebar', hasSidebar);
 
+    // Shell B chrome (nav2 / desk topbar ≥1280) — js/core/app-shell.desktop.js
+    // Icon-rail (≥768) выше; 768–1279: rail + bottom-nav без nav2.
+    var deskChrome = (window.RBI && window.RBI.shellDesktop && typeof window.RBI.shellDesktop.updateChrome === 'function')
+        ? window.RBI.shellDesktop.updateChrome()
+        : { hasNav2: false, hasDeskTopbar: false };
+    var hasNav2 = !!deskChrome.hasNav2;
+    var hasDeskTopbar = !!deskChrome.hasDeskTopbar;
+
     // Проверяем, активны ли вкладки, где нужна шапка
     const isAuditActive = document.getElementById('tab-audit')?.classList.contains('active');
     const isDefects = document.getElementById('tab-construction-defects')?.classList.contains('active');
@@ -34,8 +42,11 @@ function updateBodyPadding() {
 
     let totalTop = 0;
 
+    // Shell B: slim desk topbar всегда занимает 52px сверху на ПК
+    if (hasDeskTopbar) totalTop += 52;
+
     if (needsHeader) {
-        if (isNavTop && navEl) totalTop += navEl.offsetHeight;
+        if (isNavTop && navEl && !hasNav2) totalTop += navEl.offsetHeight;
 
         if (headerEl && headerEl.style.display !== 'none') {
             const wasCollapsed = headerEl.classList.contains('header-collapsed');
@@ -51,7 +62,9 @@ function updateBodyPadding() {
         document.body.style.paddingTop = `${totalTop + 15}px`;
         if (mainEl) mainEl.classList.add('pt-4'); // Для красоты внутри Осмотра/Дефектов
     } else {
-        if (isNavTop && navEl) {
+        if (hasDeskTopbar) {
+            document.body.style.paddingTop = `${totalTop + 12}px`;
+        } else if (isNavTop && navEl) {
             // Навигация сверху: Высота меню (60px) + зазор 10px = 70px
             document.body.style.paddingTop = `70px`;
         } else {
@@ -112,3 +125,51 @@ function initHorizontalMouseScroll() {
 
 window.updateBodyPadding = updateBodyPadding;
 window.initHorizontalMouseScroll = initHorizontalMouseScroll;
+
+/**
+ * Remount каркаса вкладки после route-teardown (innerHTML='').
+ * Узел #tabId сохраняется; markerSelector — признак «каркас на месте».
+ * markupHtml может содержать несколько корневых .view-section (construction).
+ */
+window.rbiEnsureTabMarkup = function (tabId, markupHtml, markerSelector) {
+    var tab = document.getElementById(tabId);
+    if (tab && markerSelector && tab.querySelector(markerSelector)) return true;
+    if (tab && !markerSelector && tab.innerHTML && tab.innerHTML.trim().length > 40) return true;
+
+    var root = window.RBI && window.RBI.services && window.RBI.services.shell
+        ? window.RBI.services.shell.getContentRoot()
+        : document.getElementById('app-content');
+
+    var html = typeof markupHtml === 'function' ? markupHtml() : markupHtml;
+    if (!html) return false;
+
+    if (!tab) {
+        if (!root) return false;
+        root.insertAdjacentHTML('beforeend', html);
+        tab = document.getElementById(tabId);
+        return !!(tab && (!markerSelector || tab.querySelector(markerSelector)));
+    }
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = String(html).trim();
+    var fresh = tmp.querySelector('#' + tabId) || tmp.firstElementChild;
+    if (!fresh) return false;
+    tab.innerHTML = fresh.innerHTML;
+    return !!(markerSelector ? tab.querySelector(markerSelector) : tab.innerHTML.trim().length > 0);
+};
+
+/** Flush черновиков + очистка view-section (общий route-teardown). */
+window.rbiTeardownTabView = function (containerId, extraCleanup) {
+    var el = document.getElementById(containerId);
+    var FD = window.RBIFormDraft;
+    if (FD) {
+        try { if (typeof FD.flushPending === 'function') FD.flushPending(); } catch (_) { /* ignore */ }
+        try { if (el && typeof FD.flushBindingsIn === 'function') FD.flushBindingsIn(el); } catch (_) { /* ignore */ }
+    }
+    if (typeof extraCleanup === 'function') {
+        try { extraCleanup(); } catch (err) {
+            console.warn('[rbiTeardownTabView] extraCleanup failed', containerId, err);
+        }
+    }
+    if (el) el.innerHTML = '';
+};

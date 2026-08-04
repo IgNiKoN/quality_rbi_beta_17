@@ -326,7 +326,7 @@ var SettingsRender = {
                         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
                             <div class="min-w-0">
                                 <div class="font-bold text-sm">Фильтры при скролле</div>
-                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто: свернуть при уходе вниз, развернуть у верха; ручное раскрытие mid-page не схлопывается сразу. Ручное — только по клику</div>
+                                <div class="text-[10px] text-[var(--text-muted)] mt-1">Авто: как шапка Осмотра — свернуть при скролле вниз, развернуть у верха. Ручное — только по клику</div>
                             </div>
                             <select id="set-auto-collapse-filters" class="input-base w-36 shrink-0"
                                 data-settings-action="toggleSetting" data-settings-action-key="autoCollapseFilters" data-settings-action-val-type="element" data-action-event="change">
@@ -1510,6 +1510,12 @@ window.SettingsRender = SettingsRender;
 // сохранён для консистентности.
 // =========================================================================
 (function mountSettingsMarkup() {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+        window.rbiEnsureTabMarkup('tab-settings', function () {
+            return SettingsRender.renderMarkup();
+        }, '#settings-subnav');
+        return;
+    }
     if (document.getElementById('tab-settings')) return;
     var root = window.RBI && window.RBI.services && window.RBI.services.shell
         ? window.RBI.services.shell.getContentRoot()
@@ -1517,6 +1523,15 @@ window.SettingsRender = SettingsRender;
     if (!root) return;
     root.insertAdjacentHTML('beforeend', SettingsRender.renderMarkup());
 }());
+
+window.ensureSettingsMarkup = function () {
+    if (typeof window.rbiEnsureTabMarkup === 'function') {
+        return window.rbiEnsureTabMarkup('tab-settings', function () {
+            return SettingsRender.renderMarkup();
+        }, '#settings-subnav');
+    }
+    return !!document.getElementById('tab-settings');
+};
 
 console.log('[SettingsRender] settings.render.js markup mounted');
 
@@ -1901,28 +1916,26 @@ console.log('[SettingsRender] settings.render.js markup mounted');
     // Та же цветовая логика, что превью в настройках: токены темы, без белой плашки
     var _HEADER_ICON_LOGO_CLS = 'h-9 w-auto max-w-[7.25rem] px-1.5 bg-[var(--card-bg)] rounded-[10px] shadow-[0_2px_10px_rgba(0,0,0,0.06)] border border-[var(--card-border)] flex items-center justify-center shrink-0 overflow-hidden';
 
-    function _updateHeaderBrandLogo() {
-        var iconBox = document.getElementById('header-brand-icon');
-        var shield = document.getElementById('header-brand-shield');
-        var logoImg = document.getElementById('header-brand-logo');
+    function _fitBrandLogoImg(logoImg, maxH, maxW) {
+        if (!logoImg || !logoImg.naturalWidth || !logoImg.naturalHeight) return;
+        var ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+        var w = Math.min(maxW, Math.max(28, Math.round(maxH * ratio)));
+        var h = Math.min(maxH, Math.round(w / ratio));
+        logoImg.style.height = h + 'px';
+        logoImg.style.width = w + 'px';
+        logoImg.style.maxWidth = maxW + 'px';
+    }
+
+    function _updateDeskBrandLogo(brandLogo) {
+        var iconBox = document.getElementById('desk-brand-icon');
+        var shield = document.getElementById('desk-brand-shield');
+        var logoImg = document.getElementById('desk-brand-logo');
         if (!shield || !logoImg) return;
-        var brandLogo = _getSetting('brandLogo');
         if (brandLogo) {
             shield.classList.add('hidden');
             logoImg.classList.remove('hidden');
-            logoImg.className = 'object-contain';
-            if (iconBox) iconBox.className = _HEADER_ICON_LOGO_CLS;
-            var fit = function () {
-                if (!logoImg.naturalWidth || !logoImg.naturalHeight) return;
-                var maxH = 28;
-                var maxW = 108;
-                var ratio = logoImg.naturalWidth / logoImg.naturalHeight;
-                var w = Math.min(maxW, Math.max(28, Math.round(maxH * ratio)));
-                var h = Math.min(maxH, Math.round(w / ratio));
-                logoImg.style.height = h + 'px';
-                logoImg.style.width = w + 'px';
-                logoImg.style.maxWidth = maxW + 'px';
-            };
+            if (iconBox) iconBox.classList.add('is-logo');
+            var fit = function () { _fitBrandLogoImg(logoImg, 28, 108); };
             logoImg.onload = fit;
             _setBrandLogoImgSrc(logoImg, brandLogo);
             if (logoImg.complete && logoImg.naturalWidth) fit();
@@ -1933,10 +1946,40 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             logoImg.removeAttribute('data-prefer-thumb');
             logoImg.removeAttribute('style');
             logoImg.onload = null;
-            logoImg.className = 'hidden h-7 w-auto max-w-[6.75rem] object-contain';
             shield.classList.remove('hidden');
-            if (iconBox) iconBox.className = _HEADER_ICON_SHIELD_CLS;
+            if (iconBox) iconBox.classList.remove('is-logo');
         }
+    }
+
+    function _updateHeaderBrandLogo() {
+        var iconBox = document.getElementById('header-brand-icon');
+        var shield = document.getElementById('header-brand-shield');
+        var logoImg = document.getElementById('header-brand-logo');
+        var brandLogo = _getSetting('brandLogo');
+        if (shield && logoImg) {
+            if (brandLogo) {
+                shield.classList.add('hidden');
+                logoImg.classList.remove('hidden');
+                logoImg.className = 'object-contain';
+                if (iconBox) iconBox.className = _HEADER_ICON_LOGO_CLS;
+                var fit = function () { _fitBrandLogoImg(logoImg, 28, 108); };
+                logoImg.onload = fit;
+                _setBrandLogoImgSrc(logoImg, brandLogo);
+                if (logoImg.complete && logoImg.naturalWidth) fit();
+            } else {
+                logoImg.classList.add('hidden');
+                logoImg.removeAttribute('src');
+                logoImg.removeAttribute('data-local-src');
+                logoImg.removeAttribute('data-prefer-thumb');
+                logoImg.removeAttribute('style');
+                logoImg.onload = null;
+                logoImg.className = 'hidden h-7 w-auto max-w-[6.75rem] object-contain';
+                shield.classList.remove('hidden');
+                if (iconBox) iconBox.className = _HEADER_ICON_SHIELD_CLS;
+            }
+        }
+        // ПК slim topbar — тот же логотип компании
+        _updateDeskBrandLogo(brandLogo);
     }
 
     function _applySettingsToUI() {

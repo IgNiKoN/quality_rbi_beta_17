@@ -22,6 +22,11 @@
     </script>
 
     <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/app-shell.desktop.css">
+    <link rel="stylesheet" href="./css/analytics.desktop.css">
+    <link rel="stylesheet" href="./css/audit.desktop.css">
+    <link rel="stylesheet" href="./css/engineer.desktop.css">
+    <link rel="stylesheet" href="./css/knowledge.desktop.css">
 
     <script src="./libs/chart.umd.min.js"></script>
 
@@ -64,6 +69,34 @@
     <aside id="app-sidebar">
         <!-- Рендерится ShellService.renderSidebar() -->
     </aside>
+    <!-- === APP NAV2 (второй сайдбар экранов модуля, только ПК >=1280, shell B) === -->
+    <aside id="app-nav2" hidden aria-label="Экраны модуля">
+        <!-- Синхронно с #main-bottom-nav: AppModeManager.renderBottomNav() -->
+    </aside>
+    <!-- === DESK TOPBAR (slim chrome ПК, shell B) === -->
+    <header id="app-desk-topbar" class="app-desk-topbar" hidden>
+        <div class="app-desk-brand-block">
+            <div id="desk-brand-icon" class="app-desk-brand-icon" aria-hidden="true">
+                <svg id="desk-brand-shield" class="app-desk-brand-shield" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                </svg>
+                <img id="desk-brand-logo" src="" alt="" class="app-desk-brand-logo hidden" decoding="async">
+            </div>
+            <div class="app-desk-brand-text">
+                <div class="app-desk-brand">RBI <em>Platform</em></div>
+                <div class="app-desk-dev">Dev. by Igor Kondratiev</div>
+            </div>
+        </div>
+        <div id="desk-sync-status" class="app-desk-sync" title="Синхронизация"></div>
+        <div class="app-desk-spacer"></div>
+        <div id="desk-mode-chip" class="app-desk-chip">Модуль</div>
+        <div id="desk-user-chip" class="app-desk-user">
+            <span class="app-desk-avatar" id="desk-user-avatar">—</span>
+            <span id="desk-user-name">Пользователь</span>
+        </div>
+    </header>
 
     <!-- SPLASH SCREEN -->
     <div id="splash-screen">
@@ -699,9 +732,9 @@
     <!-- === ПОДКЛЮЧЕНИЕ МОДУЛЕЙ JS === -->
     <script>
         window.RBI_APP_VERSION = {
-            app: '18.57.0',
-            sw: '18.57.440',
-            buildDate: '2026-07-30'
+            app: '18.58.0',
+            sw: '18.58.2',
+            buildDate: '2026-08-04'
         };
     </script>
     <!-- === ПОДКЛЮЧЕНИЕ МОДУЛЕЙ JS === -->
@@ -776,6 +809,7 @@
     <script type="module" src="js/services/template.service.js"></script>
     <script type="module" src="js/core/bootstrap.js"></script>
     <script type="module" src="js/core/app-shell.js"></script>
+    <script type="module" src="js/core/app-shell.desktop.js"></script>
     <script type="module" src="js/services/app-mode.service.js"></script>
     <script type="module" src="js/services/company.service.js"></script>
     <script type="module" src="js/services/user-context.service.js"></script>
@@ -803,9 +837,12 @@
     <script type="module" src="js/modules/quality/features/meetings/meetings.module.js"></script>
     <script type="module" src="js/modules/quality/features/history/history.module.js"></script>
     <script type="module" src="js/modules/quality/features/audit/audit.module.js"></script>
+    <script type="module" src="js/modules/quality/features/audit/audit.desktop.render.js"></script>
     <script type="module" src="js/modules/quality/features/tasks/tasks.module.js"></script>
+    <script type="module" src="js/modules/quality/features/engineer/engineer.desktop.render.js"></script>
     <script type="module" src="js/modules/quality/features/interventions.js"></script>
     <script type="module" src="js/modules/quality/features/analytics/analytics.module.js"></script>
+    <script type="module" src="js/modules/quality/features/analytics/analytics.desktop.render.js"></script>
     <script type="module" src="js/modules/quality/features/shared/multi-filter.js"></script>
     <script type="module" src="js/modules/quality/features/reference/reference.js"></script>
     <script type="module" src="js/modules/quality/features/reports/reports.module.js"></script>
@@ -814,6 +851,7 @@
     <script type="module" src="js/modules/quality/features/sk/sk.module.js"></script>
     <script type="module" src="js/modules/settings/features/changelog.js"></script>
     <script type="module" src="js/modules/quality/features/knowledge/knowledge.module.js"></script>
+    <script type="module" src="js/modules/quality/features/knowledge/knowledge.desktop.render.js"></script>
     <script type="module" src="js/modules/settings/features/feedback.js"></script>
     <script type="module" src="js/modules/settings/features/app-mode-utils.js"></script>
     <script type="module" src="js/modules/settings/features/tutorial.js"></script>

@@ -11,7 +11,9 @@
     "build:construction-units": "vite build --config vite.construction-units.config.ts",
     "build:construction-v2": "vite build --config vite.construction-v2.config.ts",
     "build:modules": "npm run build:locations && npm run build:construction-defects && npm run build:construction-acceptance && npm run build:construction-units && npm run build:construction-v2",
-    "check:ts": "tsc --noEmit"
+    "check:ts": "tsc --noEmit",
+    "check:boundaries": "bash _ai/scripts/check-module-boundaries.sh",
+    "test:unit": "node --test js/shared/__tests__/*.test.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

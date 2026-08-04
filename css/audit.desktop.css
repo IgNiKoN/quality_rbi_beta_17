@@ -1,0 +1,611 @@
+/* css/audit.desktop.css — Desktop Осмотр ≥1280 (Pattern G)
+   Gate: body/app-root.rbi-audit-desktop-wide
+*/
+
+body.rbi-audit-desktop-wide #app-root.rbi-audit-desktop-wide,
+body.rbi-audit-desktop-wide #app-root {
+  max-width: none;
+  width: 100%;
+}
+
+body.rbi-audit-desktop-wide.has-desk-topbar {
+  padding-top: 0 !important;
+}
+
+body.rbi-audit-desktop-wide.has-desk-topbar #app-root,
+body.rbi-audit-desktop-wide.has-desk-topbar #app-root.rbi-audit-desktop-wide {
+  padding-top: 52px !important;
+  margin-top: 0 !important;
+}
+
+body.rbi-audit-desktop-wide.has-desk-topbar #app-content {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+#audit-desktop-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ===== CHROME — зоны ===== */
+.audit-desk-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.audit-desk-zone {
+  background: var(--card-bg, var(--card-bg));
+  border: 1px solid var(--card-border, var(--card-border));
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem 0.85rem;
+  min-width: 0;
+}
+
+.audit-desk-zone-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.45rem;
+}
+
+.audit-desk-zone-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.audit-desk-zone-head .audit-desk-zone-label {
+  margin: 0;
+}
+
+.audit-desk-zone-hint {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.audit-desk-zone-headstrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  padding: 0.7rem 0.95rem;
+}
+
+.audit-desk-zone-headstrip .audit-desk-chrome-titles {
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.audit-desk-zone-headstrip .audit-desk-chrome-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main, var(--text-main));
+}
+
+.audit-desk-zone-headstrip .audit-desk-chrome-sub {
+  margin: 0.2rem 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.audit-desk-zone-headstrip .audit-desk-zone-tpl {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 360px;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+.audit-desk-chrome-top {
+  display: none;
+}
+
+.audit-desk-zone-title .audit-desk-chrome-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main, var(--text-main));
+}
+
+.audit-desk-zone-title .audit-desk-chrome-sub {
+  margin: 0.35rem 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.audit-desk-zone-tpl {
+  display: flex;
+  flex-direction: column;
+}
+
+body.rbi-audit-desktop-wide #header-checklist-container {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0.1rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  background: var(--bg-main);
+  border: 1px solid var(--card-border, var(--card-border));
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+body.rbi-audit-desktop-wide #header-checklist-container:hover {
+  background: var(--card-bg);
+  border-color: color-mix(in srgb, var(--primary, var(--primary)) 40%, var(--card-border));
+}
+
+body.rbi-audit-desktop-wide #header-checklist-container:focus-within {
+  background: var(--card-bg);
+  border-color: var(--primary, var(--primary));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, var(--primary)) 16%, transparent);
+}
+
+body.rbi-audit-desktop-wide .audit-desk-tpl-face {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--text-main, var(--text-main)) !important;
+}
+
+body.rbi-audit-desktop-wide .audit-desk-tpl-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+body.rbi-audit-desktop-wide .audit-desk-tpl-chev {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.audit-desk-zone-object .audit-desk-chrome-form {
+  min-width: 0;
+}
+
+body.rbi-audit-desktop-wide #data-block-content {
+  display: grid !important;
+  /* 5 полей + кнопка «на плане» — одна строка */
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, 0.9fr) minmax(0, 0.75fr) minmax(0, 1fr) auto;
+  gap: 0.55rem 0.65rem;
+  align-items: end;
+  margin: 0 !important;
+  padding: 0.15rem 0 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+body.rbi-audit-desktop-wide #data-block-content .col-span-2,
+body.rbi-audit-desktop-wide #data-block-content .grid,
+body.rbi-audit-desktop-wide #data-block-content .grid.grid-cols-3,
+body.rbi-audit-desktop-wide #data-block-content > .flex.items-center.gap-2,
+body.rbi-audit-desktop-wide #data-block-content .col-span-2.flex {
+  display: contents !important;
+}
+
+body.rbi-audit-desktop-wide .audit-desk-field {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  position: relative;
+}
+
+body.rbi-audit-desktop-wide .audit-desk-field-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+body.rbi-audit-desktop-wide #data-block-content .input-base {
+  text-align: left !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  padding: 0.55rem 0.7rem !important;
+  border-radius: 9px !important;
+  height: auto !important;
+  min-height: 40px;
+  background: var(--bg-main) !important;
+  border: 1px solid var(--card-border, var(--card-border)) !important;
+}
+
+body.rbi-audit-desktop-wide #data-block-content .input-base:focus {
+  background: var(--card-bg) !important;
+  border-color: var(--primary, var(--primary)) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, var(--primary)) 14%, transparent);
+}
+
+body.rbi-audit-desktop-wide #btn-quality-plan-pin {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  order: 6;
+  grid-column: 6;
+  grid-row: 1;
+  min-height: 40px;
+  padding: 0.55rem 0.9rem !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--primary, var(--primary)) 10%, white) !important;
+  border: 1px solid color-mix(in srgb, var(--primary, var(--primary)) 28%, var(--card-border)) !important;
+  color: var(--primary-hover, var(--primary-hover)) !important;
+}
+
+body.rbi-audit-desktop-wide #data-block-content .audit-desk-field:has(#inp-contractor) { order: 1; grid-column: 1; grid-row: 1; }
+body.rbi-audit-desktop-wide #data-block-content .audit-desk-field:has(#inp-project) { order: 2; grid-column: 2; grid-row: 1; }
+body.rbi-audit-desktop-wide #data-block-content .audit-desk-field:has(#inp-section) { order: 3; grid-column: 3; grid-row: 1; }
+body.rbi-audit-desktop-wide #data-block-content .audit-desk-field:has(#inp-floor) { order: 4; grid-column: 4; grid-row: 1; }
+body.rbi-audit-desktop-wide #data-block-content .audit-desk-field:has(#inp-room) { order: 5; grid-column: 5; grid-row: 1; }
+
+body.rbi-audit-desktop-wide #quality-plan-pin-indicator {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  order: 7;
+  margin-top: 0.15rem;
+  max-width: 480px;
+}
+
+.audit-desk-zone-groups {
+  padding-bottom: 0.7rem;
+}
+
+body.rbi-audit-desktop-wide #audit-group-nav {
+  margin: 0 !important;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+body.rbi-audit-desktop-wide #audit-group-nav:empty {
+  display: none;
+}
+
+.audit-desk-zone-groups:has(#audit-group-nav:empty),
+.audit-desk-zone-groups:has([data-audit-desk-slot-nav]:empty) {
+  display: none;
+}
+
+/* ===== WORK ===== */
+.audit-desk-work,
+#audit-desktop-work {
+  display: grid;
+  grid-template-columns: var(--audit-desk-check-w, 32rem) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  min-width: 0;
+}
+
+#audit-desktop-check {
+  width: var(--audit-desk-check-w, 32rem);
+  max-width: 100%;
+  min-width: 0;
+}
+
+#audit-desktop-check #tab-audit {
+  max-width: none;
+  width: 100%;
+}
+
+/* Правая колонка: план (пропорция) + метрики под ним */
+.audit-desk-side,
+#audit-desktop-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  width: 100%;
+}
+
+#audit-desktop-plan,
+.audit-desk-plan {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  aspect-ratio: 4 / 3;
+  height: auto;
+  max-height: min(62vh, 820px);
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg, var(--card-bg));
+  border: 1px solid var(--card-border, var(--card-border));
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.audit-desk-plan-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--card-border, var(--card-border));
+  background: var(--bg-main);
+  flex-shrink: 0;
+}
+
+.audit-desk-plan-toolbar .audit-desk-plan-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.audit-desk-plan-toolbar .audit-desk-plan-meta {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-desk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 750;
+  border: 1px solid var(--card-border, var(--card-border));
+  background: var(--card-bg);
+  color: var(--text-main, var(--text-main));
+  cursor: pointer;
+}
+
+.audit-desk-btn:hover {
+  background: var(--hover-bg, var(--hover-bg));
+}
+
+.audit-desk-btn.primary {
+  background: var(--primary, var(--primary));
+  border-color: var(--primary, var(--primary));
+  color: #fff;
+}
+
+.audit-desk-btn.primary:hover {
+  background: var(--primary-hover, var(--primary-hover));
+}
+
+.audit-desk-plan-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-main);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audit-desk-plan-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.audit-desk-plan-empty p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  max-width: 28ch;
+  line-height: 1.45;
+}
+
+.audit-desk-plan-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.audit-desk-plan-canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  background: var(--card-bg);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.audit-desk-plan-pin {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.audit-desk-plan-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 250, 252, 0.85);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* УрК / коэффициенты под планом */
+.audit-desk-metrics,
+#audit-desktop-metrics {
+  max-width: none;
+  width: 100%;
+  background: var(--card-bg, var(--card-bg));
+  border: 1px solid var(--card-border, var(--card-border));
+  border-radius: 14px;
+  padding: 0.75rem 0.85rem 0.85rem;
+}
+
+.audit-desk-metrics-head {
+  margin-bottom: 0.65rem;
+}
+
+.audit-desk-metrics-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.audit-desk-metrics-hint {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+body.rbi-audit-desktop-wide #header-dashboard {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+body.rbi-audit-desktop-wide #header-dashboard > .flex.gap-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+/* Скрыть мобильный «раскрыватель» — коэффициенты всегда видны */
+body.rbi-audit-desktop-wide #header-dashboard [data-audit-action="toggleDashboardExpand"] {
+  display: none !important;
+}
+
+body.rbi-audit-desktop-wide #header-dashboard > .flex.gap-2 > .flex-1 {
+  background: var(--bg-main);
+  border: 1px solid var(--card-border, var(--card-border));
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem !important;
+  min-width: 0;
+}
+
+body.rbi-audit-desktop-wide #dash-expanded-view {
+  display: block !important;
+  margin-top: 0.65rem !important;
+  padding: 0.65rem 0.75rem !important;
+  border: 1px solid var(--card-border, var(--card-border)) !important;
+  border-radius: 10px;
+  background: var(--bg-main);
+}
+
+body.rbi-audit-desktop-wide #dash-expanded-view .grid {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 1rem !important;
+}
+
+body.rbi-audit-desktop-wide #dash-expanded-view .text-\[9px\] {
+  font-size: 11px !important;
+  line-height: 1.55;
+}
+
+@media (max-width: 1439px) {
+  body.rbi-audit-desktop-wide {
+    --audit-desk-check-w: 28rem;
+  }
+
+  /* одна строка сохраняем; чуть плотнее */
+  body.rbi-audit-desktop-wide #data-block-content {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 0.65fr) minmax(0, 0.9fr) auto;
+    gap: 0.45rem 0.5rem;
+  }
+
+  .audit-desk-chrome-top {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1600px) {
+  #audit-desktop-plan,
+  .audit-desk-plan {
+    max-height: min(68vh, 920px);
+  }
+}
+
+@media (max-width: 1279px) {
+  #audit-desktop-shell {
+    display: contents;
+  }
+}
