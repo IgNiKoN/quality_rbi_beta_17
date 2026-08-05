@@ -84,6 +84,19 @@
 
         console.log('[app.entry] \u0412\u0441\u0435 \u043c\u043e\u0434\u0443\u043b\u0438 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b.');
 
+        // i18n: quality/settings markup mounts during module init (after bootstrap applyDom).
+        // Re-apply + notify desk chrome so first paint is not stuck on RU fallbacks.
+        try {
+            var i18n = window.RBI.services && window.RBI.services.i18n;
+            if (i18n && typeof i18n.applyDom === 'function') i18n.applyDom(document);
+            if (window.RBI.events && typeof window.RBI.events.emit === 'function') {
+                var loc = i18n && typeof i18n.getLocale === 'function' ? i18n.getLocale() : null;
+                window.RBI.events.emit('i18n:localeChanged', { locale: loc });
+            }
+        } catch (eI18n) {
+            console.warn('[app.entry] i18n post-modules apply failed:', eI18n);
+        }
+
         try {
             if (window.RBI.services && window.RBI.services.shell &&
                 typeof window.RBI.services.shell.renderUserBlock === 'function' &&

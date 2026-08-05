@@ -19,6 +19,10 @@ let _deskReportsProject = 'ALL';
 let _deskPlansProject = 'ALL';
 let _deskChecksSort = { key: 'date', dir: 'desc' };
 let _deskPlansFloorItems = new Map();
+let _deskPlansFloorLabels = new Map();
+let _deskPlansSelectedFloor = null;
+/** Expanded accordion keys in plans left pane: `b:{buildingId}` / `s:{sectionId}` / `o:{projectName}` */
+let _deskPlansExpanded = new Set();
 let _deskHistBound = false;
 
 const CHECK_SORT_KEYS = ['place', 'date', 'tmpl', 'insp', 'urk'];
@@ -571,44 +575,246 @@ function projectNameOf(item) {
   return (item && (item.project_display_name || item.projectName)) || 'Без объекта';
 }
 
-function buildPlanFloorsHtml(loc, pName, filtered) {
-  const obj = resolveLocationObject(loc, pName);
-  if (!obj) return null;
-  const floors = pdfFloorsForObject(loc, obj);
-  if (!floors.length) return null;
-  let totalPins = 0;
-  const groups = groupPdfFloors(floors);
-  const showBuilding = groups.length > 1;
-  const parts = [];
-  groups.forEach((b) => {
-    if (showBuilding && b.buildingName) {
-      parts.push(`<div class="ana-desk-hist-plan-building">${esc(b.buildingName)}</div>`);
-    }
-    b.sections.forEach((s) => {
-      parts.push(`<div class="ana-desk-hist-plan-section">${esc(s.sectionName)}</div>`);
-      s.floors.forEach((row) => {
-        const pins = pinItemsOnFloor(filtered, row.id);
-        _deskPlansFloorItems.set(String(row.id), pins);
-        totalPins += pins.length;
-        const countCls = pins.length ? 'has-pins' : 'no-pins';
-        parts.push(
-          `<button type="button" class="ana-desk-hist-floor ${countCls}" data-ana-desk-floor="${esc(row.id)}">`
-          + `<span class="ana-desk-hist-floor-name">${esc(row.name)}</span>`
-          + `<span class="ana-desk-hist-floor-count">${pins.length} ${pins.length === 1 ? 'точка' : (pins.length > 1 && pins.length < 5 ? 'точки' : 'точек')}</span>`
-          + `</button>`
-        );
-      });
+function buildAggTableHtml(items, headLabel) {
+  const pins = items || [];
+  if (!pins.length) {
+    return `<div class="ana-desk-hist-plan-defects-empty">Нет точек на планах по текущим фильтрам.</div>`;
+  }
+  const groups = groupPinsByTemplate(pins);
+  let sumChecks = 0;
+  let sumB1 = 0;
+  let sumB2 = 0;
+  let sumB3 = 0;
+  const rows = groups.map((g) => {
+    let b1 = 0;
+    let b2 = 0;
+    let b3 = 0;
+    g.list.forEach((item) => {
+      const m = item.metrics || {};
+      b1 += Number(m.n_B1_fail) || 0;
+      b2 += Number(m.n_B2_fail) || 0;
+      b3 += Number(m.n_B3_fail) || 0;
     });
+    const checks = g.list.length;
+    const total = b1 + b2 + b3;
+    sumChecks += checks;
+    sumB1 += b1;
+    sumB2 += b2;
+    sumB3 += b3;
+    return `<tr>`
+      + `<td class="ana-desk-hist-plan-agg-name">${esc(g.title)}</td>`
+      + `<td class="ana-desk-hist-plan-agg-num">${checks}</td>`
+      + `<td class="ana-desk-hist-plan-agg-num">${total}</td>`
+      + `<td class="ana-desk-hist-plan-agg-num is-b3">${b3}</td>`
+      + `<td class="ana-desk-hist-plan-agg-num is-b2">${b2}</td>`
+      + `<td class="ana-desk-hist-plan-agg-num is-b1">${b1}</td>`
+      + `</tr>`;
+  }).join('');
+  const sumTotal = sumB1 + sumB2 + sumB3;
+  return `<div class="ana-desk-hist-plan-defects">`
+    + `<div class="ana-desk-hist-plan-defects-head">${esc(headLabel || 'Замечания по видам работ')}</div>`
+    + `<div class="ana-desk-hist-plan-agg-wrap">`
+    + `<table class="ana-desk-hist-plan-agg">`
+    + `<thead><tr>`
+    + `<th class="ana-desk-hist-plan-agg-name">Вид работ</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">Проверок</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">Всего</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">B3</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">B2</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">B1</th>`
+    + `</tr></thead>`
+    + `<tbody>${rows}</tbody>`
+    + `<tfoot><tr>`
+    + `<td>Итого</td>`
+    + `<td class="ana-desk-hist-plan-agg-num">${sumChecks}</td>`
+    + `<td class="ana-desk-hist-plan-agg-num">${sumTotal}</td>`
+    + `<td class="ana-desk-hist-plan-agg-num is-b3">${sumB3}</td>`
+    + `<td class="ana-desk-hist-plan-agg-num is-b2">${sumB2}</td>`
+    + `<td class="ana-desk-hist-plan-agg-num is-b1">${sumB1}</td>`
+    + `</tr></tfoot>`
+    + `</table></div></div>`;
+}
+
+function groupPinsByTemplate(items) {
+  const map = new Map();
+  (items || []).forEach((item) => {
+    const key = item.templateTitle || item.templateKey || 'Без вида работ';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
   });
-  const floorsLabel = floors.length === 1
-    ? '1 этаж'
-    : (floors.length < 5 ? floors.length + ' этажа' : floors.length + ' этажей');
+  const groups = Array.from(map.entries()).map(([title, list]) => ({ title, list }));
+  groups.sort((a, b) => RU_COLLATOR.compare(a.title, b.title));
+  return groups;
+}
+
+function isExpanded(key, fallbackOpen) {
+  if (_deskPlansExpanded.has(key)) return true;
+  if (_deskPlansExpanded.has('!' + key)) return false;
+  return !!fallbackOpen;
+}
+
+/** Single left cascade: All + Object → Building → Section → Floor (with pin counts). */
+function buildPlansCascadeHtml(loc, usableMeta, filtered, selectedFloorId) {
+  const parts = [];
+  const allPins = [];
+  const allOn = !selectedFloorId;
+  let totalFloors = 0;
+  let totalPins = 0;
+
+  usableMeta.forEach((meta) => {
+    const pName = meta.pName;
+    const obj = resolveLocationObject(loc, pName);
+    if (!obj) return;
+    const floors = pdfFloorsForObject(loc, obj);
+    if (!floors.length) return;
+    const groups = groupPdfFloors(floors);
+    const oKey = 'o:' + pName;
+    let objPins = 0;
+    let objFloors = 0;
+    const objHasSel = floors.some((f) => String(f.id) === String(selectedFloorId));
+    // Default collapsed; open only ancestors of selected floor or explicit user expand.
+    const oOpen = isExpanded(oKey, objHasSel);
+
+    const buildingParts = [];
+    groups.forEach((b, bi) => {
+      const bKey = 'b:' + pName + ':' + (b.buildingId || b.buildingName || bi);
+      let bPins = 0;
+      let bFloors = 0;
+      const bHasSel = b.sections.some((s) => s.floors.some((f) => String(f.id) === String(selectedFloorId)));
+      const showBuilding = groups.length > 1 && b.buildingName;
+      const bOpen = isExpanded(bKey, bHasSel);
+
+      const sectionParts = [];
+      b.sections.forEach((s, si) => {
+        const sKey = 's:' + pName + ':' + (s.sectionId || s.sectionName || (bi + '-' + si));
+        let sPins = 0;
+        const sHasSel = s.floors.some((f) => String(f.id) === String(selectedFloorId));
+        const multiSec = b.sections.length > 1;
+        const sOpen = isExpanded(sKey, sHasSel);
+
+        const floorBtns = s.floors.map((row) => {
+          const pins = pinItemsOnFloor(filtered, row.id);
+          _deskPlansFloorItems.set(String(row.id), pins);
+          _deskPlansFloorLabels.set(String(row.id), row.name);
+          pins.forEach((p) => allPins.push(p));
+          sPins += pins.length;
+          bPins += pins.length;
+          objPins += pins.length;
+          objFloors += 1;
+          bFloors += 1;
+          totalFloors += 1;
+          totalPins += pins.length;
+          const selCls = selectedFloorId && String(selectedFloorId) === String(row.id) ? ' is-selected' : '';
+          const countCls = pins.length ? 'has-pins' : 'no-pins';
+          return `<button type="button" class="ana-desk-hist-floor ${countCls}${selCls}" data-ana-desk-floor="${esc(row.id)}" data-ana-desk-floor-label="${esc(row.name)}">`
+            + `<span class="ana-desk-hist-floor-name">${esc(row.name)}</span>`
+            + `<span class="ana-desk-hist-floor-count">${pins.length}</span>`
+            + `</button>`;
+        }).join('');
+
+        if (multiSec) {
+          sectionParts.push(
+            `<button type="button" class="ana-desk-hist-plan-acc ana-desk-hist-plan-acc--sub${sOpen ? ' is-open' : ''}" data-ana-desk-acc="${esc(sKey)}" aria-expanded="${sOpen ? 'true' : 'false'}">`
+            + `<span class="ana-desk-hist-plan-acc-label">${esc(s.sectionName)}</span>`
+            + `<span class="ana-desk-hist-plan-acc-meta">${sPins}</span>`
+            + `<span class="ana-desk-hist-plan-acc-chev" aria-hidden="true"></span>`
+            + `</button>`
+            + `<div class="ana-desk-hist-plan-acc-body${sOpen ? '' : ' is-collapsed'}" data-ana-desk-acc-body="${esc(sKey)}">${floorBtns}</div>`
+          );
+        } else {
+          if (s.sectionName && showBuilding) {
+            sectionParts.push(`<div class="ana-desk-hist-plan-section">${esc(s.sectionName)}</div>`);
+          }
+          sectionParts.push(floorBtns);
+        }
+      });
+
+      if (showBuilding) {
+        buildingParts.push(
+          `<button type="button" class="ana-desk-hist-plan-acc${bOpen ? ' is-open' : ''}" data-ana-desk-acc="${esc(bKey)}" aria-expanded="${bOpen ? 'true' : 'false'}">`
+          + `<span class="ana-desk-hist-plan-acc-label">${esc(b.buildingName)}</span>`
+          + `<span class="ana-desk-hist-plan-acc-meta">${bPins}</span>`
+          + `<span class="ana-desk-hist-plan-acc-chev" aria-hidden="true"></span>`
+          + `</button>`
+          + `<div class="ana-desk-hist-plan-acc-body${bOpen ? '' : ' is-collapsed'}" data-ana-desk-acc-body="${esc(bKey)}">${sectionParts.join('')}</div>`
+        );
+      } else {
+        buildingParts.push(...sectionParts);
+      }
+    });
+
+    parts.push(
+      `<button type="button" class="ana-desk-hist-plan-acc ana-desk-hist-plan-acc--obj${oOpen ? ' is-open' : ''}" data-ana-desk-acc="${esc(oKey)}" aria-expanded="${oOpen ? 'true' : 'false'}">`
+      + `<span class="ana-desk-hist-plan-acc-label">${esc(pName)}</span>`
+      + `<span class="ana-desk-hist-plan-acc-meta">${objPins}</span>`
+      + `<span class="ana-desk-hist-plan-acc-chev" aria-hidden="true"></span>`
+      + `</button>`
+      + `<div class="ana-desk-hist-plan-acc-body${oOpen ? '' : ' is-collapsed'}" data-ana-desk-acc-body="${esc(oKey)}">${buildingParts.join('')}</div>`
+    );
+  });
+
+  const allBtn = `<button type="button" class="ana-desk-hist-obj${allOn ? ' is-on' : ''}" data-ana-desk-plans-all="1">`
+    + `<span class="ana-desk-hist-obj-name">Все объекты</span>`
+    + `<span class="ana-desk-hist-obj-count">${totalPins}</span>`
+    + `</button>`;
+
   return {
-    html: `<div class="ana-desk-hist-plan-floors">${parts.join('')}</div>`,
-    floors: floors.length,
+    html: `<aside class="ana-desk-hist-plan-cascade" aria-label="Планы">`
+      + `<div class="ana-desk-hist-plan-cascade-list">${allBtn}${parts.join('')}</div>`
+      + `</aside>`,
+    totalFloors,
     totalPins,
-    floorsLabel
+    allPins
   };
+}
+
+function floorLabelForId(floorId) {
+  const fromMap = _deskPlansFloorLabels.get(String(floorId));
+  if (fromMap) return fromMap;
+  const btn = document.querySelector(`.ana-desk-hist-floor[data-ana-desk-floor="${String(floorId).replace(/"/g, '')}"]`);
+  return (btn && btn.getAttribute('data-ana-desk-floor-label')) || 'План этажа';
+}
+
+async function mountSelectedFloorPreview(floorId) {
+  const host = document.getElementById('ana-desk-hist-plan-preview');
+  const defectsHost = document.getElementById('ana-desk-hist-plan-defects-host');
+  const previewWrap = document.getElementById('ana-desk-hist-plan-preview-wrap');
+
+  if (!floorId) {
+    if (previewWrap) previewWrap.classList.add('is-hidden');
+    if (host) host.innerHTML = '';
+    return;
+  }
+
+  if (previewWrap) previewWrap.classList.remove('is-hidden');
+  const items = _deskPlansFloorItems.get(String(floorId)) || [];
+  if (defectsHost) defectsHost.innerHTML = buildAggTableHtml(items, 'Замечания на плане · по видам работ');
+  if (!host) return;
+  host.innerHTML = `<div class="ana-desk-hist-plan-preview-loading">Загрузка плана…</div>`;
+
+  const openFullscreen = function () {
+    openHistoryPlanViewer({
+      floorId: floorId,
+      items: items,
+      onClose: function () {
+        if (_deskPlansSelectedFloor && String(_deskPlansSelectedFloor) === String(floorId)) {
+          mountSelectedFloorPreview(floorId);
+        }
+      }
+    });
+  };
+
+  try {
+    await openHistoryPlanViewer({
+      floorId: floorId,
+      items: items,
+      mountEl: host,
+      onFullscreen: openFullscreen
+    });
+  } catch (e) {
+    console.warn('[history.desk.plans] preview', e);
+    host.innerHTML = `<div class="ana-desk-hist-plan-preview-empty">Не удалось открыть план</div>`;
+  }
 }
 
 function paintDeskPlans() {
@@ -616,9 +822,9 @@ function paintDeskPlans() {
   if (!host) return;
   const loc = locationsSvc();
   const records = (window.HistoryState && window.HistoryState.allRecords) || [];
-  // Plans: object rail owns project selection — ignore multifilter.project here
   const filtered = filterHistoryRecords(records);
   _deskPlansFloorItems = new Map();
+  _deskPlansFloorLabels = new Map();
 
   if (!loc || typeof loc.getPlanForFloor !== 'function') {
     host.innerHTML = emptyHtml('Справочник локаций недоступен.', '');
@@ -634,7 +840,6 @@ function paintDeskPlans() {
       candidateNames.push(p);
     }
   });
-  // Also include location objects that have PDF plans even if no checks in filter window
   try {
     const objects = (typeof loc.listNodes === 'function'
       ? loc.listNodes({ nodeType: 'object', parentId: null })
@@ -650,16 +855,17 @@ function paintDeskPlans() {
   } catch (_) { /* ignore */ }
   candidateNames.sort(RU_COLLATOR.compare);
 
-  const usable = [];
-  const counts = new Map();
-  candidateNames.forEach((pName) => {
-    const built = buildPlanFloorsHtml(loc, pName, filtered);
-    if (!built) return;
-    usable.push({ pName, ...built });
-    counts.set(pName, built.floors);
-  });
+  const usableMeta = candidateNames
+    .map((pName) => {
+      const obj = resolveLocationObject(loc, pName);
+      if (!obj) return null;
+      const floors = pdfFloorsForObject(loc, obj);
+      if (!floors.length) return null;
+      return { pName };
+    })
+    .filter(Boolean);
 
-  if (!usable.length) {
+  if (!usableMeta.length) {
     host.innerHTML = emptyHtml(
       'Нет объектов с PDF-планами по фильтрам.',
       'Проверьте привязку планов этажей или смягчите фильтр.'
@@ -667,44 +873,71 @@ function paintDeskPlans() {
     return;
   }
 
-  const names = usable.map((u) => u.pName);
-  _deskPlansProject = resolveSelectedProject(_deskPlansProject, names);
-  const totalFloors = usable.reduce((s, u) => s + u.floors, 0);
-  const rail = buildObjectRailHtml('plans', names, counts, _deskPlansProject, totalFloors);
-
-  const selected = _deskPlansProject === 'ALL'
-    ? usable
-    : usable.filter((u) => u.pName === _deskPlansProject);
-
-  const title = _deskPlansProject === 'ALL' ? 'Все объекты' : _deskPlansProject;
-  const floorCount = selected.reduce((s, u) => s + u.floors, 0);
-  const pinCount = selected.reduce((s, u) => s + u.totalPins, 0);
-
-  let body = '';
-  if (!selected.length) {
-    body = emptyHtml('У этого объекта нет PDF-планов.', 'Выберите другой объект.');
-  } else if (_deskPlansProject === 'ALL') {
-    body = `<div class="ana-desk-hist-plans">${selected.map((u) => (
-      `<section class="ana-desk-hist-plan-card">`
-      + `<header class="ana-desk-hist-plan-head">`
-      + `<div><h3 class="ana-desk-hist-plan-title">${esc(u.pName)}</h3>`
-      + `<p class="ana-desk-hist-plan-sub">${esc(u.floorsLabel)} · ${u.totalPins} на планах</p></div>`
-      + `</header>${u.html}</section>`
-    )).join('')}</div>`;
-  } else {
-    const u = selected[0];
-    body = `<div class="ana-desk-hist-plans"><section class="ana-desk-hist-plan-card ana-desk-hist-plan-card--bare">`
-      + `<p class="ana-desk-hist-plan-sub">${esc(u.floorsLabel)} · ${pinCount} на планах</p>`
-      + u.html
-      + `</section></div>`;
+  let cascade = buildPlansCascadeHtml(loc, usableMeta, filtered, _deskPlansSelectedFloor);
+  if (_deskPlansSelectedFloor && !_deskPlansFloorItems.has(String(_deskPlansSelectedFloor))) {
+    _deskPlansSelectedFloor = null;
+    _deskPlansFloorItems = new Map();
+    _deskPlansFloorLabels = new Map();
+    cascade = buildPlansCascadeHtml(loc, usableMeta, filtered, null);
   }
 
-  const detail = `<div class="ana-desk-hist-detail">`
-    + detailHeadHtml(title, floorCount, floorCount === 1 ? 'этаж' : (floorCount > 1 && floorCount < 5 ? 'этажа' : 'этажей'))
-    + body
+  const selFloor = _deskPlansSelectedFloor;
+  const showPreview = !!selFloor;
+  const tableItems = showPreview
+    ? (_deskPlansFloorItems.get(String(selFloor)) || [])
+    : cascade.allPins;
+  const tableHead = showPreview
+    ? 'Замечания на плане · по видам работ'
+    : 'Замечания по всем объектам · по видам работ';
+
+  // Keep live PDF viewer across chrome re-paints (same floor) — avoids reload/toast while zooming.
+  const prevHost = document.getElementById('ana-desk-hist-plan-preview');
+  const liveOverlay = prevHost && prevHost.querySelector('#quality-plan-pin-overlay');
+  const keepPreview = !!(
+    showPreview
+    && selFloor
+    && liveOverlay
+    && liveOverlay.isConnected
+    && liveOverlay.getAttribute('data-qpin-floor') === String(selFloor)
+  );
+  if (keepPreview) {
+    liveOverlay.remove();
+  }
+
+  const stage = `<div class="ana-desk-hist-plan-stage">`
+    + `<div id="ana-desk-hist-plan-preview-wrap" class="ana-desk-hist-plan-preview-wrap${showPreview ? '' : ' is-hidden'}">`
+    + `<div id="ana-desk-hist-plan-preview" class="ana-desk-hist-plan-preview"></div>`
+    + `</div>`
+    + `<div id="ana-desk-hist-plan-defects-host" class="ana-desk-hist-plan-defects-host">${buildAggTableHtml(tableItems, tableHead)}</div>`
     + `</div>`;
 
-  host.innerHTML = `<div class="ana-desk-hist-split">${rail}${detail}</div>`;
+  // No detail-head above: cascade top aligns with preview chrome top.
+  host.innerHTML = `<div class="ana-desk-hist-detail ana-desk-hist-detail--plans">`
+    + `<div class="ana-desk-hist-plan-workspace ana-desk-hist-plan-workspace--cascade">`
+    + cascade.html
+    + stage
+    + `</div></div>`;
+
+  if (keepPreview) {
+    const nextHost = document.getElementById('ana-desk-hist-plan-preview');
+    if (nextHost) {
+      nextHost.innerHTML = '';
+      nextHost.appendChild(liveOverlay);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          try {
+            const pp = window.RbiPlanPanzoom;
+            const pz = liveOverlay._qpinPanzoom;
+            const wrap = liveOverlay.querySelector('[data-qpin-wrap]');
+            const st = liveOverlay.querySelector('[data-qpin-stage]');
+            if (pp && pz && wrap && st) pp.center(pz, wrap, st);
+          } catch (_eKeep) { /* ignore */ }
+        });
+      });
+    }
+  } else if (showPreview) {
+    mountSelectedFloorPreview(selFloor);
+  }
 }
 
 /* ─── Public paint API ──────────────────────────────────────────────── */
@@ -740,9 +973,12 @@ export function clearHistoryDeskPanels() {
     if (v) v.classList.remove('ana-desk-hist-mobile-hide');
   });
   _deskPlansFloorItems = new Map();
+  _deskPlansFloorLabels = new Map();
   _deskChecksProject = 'ALL';
   _deskReportsProject = 'ALL';
   _deskPlansProject = 'ALL';
+  _deskPlansSelectedFloor = null;
+  _deskPlansExpanded = new Set();
   _deskChecksSort = { key: 'date', dir: 'desc' };
   _deskReportsDocKind = 'ALL';
 }
@@ -816,6 +1052,30 @@ export function bindHistoryDeskEvents() {
       return;
     }
 
+    const accBtn = t.closest('[data-ana-desk-acc]');
+    if (accBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = accBtn.getAttribute('data-ana-desk-acc');
+      if (!key) return;
+      const body = document.querySelector(`[data-ana-desk-acc-body="${key}"]`);
+      const open = accBtn.classList.contains('is-open');
+      if (open) {
+        accBtn.classList.remove('is-open');
+        accBtn.setAttribute('aria-expanded', 'false');
+        if (body) body.classList.add('is-collapsed');
+        _deskPlansExpanded.delete(key);
+        _deskPlansExpanded.add('!' + key);
+      } else {
+        accBtn.classList.add('is-open');
+        accBtn.setAttribute('aria-expanded', 'true');
+        if (body) body.classList.remove('is-collapsed');
+        _deskPlansExpanded.delete('!' + key);
+        _deskPlansExpanded.add(key);
+      }
+      return;
+    }
+
     const openCheck = t.closest('[data-ana-desk-open-check]');
     if (openCheck) {
       e.preventDefault();
@@ -824,13 +1084,25 @@ export function bindHistoryDeskEvents() {
       return;
     }
 
+    const plansAll = t.closest('[data-ana-desk-plans-all]');
+    if (plansAll) {
+      e.preventDefault();
+      e.stopPropagation();
+      _deskPlansSelectedFloor = null;
+      _deskPlansProject = 'ALL';
+      paintDeskPlans();
+      return;
+    }
+
     const floor = t.closest('[data-ana-desk-floor]');
     if (floor) {
       e.preventDefault();
       e.stopPropagation();
       const floorId = floor.getAttribute('data-ana-desk-floor');
-      const items = _deskPlansFloorItems.get(String(floorId)) || [];
-      openHistoryPlanViewer({ floorId: floorId, items: items });
+      if (!floorId) return;
+      _deskPlansSelectedFloor = String(floorId);
+      _deskPlansProject = 'FLOOR';
+      paintDeskPlans();
       return;
     }
 

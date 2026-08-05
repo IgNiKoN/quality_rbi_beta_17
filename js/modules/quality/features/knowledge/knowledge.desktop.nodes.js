@@ -620,12 +620,9 @@ async function paintNodePreview(viewer, node) {
         } else if (L.kind === 'twi' && typeof window.openTwiViewer === 'function') {
           window.openTwiViewer(L.id);
         } else if (L.kind === 'checklist') {
-          if (typeof window.switchTab === 'function') window.switchTab('tab-audit');
-          setTimeout(function () {
-            if (typeof window.changeTemplate === 'function') {
-              window.changeTemplate(L.id);
-            }
-          }, 300);
+          if (typeof window.openKnowledgeLinkedChecklist === 'function') {
+            window.openKnowledgeLinkedChecklist(L.id);
+          }
         }
       });
       box.appendChild(btn);

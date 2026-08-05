@@ -238,11 +238,40 @@ window.AppRouter = {
             }
         });
 
-        if (!window.location.hash || window.location.hash === '#/') {
-            this.navigate('#/quality/audit', true);
+        let startHash = window.location.hash || '';
+        // Пустой hash → последний модульный экран или Осмотр.
+        // Settings hash оставляем как есть (chrome); фоновый увод на settings
+        // чинится в settings.render (_renderSettingsTab fromRouter).
+        if (!startHash || startHash === '#/') {
+            const restored = this._readLastModuleHash() || '#/quality/audit';
+            this.navigate(restored, true);
         } else {
+            this._rememberModuleHash(startHash);
             this.renderRoute();
         }
+    },
+
+    _isSettingsPath(path) {
+        const p = String(path || '');
+        return /^#\/settings(\/|$)/i.test(p) || /^#\/quality\/settings(\/|$)/i.test(p);
+    },
+
+    _readLastModuleHash() {
+        try {
+            const h = localStorage.getItem('rbi_last_module_hash') || '';
+            if (!h || h === '#/' || this._isSettingsPath(h)) return '';
+            return h;
+        } catch (_) {
+            return '';
+        }
+    },
+
+    _rememberModuleHash(path) {
+        const p = String(path || '');
+        if (!p || p === '#/' || this._isSettingsPath(p)) return;
+        try {
+            localStorage.setItem('rbi_last_module_hash', p);
+        } catch (_) { /* ignore */ }
     },
 
     addRoute(path, renderFunction) {
@@ -368,6 +397,7 @@ window.AppRouter = {
         } else {
             window.history.pushState(null, '', path);
         }
+        this._rememberModuleHash(path);
         this.renderRoute();
     },
 
@@ -426,30 +456,34 @@ window.AppRouter = {
 
     updateNavHighlight(path) {
         const p = String(path || '');
-        document.querySelectorAll(
+        // Longest data-path wins — иначе parent (`#/construction-v2` = Планы)
+        // остаётся active вместе с дочерней вкладкой (`…/defects` и т.д.).
+        const items = Array.from(document.querySelectorAll(
             '#main-bottom-nav .nav-item[data-path], #app-nav2 .app-nav2-item[data-path], #app-sidebar [data-path]'
-        ).forEach(item => {
+        ));
+        let bestLen = -1;
+        items.forEach((item) => {
             const itemPath = item.dataset.path || '';
-            const active = itemPath && (p === itemPath || p.startsWith(itemPath + '/'));
-            if (active) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
+            if (!itemPath) return;
+            if (p === itemPath || p.startsWith(itemPath + '/')) {
+                if (itemPath.length > bestLen) bestLen = itemPath.length;
             }
         });
-        // Mode icons in sidebar: path-independent — sync with AppModeManager
-        const onSettings = /^#\/settings(\/|$)/i.test(p);
+        items.forEach((item) => {
+            const itemPath = item.dataset.path || '';
+            const match = !!(itemPath && itemPath.length === bestLen &&
+                (p === itemPath || p.startsWith(itemPath + '/')));
+            item.classList.toggle('active', match);
+        });
+        // Mode icons in sidebar: path-independent — sync with AppModeManager.
+        // Settings is chrome (footer): keep the current business module highlighted too.
         let mode = null;
         try {
             mode = window.AppModeManager && window.AppModeManager.currentMode;
         } catch (_) { mode = null; }
         document.querySelectorAll('#app-sidebar [data-sidebar-module-id]').forEach(function (el) {
             const id = el.getAttribute('data-sidebar-module-id');
-            if (onSettings) {
-                el.classList.remove('active');
-            } else {
-                el.classList.toggle('active', !!(mode && id === mode));
-            }
+            el.classList.toggle('active', !!(mode && id === mode));
         });
     }
 };

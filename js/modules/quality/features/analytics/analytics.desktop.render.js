@@ -45,9 +45,34 @@ const ORIG_ORDER = [
 let _resizeBound = false;
 let _shellApplied = false;
 let _hooksBound = false;
+let _localeBound = false;
 let _onResizeNavigate = null;
 let _selectedContractor = null;
 const _deskCharts = {};
+
+function _t(key, fallback, vars) {
+  try {
+    const i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_) { /* ignore */ }
+  if (vars && typeof fallback === 'string') {
+    return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+      return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+    });
+  }
+  return fallback;
+}
+
+function _setSkBtnLabel(btn, text) {
+  if (!btn) return;
+  const svg = btn.querySelector('svg');
+  btn.textContent = '';
+  if (svg) btn.appendChild(svg);
+  btn.appendChild(document.createTextNode(' ' + text));
+}
 
 /** Один отложенный afterTabPaint на волну (раньше 80+280 → двойной rebuild графиков Сводки). */
 let _afterPaintTimer = null;
@@ -112,6 +137,15 @@ function placeSubtabsInShell(shell) {
   if (subtabs.parentElement !== shell) {
     shell.insertBefore(subtabs, shell.firstChild);
   }
+}
+
+/** KPI scrolls with contractors content — first child of workspace. */
+function placeKpiInWorkspace(shell) {
+  const kpi = document.getElementById(KPI_ID);
+  const work = document.getElementById(WORK_ID);
+  if (!kpi || !work) return;
+  if (kpi.parentElement === work && work.firstElementChild === kpi) return;
+  work.insertBefore(kpi, work.firstChild);
 }
 
 function expandFiltersForDesktop() {
@@ -402,7 +436,7 @@ function paintContextZones() {
     + '    <div class="meta">Средний УрК по неделям, %</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-trend"></canvas></div></div>'
     + '</div>'
-    + '<div class="ana-desk-secondary" style="margin-top:12px">'
+    + '<div class="ana-desk-secondary">'
     + '  <div class="ana-desk-panel"><h3>Коренные причины</h3>'
     + '    <div class="meta">Число дефектов с причиной</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-causes"></canvas></div></div>'
@@ -892,7 +926,7 @@ function paintHistoryDesktop() {
     hero.className = 'ana-desk-hist-hero';
     hero.innerHTML = ''
       + '<div class="ana-desk-hist-hero-text">'
-      + '  <h2 class="ana-desk-hist-title">История</h2>'
+      + '  <h2 class="ana-desk-hist-title">' + _t('quality.desk.analytics.hist_title', 'История') + '</h2>'
       + '  <p class="ana-desk-hist-sub" data-hist-desk-sub></p>'
       + '</div>'
       + '<div class="ana-desk-hist-mode" data-hist-desk-mode-host></div>';
@@ -910,8 +944,11 @@ function paintHistoryDesktop() {
   if (modeWrap) {
     modeWrap.classList.add('ana-desk-hist-mode-pills');
     modeWrap.setAttribute('role', 'group');
-    modeWrap.setAttribute('aria-label', 'Режим истории');
+    modeWrap.setAttribute('aria-label', _t('quality.desk.analytics.hist_mode_aria', 'Режим истории'));
   }
+
+  const histTitle = hero.querySelector('.ana-desk-hist-title');
+  if (histTitle) histTitle.textContent = _t('quality.desk.analytics.hist_title', 'История');
 
   const panelHeader = document.getElementById('hist-panel-header');
   if (panelHeader) {
@@ -957,12 +994,25 @@ function paintHistoryDesktop() {
 
   // Project multifilter duplicates object rail — mark for CSS hide
   root.classList.add('ana-desk-hist--no-proj-filter');
+  root.classList.toggle('ana-desk-hist--mode-plans', mode === 'plans');
+  root.classList.remove('ana-desk-hist--filters-collapsed');
+
+  // Remove obsolete filters toggle if present
+  const filtBtn = hero.querySelector('[data-ana-desk-hist-filters-toggle]');
+  if (filtBtn) filtBtn.remove();
+  const tools = hero.querySelector('.ana-desk-hist-hero-tools');
+  if (tools && modeHost && modeHost.parentElement === tools) {
+    hero.appendChild(modeHost);
+    tools.remove();
+  }
 
   const sub = hero.querySelector('[data-hist-desk-sub]');
   if (sub) {
     sub.textContent = mode === 'reports'
-      ? 'Архив отчётов'
-      : (mode === 'plans' ? 'Планы этажей по объектам' : 'Журнал проверок');
+      ? _t('quality.desk.analytics.hist_sub_reports', 'Архив отчётов')
+      : (mode === 'plans'
+        ? _t('quality.desk.analytics.hist_sub_plans', 'Планы этажей по объектам')
+        : _t('quality.desk.analytics.hist_sub_checks', 'Журнал проверок'));
   }
 
   ['checks', 'reports', 'plans'].forEach((m) => {
@@ -1026,12 +1076,15 @@ function paintSkDesktop() {
     hero.className = 'ana-desk-sk-hero';
     hero.innerHTML = ''
       + '<div class="ana-desk-sk-hero-text">'
-      + '  <h2 class="ana-desk-sk-title">ПК Стройконтроль</h2>'
+      + '  <h2 class="ana-desk-sk-title">' + _t('quality.desk.analytics.sk_title', 'ПК Стройконтроль') + '</h2>'
       + '  <p class="ana-desk-sk-sub" data-sk-desk-sub></p>'
       + '</div>'
       + '<div class="ana-desk-sk-hero-actions" data-sk-desk-actions></div>';
     chrome.appendChild(hero);
   }
+
+  const skTitleEl = hero.querySelector('.ana-desk-sk-title');
+  if (skTitleEl) skTitleEl.textContent = _t('quality.desk.analytics.sk_title', 'ПК Стройконтроль');
 
   const actionsHost = hero.querySelector('[data-sk-desk-actions]');
   if (headerCard && actionsHost) {
@@ -1055,7 +1108,7 @@ function paintSkDesktop() {
   if (pillsRow) {
     pillsRow.classList.add('ana-desk-sk-mode-pills');
     pillsRow.setAttribute('role', 'group');
-    pillsRow.setAttribute('aria-label', 'Режим ПК СК');
+    pillsRow.setAttribute('aria-label', _t('quality.desk.analytics.sk_mode_aria', 'Режим ПК СК'));
   }
 
   let stage = exec.querySelector(':scope > .ana-desk-sk-stage');
@@ -1079,8 +1132,13 @@ function paintSkDesktop() {
   if (sub) {
     const n = (window.skRecords && window.skRecords.length) || 0;
     const period = periodEl ? String(periodEl.textContent || '').replace(/^Период:\s*/i, '') : '';
-    const modeLabel = mode === 'volumes' ? 'Объёмы' : (mode === 'hr' ? 'Инженеры' : 'Дашборд');
-    sub.textContent = `${modeLabel} · ${n} позиций` + (period ? ` · ${period}` : '');
+    const modeLabel = mode === 'volumes'
+      ? _t('quality.desk.analytics.sk_mode_volumes', 'Объёмы')
+      : (mode === 'hr'
+        ? _t('quality.desk.analytics.sk_mode_engineers', 'Инженеры')
+        : _t('quality.desk.analytics.sk_mode_dashboard', 'Дашборд'));
+    sub.textContent = _t('quality.desk.analytics.sk_sub_positions', '{mode} · {n} позиций', { mode: modeLabel, n: n })
+      + (period ? ` · ${period}` : '');
   }
 
   ['dashboard', 'volumes', 'hr'].forEach((m) => {
@@ -1088,6 +1146,12 @@ function paintSkDesktop() {
     if (!btn) return;
     btn.classList.add('ana-desk-sk-pill');
     btn.classList.toggle('is-on', mode === m);
+    const label = m === 'volumes'
+      ? _t('quality.desk.analytics.sk_mode_volumes', 'Объёмы')
+      : (m === 'hr'
+        ? _t('quality.desk.analytics.sk_mode_engineers', 'Инженеры')
+        : _t('quality.desk.analytics.sk_mode_dashboard', 'Дашборд'));
+    _setSkBtnLabel(btn, label);
   });
 
   window.__anaDeskPaintSk = paintSkDesktop;
@@ -1280,31 +1344,43 @@ function setOnepagerMode(mode) {
   if (winHasFn('renderCurrentAnalyticsTab')) winCall('renderCurrentAnalyticsTab');
 }
 
+function placeOnepagerToggleAboveFilters(el) {
+  const toolbar = document.getElementById(TOOLBAR_ID);
+  if (!el || !toolbar) return;
+  const filters = document.getElementById('analytics-filters-block');
+  if (filters && filters.parentElement === toolbar) {
+    if (el.nextElementSibling !== filters) toolbar.insertBefore(el, filters);
+  } else if (el.parentElement !== toolbar) {
+    toolbar.insertBefore(el, toolbar.firstChild);
+  }
+}
+
 function ensureOnepagerModeToggle() {
   let el = document.getElementById(OP_TOGGLE_ID);
-  if (el) return el;
   const toolbar = document.getElementById(TOOLBAR_ID);
-  if (!toolbar) return null;
-  el = document.createElement('div');
-  el.id = OP_TOGGLE_ID;
-  el.className = 'ana-desk-op-toggle hidden';
-  el.innerHTML = ''
-    + '<span class="ana-desk-op-toggle-label">Сводка</span>'
-    + '<div class="ana-desk-op-toggle-pills" role="group" aria-label="Режим сводки">'
-    + '  <button type="button" data-op-mode="local" class="ana-desk-op-pill">Объект</button>'
-    + '  <button type="button" data-op-mode="global" class="ana-desk-op-pill">Компания</button>'
-    + '</div>';
-  el.addEventListener('click', (e) => {
-    const btn = e.target && e.target.closest ? e.target.closest('[data-op-mode]') : null;
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setOnepagerMode(btn.getAttribute('data-op-mode'));
-  });
-  // After filters, before contractors KPI
-  const kpi = document.getElementById(KPI_ID);
-  if (kpi && kpi.parentElement === toolbar) toolbar.insertBefore(el, kpi);
-  else toolbar.appendChild(el);
+  if (!toolbar) return el || null;
+  if (!el) {
+    el = document.createElement('div');
+    el.id = OP_TOGGLE_ID;
+    el.className = 'ana-desk-op-toggle hidden';
+    el.innerHTML = ''
+      + '<div class="ana-desk-op-toggle-pills" role="group" aria-label="Режим сводки">'
+      + '  <button type="button" data-op-mode="local" class="ana-desk-op-pill">Объект</button>'
+      + '  <button type="button" data-op-mode="global" class="ana-desk-op-pill">Компания</button>'
+      + '</div>';
+    el.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-op-mode]') : null;
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOnepagerMode(btn.getAttribute('data-op-mode'));
+    });
+  } else {
+    // Drop legacy "Сводка" label if present
+    const label = el.querySelector('.ana-desk-op-toggle-label');
+    if (label) label.remove();
+  }
+  placeOnepagerToggleAboveFilters(el);
   return el;
 }
 
@@ -1314,6 +1390,7 @@ function syncOnepagerModeToggle(tabId) {
   const show = tabId === 'sub-onepager';
   el.classList.toggle('hidden', !show);
   if (!show) return;
+  placeOnepagerToggleAboveFilters(el);
   const mode = getOnepagerMode();
   el.querySelectorAll('[data-op-mode]').forEach((btn) => {
     btn.classList.toggle('is-on', btn.getAttribute('data-op-mode') === mode);
@@ -1702,6 +1779,7 @@ function ensureShell() {
     _shellApplied = true;
     root.classList.add('analytics-desktop-active');
     placeSubtabsInShell(existing);
+    placeKpiInWorkspace(existing);
     return true;
   }
 
@@ -1728,9 +1806,9 @@ function ensureShell() {
   const sections = Array.prototype.slice.call(root.querySelectorAll(':scope > .analytics-sub-section'));
 
   if (filters) toolbar.appendChild(filters);
-  toolbar.appendChild(kpi);
   top.appendChild(toolbar);
 
+  work.appendChild(kpi);
   work.appendChild(note);
   sections.forEach((sec) => { work.appendChild(sec); });
 
@@ -1738,6 +1816,7 @@ function ensureShell() {
   shell.appendChild(work);
   root.appendChild(shell);
   placeSubtabsInShell(shell);
+  placeKpiInWorkspace(shell);
 
   root.classList.add('analytics-desktop-active');
   root.style.maxWidth = 'none';
@@ -2100,9 +2179,68 @@ function wrapPaintFunctions() {
   wrapScheduleRenderIfNeeded();
 }
 
+function refreshAnalyticsDeskChromeI18n() {
+  if (!_shellApplied || !isDesktopViewport()) return;
+
+  const histTitle = document.querySelector('.ana-desk-hist-title');
+  if (histTitle) histTitle.textContent = _t('quality.desk.analytics.hist_title', 'История');
+  const histMode = document.querySelector('.ana-desk-hist-mode-pills');
+  if (histMode) histMode.setAttribute('aria-label', _t('quality.desk.analytics.hist_mode_aria', 'Режим истории'));
+  const histSub = document.querySelector('[data-hist-desk-sub]');
+  if (histSub) {
+    const mode = window.currentHistoryViewMode || 'checks';
+    histSub.textContent = mode === 'reports'
+      ? _t('quality.desk.analytics.hist_sub_reports', 'Архив отчётов')
+      : (mode === 'plans'
+        ? _t('quality.desk.analytics.hist_sub_plans', 'Планы этажей по объектам')
+        : _t('quality.desk.analytics.hist_sub_checks', 'Журнал проверок'));
+  }
+
+  const skTitle = document.querySelector('.ana-desk-sk-title');
+  if (skTitle) skTitle.textContent = _t('quality.desk.analytics.sk_title', 'ПК Стройконтроль');
+  const skMode = document.querySelector('.ana-desk-sk-mode-pills');
+  if (skMode) skMode.setAttribute('aria-label', _t('quality.desk.analytics.sk_mode_aria', 'Режим ПК СК'));
+
+  const skModeId = window.skCurrentSubTab || 'dashboard';
+  const periodEl = document.getElementById('sk-period-text');
+  const skSub = document.querySelector('[data-sk-desk-sub]');
+  if (skSub) {
+    const n = (window.skRecords && window.skRecords.length) || 0;
+    const period = periodEl ? String(periodEl.textContent || '').replace(/^Период:\s*/i, '') : '';
+    const modeLabel = skModeId === 'volumes'
+      ? _t('quality.desk.analytics.sk_mode_volumes', 'Объёмы')
+      : (skModeId === 'hr'
+        ? _t('quality.desk.analytics.sk_mode_engineers', 'Инженеры')
+        : _t('quality.desk.analytics.sk_mode_dashboard', 'Дашборд'));
+    skSub.textContent = _t('quality.desk.analytics.sk_sub_positions', '{mode} · {n} позиций', { mode: modeLabel, n: n })
+      + (period ? ` · ${period}` : '');
+  }
+  ['dashboard', 'volumes', 'hr'].forEach((m) => {
+    const btn = document.getElementById('sk-btn-' + m);
+    if (!btn) return;
+    const label = m === 'volumes'
+      ? _t('quality.desk.analytics.sk_mode_volumes', 'Объёмы')
+      : (m === 'hr'
+        ? _t('quality.desk.analytics.sk_mode_engineers', 'Инженеры')
+        : _t('quality.desk.analytics.sk_mode_dashboard', 'Дашборд'));
+    _setSkBtnLabel(btn, label);
+  });
+}
+
+function bindLocale() {
+  if (_localeBound) return;
+  _localeBound = true;
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try { refreshAnalyticsDeskChromeI18n(); } catch (_) { /* ignore */ }
+    });
+  }
+}
+
 function bindDesktopHooks() {
   // Always (re)patch paint entrypoints — filter path calls AnalyticsRender.* directly.
   wrapPaintFunctions();
+  bindLocale();
 
   if (_hooksBound) return;
   _hooksBound = true;

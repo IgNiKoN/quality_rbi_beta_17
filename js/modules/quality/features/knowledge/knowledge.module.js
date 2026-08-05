@@ -1569,6 +1569,15 @@ window.openTwiViewer = async function (twiId) {
             </button>`;
     }
 
+    // Ссылка на Чек-лист (внутри Базы знаний)
+    if (card.checklistKey && !String(card.checklistKey).includes('|')) {
+        crossLinksHtml += `
+            <button onclick="closeTwiViewer(); setTimeout(()=>window.openKnowledgeLinkedChecklist('${card.checklistKey}'), 300)" class="w-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 py-3 rounded-xl font-bold text-[11px] uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                Открыть Чек-лист
+            </button>`;
+    }
+
     // Добавляем кнопки в конец контента (если они есть)
     if (crossLinksHtml) {
         content.insertAdjacentHTML('beforeend', `
@@ -1587,6 +1596,10 @@ window.openTwiViewer = async function (twiId) {
 // === RBI UNIVERSAL PDF VIEWER FIX v17.8.206 ===
 // === RBI UNIVERSAL PDF VIEWER FIX v17.8.207 ===
 window._rbiDestroyActivePdfDoc = async function () {
+    // Единый путь: legacy TWI-doc + актуальный PDF sheet (preview в RAM).
+    if (typeof window.rbiClosePdfDocumentSheet === 'function') {
+        window.rbiClosePdfDocumentSheet();
+    }
     if (!window._rbiActivePdfDoc) return;
     try {
         if (typeof window._rbiActivePdfDoc.destroy === 'function') {
@@ -1971,7 +1984,7 @@ window.openNodeViewer = async function (nodeId) {
         let chkActionHtml = '';
         const checklistKey = node.linkedChecklistKey || node.linkedTwiChecklistKey;
         if (checklistKey && !checklistKey.includes('|')) {
-            chkActionHtml = `<button onclick="closeNodeViewer(); switchTab('tab-audit'); setTimeout(()=>window.changeTemplate('${checklistKey}'), 300)" class="bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400 py-3.5 rounded-xl text-[11px] font-bold uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2 w-full">
+            chkActionHtml = `<button onclick="closeNodeViewer(); setTimeout(()=>window.openKnowledgeLinkedChecklist('${checklistKey}'), 300)" class="bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400 py-3.5 rounded-xl text-[11px] font-bold uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2 w-full">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg> Чек-лист
             </button>`;
         }

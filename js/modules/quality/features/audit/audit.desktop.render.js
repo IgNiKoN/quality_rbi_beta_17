@@ -24,9 +24,26 @@ const WIDE_CLASS = 'rbi-audit-desktop-wide';
 
 let _resizeBound = false;
 let _hooksBound = false;
+let _localeBound = false;
 let _shellApplied = false;
 let _previewToken = 0;
 let _origRenderAudit = null;
+
+function _t(key, fallback, vars) {
+  try {
+    const i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_) { /* ignore */ }
+  if (vars && typeof fallback === 'string') {
+    return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+      return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+    });
+  }
+  return fallback;
+}
 
 function isDesktopViewport() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN;
@@ -230,8 +247,8 @@ function ensureShell() {
       + '<div class="audit-desk-topbar-strip" data-audit-desk-topbar-strip>'
       + '  <div class="audit-desk-topbar-strip-inner">'
       + '    <div class="audit-desk-topbar-brand">'
-      + '      <span class="audit-desk-topbar-label">Осмотр</span>'
-      + '      <span class="audit-desk-topbar-sub" data-audit-desk-chrome-sub>Выберите чек-лист</span>'
+      + '      <span class="audit-desk-topbar-label">' + _t('quality.desk.audit.strip_label', 'Осмотр') + '</span>'
+      + '      <span class="audit-desk-topbar-sub" data-audit-desk-chrome-sub>' + _t('quality.desk.audit.strip_sub_pick', 'Выберите чек-лист') + '</span>'
       + '    </div>'
       + '    <div class="audit-desk-topbar-tpl" data-audit-desk-slot-checklist></div>'
       + '  </div>'
@@ -239,13 +256,13 @@ function ensureShell() {
       + '<div class="audit-desk-chrome-body">'
       + '  <div class="audit-desk-zone audit-desk-zone-object">'
       + '    <div class="audit-desk-zone-head">'
-      + '      <div class="audit-desk-zone-label">Объект проверки</div>'
-      + '      <p class="audit-desk-zone-hint">Подрядчик, место и привязка к плану</p>'
+      + '      <div class="audit-desk-zone-label">' + _t('quality.desk.audit.zone_object_label', 'Объект проверки') + '</div>'
+      + '      <p class="audit-desk-zone-hint">' + _t('quality.desk.audit.zone_object_hint', 'Подрядчик, место и привязка к плану') + '</p>'
       + '    </div>'
       + '    <div class="audit-desk-chrome-form" data-audit-desk-slot-data></div>'
       + '  </div>'
       + '  <div class="audit-desk-zone audit-desk-zone-groups" data-audit-desk-slot-nav-wrap>'
-      + '    <div class="audit-desk-zone-label">Группы пунктов</div>'
+      + '    <div class="audit-desk-zone-label">' + _t('quality.desk.audit.zone_groups_label', 'Группы пунктов') + '</div>'
       + '    <div data-audit-desk-slot-nav></div>'
       + '  </div>'
       + '</div>';
@@ -266,10 +283,10 @@ function ensureShell() {
     plan.className = 'audit-desk-plan';
     plan.innerHTML = ''
       + '<div class="audit-desk-plan-toolbar">'
-      + '  <h3 class="audit-desk-plan-title">План этажа</h3>'
+      + '  <h3 class="audit-desk-plan-title">' + _t('quality.desk.audit.plan_title', 'План этажа') + '</h3>'
       + '  <span class="audit-desk-plan-meta" data-audit-desk-plan-meta></span>'
-      + '  <button type="button" class="audit-desk-btn" data-audit-desk-move-pin hidden>Переставить</button>'
-      + '  <button type="button" class="audit-desk-btn" data-audit-desk-clear-pin hidden>Снять</button>'
+      + '  <button type="button" class="audit-desk-btn" data-audit-desk-move-pin hidden>' + _t('quality.desk.audit.plan_move', 'Переставить') + '</button>'
+      + '  <button type="button" class="audit-desk-btn" data-audit-desk-clear-pin hidden>' + _t('quality.desk.audit.plan_clear', 'Снять') + '</button>'
       + '</div>'
       + '<div class="audit-desk-plan-stage" data-audit-desk-plan-stage>'
       + '  <div class="audit-desk-plan-empty" data-audit-desk-plan-empty data-empty-kind="nopin">'
@@ -289,8 +306,8 @@ function ensureShell() {
       + '      </svg>'
       + '    </div>'
       + '    <div class="audit-desk-plan-empty-copy">'
-      + '      <div class="audit-desk-plan-empty-title">План не выбран</div>'
-      + '      <p>Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.</p>'
+      + '      <div class="audit-desk-plan-empty-title">' + _t('quality.desk.audit.plan_empty_nopin_title', 'План не выбран') + '</div>'
+      + '      <p>' + _t('quality.desk.audit.plan_empty_nopin_hint', 'Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.') + '</p>'
       + '    </div>'
       + '  </div>'
       + '</div>';
@@ -300,8 +317,8 @@ function ensureShell() {
     metrics.className = 'audit-desk-metrics';
     metrics.innerHTML = ''
       + '<div class="audit-desk-metrics-head">'
-      + '  <h3 class="audit-desk-metrics-title">УрК и коэффициенты</h3>'
-      + '  <p class="audit-desk-metrics-hint">Подрядчик · изделие · формулы расчёта</p>'
+      + '  <h3 class="audit-desk-metrics-title">' + _t('quality.desk.audit.metrics_title', 'УрК и коэффициенты') + '</h3>'
+      + '  <p class="audit-desk-metrics-hint">' + _t('quality.desk.audit.metrics_hint', 'Подрядчик · изделие · формулы расчёта') + '</p>'
       + '</div>'
       + '<div data-audit-desk-slot-dash></div>';
 
@@ -346,12 +363,13 @@ function ensureShell() {
 function syncChromeSubtitle() {
   const label = document.getElementById('current-checklist-label');
   const raw = (label && label.textContent || '').trim();
-  const name = raw && !/не выбран/i.test(raw) ? raw : 'Не выбран';
+  const noneLabel = _t('quality.desk.audit.strip_sub_none', 'Не выбран');
+  const name = raw && !/не выбран|not selected|nije izabrano/i.test(raw) ? raw : noneLabel;
 
   const sub = document.querySelector('[data-audit-desk-chrome-sub]');
   if (sub) {
-    sub.textContent = name === 'Не выбран'
-      ? 'Выберите чек-лист'
+    sub.textContent = name === noneLabel
+      ? _t('quality.desk.audit.strip_sub_pick', 'Выберите чек-лист')
       : name;
   }
 
@@ -408,16 +426,16 @@ function restoreTabAudit() {
 
 function planEmptyHtml(kind) {
   const titles = {
-    nopin: 'План не выбран',
-    nopdf: 'Нет PDF у этажа',
-    nopdfjs: 'Превью недоступно',
-    fail: 'Не удалось загрузить план'
+    nopin: _t('quality.desk.audit.plan_empty_nopin_title', 'План не выбран'),
+    nopdf: _t('quality.desk.audit.plan_empty_nopdf_title', 'Нет PDF у этажа'),
+    nopdfjs: _t('quality.desk.audit.plan_empty_nopdfjs_title', 'Превью недоступно'),
+    fail: _t('quality.desk.audit.plan_empty_fail_title', 'Не удалось загрузить план')
   };
   const hints = {
-    nopin: 'Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.',
-    nopdf: 'Выберите другой этаж через «на плане» в форме объекта.',
-    nopdfjs: 'PDF.js не загружен. Откройте точку через «на плане» в форме.',
-    fail: 'Повторите через «на плане» в форме объекта.'
+    nopin: _t('quality.desk.audit.plan_empty_nopin_hint', 'Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.'),
+    nopdf: _t('quality.desk.audit.plan_empty_nopdf_hint', 'Выберите другой этаж через «на плане» в форме объекта.'),
+    nopdfjs: _t('quality.desk.audit.plan_empty_nopdfjs_hint', 'PDF.js не загружен. Откройте точку через «на плане» в форме.'),
+    fail: _t('quality.desk.audit.plan_empty_fail_hint', 'Повторите через «на плане» в форме объекта.')
   };
   const title = titles[kind] || titles.nopin;
   const hint = hints[kind] || hints.nopin;
@@ -483,7 +501,7 @@ function paintPlanPanel() {
   }
 
   const token = ++_previewToken;
-  stage.innerHTML = '<div class="audit-desk-plan-loader">Загрузка плана…</div>';
+  stage.innerHTML = '<div class="audit-desk-plan-loader">' + _t('quality.desk.audit.plan_loading', 'Загрузка плана…') + '</div>';
   renderPdfPreview(stage, plan.pdf_url, pin, token);
 }
 
@@ -544,7 +562,8 @@ export function showAuditDesktop() {
   const shell = ensureShell();
   if (!shell) return;
   _shellApplied = true;
-  syncChromeSubtitle();
+  // Catalog/locale may become ready after first shell build (DOMContentLoaded race).
+  try { refreshAuditDeskChromeI18n(); } catch (_) { /* ignore */ }
   paintPlanPanel();
 }
 
@@ -573,6 +592,68 @@ function syncAuditDesktop() {
     showAuditDesktop();
   } else {
     teardownAuditDesktop();
+  }
+}
+
+function refreshAuditDeskChromeI18n() {
+  if (!_shellApplied || !document.getElementById(SHELL_ID)) return;
+
+  const label = document.querySelector('.audit-desk-topbar-label');
+  if (label) label.textContent = _t('quality.desk.audit.strip_label', 'Осмотр');
+
+  const zoneObj = document.querySelector('.audit-desk-zone-object .audit-desk-zone-label');
+  if (zoneObj) zoneObj.textContent = _t('quality.desk.audit.zone_object_label', 'Объект проверки');
+  const zoneObjHint = document.querySelector('.audit-desk-zone-object .audit-desk-zone-hint');
+  if (zoneObjHint) zoneObjHint.textContent = _t('quality.desk.audit.zone_object_hint', 'Подрядчик, место и привязка к плану');
+  const zoneGrp = document.querySelector('.audit-desk-zone-groups > .audit-desk-zone-label');
+  if (zoneGrp) zoneGrp.textContent = _t('quality.desk.audit.zone_groups_label', 'Группы пунктов');
+
+  const planTitle = document.querySelector('.audit-desk-plan-title');
+  if (planTitle) planTitle.textContent = _t('quality.desk.audit.plan_title', 'План этажа');
+  const moveBtn = document.querySelector('[data-audit-desk-move-pin]');
+  if (moveBtn) moveBtn.textContent = _t('quality.desk.audit.plan_move', 'Переставить');
+  const clearBtn = document.querySelector('[data-audit-desk-clear-pin]');
+  if (clearBtn) clearBtn.textContent = _t('quality.desk.audit.plan_clear', 'Снять');
+
+  const empty = document.querySelector('[data-audit-desk-plan-empty]');
+  if (empty) {
+    const kind = empty.getAttribute('data-empty-kind') || 'nopin';
+    const titleEl = empty.querySelector('.audit-desk-plan-empty-title');
+    const hintEl = empty.querySelector('.audit-desk-plan-empty-copy p');
+    const titles = {
+      nopin: _t('quality.desk.audit.plan_empty_nopin_title', 'План не выбран'),
+      nopdf: _t('quality.desk.audit.plan_empty_nopdf_title', 'Нет PDF у этажа'),
+      nopdfjs: _t('quality.desk.audit.plan_empty_nopdfjs_title', 'Превью недоступно'),
+      fail: _t('quality.desk.audit.plan_empty_fail_title', 'Не удалось загрузить план')
+    };
+    const hints = {
+      nopin: _t('quality.desk.audit.plan_empty_nopin_hint', 'Нажмите «на плане» рядом с полем осей — откроется выбор этажа и точка на чертеже.'),
+      nopdf: _t('quality.desk.audit.plan_empty_nopdf_hint', 'Выберите другой этаж через «на плане» в форме объекта.'),
+      nopdfjs: _t('quality.desk.audit.plan_empty_nopdfjs_hint', 'PDF.js не загружен. Откройте точку через «на плане» в форме.'),
+      fail: _t('quality.desk.audit.plan_empty_fail_hint', 'Повторите через «на плане» в форме объекта.')
+    };
+    if (titleEl) titleEl.textContent = titles[kind] || titles.nopin;
+    if (hintEl) hintEl.textContent = hints[kind] || hints.nopin;
+  }
+
+  const loader = document.querySelector('.audit-desk-plan-loader');
+  if (loader) loader.textContent = _t('quality.desk.audit.plan_loading', 'Загрузка плана…');
+
+  const metricsTitle = document.querySelector('.audit-desk-metrics-title');
+  if (metricsTitle) metricsTitle.textContent = _t('quality.desk.audit.metrics_title', 'УрК и коэффициенты');
+  const metricsHint = document.querySelector('.audit-desk-metrics-hint');
+  if (metricsHint) metricsHint.textContent = _t('quality.desk.audit.metrics_hint', 'Подрядчик · изделие · формулы расчёта');
+
+  syncChromeSubtitle();
+}
+
+function bindLocale() {
+  if (_localeBound) return;
+  _localeBound = true;
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try { refreshAuditDeskChromeI18n(); } catch (_) { /* ignore */ }
+    });
   }
 }
 
@@ -637,6 +718,7 @@ function bindResize() {
 function boot() {
   bindHooks();
   bindResize();
+  bindLocale();
   if (!_origRenderAudit && window.AppViews && typeof window.AppViews.renderAudit === 'function') {
     _origRenderAudit = window.AppViews.renderAudit;
     window.AppViews.renderAudit = function () {

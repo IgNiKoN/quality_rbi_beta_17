@@ -23,6 +23,30 @@
   ];
   var pendingModuleSelection = null;
 
+  function _i18n() {
+    return window.RBI && window.RBI.services && window.RBI.services.i18n;
+  }
+
+  /** Label for module id via i18n key nav.<id> (hyphens → underscores); fallback to Russian literal. */
+  function _navLabel(id, fallback) {
+    var i18n = _i18n();
+    if (i18n && typeof i18n.t === 'function') {
+      var key = 'nav.' + String(id).replace(/-/g, '_');
+      var tr = i18n.t(key);
+      if (tr && tr !== key) return tr;
+    }
+    return fallback;
+  }
+
+  function _placeholderSuffix() {
+    var i18n = _i18n();
+    if (i18n && typeof i18n.t === 'function') {
+      var tr = i18n.t('nav.placeholder_suffix');
+      if (tr && tr !== 'nav.placeholder_suffix') return tr;
+    }
+    return ' \u2014 \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u043a\u0435';
+  }
+
   function defaultBusinessModuleIds() {
     return BUSINESS_MODULES.map(function (m) { return m.id; });
   }
@@ -97,7 +121,16 @@
 
       var syncEl = this.getSyncStatusEl();
       var online = this.isOnline();
-      var suffix = online ? '' : ' \u00b7 \u043e\u0444\u043b\u0430\u0439\u043d';
+      var suffix = '';
+      if (!online) {
+        var i18nOff = _i18n();
+        if (i18nOff && typeof i18nOff.t === 'function') {
+          var offTr = i18nOff.t('shell.offline_suffix');
+          suffix = (offTr && offTr !== 'shell.offline_suffix') ? offTr : ' \u00b7 \u043e\u0444\u043b\u0430\u0439\u043d';
+        } else {
+          suffix = ' \u00b7 \u043e\u0444\u043b\u0430\u0439\u043d';
+        }
+      }
       el.textContent = company.name + suffix;
       if (syncEl) el.dataset.hasSyncIndicator = '1';
     },
@@ -165,43 +198,47 @@
         if (roleAllowedIds.indexOf(mod.id) === -1) return;
         if (selected.indexOf(mod.id) === -1) return;
         var isActive = currentMode === mod.id;
+        var label = _navLabel(mod.id, mod.label);
         html += '<button type="button" data-sidebar-module-id="' + mod.id + '"' +
           ' onclick="window.changeAppMode(\'' + mod.id + '\')"' +
-          ' class="app-sidebar-item' + (isActive ? ' active' : '') + '" title="' + mod.label + '">' +
+          ' class="app-sidebar-item' + (isActive ? ' active' : '') + '" title="' + label + '">' +
           '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">' + icons[mod.id] + '</svg>' +
-          '<span class="app-sidebar-item-label">' + mod.label + '</span>' +
+          '<span class="app-sidebar-item-label">' + label + '</span>' +
           '</button>';
         // Тестовый вход construction-v2 — сразу под обычным Стройконтролем
         if (mod.id === 'construction') {
           var v2Active = currentMode === 'construction-v2';
+          var v2Label = _navLabel('construction_v2', 'Стройконтроль в2 (тест)');
           html += '<button type="button" data-sidebar-module-id="construction-v2"' +
             ' onclick="window.changeAppMode(\'construction-v2\')"' +
-            ' class="app-sidebar-item' + (v2Active ? ' active' : '') + '" title="Стройконтроль в2 (тест)">' +
+            ' class="app-sidebar-item' + (v2Active ? ' active' : '') + '" title="' + v2Label + '">' +
             '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">' + icons['construction-v2'] + '</svg>' +
-            '<span class="app-sidebar-item-label">Стройконтроль в2 (тест)</span>' +
+            '<span class="app-sidebar-item-label">' + v2Label + '</span>' +
             '</button>';
         }
       });
       PLACEHOLDER_MODULES.forEach(function (mod) {
+        var phLabel = _navLabel(mod.id, mod.label);
         html += '<button type="button" data-shell-action="showPlaceholderModule" data-shell-action-arg="' + mod.id + '"' +
-          ' class="app-sidebar-item app-sidebar-item--placeholder" title="' + mod.label + ' \u2014 \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u043a\u0435">' +
+          ' class="app-sidebar-item app-sidebar-item--placeholder" title="' + phLabel + _placeholderSuffix() + '">' +
           '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle></svg>' +
-          '<span class="app-sidebar-item-label">' + mod.label + '</span>' +
+          '<span class="app-sidebar-item-label">' + phLabel + '</span>' +
           '</button>';
       });
 
       // Spacer + platform Settings (chrome, not a business module)
       var settingsActive = /^#\/settings(\/|$)/i.test(String(location.hash || ''))
         || /^#\/quality\/settings(\/|$)/i.test(String(location.hash || ''));
+      var settingsLabel = _navLabel('settings', 'Настройки');
       html += '<div class="app-sidebar-spacer" aria-hidden="true"></div>';
       html += '<button type="button" data-path="#/settings" data-sidebar-settings="1"' +
         ' class="app-sidebar-item app-sidebar-item--settings' + (settingsActive ? ' active' : '') + '"' +
-        ' title="Настройки платформы">' +
+        ' title="' + settingsLabel + '">' +
         '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">' +
         '<path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>' +
         '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>' +
         '</svg>' +
-        '<span class="app-sidebar-item-label">Настройки</span>' +
+        '<span class="app-sidebar-item-label">' + settingsLabel + '</span>' +
         '</button>';
 
       container.innerHTML = html;
@@ -218,7 +255,7 @@
       BUSINESS_MODULES.forEach(function (mod) {
         if (roleAllowedIds.indexOf(mod.id) === -1) {
           html += '<div class="p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase text-center text-slate-400 dark:text-slate-500">' +
-            mod.label + '</div>';
+            _navLabel(mod.id, mod.label) + '</div>';
           return;
         }
         var isActive = selected.indexOf(mod.id) !== -1;
@@ -227,12 +264,20 @@
           (isActive
             ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
             : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700') +
-          '">' + mod.label + '</button>';
+          '">' + _navLabel(mod.id, mod.label) + '</button>';
       });
+      var comingSoon = (function () {
+        var i18nCs = _i18n();
+        if (i18nCs && typeof i18nCs.t === 'function') {
+          var cs = i18nCs.t('nav.coming_soon');
+          if (cs && cs !== 'nav.coming_soon') return cs;
+        }
+        return 'Скоро';
+      })();
       PLACEHOLDER_MODULES.forEach(function (mod) {
         html += '<div class="p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase text-center text-slate-400 dark:text-slate-500 relative">' +
-          mod.label +
-          '<span class="block mt-1 text-[8px] font-black text-indigo-400 normal-case">Скоро</span></div>';
+          _navLabel(mod.id, mod.label) +
+          '<span class="block mt-1 text-[8px] font-black text-indigo-400 normal-case">' + comingSoon + '</span></div>';
       });
       container.innerHTML = html;
     },
@@ -280,9 +325,9 @@
       var currentMode = (window.AppModeManager && window.AppModeManager.currentMode) || null;
 
       var labels = {
-        quality: 'Качество',
-        construction: 'Стройконтроль',
-        'construction-v2': 'Стройконтроль в2 (тест)'
+        quality: _navLabel('quality', 'Качество'),
+        construction: _navLabel('construction', 'Стройконтроль'),
+        'construction-v2': _navLabel('construction_v2', 'Стройконтроль в2 (тест)')
       };
       var html = '';
 
@@ -293,7 +338,7 @@
         html += '<button type="button" data-shell-action="selectMobileModule" data-shell-action-arg="' + mod.id + '"' +
           ' class="w-full text-left px-3.5 py-2.5 text-[11px] font-bold uppercase flex items-center justify-between gap-2 transition-colors ' +
           (isActive ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-700 dark:text-slate-300') + '">' +
-          '<span>' + (labels[mod.id] || mod.label) + '</span>' +
+          '<span>' + (labels[mod.id] || _navLabel(mod.id, mod.label)) + '</span>' +
           (isActive ? '<span class="text-[8px] font-black text-indigo-500">●</span>' : '') +
           '</button>';
         if (mod.id === 'construction') {
@@ -312,7 +357,7 @@
       PLACEHOLDER_MODULES.forEach(function (mod) {
         html += '<button type="button" data-shell-action="selectMobilePlaceholderModule" data-shell-action-arg="' + mod.id + '"' +
           ' class="w-full text-left px-3.5 py-2.5 text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 opacity-70">' +
-          mod.label + '</button>';
+          _navLabel(mod.id, mod.label) + '</button>';
       });
 
       container.innerHTML = html;
@@ -346,9 +391,9 @@
       if (!select) return;
 
       var labels = {
-        quality: 'Качество',
-        construction: 'Стройконтроль',
-        'construction-v2': 'Стройконтроль в2 (тест)'
+        quality: _navLabel('quality', 'Качество'),
+        construction: _navLabel('construction', 'Стройконтроль'),
+        'construction-v2': _navLabel('construction_v2', 'Стройконтроль в2 (тест)')
       };
       var currentValue = select.value;
       select.innerHTML = '';
@@ -454,6 +499,37 @@
   bindShellActionDelegation();
   ShellService.renderSidebar();
   ShellService.renderMobileModuleMenu();
+
+  // i18n — перерисовка chrome без reload
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('i18n:localeChanged', function () {
+      ShellService.renderSidebar();
+      ShellService.renderMobileModuleMenu();
+      ShellService.renderCompanyBlock();
+      if (document.getElementById('platform-entry-modal') &&
+          !document.getElementById('platform-entry-modal').classList.contains('hidden')) {
+        ShellService.renderModuleSelection();
+      }
+      var selected = ShellService.getSelectedModules();
+      ShellService._updateModeSelectorOptions(selected);
+      var i18n = _i18n();
+      if (i18n && typeof i18n.applyDom === 'function') i18n.applyDom(document);
+      // Bottom-nav / nav2 labels come from renderBottomNav → t(), not path-map
+      if (typeof window.AppModeManager !== 'undefined' &&
+          window.AppModeManager &&
+          typeof window.AppModeManager.renderBottomNav === 'function') {
+        window.AppModeManager.renderBottomNav();
+      }
+      if (window.RBI && window.RBI.shellDesktop &&
+          typeof window.RBI.shellDesktop.setModeChip === 'function') {
+        var mode = (window.AppModeManager && window.AppModeManager.currentMode) || 'quality';
+        window.RBI.shellDesktop.setModeChip(mode);
+      }
+      if (window.AppRouter && typeof window.AppRouter.updateNavHighlight === 'function') {
+        window.AppRouter.updateNavHighlight(location.hash || '');
+      }
+    });
+  }
 
   console.log('[ShellService] app-shell.js loaded');
 }());

@@ -16,8 +16,8 @@ const ConstructionRender = {
             <!-- Панель выбора объекта и этажа -->
             <div class="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)] mb-4 mt-2">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight">Выбор
-                        плана</h2>
+                    <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight"
+                        data-i18n="construction.legacy.plan_title">Выбор плана</h2>
                     <!-- Кнопка администрирования появится здесь через JS, если роль manager -->
                     <div id="const-admin-btn-container"></div>
                 </div>
@@ -25,30 +25,32 @@ const ConstructionRender = {
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
                         <label
-                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объект</label>
+                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_object">Объект</label>
                         <select id="const-object-select" class="input-base"
                             data-construction-core-action="onObjectChange" data-action-event="change">
-                            <option value="">Загрузка объектов...</option>
+                            <option value="" data-i18n="construction.legacy.loading_objects">Загрузка объектов...</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Корпус /
-                            Секция</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_building">Корпус / Секция</label>
                         <select id="const-building-select" class="input-base" disabled
                             data-construction-core-action="onBuildingChange" data-action-event="change">
-                            <option value="">Выберите корпус...</option>
+                            <option value="" data-i18n="construction.legacy.select_building">Выберите корпус...</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Этаж</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_floor">Этаж</label>
                         <select id="const-floor-select" class="input-base" disabled
                             data-construction-core-action="onFloorChange" data-action-event="change">
-                            <option value="">Выберите этаж...</option>
+                            <option value="" data-i18n="construction.legacy.select_floor">Выберите этаж...</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Слой
-                            (Визуализация)</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_layer">Слой (Визуализация)</label>
                         <select id="const-layer-select" class="input-base"
                             data-construction-core-action="onLayerChange" data-action-event="change">
                         </select>
@@ -64,19 +66,19 @@ const ConstructionRender = {
                         class="flex items-center bg-slate-200 dark:bg-slate-700 p-0.5 rounded-lg shadow-inner w-auto shrink-0">
                         <button data-construction-core-action="switchView" data-action-arg="plan" id="const-btn-view-plan"
                             class="px-4 py-1.5 rounded-md text-[11px] font-black uppercase transition-all bg-white dark:bg-slate-800 text-indigo-600 shadow-sm">🗺️
-                            План</button>
+                            <span data-i18n="construction.legacy.view_plan">План</span></button>
                         <button data-construction-core-action="switchView" data-action-arg="list" id="const-btn-view-list"
                             class="px-4 py-1.5 rounded-md text-[11px] font-black uppercase transition-all text-slate-500 dark:text-slate-400">📋
-                            Реестр</button>
+                            <span data-i18n="construction.legacy.view_list">Реестр</span></button>
                     </div>
 
                     <div class="flex gap-2">
                         <select id="const-filter-category" data-construction-core-action="applyFilters" data-action-event="change"
                             class="input-base !py-1.5 !text-[10px] font-bold min-w-[100px] hidden sm:block">
-                            <option value="ALL">Все категории</option>
-                            <option value="B3">Критичные (B3)</option>
-                            <option value="B2">Значимые (B2)</option>
-                            <option value="B1">Мелкие (B1)</option>
+                            <option value="ALL" data-i18n="construction.legacy.cat_all">Все категории</option>
+                            <option value="B3" data-i18n="construction.legacy.cat_b3">Критичные (B3)</option>
+                            <option value="B2" data-i18n="construction.legacy.cat_b2">Значимые (B2)</option>
+                            <option value="B1" data-i18n="construction.legacy.cat_b1">Мелкие (B1)</option>
                         </select>
                         <button data-construction-core-action="exportDefectsToExcel"
                             class="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm whitespace-nowrap shrink-0 flex items-center gap-1">
@@ -85,7 +87,7 @@ const ConstructionRender = {
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
                                 </path>
-                            </svg> Excel
+                            </svg> <span data-i18n="construction.legacy.excel">Excel</span>
                         </button>
                     </div>
                 </div>
@@ -105,7 +107,7 @@ const ConstructionRender = {
                             d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
                         </path>
                     </svg>
-                    <div class="text-xs font-bold uppercase tracking-widest">Выберите план для просмотра</div>
+                    <div class="text-xs font-bold uppercase tracking-widest" data-i18n="construction.legacy.plan_placeholder">Выберите план для просмотра</div>
                 </div>
 
                 <!-- Сюда JS будет вставлять холст с PDF -->
@@ -122,24 +124,25 @@ const ConstructionRender = {
         <div id="tab-transfer" class="view-section">
             <div class="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)] mb-4 mt-2">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight">Шахматка
-                        объекта</h2>
+                    <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight"
+                        data-i18n="construction.legacy.transfer_title">Шахматка объекта</h2>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label
-                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объект</label>
+                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_object">Объект</label>
                         <select id="transfer-object-select" class="input-base"
                             data-transfer-action="onObjectChange" data-action-event="change">
-                            <option value="">Загрузка объектов...</option>
+                            <option value="" data-i18n="construction.legacy.loading_objects">Загрузка объектов...</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Корпус /
-                            Секция</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block"
+                            data-i18n="construction.legacy.label_building">Корпус / Секция</label>
                         <select id="transfer-building-select" class="input-base" disabled
                             data-transfer-action="onBuildingChange" data-action-event="change">
-                            <option value="">Выберите корпус...</option>
+                            <option value="" data-i18n="construction.legacy.select_building">Выберите корпус...</option>
                         </select>
                     </div>
                 </div>
@@ -147,7 +150,8 @@ const ConstructionRender = {
 
             <div id="transfer-grid-container" class="pb-8">
                 <div
-                    class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                    class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700"
+                    data-i18n="construction.legacy.transfer_empty">
                     Выберите корпус для просмотра шахматки</div>
             </div>
         </div>
@@ -164,13 +168,13 @@ const ConstructionRender = {
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
                             </path>
                         </svg>
-                        Журнал заявок
+                        <span data-i18n="construction.legacy.acceptance_title">Журнал заявок</span>
                     </h2>
                     <button data-acceptance-action="openNewRequestModal"
                         class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                        </svg> Предъявить
+                        </svg> <span data-i18n="construction.legacy.acceptance_present">Предъявить</span>
                     </button>
                 </div>
                 <!-- НОВЫЙ ФИЛЬТР ПО ОБЪЕКТУ -->
@@ -178,14 +182,15 @@ const ConstructionRender = {
                     <select id="acc-global-obj-filter"
                         class="input-base !py-1.5 text-[11px] font-bold bg-[var(--hover-bg)]"
                         data-acceptance-action="renderList" data-action-event="change">
-                        <option value="ALL">Все объекты</option>
+                        <option value="ALL" data-i18n="construction.legacy.acceptance_all_objects">Все объекты</option>
                     </select>
                 </div>
             </div>
 
             <div id="acceptance-list-container" class="pb-8">
                 <div
-                    class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                    class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700"
+                    data-i18n="construction.legacy.acceptance_loading">
                     Загрузка данных...</div>
             </div>
         </div>

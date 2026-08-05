@@ -38,6 +38,17 @@ function _isDemoMode() {
     return svc.isDemo();
 }
 
+/** Shell label via i18n; fallback literal if service not ready yet. */
+function _t(key, fallback) {
+    const i18n = (_ctx && _ctx.services && _ctx.services.i18n) ||
+        (window.RBI && window.RBI.services && window.RBI.services.i18n);
+    if (i18n && typeof i18n.t === 'function') {
+        const tr = i18n.t(key);
+        if (tr && tr !== key) return tr;
+    }
+    return fallback;
+}
+
 function _session() {
     if (_ctx && _ctx.session) return _ctx.session;
     if (window.RBI?.services?.session) return window.RBI.services.session;
@@ -427,7 +438,37 @@ const AppModeManager = {
     },
 
     changeMode(newMode) {
-        if (this.currentMode === newMode) return;
+        const hash = window.location.hash || '';
+        const onSettings = /^#\/settings(\/|$)/i.test(hash)
+            || /^#\/quality\/settings(\/|$)/i.test(hash);
+        // Тот же режим, но открыты Настройки (chrome) — выйти в home модуля.
+        // Иначе early-return оставлял hash на #/settings и F5 снова открывал настройки.
+        if (this.currentMode === newMode) {
+            if (!onSettings) return;
+            this.renderBottomNav();
+            this.updateHeaderVisibility();
+            const shellSame = window.RBI?.services?.shell;
+            if (shellSame && typeof shellSame.renderSidebar === 'function') {
+                shellSame.renderSidebar();
+            }
+            if (shellSame && typeof shellSame.renderMobileModuleMenu === 'function') {
+                shellSame.renderMobileModuleMenu();
+            }
+            switch (newMode) {
+                case 'quality':
+                    window.AppRouter.navigate('#/quality/audit', true);
+                    break;
+                case 'construction':
+                    window.AppRouter.navigate('#/construction/defects', true);
+                    break;
+                case 'construction-v2':
+                    window.AppRouter.navigate('#/construction-v2', true);
+                    break;
+                default:
+                    break;
+            }
+            return;
+        }
 
         const shell = window.RBI?.services?.shell;
         if (shell && typeof shell.getSelectedModules === 'function') {
@@ -530,28 +571,44 @@ const AppModeManager = {
         if (!nav) return;
 
         let html = '';
+        const L = {
+            audit: _t('nav.bottom.audit', 'Осмотр'),
+            engineer: _t('nav.bottom.engineer', 'Инженер'),
+            analytics: _t('nav.bottom.analytics', 'Аналитика'),
+            knowledge: _t('nav.bottom.knowledge', 'БЗ'),
+            settings: _t('nav.bottom.settings', 'Настройки'),
+            defects: _t('nav.bottom.defects', 'Дефекты'),
+            acceptance: _t('nav.bottom.acceptance', 'Приёмка'),
+            transfer: _t('nav.bottom.transfer', 'Шахматка'),
+            reportsSk: _t('nav.bottom.reports_sk', 'Отчеты СК'),
+            plans: _t('nav.bottom.plans', 'Планы'),
+            remarks: _t('nav.bottom.remarks', 'Замечания'),
+            transferV2: _t('nav.bottom.transfer_v2', 'Передача'),
+            metrics: _t('nav.bottom.metrics', 'Сроки'),
+            cabinet: _t('nav.bottom.cabinet', 'Кабинет')
+        };
 
         if (this.currentMode === 'quality') {
             html = `
                 <div class="nav-item" data-path="#/quality/audit">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                    <span class="nav-text">Осмотр</span>
+                    <span class="nav-text">${L.audit}</span>
                 </div>
                 <div class="nav-item" data-path="#/quality/engineer">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"></path></svg>
-                    <span class="nav-text">Инженер</span>
+                    <span class="nav-text">${L.engineer}</span>
                 </div>
                 <div class="nav-item" data-path="#/quality/analytics">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    <span class="nav-text">Аналитика</span>
+                    <span class="nav-text">${L.analytics}</span>
                 </div>
                 <div class="nav-item" data-path="#/quality/reference">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    <span class="nav-text">БЗ</span>
+                    <span class="nav-text">${L.knowledge}</span>
                 </div>
                 <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span class="nav-text">Настройки</span>
+                    <span class="nav-text">${L.settings}</span>
                 </div>
             `;
             nav.style.display = 'flex';
@@ -559,28 +616,28 @@ const AppModeManager = {
             html = `
                 <div class="nav-item" data-path="#/construction/defects">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                    <span class="nav-text">Дефекты</span>
+                    <span class="nav-text">${L.defects}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction/acceptance">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                    <span class="nav-text">Приёмка</span>
+                    <span class="nav-text">${L.acceptance}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction/transfer">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                    <span class="nav-text">Шахматка</span>
+                    <span class="nav-text">${L.transfer}</span>
                 </div>
                  <!-- База Знаний в Стройконтроле -->
                 <div class="nav-item" data-path="#/construction/reference">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    <span class="nav-text">БЗ</span>
+                    <span class="nav-text">${L.knowledge}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction/reports">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg>
-                    <span class="nav-text">Отчеты СК</span>
+                    <span class="nav-text">${L.reportsSk}</span>
                 </div>
                  <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span class="nav-text">Настройки</span>
+                    <span class="nav-text">${L.settings}</span>
                 </div>
             `;
             nav.style.display = 'flex';
@@ -588,31 +645,31 @@ const AppModeManager = {
             html = `
                 <div class="nav-item" data-path="#/construction-v2">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                    <span class="nav-text">Планы</span>
+                    <span class="nav-text">${L.plans}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction-v2/defects">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <span class="nav-text">Замечания</span>
+                    <span class="nav-text">${L.remarks}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction-v2/acceptance">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5h6m-3 4v6m-3-3h6"></path></svg>
-                    <span class="nav-text">Приёмка</span>
+                    <span class="nav-text">${L.acceptance}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction-v2/transfer">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"></path></svg>
-                    <span class="nav-text">Передача</span>
+                    <span class="nav-text">${L.transferV2}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction-v2/metrics">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span class="nav-text">Сроки</span>
+                    <span class="nav-text">${L.metrics}</span>
                 </div>
                 <div class="nav-item" data-path="#/construction-v2/cabinet">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"></path></svg>
-                    <span class="nav-text">Кабинет</span>
+                    <span class="nav-text">${L.cabinet}</span>
                 </div>
                 <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span class="nav-text">Настройки</span>
+                    <span class="nav-text">${L.settings}</span>
                 </div>
             `;
             nav.style.display = 'flex';

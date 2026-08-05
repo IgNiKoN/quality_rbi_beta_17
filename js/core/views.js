@@ -33,24 +33,45 @@ function showModePlaceholder(modeName, customMessage) {
     const el = document.getElementById('tab-mode-placeholder');
     if (!el) return;
 
-    const names = {
-        'transfer': 'Передача квартир',
-        'warranty': 'Гарантийное обслуживание',
-        'safety': 'Охрана труда и ПБ',
-        'uk': 'Управляющая компания',
-        'tender': 'Тендерный отдел',
-        'standards': 'Стандарты (тех. решения)',
-        'schedule': 'Сроки',
-        'budget': 'Бюджет'
+    function _phT(key, vars, fallback) {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var tr = i18n.t(key, vars);
+            if (tr && tr !== key) return tr;
+        }
+        return fallback;
+    }
+
+    // Display name via nav.* (hyphens → underscores); RU fallbacks for ids without keys
+    var nameFallbacks = {
+        transfer: 'Передача квартир',
+        warranty: 'Гарантия',
+        safety: 'Безопасность',
+        uk: 'Управляющая компания',
+        tender: 'Тендерный отдел',
+        standards: 'Стандарты (тех. решения)',
+        schedule: 'Сроки',
+        budget: 'Бюджет'
     };
+    var navKey = 'nav.' + String(modeName || '').replace(/-/g, '_');
+    var displayName = _phT(navKey, null, nameFallbacks[modeName] || modeName);
 
     const titleEl = el.querySelector('h2');
-    if (titleEl) titleEl.innerText = `Модуль «${names[modeName] || modeName}»`;
+    if (titleEl) {
+        titleEl.innerText = _phT(
+            'shell.placeholder_title',
+            { name: displayName },
+            'Модуль «' + displayName + '»'
+        );
+    }
 
     const messageEl = document.getElementById('placeholder-message');
     if (messageEl) {
-        messageEl.innerText = customMessage ||
-            'Модуль ещё не разработан. Стадия оформления концепции и наполнения.';
+        messageEl.innerText = customMessage || _phT(
+            'shell.placeholder_body',
+            null,
+            'Модуль ещё не разработан. Стадия оформления концепции и наполнения.'
+        );
     }
 
     // showHeader=true только оставляет видимой верхнюю строку шапки

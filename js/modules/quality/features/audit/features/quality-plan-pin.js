@@ -290,10 +290,8 @@ function _removeOverlay() {
   const existing = document.getElementById('quality-plan-pin-overlay');
   if (existing) {
     try {
-      const wrap = existing.querySelector('[data-qpin-wrap]');
-      if (wrap && existing._qpinOnWheel) {
-        wrap.removeEventListener('wheel', existing._qpinOnWheel);
-      }
+      const onWheel = existing._qpinOnWheel;
+      if (onWheel) existing.removeEventListener('wheel', onWheel, true);
     } catch (_e0) { /* ignore */ }
     try {
       const pz = existing._qpinPanzoom;
@@ -470,6 +468,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
   viewerOpts = viewerOpts || {};
   const readOnly = !!viewerOpts.readOnly;
   const filterItems = Array.isArray(viewerOpts.items) ? viewerOpts.items : null;
+  const mountEl = viewerOpts.mountEl || null;
 
   const loc = _locations();
   if (!loc) {
@@ -574,7 +573,9 @@ async function _openPlanViewer(floorId, viewerOpts) {
 
   const titleText = readOnly ? 'План этажа (история)' : 'Точка на плане этажа';
   const footerText = readOnly
-    ? 'Нажмите на точку, чтобы открыть проверку · pinch / ± для масштаба'
+    ? (mountEl
+      ? 'Колёсико — прокрутка · Ctrl/⌘+колёсико или ± — зум · точка открывает проверку'
+      : 'Нажмите на точку, чтобы открыть проверку · Ctrl/⌘+колёсико или ± — зум')
     : 'Нажмите на план, чтобы поставить точку · pinch / ± для масштаба';
   const confirmHtml = readOnly
     ? ''
@@ -582,26 +583,45 @@ async function _openPlanViewer(floorId, viewerOpts) {
           class="panzoom-exclude px-3 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
           ${tempX == null ? 'disabled' : ''}>Подтвердить</button>`;
 
+  const trailingActionHtml = mountEl
+    ? `<button type="button" data-qpin-fullscreen
+          class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-white inline-flex items-center justify-center hover:bg-slate-600"
+          title="На весь экран" aria-label="На весь экран">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+          <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg>
+      </button>`
+    : `<button type="button" data-qpin-cancel
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${readOnly ? 'Закрыть' : 'Отмена'}</button>`;
+
   const overlay = document.createElement('div');
   overlay.id = 'quality-plan-pin-overlay';
-  overlay.className = 'fixed inset-0 z-[12000] bg-slate-900 flex flex-col';
+  if (mountEl) {
+    overlay.className = 'relative w-full h-full min-h-[320px] bg-slate-900 flex flex-col rounded-xl border border-slate-700';
+    overlay.setAttribute('data-qpin-inline', '1');
+  } else {
+    overlay.className = 'fixed inset-0 z-[12000] bg-slate-900 flex flex-col';
+  }
+  overlay.setAttribute('data-qpin-floor', String(floorId));
   overlay.innerHTML = `
-    <div class="flex items-center justify-between px-3 py-2 bg-slate-950/90 text-white shrink-0 gap-2">
-      <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate">${_escape(titleText)}</div>
-      <div class="flex gap-1.5 items-center shrink-0">
-        <button type="button" data-qpin-other-floor
-          class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">Другой этаж</button>
-        <button type="button" data-qpin-zoom-out
-          class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">−</button>
-        <button type="button" data-qpin-zoom-in
-          class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">+</button>
-        ${confirmHtml}
-        <button type="button" data-qpin-cancel
-          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${readOnly ? 'Закрыть' : 'Отмена'}</button>
+    <div data-qpin-chrome class="shrink-0">
+      <div data-qpin-toolbar class="flex items-center justify-between px-3 py-2 text-white gap-2">
+        <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate">${_escape(titleText)}</div>
+        <div class="flex gap-1.5 items-center shrink-0">
+          ${mountEl ? '' : `<button type="button" data-qpin-other-floor
+            class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">Другой этаж</button>`}
+          <button type="button" data-qpin-zoom-out
+            class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">−</button>
+          <button type="button" data-qpin-zoom-in
+            class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">+</button>
+          ${confirmHtml}
+          ${trailingActionHtml}
+        </div>
       </div>
+      ${chipsHtml}
+      ${contractorChipsHtml}
     </div>
-    ${chipsHtml}
-    ${contractorChipsHtml}
     <div class="relative flex-1 min-h-0" data-qpin-host>
       <div class="absolute inset-0 overflow-hidden bg-slate-800 touch-none" data-qpin-wrap>
         <div class="absolute top-0 left-0 shadow-lg bg-white" data-qpin-stage style="touch-action:none">
@@ -613,8 +633,13 @@ async function _openPlanViewer(floorId, viewerOpts) {
         Загрузка плана…
       </div>
     </div>
-    <div class="px-3 py-2 text-[10px] text-slate-300 bg-slate-950/80 shrink-0">${_escape(footerText)}</div>`;
-  document.body.appendChild(overlay);
+    <div data-qpin-footer class="px-3 py-2 text-[10px] text-slate-300 shrink-0">${_escape(footerText)}</div>`;
+  if (mountEl) {
+    mountEl.innerHTML = '';
+    mountEl.appendChild(overlay);
+  } else {
+    document.body.appendChild(overlay);
+  }
 
   const host = overlay.querySelector('[data-qpin-host]');
   const wrap = overlay.querySelector('[data-qpin-wrap]');
@@ -624,26 +649,48 @@ async function _openPlanViewer(floorId, viewerOpts) {
   const loader = overlay.querySelector('[data-qpin-loader]');
   const confirmBtn = overlay.querySelector('[data-qpin-confirm]');
 
-  const close = function () { _removeOverlay(); };
-  overlay.querySelector('[data-qpin-cancel]').addEventListener('click', close);
-
-  overlay.querySelector('[data-qpin-other-floor]').addEventListener('click', function (e) {
-    e.stopPropagation();
-    close();
-    if (readOnly) {
-      _showPicker(function (fid) {
-        _openPlanViewer(fid, { readOnly: true, items: filterItems });
-      });
-    } else {
-      _showPicker(function (fid) {
-        _openPlanViewer(fid);
-      });
+  const close = function () {
+    _removeOverlay();
+    if (typeof viewerOpts.onClose === 'function') {
+      try { viewerOpts.onClose(); } catch (_eClose) { /* ignore */ }
     }
-  });
+  };
+  const cancelBtn = overlay.querySelector('[data-qpin-cancel]');
+  if (cancelBtn) cancelBtn.addEventListener('click', close);
+  const fullscreenBtn = overlay.querySelector('[data-qpin-fullscreen]');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (typeof viewerOpts.onFullscreen === 'function') {
+        try { viewerOpts.onFullscreen(); } catch (_eFs) { /* ignore */ }
+      }
+    });
+  }
+
+  const otherFloorBtn = overlay.querySelector('[data-qpin-other-floor]');
+  if (otherFloorBtn) {
+    otherFloorBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      close();
+      if (readOnly) {
+        _showPicker(function (fid) {
+          _openPlanViewer(fid, { readOnly: true, items: filterItems });
+        });
+      } else {
+        _showPicker(function (fid) {
+          _openPlanViewer(fid);
+        });
+      }
+    });
+  }
 
   function _currentScale() {
     return (panzoom && typeof panzoom.getScale === 'function') ? (panzoom.getScale() || 1) : 1;
   }
+
+  let _lastPanzoomAt = 0;
+  let _gestureMoved = false;
+  let _gestureStart = null;
 
   function _renderPins(opts) {
     opts = opts || {};
@@ -733,10 +780,16 @@ async function _openPlanViewer(floorId, viewerOpts) {
       el.addEventListener('pointerenter', function () { el.style.transform = PIN_TF_HOVER; });
       el.addEventListener('pointerleave', function () { el.style.transform = PIN_TF; });
     }
+    function _isTapNotGesture() {
+      if (_gestureMoved) return false;
+      if (Date.now() - _lastPanzoomAt < 320) return false;
+      return true;
+    }
     pins.querySelectorAll('[data-qpin-cluster]').forEach(function (el) {
       _bindHoverScale(el);
       el.addEventListener('click', function (ev) {
         ev.stopPropagation();
+        if (!_isTapNotGesture()) return;
         const n = el.getAttribute('data-qpin-cluster') || '?';
         _toast('Приблизьте план, чтобы увидеть ' + n + ' проверок');
       });
@@ -746,9 +799,15 @@ async function _openPlanViewer(floorId, viewerOpts) {
         _bindHoverScale(el);
         el.addEventListener('click', function (ev) {
           ev.stopPropagation();
+          if (!_isTapNotGesture()) return;
           const id = el.getAttribute('data-qpin-hist');
           if (!id) return;
-          close();
+          // Keep plan open under the inspection modal (do not teardown overlay).
+          const ov = document.getElementById('quality-plan-pin-overlay');
+          if (ov && ov.classList.contains('fixed')) {
+            ov.style.zIndex = '4000';
+            ov.setAttribute('data-qpin-under-modal', '1');
+          }
           const showDetail = window['showHistoryDetail'];
           if (typeof showDetail === 'function') showDetail(id);
         });
@@ -850,22 +909,38 @@ async function _openPlanViewer(floorId, viewerOpts) {
 
   overlay.querySelector('[data-qpin-zoom-in]').addEventListener('click', function (e) {
     e.stopPropagation();
+    _lastPanzoomAt = Date.now();
+    _gestureMoved = true;
     _zoomBy(1);
   });
   overlay.querySelector('[data-qpin-zoom-out]').addEventListener('click', function (e) {
     e.stopPropagation();
+    _lastPanzoomAt = Date.now();
+    _gestureMoved = true;
     _zoomBy(-1);
   });
 
   wrap.classList.add(readOnly ? 'cursor-grab' : 'cursor-crosshair');
   wrap.addEventListener('pointerdown', function (ev) {
     pointerDown = { x: ev.clientX, y: ev.clientY };
+    _gestureStart = { x: ev.clientX, y: ev.clientY };
+    _gestureMoved = false;
   });
   wrap.addEventListener('pointermove', function (ev) {
     lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+    if (_gestureStart) {
+      const dist = Math.hypot(ev.clientX - _gestureStart.x, ev.clientY - _gestureStart.y);
+      if (dist > 6) _gestureMoved = true;
+    }
+  });
+  wrap.addEventListener('pointerup', function () {
+    _gestureStart = null;
+  });
+  wrap.addEventListener('pointercancel', function () {
+    _gestureStart = null;
   });
   wrap.addEventListener('click', function (ev) {
-    if (ev.target.closest('[data-qpin-cluster], [data-qpin-hist], [data-qpin-zoom-in], [data-qpin-zoom-out], [data-qpin-chip], [data-qpin-cchip], [data-qpin-other-floor]')) return;
+    if (ev.target.closest('[data-qpin-cluster], [data-qpin-hist], [data-qpin-zoom-in], [data-qpin-zoom-out], [data-qpin-chip], [data-qpin-cchip], [data-qpin-other-floor], [data-qpin-fullscreen], [data-qpin-cancel]')) return;
     if (readOnly) return;
     if (pointerDown) {
       const moved = Math.hypot(ev.clientX - pointerDown.x, ev.clientY - pointerDown.y);
@@ -882,6 +957,12 @@ async function _openPlanViewer(floorId, viewerOpts) {
     if (confirmBtn) confirmBtn.disabled = false;
     _renderPins({ scale: _currentScale() });
   });
+
+  /** True while this overlay is still the active viewer (guards async PDF race). */
+  function _viewerAlive() {
+    return !!(overlay && overlay.isConnected
+      && document.getElementById('quality-plan-pin-overlay') === overlay);
+  }
 
   try {
     let buf = null;
@@ -907,12 +988,22 @@ async function _openPlanViewer(floorId, viewerOpts) {
         buf = await res.arrayBuffer();
       }
     }
-    if (!document.getElementById('quality-plan-pin-overlay')) return;
+    if (!_viewerAlive()) return;
 
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
+    if (!_viewerAlive()) return;
     const page = await pdf.getPage(1);
-    const hostW = Math.max((host && host.clientWidth) || 640, 320);
-    const hostH = Math.max((host && host.clientHeight) || 400, 240);
+    if (!_viewerAlive()) return;
+    const hostW = Math.max(
+      (mountEl && mountEl.clientWidth) || (host && host.clientWidth) || 640,
+      320
+    );
+    const hostH = Math.max(
+      (mountEl && Math.max(mountEl.clientHeight - 72, 200))
+        || (host && host.clientHeight)
+        || 400,
+      240
+    );
     const base = page.getViewport({ scale: 1 });
     const scale = Math.min(2.2, Math.max(0.8, Math.min((hostW - 24) / base.width, (hostH - 24) / base.height)));
     const viewport = page.getViewport({ scale: scale });
@@ -928,6 +1019,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d недоступен');
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+    if (!_viewerAlive()) return;
     if (loader) loader.remove();
 
     const factory = window.Panzoom;
@@ -954,33 +1046,52 @@ async function _openPlanViewer(floorId, viewerOpts) {
           };
       panzoom = factory(stage, pzOpts);
       overlay._qpinPanzoom = panzoom;
+      const fitCenter = function () {
+        if (!_viewerAlive()) return;
+        if (pp && panzoom) pp.center(panzoom, wrap, stage);
+      };
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
-          if (pp && panzoom) pp.center(panzoom, wrap, stage);
+          fitCenter();
+          if (mountEl) {
+            setTimeout(fitCenter, 40);
+            setTimeout(fitCenter, 160);
+          }
         });
       });
       const onWheel = function (e) {
-        if (!panzoom) return;
+        if (!panzoom || !_viewerAlive()) return;
+        // Trackpad pinch / Ctrl|⌘+wheel → zoom. Plain wheel → page/stage scroll.
+        if (!(e.ctrlKey || e.metaKey)) return;
+        _lastPanzoomAt = Date.now();
+        _gestureMoved = true;
         if (pp) pp.wheelZoom(panzoom, e, PZ_MIN, PZ_MAX);
         else {
           e.preventDefault();
+          e.stopPropagation();
           panzoom.zoomWithWheel(e, { step: 0.2 });
         }
         _renderPins({ scale: panzoom.getScale() });
       };
-      wrap.addEventListener('wheel', onWheel, { passive: false });
+      // Capture only to catch pinch (ctrl+wheel) before the browser zooms the page.
+      overlay.addEventListener('wheel', onWheel, { passive: false, capture: true });
       overlay._qpinOnWheel = onWheel;
       let pinZoomTimer = null;
       stage.addEventListener('panzoomchange', function () {
+        _lastPanzoomAt = Date.now();
+        _gestureMoved = true;
         clearTimeout(pinZoomTimer);
         pinZoomTimer = setTimeout(function () {
-          _renderPins({ scale: _currentScale() });
-        }, 40);
+          if (!_viewerAlive()) return;
+          try { _renderPins({ scale: _currentScale() }); } catch (_ePins) { /* ignore */ }
+        }, 80);
       });
     }
 
     _renderPins({ scale: _currentScale() });
   } catch (e) {
+    // Stale load after floor switch / fullscreen — do not toast or tear down the new viewer.
+    if (!_viewerAlive()) return;
     console.error('[quality-plan-pin] load failed', e);
     _toast('⚠️ Не удалось открыть план этажа');
     close();
@@ -1015,7 +1126,10 @@ export async function openPlanPinFlow(opts) {
   });
 }
 
-/** Read-only history plan viewer (markers/clusters/zoom, no place-pin). */
+/** Read-only history plan viewer (markers/clusters/zoom, no place-pin).
+ *  opts.mountEl — optional host for inline desktop preview (not fullscreen).
+ *  opts.onClose — called after overlay is removed (e.g. restore inline preview).
+ *  opts.onFullscreen — inline only: expand icon instead of collapse. */
 export async function openHistoryPlanViewer(opts) {
   opts = opts || {};
   const floorId = opts.floorId;
@@ -1025,7 +1139,10 @@ export async function openHistoryPlanViewer(opts) {
   }
   await _openPlanViewer(floorId, {
     readOnly: true,
-    items: Array.isArray(opts.items) ? opts.items : null
+    items: Array.isArray(opts.items) ? opts.items : null,
+    mountEl: opts.mountEl || null,
+    onClose: typeof opts.onClose === 'function' ? opts.onClose : null,
+    onFullscreen: typeof opts.onFullscreen === 'function' ? opts.onFullscreen : null
   });
 }
 

@@ -421,7 +421,7 @@ export function remountChecklistsItems() {
   }
 }
 
-function selectChecklist(checklistId, opts) {
+export function selectChecklist(checklistId, opts) {
   const options = opts || {};
   _sel.checklistKey = checklistId;
   syncMobileSelector(checklistId);
@@ -440,6 +440,29 @@ function selectChecklist(checklistId, opts) {
     window.renderReferenceTab();
   } else {
     remountChecklistsItems();
+  }
+
+  // Подсветить выбранный ряд в rail после навигации из кросс-ссылки
+  try {
+    const rail = document.querySelector('#ref-sub-checklists .kb-desk-rail');
+    if (rail) {
+      rail.querySelectorAll('.kb-desk-cl-list-row.is-active').forEach(function (el) {
+        el.classList.remove('is-active');
+      });
+      const row = rail.querySelector(
+        '.kb-desk-cl-list-row[data-checklist-id="' +
+          String(checklistId).replace(/"/g, '\\"') +
+          '"]'
+      );
+      if (row) {
+        row.classList.add('is-active');
+        if (typeof row.scrollIntoView === 'function') {
+          row.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    }
+  } catch (_) {
+    /* ignore */
   }
 }
 

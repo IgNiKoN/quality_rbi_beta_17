@@ -5,123 +5,55 @@
  * Ключи ролей не редактируются; меняются только флаги/label поверх DEFAULT.
  */
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = i18n.t(key, vars);
+            if (s && s !== key) return s;
+        }
+    } catch (_e) { /* ignore */ }
+    if (vars && typeof fallback === 'string') {
+        return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+            return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+        });
+    }
+    return fallback;
+}
+
 let _delegationBound = false;
 let _selectedRole = null;
 let _draft = null;
 let _saving = false;
 
 const BOOL_FIELDS = [
-    {
-        key: 'canCreate',
-        label: 'Создание записей',
-        hint: 'Разрешает создавать новые осмотры / проектные записи. Без флага интерфейс часто в режиме «только чтение».'
-    },
-    {
-        key: 'canPush',
-        label: 'Push в облако',
-        hint: 'Разрешает отправлять локальные изменения в Supabase (sync push). Без флага данные остаются только на устройстве.'
-    },
-    {
-        key: 'canDeleteOwn',
-        label: 'Удаление своих',
-        hint: 'Можно удалять только свои записи (автор = текущий инженер). Чужие — нельзя.'
-    },
-    {
-        key: 'canDeleteAll',
-        label: 'Удаление любых',
-        hint: 'Можно удалять чужие записи тоже. Обычно только у админов / зам. руководителя.'
-    },
-    {
-        key: 'canManageRoles',
-        label: 'Управление ролями',
-        hint: 'Доступ к этому экрану «Роли и права» и к операциям смены прав. Осторожно: снятие у своей роли может закрыть экран.'
-    },
-    {
-        key: 'canManageObjects',
-        label: 'Управление объектами',
-        hint: 'Права на админ-операции со справочником объектов / привязками объектов к пользователям.'
-    },
-    {
-        key: 'canEditKnowledgeBase',
-        label: 'Редактирование БЗ',
-        hint: 'Можно создавать и править материалы базы знаний (TWI, документы, узлы и т.п.).'
-    },
-    {
-        key: 'canViewKnowledgeBase',
-        label: 'Просмотр БЗ',
-        hint: 'Можно открывать и читать базу знаний. Без флага раздел БЗ недоступен.'
-    },
-    {
-        key: 'isAdmin',
-        label: 'Админ',
-        hint: 'Полный админ-доступ в клиенте: служебные блоки настроек, обход части ограничений редактирования, админ-UI.'
-    },
-    {
-        key: 'isLeadership',
-        label: 'Руководство',
-        hint: 'Маркер руководящей роли (РП / директор / админ). Используется в UI и фильтрах «для руководства».'
-    },
-    {
-        key: 'canManageSK',
-        label: 'Управление СК',
-        hint: 'Доступ к управлению модулем ПК СК (импорт/анализ Excel Стройконтроль), не путать со стройконтролем construction.'
-    },
-    {
-        key: 'canManageHierarchy',
-        label: 'Управление иерархией',
-        hint: 'Права на иерархию объекта (корпус / этаж / локации / планы) и связанные админ-блоки справочников.'
-    },
-    {
-        key: 'isEngineerOrAdmin',
-        label: 'Инженер или админ',
-        hint: 'Совмещённый флаг «инженер СК или админ» для экранов/кнопок, где нужен полевой или полный доступ.'
-    },
-    {
-        key: 'canViewWeeklyPlan',
-        label: 'Недельный план',
-        hint: 'Показывает недельный план задач / план инженера. Без флага раздел скрыт.'
-    }
+    { key: 'canCreate', labelKey: 'settings.admin.roles.bool.canCreate', hintKey: 'settings.admin.roles.bool.canCreate_hint', labelFb: 'Создание записей', hintFb: 'Разрешает создавать новые осмотры / проектные записи. Без флага интерфейс часто в режиме «только чтение».' },
+    { key: 'canPush', labelKey: 'settings.admin.roles.bool.canPush', hintKey: 'settings.admin.roles.bool.canPush_hint', labelFb: 'Push в облако', hintFb: 'Разрешает отправлять локальные изменения в Supabase (sync push). Без флага данные остаются только на устройстве.' },
+    { key: 'canDeleteOwn', labelKey: 'settings.admin.roles.bool.canDeleteOwn', hintKey: 'settings.admin.roles.bool.canDeleteOwn_hint', labelFb: 'Удаление своих', hintFb: 'Можно удалять только свои записи (автор = текущий инженер). Чужие — нельзя.' },
+    { key: 'canDeleteAll', labelKey: 'settings.admin.roles.bool.canDeleteAll', hintKey: 'settings.admin.roles.bool.canDeleteAll_hint', labelFb: 'Удаление любых', hintFb: 'Можно удалять чужие записи тоже. Обычно только у админов / зам. руководителя.' },
+    { key: 'canManageRoles', labelKey: 'settings.admin.roles.bool.canManageRoles', hintKey: 'settings.admin.roles.bool.canManageRoles_hint', labelFb: 'Управление ролями', hintFb: 'Доступ к этому экрану «Роли и права» и к операциям смены прав. Осторожно: снятие у своей роли может закрыть экран.' },
+    { key: 'canManageObjects', labelKey: 'settings.admin.roles.bool.canManageObjects', hintKey: 'settings.admin.roles.bool.canManageObjects_hint', labelFb: 'Управление объектами', hintFb: 'Права на админ-операции со справочником объектов / привязками объектов к пользователям.' },
+    { key: 'canEditKnowledgeBase', labelKey: 'settings.admin.roles.bool.canEditKnowledgeBase', hintKey: 'settings.admin.roles.bool.canEditKnowledgeBase_hint', labelFb: 'Редактирование БЗ', hintFb: 'Можно создавать и править материалы базы знаний (TWI, документы, узлы и т.п.).' },
+    { key: 'canViewKnowledgeBase', labelKey: 'settings.admin.roles.bool.canViewKnowledgeBase', hintKey: 'settings.admin.roles.bool.canViewKnowledgeBase_hint', labelFb: 'Просмотр БЗ', hintFb: 'Можно открывать и читать базу знаний. Без флага раздел БЗ недоступен.' },
+    { key: 'isAdmin', labelKey: 'settings.admin.roles.bool.isAdmin', hintKey: 'settings.admin.roles.bool.isAdmin_hint', labelFb: 'Админ', hintFb: 'Полный админ-доступ в клиенте: служебные блоки настроек, обход части ограничений редактирования, админ-UI.' },
+    { key: 'isLeadership', labelKey: 'settings.admin.roles.bool.isLeadership', hintKey: 'settings.admin.roles.bool.isLeadership_hint', labelFb: 'Руководство', hintFb: 'Маркер руководящей роли (РП / директор / админ). Используется в UI и фильтрах «для руководства».' },
+    { key: 'canManageSK', labelKey: 'settings.admin.roles.bool.canManageSK', hintKey: 'settings.admin.roles.bool.canManageSK_hint', labelFb: 'Управление СК', hintFb: 'Доступ к управлению модулем ПК СК (импорт/анализ Excel Стройконтроль), не путать со стройконтролем construction.' },
+    { key: 'canManageHierarchy', labelKey: 'settings.admin.roles.bool.canManageHierarchy', hintKey: 'settings.admin.roles.bool.canManageHierarchy_hint', labelFb: 'Управление иерархией', hintFb: 'Права на иерархию объекта (корпус / этаж / локации / планы) и связанные админ-блоки справочников.' },
+    { key: 'isEngineerOrAdmin', labelKey: 'settings.admin.roles.bool.isEngineerOrAdmin', hintKey: 'settings.admin.roles.bool.isEngineerOrAdmin_hint', labelFb: 'Инженер или админ', hintFb: 'Совмещённый флаг «инженер СК или админ» для экранов/кнопок, где нужен полевой или полный доступ.' },
+    { key: 'canViewWeeklyPlan', labelKey: 'settings.admin.roles.bool.canViewWeeklyPlan', hintKey: 'settings.admin.roles.bool.canViewWeeklyPlan_hint', labelFb: 'Недельный план', hintFb: 'Показывает недельный план задач / план инженера. Без флага раздел скрыт.' }
 ];
 
 const DATA_SCOPES = [
-    {
-        value: 'all',
-        label: 'Все данные',
-        hint: 'Видит все записи проекта без фильтра по автору / подрядчику / своим объектам.'
-    },
-    {
-        value: 'ownProject',
-        label: 'Свои проекты',
-        hint: 'Только записи по объектам из assignedProjects. Если объектов нет — пусто.'
-    },
-    {
-        value: 'ownContractor',
-        label: 'Свой подрядчик',
-        hint: 'Только записи своего подрядчика (кабинет подрядчика). Плюс фильтр по проекту, если объекты назначены.'
-    },
-    {
-        value: 'ownProjectOrOwnRecords',
-        label: 'Проекты или свои записи',
-        hint: 'Записи своих объектов; если объектов нет — только свои записи без проекта. Типично для инженера.'
-    },
-    {
-        value: 'none',
-        label: 'Нет доступа',
-        hint: 'Чужие данные не показываются (гость).'
-    }
+    { value: 'all', labelKey: 'settings.admin.roles.scope.all', hintKey: 'settings.admin.roles.scope.all_hint', labelFb: 'Все данные', hintFb: 'Видит все записи проекта без фильтра по автору / подрядчику / своим объектам.' },
+    { value: 'ownProject', labelKey: 'settings.admin.roles.scope.ownProject', hintKey: 'settings.admin.roles.scope.ownProject_hint', labelFb: 'Свои проекты', hintFb: 'Только записи по объектам из assignedProjects. Если объектов нет — пусто.' },
+    { value: 'ownContractor', labelKey: 'settings.admin.roles.scope.ownContractor', hintKey: 'settings.admin.roles.scope.ownContractor_hint', labelFb: 'Свой подрядчик', hintFb: 'Только записи своего подрядчика (кабинет подрядчика). Плюс фильтр по проекту, если объекты назначены.' },
+    { value: 'ownProjectOrOwnRecords', labelKey: 'settings.admin.roles.scope.ownProjectOrOwnRecords', hintKey: 'settings.admin.roles.scope.ownProjectOrOwnRecords_hint', labelFb: 'Проекты или свои записи', hintFb: 'Записи своих объектов; если объектов нет — только свои записи без проекта. Типично для инженера.' },
+    { value: 'none', labelKey: 'settings.admin.roles.scope.none', hintKey: 'settings.admin.roles.scope.none_hint', labelFb: 'Нет доступа', hintFb: 'Чужие данные не показываются (гость).' }
 ];
 
 const MODULE_OPTIONS = [
-    {
-        id: 'quality',
-        label: 'Качество',
-        hint: 'Модуль качества: осмотр, история, аналитика, задачи, БЗ и связанные вкладки.'
-    },
-    {
-        id: 'construction',
-        label: 'Стройконтроль',
-        hint: 'Модуль стройконтроля: дефекты, приёмка, планы, кабинет подрядчика.'
-    }
+    { id: 'quality', labelKey: 'settings.admin.roles.module.quality', hintKey: 'settings.admin.roles.module.quality_hint', labelFb: 'Качество', hintFb: 'Модуль качества: осмотр, история, аналитика, задачи, БЗ и связанные вкладки.' },
+    { id: 'construction', labelKey: 'settings.admin.roles.module.construction', hintKey: 'settings.admin.roles.module.construction_hint', labelFb: 'Стройконтроль', hintFb: 'Модуль стройконтроля: дефекты, приёмка, планы, кабинет подрядчика.' }
 ];
 
 function _perm() {
@@ -210,7 +142,7 @@ function _roleListHtml() {
     return _roles().map((r) => {
         const active = r.key === _selectedRole;
         const badge = _hasOverride(r.key)
-            ? '<span class="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 ml-1">изм.</span>'
+            ? '<span class="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 ml-1">' + _escapeHtml(_t('settings.admin.roles.changed', 'изм.')) + '</span>'
             : '';
         return `<button type="button"
             data-role-matrix-action="select"
@@ -226,38 +158,51 @@ function _roleListHtml() {
     }).join('');
 }
 
+function _scopeHintText(scopeValue) {
+    const found = DATA_SCOPES.find((s) => s.value === scopeValue) || DATA_SCOPES[0];
+    if (!found) return '';
+    return _t(found.hintKey, found.hintFb || '');
+}
+
 function _formHtml() {
     if (!_draft || !_selectedRole) {
-        return '<div class="text-[11px] text-[var(--text-muted)] p-3">Нет ролей в матрице.</div>';
+        return '<div class="text-[11px] text-[var(--text-muted)] p-3">' + _escapeHtml(_t('settings.admin.roles.empty', 'Нет ролей в матрице.')) + '</div>';
     }
     const d = _draft;
-    const boolRows = BOOL_FIELDS.map((f) => `
+    const boolRows = BOOL_FIELDS.map((f) => {
+        const label = _t(f.labelKey, f.labelFb);
+        const hint = _t(f.hintKey, f.hintFb || '');
+        return `
         <label class="flex items-start justify-between gap-3 py-2.5 border-b border-[var(--card-border)]/50 last:border-0">
             <span class="min-w-0">
-                <span class="block text-[11px] font-bold text-slate-700 dark:text-slate-200">${_escapeHtml(f.label)}</span>
-                <span class="block text-[10px] leading-snug text-[var(--text-muted)] mt-0.5">${_escapeHtml(f.hint || '')}</span>
+                <span class="block text-[11px] font-bold text-slate-700 dark:text-slate-200">${_escapeHtml(label)}</span>
+                <span class="block text-[10px] leading-snug text-[var(--text-muted)] mt-0.5">${_escapeHtml(hint)}</span>
             </span>
             <input type="checkbox" id="role-matrix-bool-${_escapeHtml(f.key)}"
                 class="w-4 h-4 mt-0.5 shrink-0 accent-indigo-600" ${d[f.key] ? 'checked' : ''}
-                title="${_escapeHtml(f.hint || f.label)}">
+                title="${_escapeHtml(hint || label)}">
         </label>
-    `).join('');
+    `;
+    }).join('');
 
-    const scopeOpts = DATA_SCOPES.map((s) =>
-        `<option value="${_escapeHtml(s.value)}" ${d.dataScope === s.value ? 'selected' : ''}>${_escapeHtml(s.label)}</option>`
-    ).join('');
-    const scopeHint = (DATA_SCOPES.find((s) => s.value === d.dataScope) || DATA_SCOPES[0] || {}).hint || '';
+    const scopeOpts = DATA_SCOPES.map((s) => {
+        const label = _t(s.labelKey, s.labelFb);
+        return `<option value="${_escapeHtml(s.value)}" ${d.dataScope === s.value ? 'selected' : ''}>${_escapeHtml(label)}</option>`;
+    }).join('');
+    const scopeHint = _scopeHintText(d.dataScope);
 
     const modRows = MODULE_OPTIONS.map((m) => {
         const on = Array.isArray(d.allowedModules) && d.allowedModules.indexOf(m.id) >= 0;
+        const label = _t(m.labelKey, m.labelFb);
+        const hint = _t(m.hintKey, m.hintFb || '');
         return `<label class="flex items-start gap-2 text-[11px]">
             <input type="checkbox" id="role-matrix-mod-${_escapeHtml(m.id)}"
                 class="w-4 h-4 mt-0.5 shrink-0 accent-indigo-600" ${on ? 'checked' : ''}
-                title="${_escapeHtml(m.hint || m.label)}">
+                title="${_escapeHtml(hint || label)}">
             <span class="min-w-0">
-                <span class="font-bold text-slate-700 dark:text-slate-200">${_escapeHtml(m.label)}</span>
+                <span class="font-bold text-slate-700 dark:text-slate-200">${_escapeHtml(label)}</span>
                 <span class="font-mono text-[9px] text-[var(--text-muted)] ml-1">(${_escapeHtml(m.id)})</span>
-                <span class="block text-[10px] leading-snug text-[var(--text-muted)] mt-0.5">${_escapeHtml(m.hint || '')}</span>
+                <span class="block text-[10px] leading-snug text-[var(--text-muted)] mt-0.5">${_escapeHtml(hint)}</span>
             </span>
         </label>`;
     }).join('');
@@ -265,17 +210,16 @@ function _formHtml() {
     return `
         <div class="space-y-3">
             <div class="text-[10px] text-[var(--text-muted)]">
-                Ключ роли: <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${_escapeHtml(_selectedRole)}</span>
-                (не редактируется — это техническое имя в профиле пользователя)
+                ${_escapeHtml(_t('settings.admin.roles.key_line', 'Ключ роли: {key} (не редактируется — это техническое имя в профиле пользователя)', { key: _selectedRole }))}
             </div>
             <div>
-                <label class="block text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Подпись</label>
+                <label class="block text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">${_escapeHtml(_t('settings.admin.roles.label', 'Подпись'))}</label>
                 <input id="role-matrix-label" type="text" value="${_escapeHtml(d.label || '')}"
                     class="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[12px] text-slate-800 dark:text-white">
-                <div class="text-[10px] text-[var(--text-muted)] mt-1">Человекочитаемое имя в списках (ключ роли при этом не меняется).</div>
+                <div class="text-[10px] text-[var(--text-muted)] mt-1">${_escapeHtml(_t('settings.admin.roles.label_hint', 'Человекочитаемое имя в списках (ключ роли при этом не меняется).'))}</div>
             </div>
             <div>
-                <label class="block text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Область данных</label>
+                <label class="block text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">${_escapeHtml(_t('settings.admin.roles.data_scope', 'Область данных'))}</label>
                 <select id="role-matrix-datascope"
                     class="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[12px] text-slate-800 dark:text-white">
                     ${scopeOpts}
@@ -283,23 +227,23 @@ function _formHtml() {
                 <div id="role-matrix-datascope-hint" class="text-[10px] leading-snug text-[var(--text-muted)] mt-1">${_escapeHtml(scopeHint)}</div>
             </div>
             <div>
-                <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Модули</div>
+                <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">${_escapeHtml(_t('settings.admin.roles.modules', 'Модули'))}</div>
                 <div class="space-y-2">${modRows}</div>
             </div>
             <div>
-                <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Флаги прав</div>
+                <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">${_escapeHtml(_t('settings.admin.roles.flags', 'Флаги прав'))}</div>
                 <div class="rounded-lg border border-[var(--card-border)] bg-[var(--hover-bg)] px-3">${boolRows}</div>
             </div>
             <div class="flex flex-col gap-2 pt-1">
                 <button type="button" data-role-matrix-action="save"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-colors ${_saving ? 'opacity-60 cursor-not-allowed' : ''}"
                     ${_saving ? 'disabled' : ''}>
-                    ${_saving ? 'Сохранение…' : 'Сохранить роль'}
+                    ${_saving ? _escapeHtml(_t('settings.admin.roles.saving', 'Сохранение…')) : _escapeHtml(_t('settings.admin.roles.save', 'Сохранить роль'))}
                 </button>
                 <button type="button" data-role-matrix-action="reset"
                     class="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest active:scale-95 ${_saving ? 'opacity-60 cursor-not-allowed' : ''}"
                     ${_saving ? 'disabled' : ''}>
-                    Сбросить роль к умолчанию
+                    ${_escapeHtml(_t('settings.admin.roles.reset', 'Сбросить роль к умолчанию'))}
                 </button>
             </div>
         </div>
@@ -310,9 +254,7 @@ function _rootHtml() {
     return `
         <div class="p-4 space-y-3">
             <div class="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                Изменения пока сохраняются в настройках профиля админа (не общая матрица компании).
-                Ключи ролей (<span class="font-mono">guest</span>…<span class="font-mono">manager</span>) не меняются.
-                Чтобы права реально действовали у инженеров/подрядчиков — нужен отдельный блок: общая матрица + раздача при sync; жёсткий RLS в базе — ещё позже.
+                ${_escapeHtml(_t('settings.admin.roles.intro', 'Изменения пока сохраняются в настройках профиля админа (не общая матрица компании). Ключи ролей (guest…manager) не меняются. Чтобы права реально действовали у инженеров/подрядчиков — нужен отдельный блок: общая матрица + раздача при sync; жёсткий RLS в базе — ещё позже.'))}
             </div>
             <div class="grid grid-cols-1 md:grid-cols-[11rem_1fr] gap-3">
                 <div id="role-matrix-list" class="flex flex-col gap-1.5">${_roleListHtml()}</div>
@@ -340,12 +282,12 @@ async function _onSelect(roleKey) {
 async function _onSave() {
     if (_saving) return;
     if (!_canManage()) {
-        _toast('⚠️ Только для администратора');
+        _toast(_t('settings.admin.roles.admin_only', '⚠️ Только для администратора'));
         return;
     }
     const p = _perm();
     if (!p || typeof p.setRoleOverrides !== 'function') {
-        _toast('❌ Сервис прав недоступен');
+        _toast(_t('settings.admin.roles.svc_missing', '❌ Сервис прав недоступен'));
         return;
     }
     _readFormIntoDraft();
@@ -356,15 +298,17 @@ async function _onSave() {
     try {
         const result = await p.setRoleOverrides(_selectedRole, _draft);
         if (result && result.error) {
-            _toast(result.error === 'forbidden' ? '⛔ Нет прав' : '❌ Ошибка сохранения');
+            _toast(result.error === 'forbidden'
+                ? _t('settings.admin.roles.forbidden', '⛔ Нет прав')
+                : _t('settings.admin.roles.save_error', '❌ Ошибка сохранения'));
         } else {
-            _toast('✅ Права роли сохранены');
+            _toast(_t('settings.admin.roles.saved', '✅ Права роли сохранены'));
             _draft = null;
             _ensureDraft();
         }
     } catch (e) {
         console.error('[role-matrix-ui] save', e);
-        _toast('❌ Ошибка сохранения');
+        _toast(_t('settings.admin.roles.save_error', '❌ Ошибка сохранения'));
     } finally {
         _saving = false;
         _rerender();
@@ -374,15 +318,15 @@ async function _onSave() {
 async function _onReset() {
     if (_saving) return;
     if (!_canManage()) {
-        _toast('⚠️ Только для администратора');
+        _toast(_t('settings.admin.roles.admin_only', '⚠️ Только для администратора'));
         return;
     }
     if (!_selectedRole) return;
-    if (!confirm('Сбросить права роли «' + _selectedRole + '» к значениям по умолчанию из кода?')) return;
+    if (!confirm(_t('settings.admin.roles.confirm_reset', 'Сбросить права роли «{role}» к значениям по умолчанию из кода?', { role: _selectedRole }))) return;
 
     const p = _perm();
     if (!p || typeof p.clearRoleOverrides !== 'function') {
-        _toast('❌ Сервис прав недоступен');
+        _toast(_t('settings.admin.roles.svc_missing', '❌ Сервис прав недоступен'));
         return;
     }
 
@@ -391,15 +335,17 @@ async function _onReset() {
     try {
         const result = await p.clearRoleOverrides(_selectedRole);
         if (result && result.error) {
-            _toast(result.error === 'forbidden' ? '⛔ Нет прав' : '❌ Ошибка сброса');
+            _toast(result.error === 'forbidden'
+                ? _t('settings.admin.roles.forbidden', '⛔ Нет прав')
+                : _t('settings.admin.roles.reset_error', '❌ Ошибка сброса'));
         } else {
-            _toast('✅ Роль сброшена к умолчанию');
+            _toast(_t('settings.admin.roles.reset_ok', '✅ Роль сброшена к умолчанию'));
             _draft = null;
             _ensureDraft();
         }
     } catch (e) {
         console.error('[role-matrix-ui] reset', e);
-        _toast('❌ Ошибка сброса');
+        _toast(_t('settings.admin.roles.reset_error', '❌ Ошибка сброса'));
     } finally {
         _saving = false;
         _rerender();
@@ -425,7 +371,7 @@ function bindRoleMatrixDelegation() {
         const hintEl = document.getElementById('role-matrix-datascope-hint');
         if (!hintEl) return;
         const found = DATA_SCOPES.find((s) => s.value === t.value);
-        hintEl.textContent = found && found.hint ? found.hint : '';
+        hintEl.textContent = found ? _t(found.hintKey, found.hintFb || '') : '';
     }, true);
 }
 

@@ -1051,6 +1051,12 @@ async function paintTwiPreview(viewer, card) {
       escapeHtml(card.linkedDocId) +
       '">Норматив (НД)</button>';
   }
+  if (card.checklistKey && !String(card.checklistKey).includes('|')) {
+    links +=
+      '<button type="button" class="kb-desk-twi-link" data-link="checklist" data-id="' +
+      escapeHtml(card.checklistKey) +
+      '">Чек-лист</button>';
+  }
   if (links) {
     const box = document.createElement('div');
     box.className = 'kb-desk-twi-links';
@@ -1066,6 +1072,12 @@ async function paintTwiPreview(viewer, card) {
         }
         if (kind === 'doc' && typeof window.openDocViewer === 'function') {
           window.openDocViewer(id);
+        }
+        if (
+          kind === 'checklist' &&
+          typeof window.openKnowledgeLinkedChecklist === 'function'
+        ) {
+          window.openKnowledgeLinkedChecklist(id);
         }
       });
     });

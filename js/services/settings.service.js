@@ -8,7 +8,12 @@
     window.RBI.services = window.RBI.services || {};
 
     var SETTINGS_KEY = 'user_prefs';
-    var ALLOWED_THEMES = ['auto', 'light', 'dark', 'rbi-light', 'rbi-dark', 'rbi-light-v2', 'rbi-dark-v2'];
+    var ALLOWED_THEMES = [
+        'auto', 'light', 'dark',
+        'rbi-light', 'rbi-dark',
+        'rbi-light-v2', 'rbi-dark-v2', 'rbi-auto-v2',
+        'rbi-light-v3', 'rbi-dark-v3', 'rbi-auto-v3'
+    ];
 
     /* Владение appSettings (Реальная изоляция модулей, часть 3, Группа B):
        перенесено 1:1 из js/core/bootstrap.js — сервис теперь единственный
@@ -247,14 +252,14 @@
         },
 
         /**
-         * Получить текущую тему (с учётом 'auto').
+         * Получить текущую тему (с учётом auto / rbi-auto-v2 / rbi-auto-v3).
          */
         getResolvedTheme: function () {
             var theme = (window.appSettings && window.appSettings.theme) || 'auto';
-            if (theme === 'auto') {
-                return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
-                    ? 'dark' : 'light';
-            }
+            var prefersDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (theme === 'auto') return prefersDark ? 'dark' : 'light';
+            if (theme === 'rbi-auto-v2') return prefersDark ? 'rbi-dark-v2' : 'rbi-light-v2';
+            if (theme === 'rbi-auto-v3') return prefersDark ? 'rbi-dark-v3' : 'rbi-light-v3';
             return theme;
         }
     };

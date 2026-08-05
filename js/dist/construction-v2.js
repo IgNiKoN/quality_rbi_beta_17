@@ -93,7 +93,7 @@ function _catLabel(c) {
   if (c === "B3" || c === "critical") return "B3 (Критика)";
   return "B2 (Значимый)";
 }
-function _statusLabel$2(s) {
+function _statusLabel$3(s) {
   const map = {
     issued: "Выдано",
     in_progress: "В работе",
@@ -362,7 +362,7 @@ function _historyHtml(history) {
   const list = Array.isArray(history) ? history : [];
   if (!list.length) return "";
   const rows = [...list].reverse().map((h) => {
-    const stName = _statusLabel$2(String(h.status || ""));
+    const stName = _statusLabel$3(String(h.status || ""));
     let dDate = "";
     try {
       dDate = new Date(h.date).toLocaleString("ru-RU", {
@@ -569,7 +569,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
       <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$b(_statusLabel$2(String(defect.status)))}</b></p>
+    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$b(_statusLabel$3(String(defect.status)))}</b></p>
     <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
@@ -1402,13 +1402,29 @@ const ALL_PIN_STATUSES = [
   "closed",
   "rejected"
 ];
-const STATUS_LABELS = {
-  issued: "Выдано",
-  in_progress: "В работе",
-  fixed: "На проверке",
-  closed: "Закрыто",
-  rejected: "Отклонено"
+const STATUS_LABEL_KEYS = {
+  issued: { key: "construction.status.issued", fallback: "Выдано" },
+  in_progress: { key: "construction.status.in_progress", fallback: "В работе" },
+  fixed: { key: "construction.status.fixed", fallback: "На проверке" },
+  closed: { key: "construction.status.closed", fallback: "Закрыто" },
+  rejected: { key: "construction.status.rejected", fallback: "Отклонено" }
 };
+function _t$1(key, fallback) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  return fallback;
+}
+function _statusLabel$2(statusKey) {
+  const meta = STATUS_LABEL_KEYS[statusKey];
+  return _t$1(meta.key, meta.fallback);
+}
 const STATUS_STYLES = {
   issued: {
     active: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400",
@@ -1501,12 +1517,12 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
     const pad = compact ? "px-2 py-1" : "px-2.5 py-1.5";
     return `<button type="button" data-c2-pin-status="${statusKey}"
       class="shrink-0 ${pad} rounded-xl border text-[9px] font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
-      ${STATUS_LABELS[statusKey]}
+      ${_statusLabel$2(statusKey)}
       <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-[8px] font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
     </button>`;
   }).join("");
   const cats = [
-    { key: "ALL", label: "Все" },
+    { key: "ALL", label: _t$1("construction.pin.all", "Все") },
     { key: "B3", label: "B3" },
     { key: "B2", label: "B2" },
     { key: "B1", label: "B1" }
@@ -1520,7 +1536,7 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
   return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
     <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
     <div class="flex gap-1 items-center">
-      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Кат.</span>
+      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t$1("construction.pin.cat", "Кат.")}</span>
       <div class="flex gap-0.5">${catBtns}</div>
     </div>
   </div>`;
@@ -4270,6 +4286,7 @@ function _escape(s) {
 }
 let _selectedFloorId = null;
 let _bound = false;
+let _i18nBound = false;
 let _viewer = null;
 let _addMode = false;
 let _zoneMode = false;
@@ -4280,6 +4297,34 @@ let _pendingHighlightDefectId = null;
 let _fsOpen = false;
 let _fsPlaceholder = null;
 let _fsEscHandler = null;
+function _t(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+function _bindI18nOnce() {
+  var _a;
+  if (_i18nBound) return;
+  _i18nBound = true;
+  const events = (_a = window.RBI) == null ? void 0 : _a.events;
+  if (!events || typeof events.on !== "function") return;
+  events.on("i18n:localeChanged", () => {
+    const tab = document.getElementById("tab-construction-v2");
+    if (!tab || tab.classList.contains("hidden")) return;
+    renderConstructionV2().catch((e) => console.warn("[construction-v2] i18n refresh", e));
+  });
+}
 function _root() {
   return document.getElementById("construction-v2-root");
 }
@@ -4287,7 +4332,7 @@ function _renderTree(svc) {
   const objects = svc.listNodes({ nodeType: "object", parentId: null });
   if (!objects.length) {
     return `<div class="p-6 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
-      Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».
+      ${_t("construction.v2.tree_empty", "Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».")}
     </div>`;
   }
   let html = '<ul class="space-y-1 text-[12px]">';
@@ -4326,18 +4371,19 @@ function _renderTree(svc) {
 function _zoomToolbarHtml(prefix) {
   return `<div class="flex gap-1 shrink-0 items-center rounded-xl bg-black/20 p-0.5">
     <button type="button" data-c2-zoom-out="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Уменьшить">−</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_out", "Уменьшить"))}">−</button>
     <button type="button" data-c2-zoom-in="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Увеличить">+</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_in", "Увеличить"))}">+</button>
     <button type="button" data-c2-zoom-fit="${prefix}"
-      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="По размеру">Fit</button>
+      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
   </div>`;
 }
 function _fullscreenIconBtn() {
+  const fs = _escape(_t("construction.v2.fullscreen", "На весь экран"));
   return `<button type="button" data-c2-fullscreen
     class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center
            text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-    title="На весь экран" aria-label="На весь экран">
+    title="${fs}" aria-label="${fs}">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
     </svg>
@@ -4346,7 +4392,7 @@ function _fullscreenIconBtn() {
 function _renderPlanChrome(svc) {
   if (!_selectedFloorId) {
     return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
-      Выберите этаж слева
+      ${_t("construction.v2.select_floor", "Выберите этаж слева")}
     </div>`;
   }
   const floor = svc.getNode(_selectedFloorId);
@@ -4355,8 +4401,8 @@ function _renderPlanChrome(svc) {
   if (!(plan == null ? void 0 : plan.pdf_url)) {
     return `<div class="p-6">
       <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape(path)}</div>
-      <div class="text-amber-600 font-bold text-[13px]">Нет PDF-плана на этом этаже</div>
-      <p class="text-[11px] text-slate-500 mt-2">Загрузите план в Настройках → «Объекты и планы».</p>
+      <div class="text-amber-600 font-bold text-[13px]">${_t("construction.v2.no_pdf", "Нет PDF-плана на этом этаже")}</div>
+      <p class="text-[11px] text-slate-500 mt-2">${_t("construction.v2.no_pdf_hint", "Загрузите план в Настройках → «Объекты и планы».")}</p>
     </div>`;
   }
   const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
@@ -4369,11 +4415,11 @@ function _renderPlanChrome(svc) {
       <div class="flex gap-1.5 shrink-0 items-center">
         <button type="button" data-c2-zone-mode
           class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-          ${_zoneMode ? "2 клика…" : "Зона"}
+          ${_zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона")}
         </button>
         <button type="button" data-c2-add-mode
           class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-          ${_addMode ? "Кликни…" : "+ Замечание"}
+          ${_addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание")}
         </button>
         ${_fullscreenIconBtn()}
       </div>
@@ -4557,7 +4603,7 @@ function _syncModeButtons() {
   const inFs = !!document.getElementById("c2-plan-fs");
   document.querySelectorAll("[data-c2-add-mode]").forEach((el) => {
     const btn = el;
-    btn.textContent = _addMode ? "Кликни…" : "+ Замечание";
+    btn.textContent = _addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание");
     if (inFs && btn.closest("#c2-plan-fs")) {
       btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
     } else {
@@ -4566,7 +4612,7 @@ function _syncModeButtons() {
   });
   document.querySelectorAll("[data-c2-zone-mode]").forEach((el) => {
     const btn = el;
-    btn.textContent = _zoneMode ? "2 клика…" : "Зона";
+    btn.textContent = _zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона");
     if (inFs && btn.closest("#c2-plan-fs")) {
       btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
     } else {
@@ -4586,7 +4632,11 @@ async function _refreshOverlaysOnly() {
   paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
   _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
-  const label = `Показано ${filtered.length} из ${allDefects.length} · Зон: ${zones.length}`;
+  const label = _t("construction.v2.overlay_count", "Показано {shown} из {total} · Зон: {zones}", {
+    shown: filtered.length,
+    total: allDefects.length,
+    zones: zones.length
+  });
   const countEl = document.getElementById("c2-overlay-count");
   if (countEl) countEl.textContent = label;
   const fsCount = document.getElementById("c2-fs-overlay-count");
@@ -4636,20 +4686,20 @@ function _openPlanFullscreen() {
   overlay.innerHTML = `
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-white/10 bg-slate-950/90">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+        <div class="text-[11px] font-bold tracking-wide text-indigo-300">${_t("construction.v2.fs_title", "План · весь экран")}</div>
         <div class="flex items-center gap-2 flex-wrap">
           <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
           ${_zoomToolbarHtml("fs")}
           <button type="button" data-c2-zone-mode
             class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-            ${_zoneMode ? "2 клика…" : "Зона"}
+            ${_zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона")}
           </button>
           <button type="button" data-c2-add-mode
             class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-            ${_addMode ? "Кликни…" : "+ Замечание"}
+            ${_addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание")}
           </button>
           <button type="button" data-c2-fs-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">${_t("construction.v2.fs_close", "Закрыть")}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="fs"></div>
@@ -4703,6 +4753,7 @@ async function renderConstructionV2() {
   var _a, _b;
   const root = _root();
   if (!root) return;
+  _bindI18nOnce();
   if (_subview === "acceptance") {
     _closePlanFullscreen();
     teardownTransferUi();
@@ -4800,9 +4851,9 @@ async function renderConstructionV2() {
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
         <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
           <div id="c2-tree">${_renderTree(svc)}</div>
-          ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>` : ""}
+          ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
         </aside>
         <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-defects-host"></main>
       </div>`;
@@ -4828,16 +4879,17 @@ async function renderConstructionV2() {
   root.innerHTML = `
     <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
       <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
         <div id="c2-tree">${_renderTree(svc)}</div>
-        ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>` : ""}
-        ${!aSvc ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">constructionAcceptance не загружен</div>` : ""}
+        ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
+        ${!aSvc ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_acc_missing", "constructionAcceptance не загружен")}</div>` : ""}
       </aside>
       <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
         ${_renderPlanChrome(svc)}
       </main>
     </div>`;
   _bindOnce();
+  _bindI18nOnce();
   if (prevFloor) _selectedFloorId = prevFloor;
   await _mountViewerIfNeeded(svc);
 }

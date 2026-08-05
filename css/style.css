@@ -165,6 +165,39 @@
     font-display: swap;
 }
 
+/* Локальные шрифты IBM Plex Sans (темы rbi-*-v3; только WOFF2) */
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../fonts/IBMPlexSans-Regular.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 500;
+    src: url('../fonts/IBMPlexSans-Medium.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 600;
+    src: url('../fonts/IBMPlexSans-SemiBold.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 700;
+    src: url('../fonts/IBMPlexSans-Bold.woff2') format('woff2');
+    font-display: swap;
+}
+
 /* === БАЗОВЫЕ ПЕРЕМЕННЫЕ (СВЕТЛАЯ ТЕМА ПО УМОЛЧАНИЮ) === */
 :root {
     --bg-main: #f8fafc;
@@ -380,6 +413,127 @@
 
     --color-green: #7a9a88;
     --color-red: #c46b63;
+    --color-yellow: var(--gold-2);
+    --color-orange: var(--gold);
+    --color-blue: #7a9bb0;
+}
+/* === RBI СВЕТЛАЯ v3 (портал Bitrix RBI) === */
+html[data-theme="rbi-light-v3"] {
+    /* Канон брендкода v2 + портал Bitrix RBI */
+    --graphite: #1c2b39;
+    --graphite-2: #273949;
+    --blue-steel: #4c7288;
+    --gold: #c49a5f;
+    --gold-2: #d8bd91;
+    --paper: #f4f4f4;
+    --porcelain: #ffffff;
+    --warm-paper: #f4f4f4;
+    --stone: #e7e9ec;
+    --ink: #161616;
+    --muted: #6f6f6f;
+    --success: #24a148;
+    --focus: #1c2b39;
+    --danger: #CD5A3E;
+    --silver: #bcbec0;
+    --white: #ffffff;
+    --line: rgba(28, 43, 57, 0.14);
+    --line-strong: rgba(28, 43, 57, 0.26);
+    --shadow-1: 0 4px 16px rgba(0, 0, 0, 0.10);
+    --shadow-2: 0 12px 28px rgba(23, 35, 48, 0.10);
+    --shadow-3: 0 18px 42px rgba(23, 35, 48, 0.14);
+    --shadow-soft: var(--shadow-2);
+    --shadow-deep: var(--shadow-3);
+
+    --rbi-graphite: var(--graphite);
+    --rbi-blue: var(--blue-steel);
+    --rbi-gold: var(--gold);
+    --rbi-warm-bg: var(--paper);
+
+    /* Portal radius scale */
+    --rbi-radius-sm: 4px;
+    --rbi-radius-md: 8px;
+    --rbi-radius-lg: 16px;
+    --rbi-strip-h: 60px;
+
+    --bg-main: #f4f4f4;
+    --text-main: var(--ink);
+    --text-muted: var(--muted);
+    --card-bg: var(--white);
+    --card-border: var(--line);
+    --header-bg: #ffffff;
+    --nav-bg: #ffffff;
+    --hover-bg: rgba(28, 43, 57, 0.055);
+
+    --primary: var(--graphite);
+    --primary-hover: var(--graphite-2);
+    --btn-primary: var(--blue-steel);
+    --btn-primary-hover: var(--graphite);
+    --accent: var(--gold);
+    --accent-hover: var(--gold-2);
+    --accent-blue: var(--blue-steel);
+
+    --color-green: var(--success);
+    --color-red: var(--danger);
+    --color-yellow: var(--gold);
+    --color-orange: #b8844a;
+    --color-blue: var(--blue-steel);
+}
+
+/* === RBI ТЁМНАЯ v3 (портал Bitrix RBI) === */
+html[data-theme="rbi-dark-v3"] {
+    --graphite: #1c2b39;
+    --graphite-2: #273949;
+    --blue-steel: #4c7288;
+    --gold: #c49a5f;
+    --gold-2: #d8bd91;
+    --paper: #f4f4f4;
+    --porcelain: #ffffff;
+    --warm-paper: #f4f4f4;
+    --stone: #e7e9ec;
+    --ink: #161616;
+    --muted: #a8b2bd;
+    --success: #24a148;
+    --focus: #c49a5f;
+    --danger: #CD5A3E;
+    --silver: #bcbec0;
+    --white: #ffffff;
+    --line: rgba(255, 255, 255, 0.12);
+    --line-strong: rgba(255, 255, 255, 0.22);
+    --shadow-1: 0 4px 16px rgba(0, 0, 0, 0.28);
+    --shadow-2: 0 12px 28px rgba(0, 0, 0, 0.36);
+    --shadow-3: 0 18px 42px rgba(0, 0, 0, 0.45);
+    --shadow-soft: var(--shadow-2);
+    --shadow-deep: var(--shadow-3);
+
+    --rbi-graphite: var(--graphite);
+    --rbi-blue: var(--blue-steel);
+    --rbi-gold: var(--gold);
+    --rbi-warm-bg: #101923;
+
+    --rbi-radius-sm: 4px;
+    --rbi-radius-md: 8px;
+    --rbi-radius-lg: 16px;
+    --rbi-strip-h: 60px;
+
+    --bg-main: #101923;
+    --text-main: #f4f4f4;
+    --text-muted: #a8b2bd;
+    --card-bg: #172331;
+    --card-border: var(--line);
+    --header-bg: #172331;
+    --nav-bg: #172331;
+    --hover-bg: rgba(255, 255, 255, 0.07);
+
+    --primary: var(--gold);
+    --primary-hover: var(--gold-2);
+    --btn-primary: var(--blue-steel);
+    --btn-primary-hover: var(--graphite);
+    --accent: var(--gold);
+    --accent-hover: var(--gold-2);
+    --accent-blue: var(--blue-steel);
+
+    --color-green: #7a9a88;
+    --color-red: #CD5A3E;
     --color-yellow: var(--gold-2);
     --color-orange: var(--gold);
     --color-blue: #7a9bb0;
@@ -2714,13 +2868,505 @@ body {
     accent-color: var(--primary) !important;
 }
 
+/* === RBI THEME v3: бренд-мост (портал) + копия v2 === */
+
+[data-theme="rbi-light-v3"] #splash-screen,
+[data-theme="rbi-dark-v3"] #splash-screen {
+    background: radial-gradient(circle at 50% 35%, var(--graphite-2) 0%, var(--graphite) 42%, #101923 100%);
+}
+
+[data-theme="rbi-light-v3"] .splash-pro,
+[data-theme="rbi-dark-v3"] .splash-pro {
+    background: linear-gradient(90deg, var(--white), var(--gold), var(--gold-2), var(--gold), var(--white));
+    background-size: 300% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    filter: drop-shadow(0 0 10px rgba(196, 154, 95, .45));
+}
+
+[data-theme="rbi-light-v3"] .loader-bar,
+[data-theme="rbi-dark-v3"] .loader-bar {
+    background: linear-gradient(90deg, var(--gold), var(--white), var(--gold));
+}
+
+[data-theme="rbi-light-v3"] .bottom-nav,
+[data-theme="rbi-dark-v3"] .bottom-nav,
+[data-theme="rbi-light-v3"] .header-fixed,
+[data-theme="rbi-dark-v3"] .header-fixed {
+    border-color: var(--card-border);
+}
+
+[data-theme="rbi-light-v3"] .nav-item.active,
+[data-theme="rbi-dark-v3"] .nav-item.active {
+    color: var(--primary);
+}
+
+[data-theme="rbi-light-v3"] .nav-item.active::after,
+[data-theme="rbi-dark-v3"] .nav-item.active::after {
+    content: '';
+    width: 18px;
+    height: 2px;
+    margin-top: 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 0.9;
+}
+
+/* --- indigo → graphite / gold --- */
+[data-theme="rbi-light-v3"] .bg-indigo-500,
+[data-theme="rbi-light-v3"] .bg-indigo-600,
+[data-theme="rbi-dark-v3"] .bg-indigo-500,
+[data-theme="rbi-dark-v3"] .bg-indigo-600 {
+    background-color: var(--primary) !important;
+}
+[data-theme="rbi-light-v3"] .bg-indigo-700,
+[data-theme="rbi-light-v3"] .bg-indigo-800,
+[data-theme="rbi-light-v3"] .bg-indigo-900,
+[data-theme="rbi-dark-v3"] .bg-indigo-700,
+[data-theme="rbi-dark-v3"] .bg-indigo-800,
+[data-theme="rbi-dark-v3"] .bg-indigo-900 {
+    background-color: var(--primary-hover) !important;
+}
+[data-theme="rbi-light-v3"] .bg-indigo-50,
+[data-theme="rbi-light-v3"] .bg-indigo-100,
+[data-theme="rbi-dark-v3"] .bg-indigo-50,
+[data-theme="rbi-dark-v3"] .bg-indigo-100 {
+    background-color: rgba(196, 154, 95, 0.14) !important;
+}
+
+[data-theme="rbi-light-v3"] .text-indigo-400,
+[data-theme="rbi-light-v3"] .text-indigo-500,
+[data-theme="rbi-light-v3"] .text-indigo-600,
+[data-theme="rbi-light-v3"] .text-indigo-700,
+[data-theme="rbi-light-v3"] .text-indigo-800 {
+    color: var(--graphite) !important;
+}
+[data-theme="rbi-dark-v3"] .text-indigo-400,
+[data-theme="rbi-dark-v3"] .text-indigo-500,
+[data-theme="rbi-dark-v3"] .text-indigo-600,
+[data-theme="rbi-dark-v3"] .text-indigo-700,
+[data-theme="rbi-dark-v3"] .text-indigo-800 {
+    color: var(--gold) !important;
+}
+
+[data-theme="rbi-light-v3"] .border-indigo-100,
+[data-theme="rbi-light-v3"] .border-indigo-200,
+[data-theme="rbi-light-v3"] .border-indigo-300,
+[data-theme="rbi-light-v3"] .border-indigo-400,
+[data-theme="rbi-light-v3"] .border-indigo-800,
+[data-theme="rbi-dark-v3"] .border-indigo-100,
+[data-theme="rbi-dark-v3"] .border-indigo-200,
+[data-theme="rbi-dark-v3"] .border-indigo-300,
+[data-theme="rbi-dark-v3"] .border-indigo-400,
+[data-theme="rbi-dark-v3"] .border-indigo-800 {
+    border-color: rgba(196, 154, 95, 0.42) !important;
+}
+
+[data-theme="rbi-light-v3"] button.bg-indigo-500,
+[data-theme="rbi-light-v3"] button.bg-indigo-600,
+[data-theme="rbi-light-v3"] button.bg-indigo-700 {
+    background: linear-gradient(135deg, var(--graphite), var(--graphite-2)) !important;
+    border: 1px solid rgba(196, 154, 95, 0.28) !important;
+    color: var(--white) !important;
+}
+[data-theme="rbi-dark-v3"] button.bg-indigo-500,
+[data-theme="rbi-dark-v3"] button.bg-indigo-600,
+[data-theme="rbi-dark-v3"] button.bg-indigo-700 {
+    background: linear-gradient(135deg, var(--gold), #9f7844) !important;
+    border: 1px solid rgba(216, 189, 145, 0.35) !important;
+    color: #101923 !important;
+}
+
+/* --- slate → ink / muted / stone / graphite surfaces --- */
+[data-theme="rbi-light-v3"] .text-slate-800,
+[data-theme="rbi-light-v3"] .text-slate-900,
+[data-theme="rbi-light-v3"] .text-slate-700 {
+    color: var(--ink) !important;
+}
+[data-theme="rbi-light-v3"] .text-slate-600,
+[data-theme="rbi-light-v3"] .text-slate-500 {
+    color: var(--muted) !important;
+}
+[data-theme="rbi-light-v3"] .text-slate-400,
+[data-theme="rbi-light-v3"] .text-slate-300 {
+    color: var(--silver) !important;
+}
+
+[data-theme="rbi-dark-v3"] .text-slate-800,
+[data-theme="rbi-dark-v3"] .text-slate-900,
+[data-theme="rbi-dark-v3"] .text-slate-700,
+[data-theme="rbi-dark-v3"] .text-slate-200,
+[data-theme="rbi-dark-v3"] .text-slate-100 {
+    color: var(--paper) !important;
+}
+[data-theme="rbi-dark-v3"] .text-slate-600,
+[data-theme="rbi-dark-v3"] .text-slate-500,
+[data-theme="rbi-dark-v3"] .text-slate-400,
+[data-theme="rbi-dark-v3"] .text-slate-300 {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="rbi-light-v3"] .bg-slate-50,
+[data-theme="rbi-light-v3"] .bg-slate-100 {
+    background-color: var(--porcelain) !important;
+}
+[data-theme="rbi-light-v3"] .bg-slate-200 {
+    background-color: var(--stone) !important;
+}
+[data-theme="rbi-light-v3"] .bg-slate-700,
+[data-theme="rbi-light-v3"] .bg-slate-800,
+[data-theme="rbi-light-v3"] .bg-slate-900 {
+    background-color: var(--graphite) !important;
+}
+
+[data-theme="rbi-dark-v3"] .bg-slate-50,
+[data-theme="rbi-dark-v3"] .bg-slate-100,
+[data-theme="rbi-dark-v3"] .bg-slate-200 {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="rbi-dark-v3"] .bg-slate-700,
+[data-theme="rbi-dark-v3"] .bg-slate-800,
+[data-theme="rbi-dark-v3"] .bg-slate-900 {
+    background-color: var(--graphite-2) !important;
+}
+
+[data-theme="rbi-light-v3"] .border-slate-100,
+[data-theme="rbi-light-v3"] .border-slate-200,
+[data-theme="rbi-light-v3"] .border-slate-300 {
+    border-color: var(--line) !important;
+}
+[data-theme="rbi-light-v3"] .border-slate-600,
+[data-theme="rbi-light-v3"] .border-slate-700,
+[data-theme="rbi-light-v3"] .border-slate-800 {
+    border-color: var(--line-strong) !important;
+}
+[data-theme="rbi-dark-v3"] .border-slate-100,
+[data-theme="rbi-dark-v3"] .border-slate-200,
+[data-theme="rbi-dark-v3"] .border-slate-300,
+[data-theme="rbi-dark-v3"] .border-slate-600,
+[data-theme="rbi-dark-v3"] .border-slate-700,
+[data-theme="rbi-dark-v3"] .border-slate-800 {
+    border-color: var(--line) !important;
+}
+
+/* --- green / red / yellow → brand success / danger / gold --- */
+[data-theme="rbi-light-v3"] .text-green-500,
+[data-theme="rbi-light-v3"] .text-green-600,
+[data-theme="rbi-light-v3"] .text-green-700,
+[data-theme="rbi-dark-v3"] .text-green-500,
+[data-theme="rbi-dark-v3"] .text-green-600,
+[data-theme="rbi-dark-v3"] .text-green-700,
+[data-theme="rbi-light-v3"] .text-emerald-500,
+[data-theme="rbi-light-v3"] .text-emerald-600,
+[data-theme="rbi-dark-v3"] .text-emerald-500,
+[data-theme="rbi-dark-v3"] .text-emerald-600 {
+    color: var(--color-green) !important;
+}
+[data-theme="rbi-light-v3"] .bg-green-50,
+[data-theme="rbi-light-v3"] .bg-emerald-50,
+[data-theme="rbi-dark-v3"] .bg-green-50,
+[data-theme="rbi-dark-v3"] .bg-emerald-50 {
+    background-color: rgba(95, 127, 109, 0.14) !important;
+}
+[data-theme="rbi-light-v3"] .bg-green-500,
+[data-theme="rbi-light-v3"] .bg-green-600,
+[data-theme="rbi-dark-v3"] .bg-green-500,
+[data-theme="rbi-dark-v3"] .bg-green-600 {
+    background-color: var(--color-green) !important;
+}
+[data-theme="rbi-light-v3"] .border-green-200,
+[data-theme="rbi-light-v3"] .border-green-300,
+[data-theme="rbi-dark-v3"] .border-green-200,
+[data-theme="rbi-dark-v3"] .border-green-300 {
+    border-color: rgba(95, 127, 109, 0.45) !important;
+}
+
+[data-theme="rbi-light-v3"] .text-red-500,
+[data-theme="rbi-light-v3"] .text-red-600,
+[data-theme="rbi-light-v3"] .text-red-700,
+[data-theme="rbi-dark-v3"] .text-red-500,
+[data-theme="rbi-dark-v3"] .text-red-600,
+[data-theme="rbi-dark-v3"] .text-red-700,
+[data-theme="rbi-light-v3"] .text-rose-500,
+[data-theme="rbi-light-v3"] .text-rose-600,
+[data-theme="rbi-dark-v3"] .text-rose-500,
+[data-theme="rbi-dark-v3"] .text-rose-600 {
+    color: var(--color-red) !important;
+}
+[data-theme="rbi-light-v3"] .bg-red-50,
+[data-theme="rbi-light-v3"] .bg-rose-50,
+[data-theme="rbi-dark-v3"] .bg-red-50,
+[data-theme="rbi-dark-v3"] .bg-rose-50 {
+    background-color: rgba(159, 76, 69, 0.14) !important;
+}
+[data-theme="rbi-light-v3"] .bg-red-500,
+[data-theme="rbi-light-v3"] .bg-red-600,
+[data-theme="rbi-light-v3"] .bg-red-900,
+[data-theme="rbi-dark-v3"] .bg-red-500,
+[data-theme="rbi-dark-v3"] .bg-red-600,
+[data-theme="rbi-dark-v3"] .bg-red-900 {
+    background-color: var(--color-red) !important;
+}
+[data-theme="rbi-light-v3"] .border-red-200,
+[data-theme="rbi-light-v3"] .border-red-300,
+[data-theme="rbi-light-v3"] .border-red-800,
+[data-theme="rbi-dark-v3"] .border-red-200,
+[data-theme="rbi-dark-v3"] .border-red-300,
+[data-theme="rbi-dark-v3"] .border-red-800 {
+    border-color: rgba(159, 76, 69, 0.45) !important;
+}
+
+[data-theme="rbi-light-v3"] .text-yellow-500,
+[data-theme="rbi-light-v3"] .text-yellow-600,
+[data-theme="rbi-light-v3"] .text-yellow-700,
+[data-theme="rbi-light-v3"] .text-amber-500,
+[data-theme="rbi-light-v3"] .text-amber-600,
+[data-theme="rbi-dark-v3"] .text-yellow-500,
+[data-theme="rbi-dark-v3"] .text-yellow-600,
+[data-theme="rbi-dark-v3"] .text-amber-500,
+[data-theme="rbi-dark-v3"] .text-amber-600 {
+    color: var(--color-yellow) !important;
+}
+[data-theme="rbi-light-v3"] .bg-yellow-50,
+[data-theme="rbi-light-v3"] .bg-amber-50,
+[data-theme="rbi-dark-v3"] .bg-yellow-50,
+[data-theme="rbi-dark-v3"] .bg-amber-50 {
+    background-color: rgba(196, 154, 95, 0.16) !important;
+}
+
+/* --- status tags / toast / focus --- */
+[data-theme="rbi-light-v3"] .tag-green,
+[data-theme="rbi-dark-v3"] .tag-green {
+    background: rgba(95, 127, 109, 0.18) !important;
+    color: var(--color-green) !important;
+    border-color: rgba(95, 127, 109, 0.4) !important;
+}
+[data-theme="rbi-light-v3"] .tag-red,
+[data-theme="rbi-dark-v3"] .tag-red {
+    background: rgba(159, 76, 69, 0.16) !important;
+    color: var(--color-red) !important;
+    border-color: rgba(159, 76, 69, 0.4) !important;
+}
+[data-theme="rbi-light-v3"] .tag-yellow,
+[data-theme="rbi-dark-v3"] .tag-yellow {
+    background: rgba(196, 154, 95, 0.18) !important;
+    color: var(--gold) !important;
+    border-color: rgba(196, 154, 95, 0.42) !important;
+}
+[data-theme="rbi-light-v3"] .tag-blue,
+[data-theme="rbi-dark-v3"] .tag-blue {
+    background: rgba(76, 114, 136, 0.16) !important;
+    color: var(--blue-steel) !important;
+    border-color: rgba(76, 114, 136, 0.4) !important;
+}
+
+[data-theme="rbi-light-v3"] .toast,
+[data-theme="rbi-dark-v3"] .toast {
+    box-shadow: var(--shadow-2);
+}
+
+[data-theme="rbi-light-v3"] .bg-\[var\(--card-bg\)\],
+[data-theme="rbi-dark-v3"] .bg-\[var\(--card-bg\)\] {
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="rbi-light-v3"] input:focus,
+[data-theme="rbi-light-v3"] textarea:focus,
+[data-theme="rbi-light-v3"] select:focus,
+[data-theme="rbi-dark-v3"] input:focus,
+[data-theme="rbi-dark-v3"] textarea:focus,
+[data-theme="rbi-dark-v3"] select:focus {
+    border-color: var(--focus) !important;
+    outline-color: var(--focus) !important;
+}
+
+[data-theme="rbi-light-v3"] .accent-indigo-600,
+[data-theme="rbi-dark-v3"] .accent-indigo-600 {
+    accent-color: var(--primary) !important;
+}
+
+
+/* --- v3 portal deltas: CTA steel (not graphite gradient), font, chrome --- */
+[data-theme="rbi-light-v3"] .bg-indigo-500,
+[data-theme="rbi-light-v3"] .bg-indigo-600,
+[data-theme="rbi-dark-v3"] .bg-indigo-500,
+[data-theme="rbi-dark-v3"] .bg-indigo-600 {
+    background-color: var(--btn-primary) !important;
+}
+[data-theme="rbi-light-v3"] .bg-indigo-700,
+[data-theme="rbi-light-v3"] .bg-indigo-800,
+[data-theme="rbi-light-v3"] .bg-indigo-900,
+[data-theme="rbi-dark-v3"] .bg-indigo-700,
+[data-theme="rbi-dark-v3"] .bg-indigo-800,
+[data-theme="rbi-dark-v3"] .bg-indigo-900 {
+    background-color: var(--btn-primary-hover) !important;
+}
+
+[data-theme="rbi-light-v3"] button.bg-indigo-500,
+[data-theme="rbi-light-v3"] button.bg-indigo-600,
+[data-theme="rbi-light-v3"] button.bg-indigo-700,
+[data-theme="rbi-dark-v3"] button.bg-indigo-500,
+[data-theme="rbi-dark-v3"] button.bg-indigo-600,
+[data-theme="rbi-dark-v3"] button.bg-indigo-700 {
+    background: var(--btn-primary) !important;
+    border: 1px solid var(--btn-primary) !important;
+    color: var(--white) !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+[data-theme="rbi-light-v3"] button.bg-indigo-500:hover,
+[data-theme="rbi-light-v3"] button.bg-indigo-600:hover,
+[data-theme="rbi-light-v3"] button.bg-indigo-700:hover,
+[data-theme="rbi-dark-v3"] button.bg-indigo-500:hover,
+[data-theme="rbi-dark-v3"] button.bg-indigo-600:hover,
+[data-theme="rbi-dark-v3"] button.bg-indigo-700:hover {
+    background: var(--btn-primary-hover) !important;
+    border-color: var(--btn-primary-hover) !important;
+}
+
+[data-theme="rbi-light-v3"] .rbi-btn--primary,
+[data-theme="rbi-light-v3"] .rbi-btn.primary,
+[data-theme="rbi-dark-v3"] .rbi-btn--primary,
+[data-theme="rbi-dark-v3"] .rbi-btn.primary {
+    background: var(--btn-primary) !important;
+    border-color: var(--btn-primary) !important;
+    color: #fff !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+}
+[data-theme="rbi-light-v3"] .rbi-btn--primary:hover,
+[data-theme="rbi-light-v3"] .rbi-btn.primary:hover,
+[data-theme="rbi-dark-v3"] .rbi-btn--primary:hover,
+[data-theme="rbi-dark-v3"] .rbi-btn.primary:hover {
+    background: var(--btn-primary-hover) !important;
+    border-color: var(--btn-primary-hover) !important;
+}
+
+[data-theme="rbi-light-v3"] .rbi-card,
+[data-theme="rbi-dark-v3"] .rbi-card {
+    border-radius: 20px !important;
+    box-shadow: var(--shadow-1) !important;
+}
+[data-theme="rbi-light-v3"] .rbi-card--lg,
+[data-theme="rbi-dark-v3"] .rbi-card--lg {
+    border-radius: 24px !important;
+}
+
+[data-theme="rbi-light-v3"] .input-base,
+[data-theme="rbi-light-v3"] input.input-base,
+[data-theme="rbi-light-v3"] select.input-base,
+[data-theme="rbi-light-v3"] textarea.input-base,
+[data-theme="rbi-dark-v3"] .input-base,
+[data-theme="rbi-dark-v3"] input.input-base,
+[data-theme="rbi-dark-v3"] select.input-base,
+[data-theme="rbi-dark-v3"] textarea.input-base {
+    border-radius: 8px !important;
+    border-width: 2px !important;
+}
+
+[data-theme="rbi-light-v3"] input:focus,
+[data-theme="rbi-light-v3"] textarea:focus,
+[data-theme="rbi-light-v3"] select:focus,
+[data-theme="rbi-dark-v3"] input:focus,
+[data-theme="rbi-dark-v3"] textarea:focus,
+[data-theme="rbi-dark-v3"] select:focus {
+    border-color: var(--graphite) !important;
+    outline-color: var(--graphite) !important;
+}
+
+html[data-theme="rbi-light-v3"],
+html[data-theme="rbi-dark-v3"],
+html[data-theme="rbi-light-v3"] body,
+html[data-theme="rbi-dark-v3"] body {
+    font-family: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+}
+
+/* Portal chrome: colors + taller topbar; module rail width = default icon-rail. */
+@media (min-width: 768px) {
+    html[data-theme="rbi-light-v3"],
+    html[data-theme="rbi-dark-v3"] {
+        --desk-topbar-h: 72px;
+    }
+
+    html[data-theme="rbi-light-v3"] #app-sidebar,
+    html[data-theme="rbi-dark-v3"] #app-sidebar {
+        background: var(--header-bg);
+    }
+
+    html[data-theme="rbi-light-v3"] .app-sidebar-item:hover,
+    html[data-theme="rbi-dark-v3"] .app-sidebar-item:hover {
+        color: var(--accent);
+    }
+}
+
+@media (min-width: 1280px) {
+    html[data-theme="rbi-light-v3"] #app-nav2,
+    html[data-theme="rbi-dark-v3"] #app-nav2 {
+        background: var(--header-bg);
+    }
+
+    html[data-theme="rbi-light-v3"] .rbi-desk-module-strip,
+    html[data-theme="rbi-dark-v3"] .rbi-desk-module-strip {
+        background: var(--header-bg) !important;
+        border-color: var(--card-border) !important;
+    }
+}
+
+html[data-theme="rbi-light-v3"] .header-fixed,
+html[data-theme="rbi-light-v3"] .bottom-nav,
+html[data-theme="rbi-dark-v3"] .header-fixed,
+html[data-theme="rbi-dark-v3"] .bottom-nav {
+    background: var(--header-bg) !important;
+    border-color: var(--card-border) !important;
+}
+
+html[data-theme="rbi-light-v3"] .nav-item.active,
+html[data-theme="rbi-dark-v3"] .nav-item.active {
+    color: var(--graphite) !important;
+}
+html[data-theme="rbi-dark-v3"] .nav-item.active {
+    color: var(--gold) !important;
+}
+
+
+@media (min-width: 1920px) {
+    html[data-theme="rbi-light-v3"],
+    html[data-theme="rbi-dark-v3"] {
+        --desk-topbar-h: 72px;
+    }
+}
+
+html[data-theme="rbi-light-v3"] .bg-red-50,
+html[data-theme="rbi-light-v3"] .bg-rose-50,
+html[data-theme="rbi-dark-v3"] .bg-red-50,
+html[data-theme="rbi-dark-v3"] .bg-rose-50 {
+    background-color: rgba(205, 90, 62, 0.14) !important;
+}
+html[data-theme="rbi-light-v3"] .border-red-200,
+html[data-theme="rbi-light-v3"] .border-red-300,
+html[data-theme="rbi-light-v3"] .border-red-800,
+html[data-theme="rbi-dark-v3"] .border-red-200,
+html[data-theme="rbi-dark-v3"] .border-red-300,
+html[data-theme="rbi-dark-v3"] .border-red-800 {
+    border-color: rgba(205, 90, 62, 0.45) !important;
+}
+html[data-theme="rbi-light-v3"] .tag-red,
+html[data-theme="rbi-dark-v3"] .tag-red {
+    background: rgba(205, 90, 62, 0.16) !important;
+    color: var(--danger) !important;
+    border-color: rgba(205, 90, 62, 0.4) !important;
+}
+
 /* === RBI interactive lightness ===
    Hover lift/tint — только мышь/трекпад; на тач — active press.
    Не трогаем print/PDF. */
 
 [data-theme="dark"],
 [data-theme="rbi-dark"],
-[data-theme="rbi-dark-v2"] {
+[data-theme="rbi-dark-v2"],
+[data-theme="rbi-dark-v3"] {
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.22);
     --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.2);
 }

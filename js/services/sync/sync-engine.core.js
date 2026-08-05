@@ -343,9 +343,9 @@ window.triggerSync = async function (mode = 'silent') {
                             engineerName: 1,
                             key: 1
                         };
-                        Object.keys(cloudSettingsBlob).forEach((k) => {
+                        Object.keys(cloudSettingsBuf).forEach((k) => {
                             if (AUTH_PREF_KEYS[k]) return;
-                            appSettings[k] = cloudSettingsBlob[k];
+                            appSettings[k] = cloudSettingsBuf[k];
                         });
                         appSettings.settingsUpdatedAt = cloudPrefsTs;
                         // Зеркало темы в localStorage — иначе reload перетирает облачную тему

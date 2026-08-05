@@ -68,6 +68,11 @@
         return false;
     }
 
+    function isSheetOpen() {
+        var modal = document.getElementById(MODAL_ID);
+        return !!(modal && !modal.classList.contains('hidden'));
+    }
+
     function destroyPreview(modal) {
         if (!modal) return;
         modal._rbiPdfGen = (modal._rbiPdfGen || 0) + 1;
@@ -112,10 +117,13 @@
         }
         delete modal.dataset.blobUrl;
         delete modal.dataset.openUrl;
+        delete modal.dataset.title;
+        delete modal.dataset.fileName;
         modal._rbiPdfFile = null;
         modal._rbiPdfBuffer = null;
     }
 
+    /** Полный purge: PDF.js + canvas + IO + blob: + буферы. Идемпотентно. */
     function closeSheet() {
         var modal = document.getElementById(MODAL_ID);
         if (!modal) return;
@@ -124,6 +132,15 @@
         modal.classList.add('hidden');
         modal.classList.remove('flex');
         document.body.classList.remove('modal-open');
+    }
+
+    if (!window.__rbiPdfEscBound) {
+        window.__rbiPdfEscBound = true;
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && isSheetOpen()) {
+                closeSheet();
+            }
+        });
     }
 
     function ensureSheet() {
@@ -394,6 +411,7 @@
     };
 
     window.rbiClosePdfDocumentSheet = closeSheet;
+    window.rbiIsPdfDocumentSheetOpen = isSheetOpen;
 
     /**
      * Единое сохранение/докачка облачного PDF в офлайн-стор (PhotoManager → app_photos ArrayBuffer).
@@ -541,6 +559,7 @@
     window.RBI.utils.pdfOpen = {
         open: window.rbiOpenPdfDocument,
         close: closeSheet,
+        isOpen: isSheetOpen,
         cacheCloud: window.rbiCacheCloudPdf,
         loadCloudArrayBuffer: window.rbiLoadCloudPdfArrayBuffer,
         isCloudPdfUrl: window.rbiIsCloudPdfUrl

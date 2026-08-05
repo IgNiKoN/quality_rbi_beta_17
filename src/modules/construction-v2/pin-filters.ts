@@ -23,13 +23,32 @@ export const ALL_PIN_STATUSES = [
 
 export type PinStatusKey = (typeof ALL_PIN_STATUSES)[number];
 
-const STATUS_LABELS: Record<PinStatusKey, string> = {
-  issued: 'Выдано',
-  in_progress: 'В работе',
-  fixed: 'На проверке',
-  closed: 'Закрыто',
-  rejected: 'Отклонено'
+const STATUS_LABEL_KEYS: Record<PinStatusKey, { key: string; fallback: string }> = {
+  issued: { key: 'construction.status.issued', fallback: 'Выдано' },
+  in_progress: { key: 'construction.status.in_progress', fallback: 'В работе' },
+  fixed: { key: 'construction.status.fixed', fallback: 'На проверке' },
+  closed: { key: 'construction.status.closed', fallback: 'Закрыто' },
+  rejected: { key: 'construction.status.rejected', fallback: 'Отклонено' }
 };
+
+function _t(key: string, fallback: string): string {
+  try {
+    const i18n = (window as unknown as { RBI?: { services?: { i18n?: { t?: (k: string) => string } } } }).RBI
+      ?.services?.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  return fallback;
+}
+
+function _statusLabel(statusKey: PinStatusKey): string {
+  const meta = STATUS_LABEL_KEYS[statusKey];
+  return _t(meta.key, meta.fallback);
+}
 
 const STATUS_STYLES: Record<
   PinStatusKey,
@@ -158,13 +177,13 @@ export function renderPinFiltersHtml(
     const pad = compact ? 'px-2 py-1' : 'px-2.5 py-1.5';
     return `<button type="button" data-c2-pin-status="${statusKey}"
       class="shrink-0 ${pad} rounded-xl border text-[9px] font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
-      ${STATUS_LABELS[statusKey]}
+      ${_statusLabel(statusKey)}
       <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-[8px] font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
     </button>`;
   }).join('');
 
   const cats: { key: PinCategory; label: string }[] = [
-    { key: 'ALL', label: 'Все' },
+    { key: 'ALL', label: _t('construction.pin.all', 'Все') },
     { key: 'B3', label: 'B3' },
     { key: 'B2', label: 'B2' },
     { key: 'B1', label: 'B1' }
@@ -187,7 +206,7 @@ export function renderPinFiltersHtml(
   return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
     <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
     <div class="flex gap-1 items-center">
-      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Кат.</span>
+      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t('construction.pin.cat', 'Кат.')}</span>
       <div class="flex gap-0.5">${catBtns}</div>
     </div>
   </div>`;

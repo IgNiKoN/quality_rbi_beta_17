@@ -4,6 +4,36 @@ var _ctx = null;
 function bindCtx(ctx) {
     _ctx = ctx;
     bindConstructionCoreActionDelegation();
+    bindConstructionCoreI18n();
+}
+
+function _t(key, fallback) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) { /* ignore */ }
+    return fallback;
+}
+
+function bindConstructionCoreI18n() {
+    if (window.__constructionCoreI18nBound) return;
+    window.__constructionCoreI18nBound = true;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    window.RBI.events.on('i18n:localeChanged', function () {
+        try {
+            if (window.ConstManager && typeof window.ConstManager.updateStatusChips === 'function') {
+                window.ConstManager.updateStatusChips();
+            }
+        } catch (_e) { /* ignore */ }
+        try {
+            if (window.ConstManager && typeof window.ConstManager.renderAdminPanel === 'function') {
+                window.ConstManager.renderAdminPanel();
+            }
+        } catch (_e2) { /* ignore */ }
+    });
 }
 
 // Паттерн делегирования событий для инициативы «Разбор inline onclick/onchange»
@@ -329,7 +359,7 @@ window.ConstManager = {
             adminContainer.innerHTML = `
                 <button onclick="window.ConstAdmin.openModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Управление иерархией
+                    ${_t('construction.admin.hierarchy', 'Управление иерархией')}
                 </button>
             `;
         } else {
@@ -1003,11 +1033,11 @@ window.ConstManager = {
         };
 
         container.innerHTML = `
-            ${createChip('issued', 'Выдано')}
-            ${createChip('in_progress', 'В работе')}
-            ${createChip('fixed', 'На проверке')}
-            ${createChip('closed', 'Закрыто')}
-            ${createChip('rejected', 'Отклонено')}
+            ${createChip('issued', _t('construction.status.issued', 'Выдано'))}
+            ${createChip('in_progress', _t('construction.status.in_progress', 'В работе'))}
+            ${createChip('fixed', _t('construction.status.fixed', 'На проверке'))}
+            ${createChip('closed', _t('construction.status.closed', 'Закрыто'))}
+            ${createChip('rejected', _t('construction.status.rejected', 'Отклонено'))}
         `;
     },
 

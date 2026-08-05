@@ -93,6 +93,7 @@ function _escape(s: string) {
 
 let _selectedFloorId: string | null = null;
 let _bound = false;
+let _i18nBound = false;
 let _viewer: PlanViewer | null = null;
 let _addMode = false;
 let _zoneMode = false;
@@ -104,6 +105,37 @@ let _fsOpen = false;
 let _fsPlaceholder: Comment | null = null;
 let _fsEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
+function _bindI18nOnce(): void {
+  if (_i18nBound) return;
+  _i18nBound = true;
+  const events = window.RBI?.events as { on?: (ev: string, fn: () => void) => void } | undefined;
+  if (!events || typeof events.on !== 'function') return;
+  events.on('i18n:localeChanged', () => {
+    const tab = document.getElementById('tab-construction-v2');
+    if (!tab || tab.classList.contains('hidden')) return;
+    // Re-render current subview; _selectedFloorId / _subview preserved by renderConstructionV2
+    renderConstructionV2().catch((e) => console.warn('[construction-v2] i18n refresh', e));
+  });
+}
+
 function _root(): HTMLElement | null {
   return document.getElementById('construction-v2-root');
 }
@@ -112,7 +144,7 @@ function _renderTree(svc: LocSvc): string {
   const objects = svc.listNodes({ nodeType: 'object', parentId: null });
   if (!objects.length) {
     return `<div class="p-6 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
-      Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».
+      ${_t('construction.v2.tree_empty', 'Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».')}
     </div>`;
   }
   let html = '<ul class="space-y-1 text-[12px]">';
@@ -156,19 +188,20 @@ function _zoomToolbarHtml(prefix: string): string {
   // Только для fullscreen / apartment (inline chrome без zoom)
   return `<div class="flex gap-1 shrink-0 items-center rounded-xl bg-black/20 p-0.5">
     <button type="button" data-c2-zoom-out="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Уменьшить">−</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="${_escape(_t('construction.v2.zoom_out', 'Уменьшить'))}">−</button>
     <button type="button" data-c2-zoom-in="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="Увеличить">+</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="${_escape(_t('construction.v2.zoom_in', 'Увеличить'))}">+</button>
     <button type="button" data-c2-zoom-fit="${prefix}"
-      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="По размеру">Fit</button>
+      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="${_escape(_t('construction.v2.zoom_fit', 'По размеру'))}">Fit</button>
   </div>`;
 }
 
 function _fullscreenIconBtn(): string {
+  const fs = _escape(_t('construction.v2.fullscreen', 'На весь экран'));
   return `<button type="button" data-c2-fullscreen
     class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center
            text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-    title="На весь экран" aria-label="На весь экран">
+    title="${fs}" aria-label="${fs}">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
     </svg>
@@ -178,7 +211,7 @@ function _fullscreenIconBtn(): string {
 function _renderPlanChrome(svc: LocSvc): string {
   if (!_selectedFloorId) {
     return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
-      Выберите этаж слева
+      ${_t('construction.v2.select_floor', 'Выберите этаж слева')}
     </div>`;
   }
   const floor = svc.getNode(_selectedFloorId);
@@ -190,8 +223,8 @@ function _renderPlanChrome(svc: LocSvc): string {
   if (!plan?.pdf_url) {
     return `<div class="p-6">
       <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape(path)}</div>
-      <div class="text-amber-600 font-bold text-[13px]">Нет PDF-плана на этом этаже</div>
-      <p class="text-[11px] text-slate-500 mt-2">Загрузите план в Настройках → «Объекты и планы».</p>
+      <div class="text-amber-600 font-bold text-[13px]">${_t('construction.v2.no_pdf', 'Нет PDF-плана на этом этаже')}</div>
+      <p class="text-[11px] text-slate-500 mt-2">${_t('construction.v2.no_pdf_hint', 'Загрузите план в Настройках → «Объекты и планы».')}</p>
     </div>`;
   }
   const addCls = _addMode
@@ -208,11 +241,11 @@ function _renderPlanChrome(svc: LocSvc): string {
       <div class="flex gap-1.5 shrink-0 items-center">
         <button type="button" data-c2-zone-mode
           class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-          ${_zoneMode ? '2 клика…' : 'Зона'}
+          ${_zoneMode ? _t('construction.v2.zone_picking', '2 клика…') : _t('construction.v2.zone', 'Зона')}
         </button>
         <button type="button" data-c2-add-mode
           class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-          ${_addMode ? 'Кликни…' : '+ Замечание'}
+          ${_addMode ? _t('construction.v2.add_picking', 'Кликни…') : _t('construction.v2.add_defect', '+ Замечание')}
         </button>
         ${_fullscreenIconBtn()}
       </div>
@@ -394,7 +427,9 @@ function _syncModeButtons() {
   const inFs = !!document.getElementById('c2-plan-fs');
   document.querySelectorAll('[data-c2-add-mode]').forEach((el) => {
     const btn = el as HTMLElement;
-    btn.textContent = _addMode ? 'Кликни…' : '+ Замечание';
+    btn.textContent = _addMode
+      ? _t('construction.v2.add_picking', 'Кликни…')
+      : _t('construction.v2.add_defect', '+ Замечание');
     if (inFs && btn.closest('#c2-plan-fs')) {
       btn.className = _addMode
         ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600'
@@ -407,7 +442,9 @@ function _syncModeButtons() {
   });
   document.querySelectorAll('[data-c2-zone-mode]').forEach((el) => {
     const btn = el as HTMLElement;
-    btn.textContent = _zoneMode ? '2 клика…' : 'Зона';
+    btn.textContent = _zoneMode
+      ? _t('construction.v2.zone_picking', '2 клика…')
+      : _t('construction.v2.zone', 'Зона');
     if (inFs && btn.closest('#c2-plan-fs')) {
       btn.className = _zoneMode
         ? 'px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600'
@@ -432,7 +469,11 @@ async function _refreshOverlaysOnly(): Promise<void> {
   paintPinFilterHosts(allDefects, pinFiltersState, { compact: true });
   _viewer.setMarkers(filtered);
   _viewer.setZones(zones);
-  const label = `Показано ${filtered.length} из ${allDefects.length} · Зон: ${zones.length}`;
+  const label = _t('construction.v2.overlay_count', 'Показано {shown} из {total} · Зон: {zones}', {
+    shown: filtered.length,
+    total: allDefects.length,
+    zones: zones.length
+  });
   const countEl = document.getElementById('c2-overlay-count');
   if (countEl) countEl.textContent = label;
   const fsCount = document.getElementById('c2-fs-overlay-count');
@@ -491,20 +532,20 @@ function _openPlanFullscreen(): void {
   overlay.innerHTML = `
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-white/10 bg-slate-950/90">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[11px] font-bold tracking-wide text-indigo-300">План · весь экран</div>
+        <div class="text-[11px] font-bold tracking-wide text-indigo-300">${_t('construction.v2.fs_title', 'План · весь экран')}</div>
         <div class="flex items-center gap-2 flex-wrap">
           <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
           ${_zoomToolbarHtml('fs')}
           <button type="button" data-c2-zone-mode
             class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
-            ${_zoneMode ? '2 клика…' : 'Зона'}
+            ${_zoneMode ? _t('construction.v2.zone_picking', '2 клика…') : _t('construction.v2.zone', 'Зона')}
           </button>
           <button type="button" data-c2-add-mode
             class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
-            ${_addMode ? 'Кликни…' : '+ Замечание'}
+            ${_addMode ? _t('construction.v2.add_picking', 'Кликни…') : _t('construction.v2.add_defect', '+ Замечание')}
           </button>
           <button type="button" data-c2-fs-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">Закрыть</button>
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">${_t('construction.v2.fs_close', 'Закрыть')}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="fs"></div>
@@ -569,6 +610,7 @@ export function focusDefectOnPlan(id: string, locationId: string): void {
 export async function renderConstructionV2(): Promise<void> {
   const root = _root();
   if (!root) return;
+  _bindI18nOnce();
 
   if (_subview === 'acceptance') {
     _closePlanFullscreen();
@@ -675,11 +717,11 @@ export async function renderConstructionV2(): Promise<void> {
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
         <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</div>
           <div id="c2-tree">${_renderTree(svc)}</div>
           ${
             !dSvc
-              ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>`
+              ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_defects_missing', 'constructionDefects не загружен')}</div>`
               : ''
           }
         </aside>
@@ -715,16 +757,16 @@ export async function renderConstructionV2(): Promise<void> {
   root.innerHTML = `
     <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
       <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Иерархия (v2)</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</div>
         <div id="c2-tree">${_renderTree(svc)}</div>
         ${
           !dSvc
-            ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">constructionDefects не загружен</div>`
+            ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_defects_missing', 'constructionDefects не загружен')}</div>`
             : ''
         }
         ${
           !aSvc
-            ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">constructionAcceptance не загружен</div>`
+            ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_acc_missing', 'constructionAcceptance не загружен')}</div>`
             : ''
         }
       </aside>
@@ -734,6 +776,7 @@ export async function renderConstructionV2(): Promise<void> {
     </div>`;
 
   _bindOnce();
+  _bindI18nOnce();
   if (prevFloor) _selectedFloorId = prevFloor;
   await _mountViewerIfNeeded(svc);
 }

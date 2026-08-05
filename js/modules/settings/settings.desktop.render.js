@@ -12,13 +12,36 @@ const TAB_ID = 'tab-settings';
 let _shellApplied = false;
 let _hooksBound = false;
 let _resizeBound = false;
+let _localeBound = false;
 
-const SECTION_LABELS = {
+const SECTION_KEYS = {
+  platform: 'settings.section.platform',
+  admin: 'settings.section.admin',
+  quality: 'settings.section.quality',
+  construction: 'settings.section.construction'
+};
+
+const SECTION_FALLBACKS = {
   platform: 'Платформа',
   admin: 'Админ',
   quality: 'Качество',
   construction: 'Стройконтроль'
 };
+
+function _t(key, fallback) {
+  const i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+  if (i18n && typeof i18n.t === 'function') {
+    const tr = i18n.t(key);
+    if (tr && tr !== key) return tr;
+  }
+  return fallback;
+}
+
+function sectionLabel(id) {
+  const key = SECTION_KEYS[id];
+  if (!key) return id;
+  return _t(key, SECTION_FALLBACKS[id] || id);
+}
 
 function isDesktopViewport() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN;
@@ -64,7 +87,18 @@ function syncStripSubtitle() {
   const el = document.getElementById('settings-desk-strip-sub');
   if (!el) return;
   const id = currentSectionId();
-  el.textContent = SECTION_LABELS[id] || id;
+  el.textContent = sectionLabel(id);
+}
+
+/** Strip label / chip / rail aria / subtitle — без remount панелей. */
+function applyDeskChromeI18n() {
+  const label = document.querySelector('.settings-desk-topbar-label');
+  if (label) label.textContent = _t('nav.settings', 'Настройки');
+  const chip = document.getElementById('settings-desk-platform-chip');
+  if (chip) chip.textContent = _t('settings.strip_chip', 'Платформа');
+  const rail = document.querySelector('.settings-desk-rail');
+  if (rail) rail.setAttribute('aria-label', _t('settings.rail_aria', 'Разделы настроек'));
+  syncStripSubtitle();
 }
 
 function ensureDeskStructure() {
@@ -83,8 +117,10 @@ function ensureDeskStructure() {
   strip.innerHTML =
     '<div class="settings-desk-topbar-strip-inner rbi-desk-module-strip-inner">' +
     '<div class="settings-desk-topbar-brand">' +
-    '<span class="settings-desk-topbar-label">Настройки</span>' +
-    '<span class="rbi-chip" id="settings-desk-platform-chip">Платформа</span>' +
+    '<span class="settings-desk-topbar-label" data-i18n="nav.settings">' +
+    _escapeHtml(_t('nav.settings', 'Настройки')) + '</span>' +
+    '<span class="rbi-chip" id="settings-desk-platform-chip" data-i18n="settings.strip_chip">' +
+    _escapeHtml(_t('settings.strip_chip', 'Платформа')) + '</span>' +
     '<span class="settings-desk-topbar-sub" id="settings-desk-strip-sub"></span>' +
     '</div>' +
     '<div class="settings-desk-topbar-actions" id="settings-desk-strip-actions"></div>' +
@@ -102,7 +138,9 @@ function ensureDeskStructure() {
 
   const rail = document.createElement('nav');
   rail.className = 'settings-desk-rail';
-  rail.setAttribute('aria-label', 'Разделы настроек');
+  rail.setAttribute('aria-label', _t('settings.rail_aria', 'Разделы настроек'));
+  rail.setAttribute('data-i18n', 'settings.rail_aria');
+  rail.setAttribute('data-i18n-attr', 'aria-label');
   // Move subnav into rail (keep same buttons / handlers)
   const subWrap = subnav.parentElement;
   rail.appendChild(subnav);
@@ -121,6 +159,14 @@ function ensureDeskStructure() {
   tab.appendChild(body);
 
   return tab;
+}
+
+function _escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function restoreMobileStructure() {
@@ -159,7 +205,7 @@ export function showSettingsDesktop() {
   setWideLayout(true);
   ensureDeskStructure();
   _shellApplied = true;
-  syncStripSubtitle();
+  applyDeskChromeI18n();
   // Re-apply subsection so rail highlight matches hash
   const section = currentSectionId();
   if (typeof window.setSettingsSubsection === 'function') {
@@ -210,6 +256,16 @@ function bindHooks() {
   }
 }
 
+function bindLocale() {
+  if (_localeBound) return;
+  _localeBound = true;
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try { applyDeskChromeI18n(); } catch (_) { /* ignore */ }
+    });
+  }
+}
+
 function bindResize() {
   if (_resizeBound) return;
   _resizeBound = true;
@@ -223,6 +279,7 @@ function bindResize() {
 function boot() {
   bindHooks();
   bindResize();
+  bindLocale();
   // Keep strip subtitle in sync when subsection changes
   const wrapSet = function () {
     if (typeof window.setSettingsSubsection !== 'function' || window.setSettingsSubsection.__deskWrapped) return;
@@ -250,7 +307,7 @@ window.__settingsDesktop = {
   show: showSettingsDesktop,
   teardown: teardownSettingsDesktop,
   sync: syncSettingsDesktop,
-  syncChrome: syncStripSubtitle
+  syncChrome: applyDeskChromeI18n
 };
 
 window.SettingsDesktopRender = window.__settingsDesktop;

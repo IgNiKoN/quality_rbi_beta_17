@@ -30,7 +30,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
                             </path>
-                        </svg>Профиль
+                        </svg><span data-i18n="quality.sub.engineer.profile">Профиль</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-tasks" data-tasks-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md bg-white shadow-sm text-indigo-600 flex flex-col items-center gap-1 active">
@@ -38,7 +38,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
                             </path>
-                        </svg>Задачи
+                        </svg><span data-i18n="quality.sub.engineer.tasks">Задачи</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-meetings" data-tasks-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -46,14 +46,14 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
                             </path>
-                        </svg><span class="sm:hidden">Совещ.</span><span class="hidden sm:inline">Совещания</span>
+                        </svg><span class="sm:hidden" data-i18n="quality.sub.engineer.meetings_short">Совещ.</span><span class="hidden sm:inline" data-i18n="quality.sub.engineer.meetings">Совещания</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-impact" data-tasks-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>Impact
+                        </svg><span data-i18n="quality.sub.engineer.impact">Impact</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-fmea" data-tasks-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -61,7 +61,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                             </path>
-                        </svg>FMEA
+                        </svg><span data-i18n="quality.sub.engineer.fmea">FMEA</span>
                     </button>
 
                 </div>

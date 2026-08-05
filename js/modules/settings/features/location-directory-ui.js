@@ -4,6 +4,22 @@
  * Legacy ConstAdmin не используется.
  */
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = i18n.t(key, vars);
+            if (s && s !== key) return s;
+        }
+    } catch (_e) { /* ignore */ }
+    if (vars && typeof fallback === 'string') {
+        return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+            return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+        });
+    }
+    return fallback;
+}
+
 let _delegationBound = false;
 let _selectedId = null;
 /** Свёрнутость дерева: id узлов, у которых дети раскрыты. */
@@ -50,10 +66,10 @@ function _childType(parentType) {
 
 function _defaultChildName(child) {
     if (child === 'apartment') return '1';
-    if (child === 'section') return 'Секция 1';
-    if (child === 'floor') return 'Этаж 1';
-    if (child === 'building') return 'Корпус 1';
-    return 'Новый';
+    if (child === 'section') return _t('settings.admin.locations.default_section', 'Секция 1');
+    if (child === 'floor') return _t('settings.admin.locations.default_floor', 'Этаж 1');
+    if (child === 'building') return _t('settings.admin.locations.default_building', 'Корпус 1');
+    return _t('settings.admin.locations.default_new', 'Новый');
 }
 
 /** Создать operational unit для нового apartment (1:1). */
@@ -118,9 +134,9 @@ function _odLinkBlockHtml(svc, node, can) {
     const key = String(node.canonical_key || '').trim();
     // C2b: SoT = locations; OD — facade-проекция
     return `<div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-2 space-y-2">
-        <div class="text-[10px] font-black uppercase text-slate-500">Каталог объектов (C2b)</div>
-        <div class="text-[11px] text-teal-700 font-bold">SoT: locations.object</div>
-        <div class="text-[10px] text-slate-400">key: ${_escape(key || '—')} · ObjectDirectory = facade</div>
+        <div class="text-[10px] font-black uppercase text-slate-500">${_escape(_t('settings.admin.locations.catalog_title', 'Каталог объектов (C2b)'))}</div>
+        <div class="text-[11px] text-teal-700 font-bold">${_escape(_t('settings.admin.locations.sot_locations', 'SoT: locations.object'))}</div>
+        <div class="text-[10px] text-slate-400">${_escape(_t('settings.admin.locations.key_facade', 'key: {key} · ObjectDirectory = facade', { key: key || '—' }))}</div>
     </div>`;
 }
 
@@ -140,15 +156,15 @@ function _migrateBannerHtml(svc) {
     } catch (_e) { /* ignore */ }
     if (!leftover) {
         return `<div class="border-b border-slate-200 dark:border-slate-700 p-2 text-[10px] text-slate-500 font-bold">
-            C2b: каталог объектов = locations (OD leftover: 0)
+            ${_escape(_t('settings.admin.locations.migrate_ok', 'C2b: каталог объектов = locations (OD leftover: 0)'))}
         </div>`;
     }
     return `<div class="border-b border-amber-200 dark:border-amber-800 p-2 space-y-1 bg-amber-50/50 dark:bg-amber-950/20">
         <div class="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300">
-            OD leftover: ${leftover} (локальный IDB без peer в locations)
+            ${_escape(_t('settings.admin.locations.migrate_leftover', 'OD leftover: {count} (локальный IDB без peer в locations)', { count: leftover }))}
         </div>
         <div class="text-[10px] text-slate-600 dark:text-slate-300">
-            Apply миграции отключён (C2b). Создавайте/правьте объекты только здесь. Sync project_objects выключен.
+            ${_escape(_t('settings.admin.locations.migrate_hint', 'Apply миграции отключён (C2b). Создавайте/правьте объекты только здесь. Sync project_objects выключен.'))}
         </div>
     </div>`;
 }
@@ -175,7 +191,7 @@ function _expandAncestors(svc, nodeId) {
 function _renderTreeHtml(svc) {
     const objects = svc.listNodes({ nodeType: 'object', parentId: null });
     if (!objects.length) {
-        return '<div class="p-4 text-[11px] text-slate-400 font-bold uppercase tracking-widest text-center">Дерево пусто — создайте объект</div>';
+        return '<div class="p-4 text-[11px] text-slate-400 font-bold uppercase tracking-widest text-center">' + _escape(_t('settings.admin.locations.tree_empty', 'Дерево пусто — создайте объект')) + '</div>';
     }
     if (_selectedId) _expandAncestors(svc, _selectedId);
 
@@ -194,7 +210,7 @@ function _renderTreeHtml(svc) {
             if (hasKids) {
                 html += `<button type="button" data-loc-dir-action="toggle-expand" data-id="${_escape(n.id)}"
                     class="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    title="${open ? 'Свернуть' : 'Развернуть'}" aria-expanded="${open ? 'true' : 'false'}">${open ? '▾' : '▸'}</button>`;
+                    title="${_escape(open ? _t('settings.admin.locations.collapse', 'Свернуть') : _t('settings.admin.locations.expand', 'Развернуть'))}" aria-expanded="${open ? 'true' : 'false'}">${open ? '▾' : '▸'}</button>`;
             } else {
                 html += `<span class="shrink-0 w-5" aria-hidden="true"></span>`;
             }
@@ -222,10 +238,10 @@ function _editorHtml(svc) {
     const node = _selectedId ? svc.getNode(_selectedId) : null;
     if (!node) {
         return `<div class="p-4 space-y-3">
-            <p class="text-[11px] text-slate-500">Выберите узел слева или создайте корень.</p>
+            <p class="text-[11px] text-slate-500">${_escape(_t('settings.admin.locations.select_or_create', 'Выберите узел слева или создайте корень.'))}</p>
             ${can ? `<button type="button" data-loc-dir-action="create-root"
-                class="bg-teal-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">+ Объект</button>` : ''}
-            <a href="#/construction-v2" class="block text-[10px] font-black uppercase text-indigo-600 mt-2">Открыть СК (новый) →</a>
+                class="bg-teal-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.add_object', '+ Объект'))}</button>` : ''}
+            <a href="#/construction-v2" class="block text-[10px] font-black uppercase text-indigo-600 mt-2">${_escape(_t('settings.admin.locations.open_sk', 'Открыть СК (новый) →'))}</a>
         </div>`;
     }
     const next = _childType(node.nodeType);
@@ -238,42 +254,42 @@ function _editorHtml(svc) {
             class="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[12px] bg-transparent" ${can ? '' : 'disabled'} />
         ${can ? `<div class="flex flex-wrap gap-2">
             <button type="button" data-loc-dir-action="save" data-id="${_escape(node.id)}"
-                class="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Сохранить</button>
+                class="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.save', 'Сохранить'))}</button>
             ${next ? `<button type="button" data-loc-dir-action="add-child" data-id="${_escape(node.id)}" data-child="${next}"
                 class="bg-teal-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">+ ${_escape(next)}</button>` : ''}
             <button type="button" data-loc-dir-action="delete" data-id="${_escape(node.id)}"
-                class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">Удалить</button>
+                class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.delete', 'Удалить'))}</button>
         </div>` : ''}
         ${node.nodeType === 'floor' ? `
             <div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-2">
-                <div class="text-[10px] font-black uppercase text-slate-500 mb-2">PDF-план</div>
+                <div class="text-[10px] font-black uppercase text-slate-500 mb-2">${_escape(_t('settings.admin.locations.pdf_plan', 'PDF-план'))}</div>
                 ${plan?.pdf_url
                     ? `<div class="text-[11px] mb-2">📄 ${_escape(plan.pdf_name || 'plan.pdf')}
-                        <a href="${_escape(plan.pdf_url)}" target="_blank" class="text-indigo-600 ml-2">открыть</a></div>`
-                    : '<div class="text-[11px] text-amber-600 mb-2">План не загружен</div>'}
+                        <a href="${_escape(plan.pdf_url)}" target="_blank" class="text-indigo-600 ml-2">${_escape(_t('settings.admin.locations.open', 'открыть'))}</a></div>`
+                    : '<div class="text-[11px] text-amber-600 mb-2">' + _escape(_t('settings.admin.locations.plan_missing', 'План не загружен')) + '</div>'}
                 ${can ? `<input id="loc-dir-pdf" type="file" accept="application/pdf" class="text-[11px] w-full" />
                 <button type="button" data-loc-dir-action="upload-pdf" data-id="${_escape(node.id)}"
-                    class="mt-2 bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Загрузить PDF</button>` : ''}
+                    class="mt-2 bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.upload_pdf', 'Загрузить PDF'))}</button>` : ''}
             </div>` : ''}
         ${node.nodeType === 'apartment' ? `
             <div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-2">
-                <div class="text-[10px] font-black uppercase text-slate-500 mb-2">PDF-план квартиры</div>
+                <div class="text-[10px] font-black uppercase text-slate-500 mb-2">${_escape(_t('settings.admin.locations.pdf_apt', 'PDF-план квартиры'))}</div>
                 ${aptPdfUrl
                     ? `<div class="text-[11px] mb-2">📄 ${_escape(aptUnit.pdf_name || 'plan.pdf')}
-                        <a href="${_escape(aptPdfUrl)}" target="_blank" class="text-indigo-600 ml-2">открыть</a></div>`
-                    : '<div class="text-[11px] text-amber-600 mb-2">План не загружен</div>'}
+                        <a href="${_escape(aptPdfUrl)}" target="_blank" class="text-indigo-600 ml-2">${_escape(_t('settings.admin.locations.open', 'открыть'))}</a></div>`
+                    : '<div class="text-[11px] text-amber-600 mb-2">' + _escape(_t('settings.admin.locations.plan_missing', 'План не загружен')) + '</div>'}
                 ${can ? `<input id="loc-dir-unit-pdf" type="file" accept="application/pdf" class="text-[11px] w-full" />
                 <div class="flex flex-wrap gap-2 mt-2">
                     <button type="button" data-loc-dir-action="upload-unit-pdf" data-id="${_escape(node.id)}"
-                        class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">Загрузить PDF</button>
+                        class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.upload_pdf', 'Загрузить PDF'))}</button>
                     ${aptPdfUrl ? `<button type="button" data-loc-dir-action="clear-unit-pdf" data-id="${_escape(node.id)}"
-                        class="bg-slate-50 text-slate-600 border border-slate-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">Снять план</button>` : ''}
+                        class="bg-slate-50 text-slate-600 border border-slate-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase">${_escape(_t('settings.admin.locations.clear_plan', 'Снять план'))}</button>` : ''}
                 </div>` : ''}
             </div>` : ''}
         ${_odLinkBlockHtml(svc, node, can)}
         <button type="button" data-loc-dir-action="create-root"
-            class="text-[10px] font-black uppercase text-teal-700 underline">+ ещё объект</button>
-        <a href="#/construction-v2" class="block text-[10px] font-black uppercase text-indigo-600">Открыть СК (новый) →</a>
+            class="text-[10px] font-black uppercase text-teal-700 underline">${_escape(_t('settings.admin.locations.more_object', '+ ещё объект'))}</button>
+        <a href="#/construction-v2" class="block text-[10px] font-black uppercase text-indigo-600">${_escape(_t('settings.admin.locations.open_sk', 'Открыть СК (новый) →'))}</a>
     </div>`;
 }
 
@@ -304,7 +320,7 @@ function _bindDelegation() {
                 return;
             }
             if (action === 'create-root') {
-                const name = prompt('Название объекта', '__SMOKE_TEST__ Object');
+                const name = prompt(_t('settings.admin.locations.prompt_object', 'Название объекта'), '__SMOKE_TEST__ Object');
                 if (!name) return;
                 const clean = typeof svc.cleanObjectName === 'function'
                     ? svc.cleanObjectName(name)
@@ -321,14 +337,14 @@ function _bindDelegation() {
                     && typeof window.ObjectDirectory.rebuildFromLocations === 'function') {
                     try { await window.ObjectDirectory.rebuildFromLocations(); } catch (_e) { /* ignore */ }
                 }
-                _toast('Объект создан');
+                _toast(_t('settings.admin.locations.toast_created', 'Объект создан'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'add-child') {
                 const parentId = el.getAttribute('data-id');
                 const child = el.getAttribute('data-child');
-                const name = prompt(`Название (${child})`, _defaultChildName(child));
+                const name = prompt(_t('settings.admin.locations.prompt_child', 'Название ({child})', { child: child }), _defaultChildName(child));
                 if (!name) return;
                 const n = await svc.createNode({ nodeType: child, displayName: name, parentId });
                 if (child === 'apartment') {
@@ -336,7 +352,7 @@ function _bindDelegation() {
                 }
                 _selectedId = n.id;
                 _expandedIds.add(parentId);
-                _toast('Создано');
+                _toast(_t('settings.admin.locations.toast_child_created', 'Создано'));
                 await mountLocationDirectoryUI();
                 return;
             }
@@ -349,17 +365,17 @@ function _bindDelegation() {
                 if (node && node.nodeType === 'apartment') {
                     await _syncUnitNameForApartment(id, String(displayName || node.displayName || '').trim());
                 }
-                _toast('Сохранено');
+                _toast(_t('settings.admin.locations.toast_saved', 'Сохранено'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'delete') {
                 const id = el.getAttribute('data-id');
-                if (!confirm('Удалить узел и всех потомков?')) return;
+                if (!confirm(_t('settings.admin.locations.confirm_delete', 'Удалить узел и всех потомков?'))) return;
                 // softDeleteNode(apartment) → softDelete linked unit (см. locations.service)
                 await svc.softDeleteNode(id);
                 _selectedId = null;
-                _toast('Удалено');
+                _toast(_t('settings.admin.locations.toast_deleted', 'Удалено'));
                 await mountLocationDirectoryUI();
                 return;
             }
@@ -367,53 +383,53 @@ function _bindDelegation() {
                 const id = el.getAttribute('data-id');
                 const odKey = el.getAttribute('data-od-key') || '';
                 if (typeof svc.linkLocationToOd !== 'function') {
-                    _toast('Мост OD недоступен');
+                    _toast(_t('settings.admin.locations.bridge_unavailable', 'Мост OD недоступен'));
                     return;
                 }
                 await svc.linkLocationToOd(id, odKey || undefined);
-                _toast('Привязано к ObjectDirectory');
+                _toast(_t('settings.admin.locations.linked_od', 'Привязано к ObjectDirectory'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'create-od') {
                 const id = el.getAttribute('data-id');
                 if (typeof svc.createOdFromLocation !== 'function') {
-                    _toast('Мост OD недоступен');
+                    _toast(_t('settings.admin.locations.bridge_unavailable', 'Мост OD недоступен'));
                     return;
                 }
                 await svc.createOdFromLocation(id);
-                _toast('Создано в ObjectDirectory');
+                _toast(_t('settings.admin.locations.created_od', 'Создано в ObjectDirectory'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'create-loc-from-od') {
                 if (typeof svc.listUnlinkedObjects !== 'function' || typeof svc.createLocationFromOd !== 'function') {
-                    _toast('Мост OD недоступен');
+                    _toast(_t('settings.admin.locations.bridge_unavailable', 'Мост OD недоступен'));
                     return;
                 }
                 const un = svc.listUnlinkedObjects();
                 const odOnly = (un && un.odOnly) || [];
                 if (!odOnly.length) {
-                    _toast('Нет несвязанных объектов OD');
+                    _toast(_t('settings.admin.locations.no_unlinked', 'Нет несвязанных объектов OD'));
                     return;
                 }
                 const labels = odOnly.map((o, i) => `${i + 1}. ${o.display_name || o.name || o.canonical_key}`).join('\n');
-                const pick = prompt(`Номер ObjectDirectory для создания object:\n${labels}`, '1');
+                const pick = prompt(_t('settings.admin.locations.prompt_od_pick', 'Номер ObjectDirectory для создания object:\n{labels}', { labels: labels }), '1');
                 if (!pick) return;
                 const idx = Number(pick) - 1;
                 const chosen = odOnly[idx];
                 if (!chosen || !chosen.canonical_key) {
-                    _toast('Неверный номер');
+                    _toast(_t('settings.admin.locations.invalid_number', 'Неверный номер'));
                     return;
                 }
                 const r = await svc.createLocationFromOd(chosen.canonical_key);
                 _selectedId = r.locationObject ? r.locationObject.id : _selectedId;
-                _toast('Объект создан из OD');
+                _toast(_t('settings.admin.locations.created_from_od', 'Объект создан из OD'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'migrate-od-dry' || action === 'migrate-od-apply') {
-                _toast('C2b: Apply миграции отключён — каталог = locations');
+                _toast(_t('settings.admin.locations.migrate_disabled', 'C2b: Apply миграции отключён — каталог = locations'));
                 return;
             }
             if (action === 'upload-pdf') {
@@ -421,11 +437,11 @@ function _bindDelegation() {
                 const fileInput = document.getElementById('loc-dir-pdf');
                 const file = fileInput && fileInput.files && fileInput.files[0];
                 if (!file) {
-                    _toast('Выберите PDF');
+                    _toast(_t('settings.admin.locations.select_pdf', 'Выберите PDF'));
                     return;
                 }
                 await svc.uploadFloorPdf(id, file);
-                _toast('План загружен');
+                _toast(_t('settings.admin.locations.plan_uploaded', 'План загружен'));
                 await mountLocationDirectoryUI();
                 return;
             }
@@ -434,7 +450,7 @@ function _bindDelegation() {
                 const fileInput = document.getElementById('loc-dir-unit-pdf');
                 const file = fileInput && fileInput.files && fileInput.files[0];
                 if (!file) {
-                    _toast('Выберите PDF');
+                    _toast(_t('settings.admin.locations.select_pdf', 'Выберите PDF'));
                     return;
                 }
                 const units = _unitsSvc();
@@ -445,27 +461,27 @@ function _bindDelegation() {
                     const node = svc.getNode(apartmentId);
                     unit = await _ensureUnitForApartment(node || { id: apartmentId });
                 }
-                if (!unit?.id) throw new Error('Нет linked unit для квартиры');
+                if (!unit?.id) throw new Error(_t('settings.admin.locations.error', 'Нет linked unit для квартиры'));
                 await units.uploadUnitPdf(unit.id, file);
-                _toast('План квартиры загружен');
+                _toast(_t('settings.admin.locations.apt_plan_uploaded', 'План квартиры загружен'));
                 await mountLocationDirectoryUI();
                 return;
             }
             if (action === 'clear-unit-pdf') {
                 const apartmentId = el.getAttribute('data-id');
-                if (!confirm('Снять план квартиры?')) return;
+                if (!confirm(_t('settings.admin.locations.confirm_clear_apt', 'Снять план квартиры?'))) return;
                 const units = _unitsSvc();
                 if (!units?.clearUnitPlan) throw new Error('service.constructionUnits недоступен');
                 await units.init?.();
                 const unit = _linkedUnitForApartment(apartmentId);
-                if (!unit?.id) throw new Error('Нет linked unit для квартиры');
+                if (!unit?.id) throw new Error(_t('settings.admin.locations.error', 'Нет linked unit для квартиры'));
                 await units.clearUnitPlan(unit.id);
-                _toast('План снят');
+                _toast(_t('settings.admin.locations.plan_cleared', 'План снят'));
                 await mountLocationDirectoryUI();
             }
         } catch (e) {
             console.error('[LocationDirectoryUI]', e);
-            _toast(e.message || 'Ошибка');
+            _toast(e.message || _t('settings.admin.locations.error', 'Ошибка'));
         }
     }, true);
 }
@@ -485,7 +501,7 @@ export async function mountLocationDirectoryUI() {
         if (!show) return;
     }
     if (!svc) {
-        root.innerHTML = '<div class="p-4 text-red-500 text-[11px]">service.locations не загружен</div>';
+        root.innerHTML = '<div class="p-4 text-red-500 text-[11px]">' + _escape(_t('settings.admin.locations.svc_missing', 'service.locations не загружен')) + '</div>';
         return;
     }
     await svc.init();

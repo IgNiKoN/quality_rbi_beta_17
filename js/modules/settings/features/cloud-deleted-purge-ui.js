@@ -4,6 +4,22 @@
  * строк + файлов в Storage. Живые (is_deleted=false) не трогает.
  */
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = i18n.t(key, vars);
+            if (s && s !== key) return s;
+        }
+    } catch (_e) { /* ignore */ }
+    if (vars && typeof fallback === 'string') {
+        return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+            return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+        });
+    }
+    return fallback;
+}
+
 const PAGE_SIZE = 500;
 const REMOVE_BATCH = 80;
 const DELETE_BATCH = 100;
@@ -90,10 +106,14 @@ function _escapeHtml(str) {
 
 function _formatBytes(n) {
     const v = Number(n) || 0;
-    if (v < 1024) return v + ' Б';
-    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' КБ';
-    if (v < 1024 * 1024 * 1024) return (v / (1024 * 1024)).toFixed(1) + ' МБ';
-    return (v / (1024 * 1024 * 1024)).toFixed(2) + ' ГБ';
+    if (v < 1024) return _t('settings.admin.purge.bytes_b', '{n} Б', { n: v });
+    if (v < 1024 * 1024) return _t('settings.admin.purge.bytes_kb', '{n} КБ', { n: (v / 1024).toFixed(1) });
+    if (v < 1024 * 1024 * 1024) return _t('settings.admin.purge.bytes_mb', '{n} МБ', { n: (v / (1024 * 1024)).toFixed(1) });
+    return _t('settings.admin.purge.bytes_gb', '{n} ГБ', { n: (v / (1024 * 1024 * 1024)).toFixed(2) });
+}
+
+function _idleStatusHtml() {
+    return '<div class="text-[10px] text-[var(--text-muted)]">' + _escapeHtml(_t('settings.admin.purge.not_checked', 'Ещё не проверялось.')) + '</div>';
 }
 
 function _pathFromUrl(url, bucketHint) {
@@ -305,7 +325,7 @@ function _applySizeEstimates(refsMap) {
 }
 
 async function scanCloudDeleted() {
-    if (!_cloudReady()) throw new Error('Облако не подключено');
+    if (!_cloudReady()) throw new Error(_t('settings.admin.purge.cloud_offline', 'Облако не подключено'));
 
     const tableStats = {};
     const refsMap = new Map();
@@ -363,8 +383,6 @@ async function scanCloudDeleted() {
         });
     }
 
-    // Локальный registry + оценка. Облачный file_registry?public_url=in.(…) не используем —
-    // длинный GET рвёт соединение (ERR_CONNECTION_CLOSED).
     await _enrichSizesFromLocalRegistry(refsMap);
     _applySizeEstimates(refsMap);
 
@@ -477,8 +495,8 @@ async function _deleteRegistryRefs(files) {
 }
 
 async function purgeCloudDeleted(preview) {
-    if (!_cloudReady()) throw new Error('Облако не подключено');
-    if (!preview) throw new Error('Сначала выполните проверку');
+    if (!_cloudReady()) throw new Error(_t('settings.admin.purge.cloud_offline', 'Облако не подключено'));
+    if (!preview) throw new Error(_t('settings.admin.purge.need_scan', 'Сначала выполните проверку'));
 
     const result = {
         storageRemoved: 0,
@@ -490,7 +508,6 @@ async function purgeCloudDeleted(preview) {
         cascadeItems: 0
     };
 
-    // 1) Storage
     const byBucket = {};
     (preview.files || []).forEach((f) => {
         if (!byBucket[f.bucket]) byBucket[f.bucket] = [];
@@ -503,14 +520,12 @@ async function purgeCloudDeleted(preview) {
         result.storageErrors += r.errors;
     }
 
-    // 2) file_registry
     try {
         result.registryDeleted = await _deleteRegistryRefs(preview.files || []);
     } catch (e) {
         console.warn('[cloud-purge] file_registry:', e);
     }
 
-    // 3) cascade children of soft-deleted inspections
     if (preview.cascadeItemInspectionIds && preview.cascadeItemInspectionIds.length) {
         const photos = await _deleteByInspectionIds('rbi_inspection_photos', preview.cascadeItemInspectionIds);
         result.cascadePhotos = photos.deleted;
@@ -520,7 +535,6 @@ async function purgeCloudDeleted(preview) {
         result.rowErrors += items.errors;
     }
 
-    // 4) soft-deleted rows (parents after children)
     const order = Object.keys(preview.rowIdsByTable || {}).sort((a, b) => {
         if (a === 'rbi_inspections') return 1;
         if (b === 'rbi_inspections') return -1;
@@ -552,7 +566,7 @@ function _setBusy(busy) {
 
 function _renderPreview(preview) {
     if (!preview) {
-        return '<div class="text-[10px] text-[var(--text-muted)]">Ещё не проверялось.</div>';
+        return _idleStatusHtml();
     }
     const tableRows = Object.keys(preview.tableStats || {})
         .filter((k) => preview.tableStats[k] > 0)
@@ -567,28 +581,33 @@ function _renderPreview(preview) {
         .sort()
         .map((k) => `<div class="flex justify-between gap-2 text-[10px] py-0.5">
             <span class="font-mono">${_escapeHtml(k)}</span>
-            <span>${preview.byBucket[k]} файл(ов)</span>
+            <span>${_escapeHtml(_t('settings.admin.purge.files_count', '{count} файл(ов)', { count: preview.byBucket[k] }))}</span>
         </div>`)
         .join('');
 
     const skipped = (preview.skippedTables || []).length
-        ? `<div class="text-[10px] text-amber-700 dark:text-amber-300 mt-2">Пропущено таблиц: ${preview.skippedTables.length} (нет доступа / нет колонки).</div>`
+        ? `<div class="text-[10px] text-amber-700 dark:text-amber-300 mt-2">${_escapeHtml(_t('settings.admin.purge.skipped_tables', 'Пропущено таблиц: {count} (нет доступа / нет колонки).', { count: preview.skippedTables.length }))}</div>`
         : '';
 
     const sizeNote = preview.sizeEstimated
-        ? ` (из них оценка: ${preview.sizeEstimated})`
+        ? _t('settings.admin.purge.size_est_note', ' (из них оценка: {count})', { count: preview.sizeEstimated })
         : '';
     const volumeLabel = _formatBytes(preview.estimatedBytes || preview.knownBytes || 0);
+    const summary = _t('settings.admin.purge.summary', 'Записей: {rows} · файлов: {files} · объём ≈ {size}{est}', {
+        rows: preview.totalRows,
+        files: (preview.files || []).length,
+        size: volumeLabel,
+        est: sizeNote
+    });
 
     return `
         <div class="space-y-2">
             <div class="text-[11px] font-bold text-slate-800 dark:text-white">
-                Записей: ${preview.totalRows} · файлов: ${(preview.files || []).length} ·
-                объём ≈ ${_escapeHtml(volumeLabel)}${_escapeHtml(sizeNote)}
+                ${_escapeHtml(summary)}
             </div>
-            <div class="text-[10px] text-[var(--text-muted)]">Проект: <span class="font-mono">${_escapeHtml(preview.projectCode)}</span></div>
+            <div class="text-[10px] text-[var(--text-muted)]">${_escapeHtml(_t('settings.admin.purge.project', 'Проект: {code}', { code: preview.projectCode }))}</div>
             <div class="rounded-lg border border-[var(--card-border)] bg-[var(--hover-bg)] p-2 max-h-40 overflow-y-auto">
-                ${tableRows || '<div class="text-[10px] text-[var(--text-muted)]">Нет soft-deleted строк</div>'}
+                ${tableRows || '<div class="text-[10px] text-[var(--text-muted)]">' + _escapeHtml(_t('settings.admin.purge.no_rows', 'Нет soft-deleted строк')) + '</div>'}
             </div>
             ${bucketRows ? `<div class="rounded-lg border border-[var(--card-border)] bg-[var(--hover-bg)] p-2">${bucketRows}</div>` : ''}
             ${skipped}
@@ -598,11 +617,11 @@ function _renderPreview(preview) {
 
 async function _onScan() {
     if (_busy) return;
-    if (!_isAdmin()) return _toast('⛔ Только администратор');
-    if (!_cloudReady()) return _toast('⚠️ Облако не подключено');
+    if (!_isAdmin()) return _toast(_t('settings.admin.purge.admin_only', '⛔ Только администратор'));
+    if (!_cloudReady()) return _toast(_t('settings.admin.purge.cloud_offline', 'Облако не подключено'));
 
     _setBusy(true);
-    _setStatus('<div class="text-[10px] text-indigo-600 font-bold">Сканирование облака…</div>');
+    _setStatus('<div class="text-[10px] text-indigo-600 font-bold">' + _escapeHtml(_t('settings.admin.purge.scanning', 'Сканирование облака…')) + '</div>');
     try {
         _preview = await scanCloudDeleted();
         _setStatus(_renderPreview(_preview));
@@ -610,12 +629,15 @@ async function _onScan() {
         if (runBtn) {
             runBtn.disabled = !(_preview.totalRows > 0 || (_preview.files && _preview.files.length));
         }
-        _toast(`✅ Найдено: ${_preview.totalRows} записей, ${(_preview.files || []).length} файлов`);
+        _toast(_t('settings.admin.purge.found', '✅ Найдено: {rows} записей, {files} файлов', {
+            rows: _preview.totalRows,
+            files: (_preview.files || []).length
+        }));
     } catch (e) {
         console.error('[cloud-purge] scan', e);
         _preview = null;
-        _setStatus(`<div class="text-[10px] text-rose-600">Ошибка: ${_escapeHtml(e.message || e)}</div>`);
-        _toast('❌ Ошибка сканирования');
+        _setStatus('<div class="text-[10px] text-rose-600">' + _escapeHtml(_t('settings.admin.purge.error_prefix', 'Ошибка: {msg}', { msg: e.message || e })) + '</div>');
+        _toast(_t('settings.admin.purge.scan_error', '❌ Ошибка сканирования'));
     } finally {
         _setBusy(false);
         const runBtn = document.getElementById('cloud-deleted-purge-run');
@@ -627,43 +649,40 @@ async function _onScan() {
 
 async function _onPurge() {
     if (_busy) return;
-    if (!_isAdmin()) return _toast('⛔ Только администратор');
-    if (!_preview) return _toast('Сначала нажмите «Проверить»');
+    if (!_isAdmin()) return _toast(_t('settings.admin.purge.admin_only', '⛔ Только администратор'));
+    if (!_preview) return _toast(_t('settings.admin.purge.need_check_btn', 'Сначала нажмите «Проверить»'));
 
     const rows = _preview.totalRows || 0;
     const files = (_preview.files || []).length;
     const size = _formatBytes(_preview.estimatedBytes || _preview.knownBytes || 0);
-    const ok = confirm(
-        'Окончательно удалить из ОБЛАКА всё помеченное is_deleted?\n\n' +
-        `Записей: ${rows}\nФайлов в бакетах: ${files}\nОбъём ≈ ${size}\n` +
-        `Проект: ${_preview.projectCode}\n\n` +
-        'Живые данные (не удалённые) не трогаются.\nЭто необратимо.'
-    );
+    const ok = confirm(_t('settings.admin.purge.confirm1',
+        'Окончательно удалить из ОБЛАКА всё помеченное is_deleted?\n\nЗаписей: {rows}\nФайлов в бакетах: {files}\nОбъём ≈ {size}\nПроект: {code}\n\nЖивые данные (не удалённые) не трогаются.\nЭто необратимо.',
+        { rows: rows, files: files, size: size, code: _preview.projectCode }));
     if (!ok) return;
-    const ok2 = confirm('Подтвердите ещё раз: hard-delete soft-deleted в облаке?');
+    const ok2 = confirm(_t('settings.admin.purge.confirm2', 'Подтвердите ещё раз: hard-delete soft-deleted в облаке?'));
     if (!ok2) return;
 
     _setBusy(true);
-    _setStatus('<div class="text-[10px] text-rose-600 font-bold">Удаление из облака…</div>');
+    _setStatus('<div class="text-[10px] text-rose-600 font-bold">' + _escapeHtml(_t('settings.admin.purge.deleting', 'Удаление из облака…')) + '</div>');
     try {
         const result = await purgeCloudDeleted(_preview);
         _setStatus(`
             <div class="space-y-1 text-[11px]">
-                <div class="font-bold text-emerald-700 dark:text-emerald-300">Готово</div>
-                <div>Файлов удалено: ${result.storageRemoved} (ошибок: ${result.storageErrors})</div>
-                <div>Строк удалено: ${result.rowsDeleted} (ошибок: ${result.rowErrors})</div>
-                <div>Каскад фото/пунктов: ${result.cascadePhotos} / ${result.cascadeItems}</div>
-                <div>file_registry: ${result.registryDeleted}</div>
+                <div class="font-bold text-emerald-700 dark:text-emerald-300">${_escapeHtml(_t('settings.admin.purge.done', 'Готово'))}</div>
+                <div>${_escapeHtml(_t('settings.admin.purge.result_files', 'Файлов удалено: {removed} (ошибок: {errors})', { removed: result.storageRemoved, errors: result.storageErrors }))}</div>
+                <div>${_escapeHtml(_t('settings.admin.purge.result_rows', 'Строк удалено: {removed} (ошибок: {errors})', { removed: result.rowsDeleted, errors: result.rowErrors }))}</div>
+                <div>${_escapeHtml(_t('settings.admin.purge.result_cascade', 'Каскад фото/пунктов: {photos} / {items}', { photos: result.cascadePhotos, items: result.cascadeItems }))}</div>
+                <div>${_escapeHtml(_t('settings.admin.purge.result_registry', 'file_registry: {count}', { count: result.registryDeleted }))}</div>
             </div>
         `);
         _preview = null;
         const runBtn = document.getElementById('cloud-deleted-purge-run');
         if (runBtn) runBtn.disabled = true;
-        _toast('✅ Облако очищено от удалённых');
+        _toast(_t('settings.admin.purge.cleaned', '✅ Облако очищено от удалённых'));
     } catch (e) {
         console.error('[cloud-purge] purge', e);
-        _setStatus(`<div class="text-[10px] text-rose-600">Ошибка: ${_escapeHtml(e.message || e)}</div>`);
-        _toast('❌ Ошибка очистки облака');
+        _setStatus('<div class="text-[10px] text-rose-600">' + _escapeHtml(_t('settings.admin.purge.error_prefix', 'Ошибка: {msg}', { msg: e.message || e })) + '</div>');
+        _toast(_t('settings.admin.purge.purge_error', '❌ Ошибка очистки облака'));
     } finally {
         _setBusy(false);
     }
@@ -697,7 +716,7 @@ export function mountCloudDeletedPurgeUI() {
 
     _bindDelegation();
 
-    const keep = _preview ? _renderPreview(_preview) : '<div class="text-[10px] text-[var(--text-muted)]">Ещё не проверялось.</div>';
+    const keep = _preview ? _renderPreview(_preview) : _idleStatusHtml();
     const canPurge = !!(
         _preview &&
         (_preview.totalRows > 0 || (_preview.files && _preview.files.length))
@@ -706,22 +725,19 @@ export function mountCloudDeletedPurgeUI() {
     root.innerHTML = `
         <div class="space-y-3 p-4">
             <p class="text-[10px] text-[var(--text-muted)] leading-snug">
-                Собирает в облаке записи с <code class="font-mono">is_deleted = true</code>
-                (для текущего <code class="font-mono">project_code</code> где применимо),
-                считает файлы в бакетах и известный объём, затем окончательно удаляет
-                файлы и строки. Живые данные не затрагиваются.
+                ${_escapeHtml(_t('settings.admin.purge.intro', 'Собирает в облаке записи с is_deleted = true (для текущего project_code где применимо), считает файлы в бакетах и известный объём, затем окончательно удаляет файлы и строки. Живые данные не затрагиваются.'))}
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button id="cloud-deleted-purge-scan" type="button"
                     class="w-full px-3 py-2.5 rounded-xl text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 active:scale-95"
                     data-cloud-purge-action="scan">
-                    Проверить удалённые
+                    ${_escapeHtml(_t('settings.admin.purge.scan_btn', 'Проверить удалённые'))}
                 </button>
                 <button id="cloud-deleted-purge-run" type="button"
                     class="w-full px-3 py-2.5 rounded-xl text-[10px] font-black uppercase bg-rose-600 text-white shadow-sm active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                     data-cloud-purge-action="purge"
                     ${canPurge ? '' : 'disabled'}>
-                    Очистить облако
+                    ${_escapeHtml(_t('settings.admin.purge.run_btn', 'Очистить облако'))}
                 </button>
             </div>
             <div id="cloud-deleted-purge-status" class="min-h-[2rem]">${keep}</div>

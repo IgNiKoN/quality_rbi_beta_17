@@ -59,6 +59,14 @@ function closeModal() {
     const overlay = document.getElementById('modal-overlay');
     if (overlay) overlay.style.display = 'none';
     document.body.classList.remove('modal-open');
+    // History plan viewer: restore above-modal stacking after inspection detail closes
+    try {
+        const plan = document.getElementById('quality-plan-pin-overlay');
+        if (plan && plan.getAttribute('data-qpin-under-modal') === '1') {
+            plan.style.zIndex = '';
+            plan.removeAttribute('data-qpin-under-modal');
+        }
+    } catch (_e) { /* ignore */ }
 }
 
 window.showToast = showToast;

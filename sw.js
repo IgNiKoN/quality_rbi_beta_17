@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.58.0';
-const SW_VERSION = '18.58.23';
+const SW_VERSION = '18.58.43';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -122,6 +122,11 @@ const urlsToCache = [
 
   // Фаза 8 — Settings
   './js/services/settings.service.js',
+  // i18n v1 — каркас локализации оболочки
+  './js/services/i18n.service.js',
+  './locales/ru.json',
+  './locales/en.json',
+  './locales/sr-Latn.json',
   './js/services/app-mode.service.js',
   './js/services/company.service.js',
   './js/services/user-context.service.js',
@@ -291,6 +296,12 @@ const urlsToCache = [
   './fonts/Inter-Bold.woff2',
   './fonts/Inter-ExtraBold.woff2',
   './fonts/Inter-Black.woff2',
+
+  // Шрифты IBM Plex Sans (темы rbi-*-v3)
+  './fonts/IBMPlexSans-Regular.woff2',
+  './fonts/IBMPlexSans-Medium.woff2',
+  './fonts/IBMPlexSans-SemiBold.woff2',
+  './fonts/IBMPlexSans-Bold.woff2',
 
   // Шрифты Playfair Display (PDF – заголовки)
   './fonts/PlayfairDisplay-Regular.woff2',

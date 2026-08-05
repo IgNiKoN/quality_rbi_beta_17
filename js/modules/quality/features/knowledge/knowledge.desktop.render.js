@@ -7,7 +7,8 @@
 import {
   paintChecklistsChrome,
   clearChecklistsDesktopArtifacts,
-  remountChecklistsItems
+  remountChecklistsItems,
+  selectChecklist
 } from './knowledge.desktop.checklists.js';
 import {
   paintDocsChrome,
@@ -660,5 +661,6 @@ window.__knowledgeDesktop = {
   teardown: teardownKnowledgeDesktop,
   sync: syncKnowledgeDesktop,
   afterSubPaint: afterSubPaint,
-  remountPractices: remountPracticesList
+  remountPractices: remountPracticesList,
+  selectChecklist: selectChecklist
 };

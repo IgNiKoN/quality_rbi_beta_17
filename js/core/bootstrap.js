@@ -60,6 +60,27 @@ window.setSyncStatus = function (record, status, reason = '') {
 
 document.addEventListener("DOMContentLoaded", async () => {
     try {
+        // i18n v1 — словари + applyDom до первого рендера chrome
+        var i18nEarly = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18nEarly && typeof i18nEarly.init === 'function') {
+            try { await i18nEarly.init(); } catch (e) { console.warn('[bootstrap] i18n.init failed', e); }
+        }
+        if (i18nEarly && typeof i18nEarly.applyDom === 'function') {
+            try { i18nEarly.applyDom(document); } catch (e) { /* ignore */ }
+        }
+        // Notify listeners (desk chrome) that catalogs are ready — even if locale unchanged.
+        try {
+            if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') {
+                var locEarly = i18nEarly && typeof i18nEarly.getLocale === 'function'
+                    ? i18nEarly.getLocale() : null;
+                window.RBI.events.emit('i18n:localeChanged', { locale: locEarly });
+            }
+        } catch (eEmit) { /* ignore */ }
+        if (window.RBI && window.RBI.services && window.RBI.services.shell &&
+            typeof window.RBI.services.shell.renderSidebar === 'function') {
+            try { window.RBI.services.shell.renderSidebar(); } catch (e) { /* ignore */ }
+        }
+
         if (window.RBI && window.RBI.services && window.RBI.services.shell && window.RBI.services.shell.shouldShowAuthGate()) {
             window.RBI.services.shell.showAuthGate();
         }
@@ -72,12 +93,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         // -------------------------------------------------------------------
         
-        // Мгновенное сохранение черновика при сворачивании браузера / переключении вкладок
+        // Мгновенное сохранение черновика + purge открытого PDF (не держать preview в RAM в фоне)
+        function rbiPurgeOpenPdfOnBackground() {
+            var sheetOpen = typeof window.rbiIsPdfDocumentSheetOpen === 'function'
+                ? window.rbiIsPdfDocumentSheetOpen()
+                : (function () {
+                    var m = document.getElementById('rbi-pdf-open-sheet');
+                    return !!(m && !m.classList.contains('hidden'));
+                })();
+            if (sheetOpen && typeof window.rbiClosePdfDocumentSheet === 'function') {
+                window.rbiClosePdfDocumentSheet();
+            }
+            // Legacy TWI PDF.js doc (если ещё жив) — тот же полный purge (внутри также закрывает sheet).
+            if (window._rbiActivePdfDoc && typeof window._rbiDestroyActivePdfDoc === 'function') {
+                Promise.resolve(window._rbiDestroyActivePdfDoc()).catch(function () { /* ignore */ });
+            }
+        }
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 if (typeof saveSessionData === 'function') window.saveSessionData();
+                rbiPurgeOpenPdfOnBackground();
             }
         });
+        window.addEventListener('pagehide', rbiPurgeOpenPdfOnBackground);
 
         // -------------------------------------------------------------------
         // Запускаем облако до загрузки остальных настроек
@@ -97,6 +135,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await loadSettings();
         applySettingsToUI();
+
+        // После init AppMode / renderBottomNav — снова применить i18n к chrome
+        var i18nLate = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18nLate && typeof i18nLate.applyDom === 'function') {
+            try { i18nLate.applyDom(document); } catch (e) { /* ignore */ }
+        }
+        if (window.RBI && window.RBI.services && window.RBI.services.shell &&
+            typeof window.RBI.services.shell.renderSidebar === 'function') {
+            try { window.RBI.services.shell.renderSidebar(); } catch (e) { /* ignore */ }
+        }
 
         // РАДАР ВЫСОТЫ ШАПКИ
         const headerEl = document.getElementById('main-header');

@@ -24,7 +24,7 @@ function renderReferenceMarkup() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
                             </path>
-                        </svg>Ч/л
+                        </svg><span data-i18n="quality.sub.reference.checklists">Ч/л</span>
                     </button>
                     <button data-reference-action="switchReferenceSubTab" data-action-arg="ref-sub-docs" data-reference-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -32,7 +32,7 @@ function renderReferenceMarkup() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                             </path>
-                        </svg>НД
+                        </svg><span data-i18n="quality.sub.reference.docs">НД</span>
                     </button>
                     <button data-reference-action="switchReferenceSubTab" data-action-arg="ref-sub-twi" data-reference-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -40,7 +40,7 @@ function renderReferenceMarkup() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
                             </path>
-                        </svg>TWI
+                        </svg><span data-i18n="quality.sub.reference.twi">TWI</span>
                     </button>
                     <button data-reference-action="switchReferenceSubTab" data-action-arg="ref-sub-nodes" data-reference-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -48,7 +48,7 @@ function renderReferenceMarkup() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                             </path>
-                        </svg>Узлы
+                        </svg><span data-i18n="quality.sub.reference.nodes">Узлы</span>
                     </button>
                     <button data-reference-action="switchReferenceSubTab" data-action-arg="ref-sub-practices" data-reference-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -56,7 +56,7 @@ function renderReferenceMarkup() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z">
                             </path>
-                        </svg>Практики
+                        </svg><span data-i18n="quality.sub.reference.practices">Практики</span>
                     </button>
                 </div>
             </div>
@@ -1289,6 +1289,72 @@ function switchReferenceSubTab(tabId, btnElement, opts) {
     }
 }
 window.switchReferenceSubTab = switchReferenceSubTab;
+
+/**
+ * Открыть связанный чек-лист внутри Базы знаний (не на вкладке Осмотр).
+ * @param {string} checklistKey — значение как в #ref-checklist-selector (sys_* / user_*)
+ */
+function openKnowledgeLinkedChecklist(checklistKey) {
+    if (!checklistKey || String(checklistKey).includes('|')) return;
+    var key = String(checklistKey);
+
+    if (typeof window.switchTab === 'function') {
+        var refTab = document.getElementById('tab-reference');
+        var onRef = refTab && !refTab.classList.contains('hidden');
+        if (!onRef) window.switchTab('tab-reference');
+    }
+
+    if (typeof window.switchReferenceSubTab === 'function') {
+        window.switchReferenceSubTab('ref-sub-checklists');
+    }
+
+    var apply = function () {
+        var desk = window.__knowledgeDesktop;
+        if (desk && typeof desk.selectChecklist === 'function') {
+            desk.selectChecklist(key);
+            return;
+        }
+
+        var refSelect = document.getElementById('ref-checklist-selector');
+        if (!refSelect) return;
+
+        var has = false;
+        for (var i = 0; i < refSelect.options.length; i++) {
+            if (refSelect.options[i].value === key) {
+                has = true;
+                break;
+            }
+        }
+        if (!has) {
+            var type = key.split('_')[0];
+            var slug = key.replace(type + '_', '');
+            var title = key;
+            if (type === 'sys' && window.SYSTEM_TEMPLATES && window.SYSTEM_TEMPLATES[slug]) {
+                title = window.SYSTEM_TEMPLATES[slug].title || slug;
+            } else if (type === 'user' && window.userTemplates && window.userTemplates[slug]) {
+                title = window.userTemplates[slug].title || slug;
+            }
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = title;
+            var group = document.getElementById(
+                type === 'user' ? 'ref-user-group' : 'ref-system-group'
+            );
+            if (group) group.appendChild(opt);
+            else refSelect.appendChild(opt);
+        }
+
+        refSelect.value = key;
+        if (typeof window.changeRefTemplate === 'function') {
+            window.changeRefTemplate(refSelect);
+        } else if (typeof window.renderReferenceTab === 'function') {
+            window.renderReferenceTab();
+        }
+    };
+
+    setTimeout(apply, 80);
+}
+window.openKnowledgeLinkedChecklist = openKnowledgeLinkedChecklist;
 
 // === СВОРАЧИВАЕМЫЕ ПАНЕЛИ ФИЛЬТРОВ ===
 // Режим: autoCollapseFilters = 'auto' | 'manual' (настройки интерфейса).

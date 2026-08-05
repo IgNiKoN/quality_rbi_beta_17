@@ -401,7 +401,14 @@ function ensureAnalyticsMarkup() {
     if (!tab) {
         if (!root) return false;
         root.insertAdjacentHTML('beforeend', html);
-        return !!document.getElementById('tab-analytics');
+        var mounted = document.getElementById('tab-analytics');
+        if (mounted) {
+            try {
+                var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+                if (i18n && typeof i18n.applyDom === 'function') i18n.applyDom(mounted);
+            } catch (_) { /* ignore */ }
+        }
+        return !!mounted;
     }
 
     var tmp = document.createElement('div');
@@ -409,6 +416,10 @@ function ensureAnalyticsMarkup() {
     var fresh = tmp.firstElementChild;
     if (!fresh) return false;
     tab.innerHTML = fresh.innerHTML;
+    try {
+        var i18n2 = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n2 && typeof i18n2.applyDom === 'function') i18n2.applyDom(tab);
+    } catch (_) { /* ignore */ }
     return !!tab.querySelector('#analytics-subtabs-block');
 }
 window.ensureAnalyticsMarkup = ensureAnalyticsMarkup;
@@ -894,7 +905,7 @@ export const AnalyticsRender = {
                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
                             </path>
                         </svg>
-                        <span class="sm:hidden">Подр.</span><span class="hidden sm:inline">Подрядчики</span>
+                        <span class="sm:hidden" data-i18n="quality.sub.analytics.contractors_short">Подр.</span><span class="hidden sm:inline" data-i18n="quality.sub.analytics.contractors">Подрядчики</span>
                     </button>
                     <button data-analytics-action="switchAnalyticsSubTab" data-action-arg="sub-onepager" data-analytics-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -903,7 +914,7 @@ export const AnalyticsRender = {
                                 d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                             </path>
                         </svg>
-                        Сводка
+                        <span data-i18n="quality.sub.analytics.summary">Сводка</span>
                     </button>
                     <button data-analytics-action="switchAnalyticsSubTab" data-action-arg="sub-schedule" data-analytics-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -912,7 +923,7 @@ export const AnalyticsRender = {
                                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
                             </path>
                         </svg>
-                        График
+                        <span data-i18n="quality.sub.analytics.schedule">График</span>
                     </button>
                     <button data-analytics-action="switchAnalyticsSubTab" data-action-arg="sub-sk" data-analytics-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -921,7 +932,7 @@ export const AnalyticsRender = {
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                             </path>
                         </svg>
-                        <span class="sm:hidden">СК</span><span class="hidden sm:inline">ПК СК</span>
+                        <span class="sm:hidden" data-i18n="quality.sub.analytics.sk_short">СК</span><span class="hidden sm:inline" data-i18n="quality.sub.analytics.sk">ПК СК</span>
                     </button>
                     <button data-analytics-action="switchAnalyticsSubTab" data-action-arg="sub-history" data-analytics-action-arg2-type="element"
                         class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
@@ -929,7 +940,7 @@ export const AnalyticsRender = {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        История
+                        <span data-i18n="quality.sub.analytics.history">История</span>
                     </button>
 
                 </div>

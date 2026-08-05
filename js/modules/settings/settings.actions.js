@@ -15,7 +15,12 @@
 
     // ─── Вспомогательные константы ───────────────────────────────────────────
 
-    var RBI_ALLOWED_THEMES_LOCAL = ['auto', 'light', 'dark', 'rbi-light', 'rbi-dark', 'rbi-light-v2', 'rbi-dark-v2'];
+    var RBI_ALLOWED_THEMES_LOCAL = [
+        'auto', 'light', 'dark',
+        'rbi-light', 'rbi-dark',
+        'rbi-light-v2', 'rbi-dark-v2', 'rbi-auto-v2',
+        'rbi-light-v3', 'rbi-dark-v3', 'rbi-auto-v3'
+    ];
 
     // ─── Вспомогательные функции изоляции ────────────────────────────────────
 
@@ -163,6 +168,14 @@
         }
     }
 
+    /** i18n v1 — язык UI только localStorage, не в sync'd appSettings */
+    function _setAppLocale(code) {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.setLocale === 'function') {
+            i18n.setLocale(code);
+        }
+    }
+
     function _resetSettingsToDefault() {
         if (!confirm('Сбросить все настройки к значениям по умолчанию?')) return;
 
@@ -211,7 +224,13 @@
             document.body.classList.remove('modal-open');
         }, 100);
 
-        if (typeof window.showToast === 'function') window.showToast('Настройки сброшены!');
+        if (typeof window.showToast === 'function') {
+            var i18nToast = window.RBI && window.RBI.services && window.RBI.services.i18n;
+            var resetMsg = (i18nToast && typeof i18nToast.t === 'function')
+                ? i18nToast.t('toast.settingsReset')
+                : 'Настройки сброшены!';
+            window.showToast(resetMsg);
+        }
     }
 
     /** Scope: all | days30 | knowledge | reports → downloadMissingCloudFiles(false, scope) */
@@ -573,6 +592,7 @@
         saveSettings: _saveSettings,
         renderSettingsTab: function () { if (typeof window.renderSettingsTab === 'function') return window.renderSettingsTab(); },
         toggleSetting: _toggleSetting,
+        setAppLocale: _setAppLocale,
         resetSettingsToDefault: _resetSettingsToDefault,
         applySettingsToUI: function () { if (typeof window.applySettingsToUI === 'function') return window.applySettingsToUI(); },
         clearPdfCache: _clearPdfCache,

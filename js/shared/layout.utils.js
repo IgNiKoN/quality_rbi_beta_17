@@ -147,7 +147,14 @@ window.rbiEnsureTabMarkup = function (tabId, markupHtml, markerSelector) {
         if (!root) return false;
         root.insertAdjacentHTML('beforeend', html);
         tab = document.getElementById(tabId);
-        return !!(tab && (!markerSelector || tab.querySelector(markerSelector)));
+        var okNew = !!(tab && (!markerSelector || tab.querySelector(markerSelector)));
+        if (okNew) {
+            try {
+                var i18nNew = window.RBI && window.RBI.services && window.RBI.services.i18n;
+                if (i18nNew && typeof i18nNew.applyDom === 'function') i18nNew.applyDom(tab);
+            } catch (_) { /* ignore */ }
+        }
+        return okNew;
     }
 
     var tmp = document.createElement('div');
@@ -155,7 +162,14 @@ window.rbiEnsureTabMarkup = function (tabId, markupHtml, markerSelector) {
     var fresh = tmp.querySelector('#' + tabId) || tmp.firstElementChild;
     if (!fresh) return false;
     tab.innerHTML = fresh.innerHTML;
-    return !!(markerSelector ? tab.querySelector(markerSelector) : tab.innerHTML.trim().length > 0);
+    var ok = !!(markerSelector ? tab.querySelector(markerSelector) : tab.innerHTML.trim().length > 0);
+    if (ok) {
+        try {
+            var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+            if (i18n && typeof i18n.applyDom === 'function') i18n.applyDom(tab);
+        } catch (_) { /* ignore */ }
+    }
+    return ok;
 };
 
 /** Flush черновиков + очистка view-section (общий route-teardown). */
