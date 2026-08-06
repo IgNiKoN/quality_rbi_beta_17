@@ -7,6 +7,23 @@
 import { collectFloorPinMarkers } from '../../shared/plan-pin-label.js';
 
 let _mounted = false;
+let _planPinI18nBound = false;
+
+function _t(key, fallback, vars) {
+  try {
+    const i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_) { /* ignore */ }
+  if (vars && typeof fallback === 'string') {
+    return fallback.replace(/\{(\w+)\}/g, function (_, name) {
+      return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+    });
+  }
+  return fallback;
+}
 
 function _locations() {
   const rbi = window.RBI;
@@ -16,6 +33,114 @@ function _locations() {
 function _toast(msg) {
   const fn = window['showToast'];
   if (typeof fn === 'function') fn(msg);
+}
+
+function _planFooterHint(readOnly, mountEl, hasPin) {
+  if (readOnly) {
+    if (mountEl) {
+      return _t(
+        'quality.audit.plan.hint_view_fs',
+        'Колёсико — прокрутка · Ctrl/⌘+колёсико или ± — зум · точка открывает проверку'
+      );
+    }
+    return _t(
+      'quality.audit.plan.hint_view',
+      'Нажмите на точку, чтобы открыть проверку · Ctrl/⌘+колёсико или ± — зум'
+    );
+  }
+  if (hasPin) {
+    return _t('quality.audit.plan.hint_move', 'Перетащите точку или нажмите новое место');
+  }
+  return _t(
+    'quality.audit.plan.hint_place',
+    'Нажмите на план, чтобы поставить точку · pinch / ± для масштаба'
+  );
+}
+
+function _stepLabelText(step) {
+  if (step === 'building') return _t('quality.audit.plan.step_building', 'Корпус');
+  if (step === 'section') return _t('quality.audit.plan.step_section', 'Секция');
+  if (step === 'floor') return _t('quality.audit.plan.step_floor', 'Этаж');
+  return _t('quality.audit.plan.step_object', 'Объект');
+}
+
+function _refreshOpenPlanPinI18n() {
+  const overlay = document.getElementById('quality-plan-pin-overlay');
+  if (!overlay) return;
+
+  if (overlay.getAttribute('data-qpin-mode') === 'picker') {
+    const step = overlay.getAttribute('data-qpin-step') || 'object';
+    const stepLabel = overlay.querySelector('[data-qpin-step-label]');
+    if (stepLabel) stepLabel.textContent = _stepLabelText(step);
+    const pickTitle = overlay.querySelector('[data-qpin-pick-title]');
+    if (pickTitle) {
+      pickTitle.textContent = _t('quality.audit.plan.pick_floor_title', 'Выбор этажа для плана');
+    }
+    const emptyEl = overlay.querySelector('[data-qpin-empty-key]');
+    if (emptyEl) {
+      const ek = emptyEl.getAttribute('data-qpin-empty-key');
+      const emptyMap = {
+        floors: ['quality.audit.plan.empty_floors', 'Нет этажей'],
+        sections: ['quality.audit.plan.empty_sections', 'Нет секций'],
+        buildings: ['quality.audit.plan.empty_buildings', 'Нет корпусов'],
+        objects: ['quality.audit.plan.empty_objects', 'Нет объектов в справочнике']
+      };
+      const pair = emptyMap[ek];
+      if (pair) emptyEl.textContent = _t(pair[0], pair[1]);
+    }
+    return;
+  }
+
+  const readOnly = overlay.getAttribute('data-qpin-readonly') === '1';
+  const mountEl = overlay.getAttribute('data-qpin-inline') === '1';
+  const hasPin = overlay.getAttribute('data-qpin-has-temp') === '1';
+
+  const titleEl = overlay.querySelector('[data-qpin-title]');
+  if (titleEl) {
+    titleEl.textContent = readOnly
+      ? _t('quality.audit.plan.title_history', 'План этажа (история)')
+      : _t('quality.audit.plan.title_edit', 'Точка на плане этажа');
+  }
+
+  const filterType = overlay.querySelector('[data-qpin-filter-type]');
+  if (filterType) filterType.textContent = _t('quality.audit.plan.filter_type', 'Вид');
+  const filterContr = overlay.querySelector('[data-qpin-filter-contractor]');
+  if (filterContr) filterContr.textContent = _t('quality.audit.plan.filter_contractor', 'Подр.');
+  overlay.querySelectorAll('[data-qpin-chip="__all__"], [data-qpin-cchip="__all__"]').forEach(function (btn) {
+    btn.textContent = _t('quality.audit.plan.filter_all', 'Все');
+  });
+
+  const confirmBtn = overlay.querySelector('[data-qpin-confirm]');
+  if (confirmBtn) confirmBtn.textContent = _t('quality.audit.plan.confirm', 'Подтвердить');
+  const otherFloor = overlay.querySelector('[data-qpin-other-floor]');
+  if (otherFloor) otherFloor.textContent = _t('quality.audit.plan.other_floor', 'Другой этаж');
+  const cancelBtn = overlay.querySelector('[data-qpin-cancel]');
+  if (cancelBtn) {
+    cancelBtn.textContent = readOnly
+      ? _t('quality.audit.plan.close', 'Закрыть')
+      : _t('quality.audit.plan.cancel', 'Отмена');
+  }
+  const fsBtn = overlay.querySelector('[data-qpin-fullscreen]');
+  if (fsBtn) {
+    const fsLabel = _t('quality.audit.plan.fullscreen', 'На весь экран');
+    fsBtn.setAttribute('title', fsLabel);
+    fsBtn.setAttribute('aria-label', fsLabel);
+  }
+  const loader = overlay.querySelector('[data-qpin-loader]');
+  if (loader) loader.textContent = _t('quality.audit.plan.loading', 'Загрузка плана…');
+  const footer = overlay.querySelector('[data-qpin-footer]');
+  if (footer) footer.textContent = _planFooterHint(readOnly, mountEl, hasPin);
+}
+
+function _bindPlanPinI18n() {
+  if (_planPinI18nBound) return;
+  _planPinI18nBound = true;
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try { _refreshOpenPlanPinI18n(); } catch (_) { /* ignore */ }
+      try { updatePinIndicator(); } catch (_) { /* ignore */ }
+    });
+  }
 }
 
 function _pdfjs() {
@@ -228,10 +353,10 @@ export function updatePinIndicator() {
   }
   if (room) {
     if (pin) {
-      room.placeholder = 'Оси/Пом. (опц.)';
+      room.placeholder = _t('quality.audit.field.room_optional', 'Оси/Пом. (опц.)');
       room.removeAttribute('required');
     } else {
-      room.placeholder = 'Оси/Пом.*';
+      room.placeholder = _t('quality.audit.field.room_required', 'Оси/Пом.*');
     }
   }
 }
@@ -329,7 +454,7 @@ function _templateLabel(templateKey) {
     const ut = window.userTemplates;
     if (ut && ut[key] && ut[key].title) return String(ut[key].title);
   } catch (_e2) { /* ignore */ }
-  return key || 'Вид работ';
+  return key || _t('quality.audit.plan.work_type_fallback', 'Вид работ');
 }
 
 function _getAllInspections() {
@@ -348,9 +473,10 @@ function _collectFloorPins(floorId) {
 }
 
 function _showPicker(onPickFloor) {
+  _bindPlanPinI18n();
   const loc = _locations();
   if (!loc) {
-    _toast('⚠️ Справочник локаций недоступен');
+    _toast(_t('quality.audit.plan.locations_unavailable', '⚠️ Справочник локаций недоступен'));
     return;
   }
   _removeOverlay();
@@ -374,12 +500,14 @@ function _showPicker(onPickFloor) {
   const overlay = document.createElement('div');
   overlay.id = 'quality-plan-pin-overlay';
   overlay.className = 'fixed inset-0 z-[12000] bg-black/50 flex items-end sm:items-center justify-center p-3';
+  overlay.setAttribute('data-qpin-mode', 'picker');
+  overlay.setAttribute('data-qpin-step', step);
   overlay.innerHTML = `
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700">
       <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <div class="text-[11px] font-black uppercase tracking-widest text-slate-500" data-qpin-step-label>Объект</div>
-          <div class="text-sm font-bold text-slate-800 dark:text-slate-100">Выбор этажа для плана</div>
+          <div class="text-[11px] font-black uppercase tracking-widest text-slate-500" data-qpin-step-label>${_escape(_stepLabelText(step))}</div>
+          <div class="text-sm font-bold text-slate-800 dark:text-slate-100" data-qpin-pick-title>${_escape(_t('quality.audit.plan.pick_floor_title', 'Выбор этажа для плана'))}</div>
         </div>
         <button type="button" data-qpin-cancel class="text-slate-400 hover:text-slate-700 text-xl leading-none px-2">×</button>
       </div>
@@ -390,6 +518,12 @@ function _showPicker(onPickFloor) {
   const listEl = overlay.querySelector('[data-qpin-list]');
   const stepLabel = overlay.querySelector('[data-qpin-step-label]');
 
+  const setStep = function (next) {
+    step = next;
+    overlay.setAttribute('data-qpin-step', step);
+    if (stepLabel) stepLabel.textContent = _stepLabelText(step);
+  };
+
   const close = function () { _removeOverlay(); };
   overlay.querySelector('[data-qpin-cancel]').addEventListener('click', close);
   overlay.addEventListener('click', function (e) {
@@ -398,9 +532,8 @@ function _showPicker(onPickFloor) {
 
   const showFloorsForSection = function (sid) {
     sectionId = sid;
-    step = 'floor';
-    stepLabel.textContent = 'Этаж';
-    renderList(_floorsUnderSection(loc, sectionId), 'Нет этажей');
+    setStep('floor');
+    renderList(_floorsUnderSection(loc, sectionId), 'floors');
   };
 
   /** After корпус: always offer секции when they exist; else flat floors. */
@@ -408,19 +541,25 @@ function _showPicker(onPickFloor) {
     buildingId = bid;
     const sections = _sectionsUnderBuilding(loc, buildingId);
     if (sections.length === 0) {
-      step = 'floor';
-      stepLabel.textContent = 'Этаж';
-      renderList(_floorsUnderBuilding(loc, buildingId), 'Нет этажей');
+      setStep('floor');
+      renderList(_floorsUnderBuilding(loc, buildingId), 'floors');
       return;
     }
-    step = 'section';
-    stepLabel.textContent = 'Секция';
-    renderList(sections, 'Нет секций');
+    setStep('section');
+    renderList(sections, 'sections');
   };
 
-  const renderList = function (items, emptyMsg) {
+  const emptyPair = function (emptyKey) {
+    if (emptyKey === 'floors') return [_t('quality.audit.plan.empty_floors', 'Нет этажей'), 'floors'];
+    if (emptyKey === 'sections') return [_t('quality.audit.plan.empty_sections', 'Нет секций'), 'sections'];
+    if (emptyKey === 'buildings') return [_t('quality.audit.plan.empty_buildings', 'Нет корпусов'), 'buildings'];
+    return [_t('quality.audit.plan.empty_objects', 'Нет объектов в справочнике'), 'objects'];
+  };
+
+  const renderList = function (items, emptyKey) {
     if (!items.length) {
-      listEl.innerHTML = `<div class="p-4 text-center text-[11px] text-slate-400 font-bold uppercase">${_escape(emptyMsg)}</div>`;
+      const pair = emptyPair(emptyKey);
+      listEl.innerHTML = `<div class="p-4 text-center text-[11px] text-slate-400 font-bold uppercase" data-qpin-empty-key="${pair[1]}">${_escape(pair[0])}</div>`;
       return;
     }
     listEl.innerHTML = items.map(function (it) {
@@ -435,11 +574,10 @@ function _showPicker(onPickFloor) {
         const id = btn.getAttribute('data-qpin-id');
         if (step === 'object') {
           objectId = id;
-          step = 'building';
-          stepLabel.textContent = 'Корпус';
+          setStep('building');
           renderList(
             (loc.getChildren(objectId) || []).filter(function (n) { return !n.nodeType || n.nodeType === 'building'; }),
-            'Нет корпусов'
+            'buildings'
           );
         } else if (step === 'building') {
           afterBuilding(id);
@@ -454,13 +592,13 @@ function _showPicker(onPickFloor) {
   };
 
   if (step === 'building' && objectId) {
-    stepLabel.textContent = 'Корпус';
+    setStep('building');
     renderList(
       (loc.getChildren(objectId) || []).filter(function (n) { return !n.nodeType || n.nodeType === 'building'; }),
-      'Нет корпусов'
+      'buildings'
     );
   } else {
-    renderList(loc.listNodes({ nodeType: 'object', parentId: null }) || [], 'Нет объектов в справочнике');
+    renderList(loc.listNodes({ nodeType: 'object', parentId: null }) || [], 'objects');
   }
 }
 
@@ -469,20 +607,21 @@ async function _openPlanViewer(floorId, viewerOpts) {
   const readOnly = !!viewerOpts.readOnly;
   const filterItems = Array.isArray(viewerOpts.items) ? viewerOpts.items : null;
   const mountEl = viewerOpts.mountEl || null;
+  _bindPlanPinI18n();
 
   const loc = _locations();
   if (!loc) {
-    _toast('⚠️ Справочник локаций недоступен');
+    _toast(_t('quality.audit.plan.locations_unavailable', '⚠️ Справочник локаций недоступен'));
     return;
   }
   const plan = loc.getPlanForFloor(floorId);
   if (!plan || !plan.pdf_url) {
-    _toast('⚠️ У этажа нет PDF-плана. Загрузите план в Настройках.');
+    _toast(_t('quality.audit.plan.no_pdf_settings', '⚠️ У этажа нет PDF-плана. Загрузите план в Настройках.'));
     return;
   }
   const pdfjs = _pdfjs();
   if (!pdfjs || typeof pdfjs.getDocument !== 'function') {
-    _toast('⚠️ PDF-библиотека недоступна');
+    _toast(_t('quality.audit.plan.pdfjs_missing', '⚠️ PDF-библиотека недоступна'));
     return;
   }
 
@@ -540,12 +679,13 @@ async function _openPlanViewer(floorId, viewerOpts) {
   const PZ_PINCH_STEP = (pp && pp.PINCH_STEP) || 0.5;
   const PZ_BTN_STEP = (pp && pp.BTN_STEP) || 0.28;
 
+  const filterAllLabel = _t('quality.audit.plan.filter_all', 'Все');
   const chipsHtml = allKeys.length
     ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips>
-        ${readOnly ? '<span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5">Вид</span>' : ''}
+        ${readOnly ? '<span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-type>' + _escape(_t('quality.audit.plan.filter_type', 'Вид')) + '</span>' : ''}
         <button type="button" data-qpin-chip="__all__"
           class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
-                 bg-indigo-500 text-white border border-indigo-400">Все</button>
+                 bg-indigo-500 text-white border border-indigo-400">${_escape(filterAllLabel)}</button>
         ${allKeys.map(function (k) {
           const col = _colorForTemplate(k);
           return `<button type="button" data-qpin-chip="${_escape(k)}"
@@ -558,10 +698,10 @@ async function _openPlanViewer(floorId, viewerOpts) {
 
   const contractorChipsHtml = (readOnly && allContractors.length)
     ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips-contractor>
-        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5">Подр.</span>
+        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-contractor>${_escape(_t('quality.audit.plan.filter_contractor', 'Подр.'))}</span>
         <button type="button" data-qpin-cchip="__all__"
           class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
-                 bg-indigo-500 text-white border border-indigo-400">Все</button>
+                 bg-indigo-500 text-white border border-indigo-400">${_escape(filterAllLabel)}</button>
         ${allContractors.map(function (c) {
           return `<button type="button" data-qpin-cchip="${_escape(c)}"
             class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
@@ -571,29 +711,29 @@ async function _openPlanViewer(floorId, viewerOpts) {
       </div>`
     : '';
 
-  const titleText = readOnly ? 'План этажа (история)' : 'Точка на плане этажа';
-  const footerText = readOnly
-    ? (mountEl
-      ? 'Колёсико — прокрутка · Ctrl/⌘+колёсико или ± — зум · точка открывает проверку'
-      : 'Нажмите на точку, чтобы открыть проверку · Ctrl/⌘+колёсико или ± — зум')
-    : 'Нажмите на план, чтобы поставить точку · pinch / ± для масштаба';
+  const titleText = readOnly
+    ? _t('quality.audit.plan.title_history', 'План этажа (история)')
+    : _t('quality.audit.plan.title_edit', 'Точка на плане этажа');
+  const hasTempPin = tempX != null && tempY != null;
+  const footerText = _planFooterHint(readOnly, !!mountEl, hasTempPin);
   const confirmHtml = readOnly
     ? ''
     : `<button type="button" data-qpin-confirm
           class="panzoom-exclude px-3 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
-          ${tempX == null ? 'disabled' : ''}>Подтвердить</button>`;
+          ${tempX == null ? 'disabled' : ''}>${_escape(_t('quality.audit.plan.confirm', 'Подтвердить'))}</button>`;
 
+  const fsLabel = _t('quality.audit.plan.fullscreen', 'На весь экран');
   const trailingActionHtml = mountEl
     ? `<button type="button" data-qpin-fullscreen
           class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-white inline-flex items-center justify-center hover:bg-slate-600"
-          title="На весь экран" aria-label="На весь экран">
+          title="${_escape(fsLabel)}" aria-label="${_escape(fsLabel)}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
           <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
         </svg>
       </button>`
     : `<button type="button" data-qpin-cancel
-          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${readOnly ? 'Закрыть' : 'Отмена'}</button>`;
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${_escape(readOnly ? _t('quality.audit.plan.close', 'Закрыть') : _t('quality.audit.plan.cancel', 'Отмена'))}</button>`;
 
   const overlay = document.createElement('div');
   overlay.id = 'quality-plan-pin-overlay';
@@ -603,14 +743,17 @@ async function _openPlanViewer(floorId, viewerOpts) {
   } else {
     overlay.className = 'fixed inset-0 z-[12000] bg-slate-900 flex flex-col';
   }
+  overlay.setAttribute('data-qpin-mode', 'viewer');
   overlay.setAttribute('data-qpin-floor', String(floorId));
+  if (readOnly) overlay.setAttribute('data-qpin-readonly', '1');
+  if (hasTempPin) overlay.setAttribute('data-qpin-has-temp', '1');
   overlay.innerHTML = `
     <div data-qpin-chrome class="shrink-0">
       <div data-qpin-toolbar class="flex items-center justify-between px-3 py-2 text-white gap-2">
-        <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate">${_escape(titleText)}</div>
+        <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate" data-qpin-title>${_escape(titleText)}</div>
         <div class="flex gap-1.5 items-center shrink-0">
           ${mountEl ? '' : `<button type="button" data-qpin-other-floor
-            class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">Другой этаж</button>`}
+            class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">${_escape(_t('quality.audit.plan.other_floor', 'Другой этаж'))}</button>`}
           <button type="button" data-qpin-zoom-out
             class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">−</button>
           <button type="button" data-qpin-zoom-in
@@ -630,7 +773,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
         </div>
       </div>
       <div data-qpin-loader class="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-[11px] font-bold uppercase tracking-widest text-slate-300">
-        Загрузка плана…
+        ${_escape(_t('quality.audit.plan.loading', 'Загрузка плана…'))}
       </div>
     </div>
     <div data-qpin-footer class="px-3 py-2 text-[10px] text-slate-300 shrink-0">${_escape(footerText)}</div>`;
@@ -763,7 +906,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
         class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
                z-30 pointer-events-auto panzoom-exclude"
         style="left:${avgX}%;top:${avgY}%;background:${grad};padding:3px;transform:${PIN_TF};transition:transform 150ms ease;cursor:pointer"
-        title="Проверок: ${total}">
+        title="${_escape(_t('quality.audit.plan.checks_count', 'Проверок: {total}', { total: total }))}">
         <div class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
                     text-[12px] font-black border border-slate-200 pointer-events-none">${total}</div>
       </div>`;
@@ -791,7 +934,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
         ev.stopPropagation();
         if (!_isTapNotGesture()) return;
         const n = el.getAttribute('data-qpin-cluster') || '?';
-        _toast('Приблизьте план, чтобы увидеть ' + n + ' проверок');
+        _toast(_t('quality.audit.plan.zoom_for_checks', 'Приблизьте план, чтобы увидеть {n} проверок', { n: n }));
       });
     });
     if (readOnly) {
@@ -822,7 +965,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
       document.dispatchEvent(new CustomEvent('quality:planPin:changed', {
         detail: { planPin: _getPin() }
       }));
-      _toast('✅ Точка на плане сохранена');
+      _toast(_t('quality.audit.plan.pin_saved', '✅ Точка на плане сохранена'));
       close();
     });
   }
@@ -955,6 +1098,9 @@ async function _openPlanViewer(floorId, viewerOpts) {
     tempX = Math.round(xPercent * 100) / 100;
     tempY = Math.round(yPercent * 100) / 100;
     if (confirmBtn) confirmBtn.disabled = false;
+    overlay.setAttribute('data-qpin-has-temp', '1');
+    const footerEl = overlay.querySelector('[data-qpin-footer]');
+    if (footerEl) footerEl.textContent = _planFooterHint(readOnly, !!mountEl, true);
     _renderPins({ scale: _currentScale() });
   });
 
@@ -1093,7 +1239,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
     // Stale load after floor switch / fullscreen — do not toast or tear down the new viewer.
     if (!_viewerAlive()) return;
     console.error('[quality-plan-pin] load failed', e);
-    _toast('⚠️ Не удалось открыть план этажа');
+    _toast(_t('quality.audit.plan.open_failed', '⚠️ Не удалось открыть план этажа'));
     close();
   }
 }
@@ -1117,7 +1263,7 @@ export async function openPlanPinFlow(opts) {
       return;
     }
     if (resolved.floor) {
-      _toast('⚠️ У выбранного этажа нет PDF — выберите другой');
+      _toast(_t('quality.audit.plan.no_pdf_other', '⚠️ У выбранного этажа нет PDF — выберите другой'));
     }
   }
 
@@ -1134,7 +1280,7 @@ export async function openHistoryPlanViewer(opts) {
   opts = opts || {};
   const floorId = opts.floorId;
   if (!floorId) {
-    _toast('⚠️ Этаж не выбран');
+    _toast(_t('quality.audit.plan.floor_not_selected', '⚠️ Этаж не выбран'));
     return;
   }
   await _openPlanViewer(floorId, {
@@ -1156,6 +1302,7 @@ export function repositionPlanPin() {
 
 /** Bind buttons in audit header; idempotent. */
 export function mountControls() {
+  _bindPlanPinI18n();
   if (_mounted) {
     updatePinIndicator();
     return;
@@ -1183,7 +1330,7 @@ export function mountControls() {
       clr.addEventListener('click', function (e) {
         e.preventDefault();
         clearPin();
-        _toast('Точка на плане снята');
+        _toast(_t('quality.audit.plan.pin_cleared', 'Точка на плане снята'));
       });
     }
   }

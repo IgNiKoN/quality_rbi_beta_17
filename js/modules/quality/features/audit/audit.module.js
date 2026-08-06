@@ -95,6 +95,21 @@ function bindAuditActionDelegation() {
     var el = resolveActionElement(e.target, true);
     if (el) dispatch(el, e);
   }, true);
+
+  // Нативный <select> с почти нулевой opacity иногда не открывает picker
+  // по клику на части устройств — явный showPicker/focus.
+  document.addEventListener('click', function (e) {
+    var wrap = e.target && e.target.closest
+      ? e.target.closest('#start-checklist-wrap, #header-checklist-container')
+      : null;
+    if (!wrap) return;
+    var sel = wrap.querySelector('select');
+    if (!sel || e.target === sel) return;
+    if (typeof sel.showPicker === 'function') {
+      try { sel.showPicker(); return; } catch (_) { /* fall through */ }
+    }
+    try { sel.focus(); } catch (_) { /* ignore */ }
+  }, true);
 }
 
 var AuditModule = {

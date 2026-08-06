@@ -81,6 +81,7 @@ function rbiBeginOfflineCacheSyncPause(reason) {
 /**
  * Снять паузу sync. Если был отложенный triggerSync — один раз запустить после паузы.
  * Не флашит, пока ещё держится lock / FullOfflineCacheProcessing.
+ * После автокэша — всегда silent (без тоста), кроме явного manual, который юзер нажал во время докачки.
  */
 function rbiEndOfflineCacheSyncPause() {
     window.rbiOfflineCacheBlocksSync = false;
@@ -92,16 +93,19 @@ function rbiEndOfflineCacheSyncPause() {
 
     const retryMode = window._rbiPendingSyncRetryMode;
     window._rbiPendingSyncRetryMode = null;
-    console.log('[OfflineCache] Пауза sync снята, отложенный sync:', retryMode);
+    // Автодогон после кэша не шумит тостом; manual оставляем как ручной запрос.
+    const flushMode = retryMode === 'manual' ? 'manual' : 'silent';
+    console.log('[OfflineCache] Пауза sync снята, отложенный sync:', flushMode,
+        flushMode !== retryMode ? `(было ${retryMode})` : '');
     setTimeout(() => {
         if (rbiIsOfflineCacheBlockingSync()) {
             window._rbiPendingSyncRetryMode =
-                (retryMode === 'manual' || window._rbiPendingSyncRetryMode === 'manual')
+                (flushMode === 'manual' || window._rbiPendingSyncRetryMode === 'manual')
                     ? 'manual'
-                    : (window._rbiPendingSyncRetryMode || retryMode);
+                    : (window._rbiPendingSyncRetryMode || flushMode);
             return;
         }
-        if (!window.isSyncing) window.triggerSync(retryMode);
+        if (!window.isSyncing) window.triggerSync(flushMode);
     }, 400);
 }
 

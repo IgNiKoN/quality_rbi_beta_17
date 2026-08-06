@@ -8,6 +8,23 @@ import { AuditActions } from './audit.actions.js';
 (function () {
   'use strict';
 
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
+
   // Фаза 50-B (перенесено из audit.legacy.js): единая точка доступа к
   // настройкам через SettingsService с fallback. Нужна локально в render.js,
   // т.к. render.js и actions.js — независимые ES-модули; используют общий
@@ -91,7 +108,7 @@ import { AuditActions } from './audit.actions.js';
       return `<div class="relative shrink-0"><img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(src, { preferThumb: true }) : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(src) + '"')} class="photo-thumb !w-11 !h-11 !rounded-[12px] border ${addBtnClass.thumbBorder} shadow-sm object-cover" loading="lazy" onclick="openPhotoViewer('${src}')"><div onclick="removePhoto(${id}, event, ${idx})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[12px] font-bold cursor-pointer shadow-md border border-white z-10">✕</div></div>`;
     }).join('');
 
-    var addBtnHtml = `<button onclick="triggerPhotoInput(${id})" class="btn-status !w-11 !h-11 !rounded-[12px] shrink-0 shadow-sm ${addBtnClass.addBtn}" title="${photosArr.length ? 'Добавить ещё фото' : addBtnClass.title}"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></circle></svg></button>`;
+    var addBtnHtml = `<button onclick="triggerPhotoInput(${id})" class="btn-status !w-11 !h-11 !rounded-[12px] shrink-0 shadow-sm ${addBtnClass.addBtn}" title="${photosArr.length ? _t('quality.audit.photo.add_more', 'Добавить ещё фото') : addBtnClass.title}"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></circle></svg></button>`;
 
     return `<div class="flex items-center gap-1.5 shrink-0">${thumbsHtml}${addBtnHtml}</div>`;
   }
@@ -209,11 +226,11 @@ import { AuditActions } from './audit.actions.js';
 
                     <div
                         class="text-[14px] font-black uppercase tracking-tight text-slate-800 dark:text-white leading-tight">
-                        Добро пожаловать
+                        ${_t('quality.audit.welcome.title', 'Добро пожаловать')}
                     </div>
 
                     <div class="text-[10px] text-[var(--text-muted)] mt-0.5 leading-snug">
-                        Выберите режим старта работы
+                        ${_t('quality.audit.welcome.subtitle', 'Выберите режим старта работы')}
                     </div>
                 </div>
 
@@ -237,15 +254,15 @@ import { AuditActions } from './audit.actions.js';
                             <div class="flex items-center gap-2">
                                 <div
                                     class="text-[11px] font-black uppercase tracking-tight text-slate-800 dark:text-white">
-                                    Демо-режим
+                                    ${_t('quality.audit.welcome.demo_title', 'Демо-режим')}
                                 </div>
                                 <span
                                     class="text-[7px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-md dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
-                                    безопасно
+                                    ${_t('quality.audit.welcome.demo_badge', 'безопасно')}
                                 </span>
                             </div>
                             <div class="text-[9.5px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                                Тестовые данные. Можно нажимать всё — рабочая база не меняется.
+                                ${_t('quality.audit.welcome.demo_hint', 'Тестовые данные. Можно нажимать всё — рабочая база не меняется.')}
                             </div>
                         </div>
 
@@ -273,15 +290,15 @@ import { AuditActions } from './audit.actions.js';
                             <div class="flex items-center gap-2">
                                 <div
                                     class="text-[11px] font-black uppercase tracking-tight text-slate-800 dark:text-white">
-                                    Онбординг
+                                    ${_t('quality.audit.welcome.onboarding_title', 'Онбординг')}
                                 </div>
                                 <span
                                     class="text-[7px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded-md dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300">
-                                    44 шага
+                                    ${_t('quality.audit.welcome.onboarding_badge', '44 шага')}
                                 </span>
                             </div>
                             <div class="text-[9.5px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                                Полный тур по платформе: Осмотр, Инженер, Аналитика, БЗ, СК и настройки (ПК и телефон).
+                                ${_t('quality.audit.welcome.onboarding_hint', 'Полный тур по платформе: Осмотр, Инженер, Аналитика, БЗ, СК и настройки (ПК и телефон).')}
                             </div>
                         </div>
 
@@ -308,7 +325,7 @@ import { AuditActions } from './audit.actions.js';
                             <div class="flex items-center gap-2">
                                 <div
                                     class="text-[11px] font-black uppercase tracking-tight text-slate-800 dark:text-white">
-                                    FAQ / ИИ-помощник
+                                    ${_t('quality.audit.welcome.faq_title', 'FAQ / ИИ-помощник')}
                                 </div>
                                 <span
                                     class="text-[7px] font-black uppercase bg-violet-50 text-violet-600 border border-violet-100 px-1.5 py-0.5 rounded-md dark:bg-violet-900/30 dark:border-violet-800 dark:text-violet-300">
@@ -316,7 +333,7 @@ import { AuditActions } from './audit.actions.js';
                                 </span>
                             </div>
                             <div class="text-[9.5px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                                После первой синхронизации база доступна офлайн, при интернете отвечает ИИ.
+                                ${_t('quality.audit.welcome.faq_hint', 'После первой синхронизации база доступна офлайн, при интернете отвечает ИИ.')}
                             </div>
                         </div>
 
@@ -327,27 +344,29 @@ import { AuditActions } from './audit.actions.js';
                     </button>
 
                     <!-- НАЧАТЬ ПРОВЕРКУ -->
-                    <div class="relative pt-1">
+                    <div class="relative pt-1" id="start-checklist-wrap">
                         <div
-                            class="w-full bg-indigo-600 text-white py-3 rounded-[18px] font-black text-[11px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex justify-center items-center gap-2">
+                            class="pointer-events-none w-full bg-indigo-600 text-white py-3 rounded-[18px] font-black text-[11px] uppercase tracking-widest shadow-md flex justify-center items-center gap-2"
+                            aria-hidden="true">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 5v14"></path>
                                 <path d="M5 12h14"></path>
                             </svg>
-                            Начать проверку
+                            ${_t('quality.audit.welcome.start_check', 'Начать проверку')}
                         </div>
                         <select id="fake-checklist-selector"
                             data-audit-action="changeTemplate" data-audit-action-val-type="value" data-action-event="change"
-                            class="absolute inset-x-0 bottom-0 w-full h-11 opacity-0 cursor-pointer">
-                            <option value="" disabled selected>Выбрать чек-лист</option>
-                            <optgroup label="Системные" id="fake-system-group"></optgroup>
-                            <optgroup label="Загруженные" id="fake-user-group"></optgroup>
+                            class="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-[0.01]"
+                            aria-label="${_t('quality.audit.checklist.pick', 'Выбрать чек-лист')}">
+                            <option value="" disabled selected>${_t('quality.audit.checklist.pick', 'Выбрать чек-лист')}</option>
+                            <optgroup label="${_t('quality.audit.checklist.group_system', 'Системные')}" id="fake-system-group"></optgroup>
+                            <optgroup label="${_t('quality.audit.checklist.group_user', 'Загруженные')}" id="fake-user-group"></optgroup>
                         </select>
                     </div>
 
                     <div class="px-2 pt-0.5 text-[9px] text-slate-400 dark:text-slate-500 leading-snug text-center">
-                        Обучение — для первого входа · Демо — для тестов · FAQ — для вопросов по работе
+                        ${_t('quality.audit.welcome.footer_hint', 'Обучение — для первого входа · Демо — для тестов · FAQ — для вопросов по работе')}
                     </div>
                 </div>
             </div>
@@ -359,10 +378,10 @@ import { AuditActions } from './audit.actions.js';
             <div class="grid grid-cols-2 gap-3 mt-8 mb-4" id="audit-actions" style="display:none;">
                 <button data-audit-action="saveProductToArray" data-requires-create="true"
                     class="bg-indigo-600 text-white rounded-xl py-4 font-black text-xs uppercase shadow-[0_10px_20px_rgba(79,70,229,0.3)] active:scale-95 transition-transform">
-                    Сохранить в Историю</button>
+                    ${_t('quality.audit.actions.save_history', 'Сохранить в Историю')}</button>
                 <button data-audit-action="resetChecklist"
                     class="bg-red-50 text-red-600 border border-red-200 rounded-xl py-4 font-black text-xs uppercase active:scale-95 transition-transform">
-                    Очистить форму</button>
+                    ${_t('quality.audit.actions.clear_form', 'Очистить форму')}</button>
             </div>
         </div>`;
     },
@@ -437,7 +456,7 @@ import { AuditActions } from './audit.actions.js';
         ? userKeys.map(function (key) {
           return '<option value="user_' + key + '">' + _ut[key].title + '</option>';
         }).join('')
-        : '<option disabled>Своих шаблонов нет</option>';
+        : '<option disabled>' + _t('quality.audit.checklist.no_user_templates', 'Своих шаблонов нет') + '</option>';
 
       if (sysGroup) sysGroup.innerHTML = sysHtml;
       if (userGroup) userGroup.innerHTML = userHtml;
@@ -475,7 +494,7 @@ import { AuditActions } from './audit.actions.js';
       } else {
         if (document.getElementById('dash-p-text')) document.getElementById('dash-p-text').innerText = `${p.checkedCount}/${p.totalCount}`;
         if (document.getElementById('dash-p-doc')) {
-          document.getElementById('dash-p-doc').innerText = (p.documentary !== null && p.documentary !== undefined) ? `Док: ${p.documentary}%` : "";
+          document.getElementById('dash-p-doc').innerText = (p.documentary !== null && p.documentary !== undefined) ? _t('quality.audit.dash.doc_prefix', 'Док: {pct}%', { pct: p.documentary }) : "";
         }
         if (document.getElementById('dash-p-bar')) {
           document.getElementById('dash-p-bar').style.width = `${p.final}%`;
@@ -496,18 +515,18 @@ import { AuditActions } from './audit.actions.js';
       var filteredArr = currentContr ? _inspections.filter(function (i) { return i.contractorName === currentContr && i.templateKey === AuditState.currentTemplateKey; }) : [];
 
       if (filteredArr.length < 7) {
-        if (document.getElementById('dash-c-text')) document.getElementById('dash-c-text').innerText = `${filteredArr.length}/7 пров.`;
+        if (document.getElementById('dash-c-text')) document.getElementById('dash-c-text').innerText = _t('quality.audit.dash.checks_suffix', '{n} пров.', { n: filteredArr.length + '/7' });
         if (document.getElementById('dash-c-doc')) document.getElementById('dash-c-doc').innerText = "";
         if (document.getElementById('dash-c-bar')) document.getElementById('dash-c-bar').style.width = "0%";
-        if (document.getElementById('dash-c-percent')) document.getElementById('dash-c-percent').innerText = "СБОР";
+        if (document.getElementById('dash-c-percent')) document.getElementById('dash-c-percent').innerText = _t('quality.audit.dash.collecting', 'СБОР');
         ['dash-c-ks', 'dash-c-kcrit', 'dash-c-b3'].forEach(function (id) { if (document.getElementById(id)) document.getElementById(id).innerText = "-"; });
       } else {
         var _ut = _templates().getUserTemplates();
         var c = getContractorMetrics(filteredArr, _ut);
         if (c) {
-          if (document.getElementById('dash-c-text')) document.getElementById('dash-c-text').innerText = `${c.count} пров.`;
+          if (document.getElementById('dash-c-text')) document.getElementById('dash-c-text').innerText = _t('quality.audit.dash.checks_suffix', '{n} пров.', { n: c.count });
           if (document.getElementById('dash-c-doc')) {
-            document.getElementById('dash-c-doc').innerText = (c.documentaryC !== null && c.documentaryC !== undefined) ? `Док: ${c.documentaryC}%` : "";
+            document.getElementById('dash-c-doc').innerText = (c.documentaryC !== null && c.documentaryC !== undefined) ? _t('quality.audit.dash.doc_prefix', 'Док: {pct}%', { pct: c.documentaryC }) : "";
           }
           if (document.getElementById('dash-c-bar')) {
             document.getElementById('dash-c-bar').style.width = `${c.finalC}%`;
@@ -532,7 +551,7 @@ import { AuditActions } from './audit.actions.js';
       }
 
       var selectEl = document.getElementById('checklist-selector');
-      var clName = selectEl && selectEl.options[selectEl.selectedIndex] ? selectEl.options[selectEl.selectedIndex].text.replace('▼', '').trim() : 'Вид работ не выбран';
+      var clName = selectEl && selectEl.options[selectEl.selectedIndex] ? selectEl.options[selectEl.selectedIndex].text.replace('▼', '').trim() : _t('quality.audit.checklist.none', 'Вид работ не выбран');
       var labelEl = document.getElementById('current-checklist-label');
       if (labelEl) labelEl.innerText = clName;
 
@@ -544,12 +563,12 @@ import { AuditActions } from './audit.actions.js';
     // Перенесено из audit.legacy.js (было в app.js, строка 2812).
     // =====================================================================
     updateDataSummary: function () {
-      var proj = document.getElementById('inp-project')?.value.trim() || 'Объект';
-      var contr = document.getElementById('inp-contractor')?.value.trim() || 'Подрядчик';
-      var loc = document.getElementById('inp-location')?.value.trim() || 'Локация';
+      var proj = document.getElementById('inp-project')?.value.trim() || _t('quality.audit.field.project', 'Объект');
+      var contr = document.getElementById('inp-contractor')?.value.trim() || _t('quality.audit.field.contractor', 'Подрядчик');
+      var loc = document.getElementById('inp-location')?.value.trim() || _t('quality.audit.field.location', 'Локация');
 
       var selectEl = document.getElementById('checklist-selector');
-      var clName = selectEl?.options[selectEl.selectedIndex]?.text.replace('▼', '').trim() || 'Чек-лист не выбран';
+      var clName = selectEl?.options[selectEl.selectedIndex]?.text.replace('▼', '').trim() || _t('quality.audit.checklist.not_selected', 'Чек-лист не выбран');
 
       var summary = document.getElementById('data-block-summary');
       if (summary) summary.innerText = `✏️ ${clName} | ${proj} | ${contr} | ${loc}`;
@@ -569,9 +588,9 @@ import { AuditActions } from './audit.actions.js';
       if (!content || !summary) return;
 
       if (forceOpen || content.style.display === 'none') {
-        content.style.display = 'grid'; summary.classList.add('hidden'); icon.innerText = 'СВЕРНУТЬ ▲';
+        content.style.display = 'grid'; summary.classList.add('hidden'); icon.innerText = _t('quality.audit.data.collapse', 'СВЕРНУТЬ ▲');
       } else {
-        AuditRender.updateDataSummary(); content.style.display = 'none'; summary.classList.remove('hidden'); icon.innerText = 'РАЗВЕРНУТЬ ▼';
+        AuditRender.updateDataSummary(); content.style.display = 'none'; summary.classList.remove('hidden'); icon.innerText = _t('quality.audit.data.expand', 'РАЗВЕРНУТЬ ▼');
       }
     },
 
@@ -632,13 +651,13 @@ import { AuditActions } from './audit.actions.js';
         }
 
         helpBtnHtml = `
-            <button onclick="window.RBI.services.knowledge.openItemHelp(${id}, event)" class="btn-status ${btnClass} !w-11 !h-11 !rounded-[12px] relative shadow-sm shrink-0" title="Инструкции и Справка">
+            <button onclick="window.RBI.services.knowledge.openItemHelp(${id}, event)" class="btn-status ${btnClass} !w-11 !h-11 !rounded-[12px] relative shadow-sm shrink-0" title="${_t('quality.audit.help.title', 'Инструкции и Справка')}">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path></svg>
             </button>
         `;
       } else {
         helpBtnHtml = `
-            <button onclick="showToast('К этому пункту пока не привязаны инструкции')" class="btn-status text-slate-300 bg-transparent border-dashed border-slate-200 dark:text-slate-600 dark:border-slate-700 !w-11 !h-11 !rounded-[12px] shadow-sm shrink-0" title="Нет инструкций">
+            <button onclick='showToast(${JSON.stringify(_t('quality.audit.help.none_toast', 'К этому пункту пока не привязаны инструкции'))})' class="btn-status text-slate-300 bg-transparent border-dashed border-slate-200 dark:text-slate-600 dark:border-slate-700 !w-11 !h-11 !rounded-[12px] shadow-sm shrink-0" title="${_t('quality.audit.help.none_title', 'Нет инструкций')}">
                 <svg class="w-6 h-6 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path></svg>
             </button>
         `;
@@ -668,7 +687,7 @@ import { AuditActions } from './audit.actions.js';
             auditHtml = `
                     <div class="mt-2 bg-slate-100 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 p-2 rounded-lg flex justify-between items-center w-full">
                         <div>
-                            <div class="text-[8px] font-black uppercase text-slate-400 mb-0.5">Оценка инженера (${window.auditOriginalData.inspector})</div>
+                            <div class="text-[8px] font-black uppercase text-slate-400 mb-0.5">${_t('quality.audit.card.engineer_score', 'Оценка инженера ({score})', { score: window.auditOriginalData.inspector })}</div>
                             <span class="text-[9px] font-black px-1.5 py-0.5 rounded border ${badgeColor}">${badgeText}</span>
                         </div>
                         ${photoBlock}
@@ -680,8 +699,8 @@ import { AuditActions } from './audit.actions.js';
                         <div class="mt-2 bg-orange-50 dark:bg-orange-900/10 border border-dashed border-orange-200 dark:border-orange-800 p-2 rounded-lg flex items-center gap-3 w-full">
                             <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(origPhoto, { preferThumb: true }) : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(origPhoto) + '"')} class="w-12 h-12 object-cover rounded cursor-pointer border border-orange-300" loading="lazy" onclick="openPhotoViewer('${origPhoto}')">
                             <div>
-                                <div class="text-[9px] font-black uppercase text-orange-600 mb-0.5">📸 Было (Брак)</div>
-                                <div class="text-[9px] font-bold text-orange-800 dark:text-orange-400 leading-tight">Прикрепите новое фото "СТАЛО", чтобы зафиксировать исправление эталона.</div>
+                                <div class="text-[9px] font-black uppercase text-orange-600 mb-0.5">${_t('quality.audit.card.was_fail', '📸 Было (Брак)')}</div>
+                                <div class="text-[9px] font-bold text-orange-800 dark:text-orange-400 leading-tight">${_t('quality.audit.card.attach_became', 'Прикрепите новое фото "СТАЛО", чтобы зафиксировать исправление эталона.')}</div>
                             </div>
                         </div>
                     `;
@@ -699,10 +718,10 @@ import { AuditActions } from './audit.actions.js';
           `<div class="relative shrink-0"><button onclick="toggleCommentField(${id})" class="btn-status text-indigo-600 bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 !w-11 !h-11 !rounded-[12px] shadow-sm"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg></button><div onclick="deleteComment(${id}, event)" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[12px] font-bold cursor-pointer shadow-md border border-white z-10">✕</div></div>` :
           `<button onclick="toggleCommentField(${id})" class="btn-status !w-11 !h-11 !rounded-[12px] shrink-0 shadow-sm"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg></button>`;
 
-        var photoBtn = renderPhotoRow(id, { thumbBorder: 'border-indigo-200 dark:border-indigo-800', addBtn: '', title: 'Добавить фото' });
+        var photoBtn = renderPhotoRow(id, { thumbBorder: 'border-indigo-200 dark:border-indigo-800', addBtn: '', title: _t('quality.audit.photo.add', 'Добавить фото') });
         var escBtn = (i.w === 2) ? `<button onclick="toggleEscalation(${id})" class="btn-status ${isEscalated ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' : 'text-orange-500 bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-400'} !w-11 !h-11 !rounded-[12px] transition-all shrink-0 shadow-sm"><span class="text-[13px] font-bold">>1.5</span></button>` : '';
 
-        var visualIndicatorHtml = isEscalated ? `<div class="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded w-fit mt-1 shadow-sm">Дефект учтен как B3</div>` : '';
+        var visualIndicatorHtml = isEscalated ? `<div class="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded w-fit mt-1 shadow-sm">${_t('quality.audit.card.b3_noted', 'Дефект учтен как B3')}</div>` : '';
         var commentBlockHtml = hasComment ? `<div class="mt-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-red-100 dark:border-red-800 shadow-sm leading-snug break-words w-full">💬 ${AuditState.details[id].comment}</div>` : '';
 
         contentHtml = `
@@ -725,7 +744,7 @@ import { AuditActions } from './audit.actions.js';
             </div>
         `;
       } else if (okActive) {
-        var photoBtnOk = renderPhotoRow(id, { thumbBorder: 'border-green-300', addBtn: 'text-green-600 bg-green-50 border-green-200', title: 'Добавить фото эталона' });
+        var photoBtnOk = renderPhotoRow(id, { thumbBorder: 'border-green-300', addBtn: 'text-green-600 bg-green-50 border-green-200', title: _t('quality.audit.photo.add_etalon', 'Добавить фото эталона') });
         contentHtml = `
             <div class="flex justify-between items-center w-full min-h-[44px]">
                 <div class="flex-1 mr-3 min-w-0 pointer-events-none">
@@ -908,33 +927,33 @@ import { AuditActions } from './audit.actions.js';
     var body = document.getElementById('modal-body');
 
     document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-[14px] flex items-center justify-center border border-indigo-100 dark:border-indigo-800 mx-auto"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="8" y="8" width="8" height="2"></rect><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="16" y1="14" x2="16.01" y2="14"></line></svg></div>`;
-    document.getElementById('modal-title').innerText = "Расчет УрК Осмотра";
+    document.getElementById('modal-title').innerText = _t('quality.audit.math.title', 'Расчет УрК Осмотра');
 
     if (!p) {
-      body.innerHTML = "<p>Проверьте хотя бы один пункт для отображения оценки.</p>";
+      body.innerHTML = '<p>' + _t('quality.audit.math.empty', 'Проверьте хотя бы один пункт для отображения оценки.') + '</p>';
     } else {
       body.innerHTML = `
         <div class="bg-[var(--hover-bg)] p-4 rounded-xl border border-[var(--card-border)] mb-4">
-            <div class="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-2">Формула (Текущий осмотр)</div>
-            <div class="text-sm font-black font-mono bg-[var(--card-bg)] p-2 rounded border border-[var(--card-border)] text-center">УрК = База × Kc × Kcrit</div>
+            <div class="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-2">${_t('quality.audit.math.formula_label', 'Формула (Текущий осмотр)')}</div>
+            <div class="text-sm font-black font-mono bg-[var(--card-bg)] p-2 rounded border border-[var(--card-border)] text-center">${_t('quality.audit.math.formula', 'УрК = База × Kc × Kcrit')}</div>
             <div class="text-center mt-2 text-2xl font-black ${p.final < 70 ? 'text-red-600' : (p.final < 85 ? 'text-orange-500' : 'text-green-600')}">${p.final}%</div>
         </div>
         <ul class="text-sm space-y-3 mb-4">
             <li class="flex justify-between items-center border-b border-[var(--card-border)] pb-2">
-                <span><b>Базовый балл</b><br><span class="text-[10px] text-[var(--text-muted)]">Доля пройденных пунктов (по весам)</span></span>
+                <span><b>${_t('quality.audit.math.base', 'Базовый балл')}</b><br><span class="text-[10px] text-[var(--text-muted)]">${_t('quality.audit.math.base_hint', 'Доля пройденных пунктов (по весам)')}</span></span>
                 <span class="font-black text-lg">${p.baseUrkPerc}%</span>
             </li>
             <li class="flex justify-between items-center border-b border-[var(--card-border)] pb-2">
-                <span><b>Концентрация (Kc)</b><br><span class="text-[10px] text-[var(--text-muted)]">Штраф за долю брака B2</span></span>
+                <span><b>${_t('quality.audit.math.kc', 'Концентрация (Kc)')}</b><br><span class="text-[10px] text-[var(--text-muted)]">${_t('quality.audit.math.kc_hint', 'Штраф за долю брака B2')}</span></span>
                 <span class="font-black text-lg ${p.kc < 1 ? 'text-red-500' : 'text-green-600'}">${p.kc.toFixed(2)}</span>
             </li>
             <li class="flex justify-between items-center border-b border-[var(--card-border)] pb-2">
-                <span><b>Критичность (Kcrit)</b><br><span class="text-[10px] text-[var(--text-muted)]">Штраф за наличие B3</span></span>
+                <span><b>${_t('quality.audit.math.kcrit', 'Критичность (Kcrit)')}</b><br><span class="text-[10px] text-[var(--text-muted)]">${_t('quality.audit.math.kcrit_hint', 'Штраф за наличие B3')}</span></span>
                 <span class="font-black text-lg ${p.kcrit < 1 ? 'text-red-500' : 'text-green-600'}">${p.kcrit.toFixed(2)}</span>
             </li>
         </ul>
         <div class="text-[11px] font-bold ${p.final > 84 && (p.kc < 1 || p.kcrit < 1 || p.n_B2_fail > 0) ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'} p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm leading-relaxed">
-            <b>Правило потолка (Cap84):</b> Если допущен B2 или применены штрафы, итоговый балл не может превышать 84%.
+            ${_t('quality.audit.math.cap84', 'Правило потолка (Cap84): итоговый УрК не может превышать 84%.')}
         </div>`;
     }
     document.body.classList.add('modal-open'); modal.style.display = 'flex';
@@ -947,11 +966,11 @@ import { AuditActions } from './audit.actions.js';
 
     var modal = document.getElementById('modal-overlay');
     document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-2xl">M</div>`;
-    document.getElementById('modal-title').innerText = currentContr ? `Аналитика: ${currentContr}` : "Аналитика подрядчика";
+    document.getElementById('modal-title').innerText = currentContr ? _t('quality.audit.contr.title_named', 'Аналитика: {name}', { name: currentContr }) : _t('quality.audit.contr.title', 'Аналитика подрядчика');
     var body = document.getElementById('modal-body');
 
     if (filteredArr.length < 7) {
-      body.innerHTML = `<p class="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 p-4 rounded-xl border border-slate-200 dark:border-slate-700 font-bold leading-snug text-center">Сбор данных: <b class="text-lg text-indigo-600">${filteredArr.length} / 7</b><br><br>Для расчета интегрального рейтинга подрядчика и штрафных коэффициентов требуется минимум <b>7</b> независимых проверок.</p>`;
+      body.innerHTML = `<p class="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 p-4 rounded-xl border border-slate-200 dark:border-slate-700 font-bold leading-snug text-center">${_t('quality.audit.contr.collecting', 'Сбор данных: требуется минимум 7 независимых проверок.')}<br><br><b class="text-lg text-indigo-600">${filteredArr.length} / 7</b></p>`;
     } else {
       var c = window.getContractorMetrics(filteredArr, _templates().getUserTemplates());
       var warningHtml = ''; // Убрали предупреждение, так как до 7 проверок модалка теперь блокируется
@@ -960,38 +979,38 @@ import { AuditActions } from './audit.actions.js';
             ${warningHtml}
             <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 mb-5 shadow-sm relative overflow-hidden">
                 <div class="text-[10px] uppercase font-bold text-indigo-500 mb-2 flex justify-between items-center">
-                    <span>Надёжность (оперативно, окно ≤15)</span>
+                    <span>${_t('quality.audit.contr.reliability', 'Надёжность (оперативно, окно ≤15)')}</span>
                 </div>
                 <div class="flex items-center justify-between mt-1">
                     <div class="text-5xl font-black text-indigo-700 dark:text-indigo-400">${c.finalC}%</div>
                     <div class="text-right">
                         <span class="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-2 py-1 rounded uppercase block w-fit ml-auto border border-indigo-200">${c.statusTxt}</span>
-                        <div class="text-[9px] text-indigo-500 mt-1 font-bold">N в окне: ${c.count}</div>
+                        <div class="text-[9px] text-indigo-500 mt-1 font-bold">${_t('quality.audit.contr.n_window', 'N в окне: {n}', { n: c.count })}</div>
                     </div>
                 </div>
             </div>
             
-            <div class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2">Штрафные коэффициенты</div>
+            <div class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2">${_t('quality.audit.contr.penalties', 'Штрафные коэффициенты')}</div>
             <ul class="text-[13px] space-y-3 mb-5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm">
                 <li class="flex justify-between items-center border-b border-[var(--card-border)] pb-2">
-                    <span class="leading-snug"><b>Системный брак (Ks)</b><br><span class="text-[10px] text-[var(--text-muted)] mt-0.5">Повтор дефекта в ${c.maxFailRate.toFixed(1)}% проверок</span></span>
+                    <span class="leading-snug"><b>${_t('quality.audit.contr.ks', 'Системный брак (Ks)')}</b><br><span class="text-[10px] text-[var(--text-muted)] mt-0.5">${_t('quality.audit.contr.ks_hint', 'Повтор дефекта в {pct}% проверок', { pct: c.maxFailRate.toFixed(1) })}</span></span>
                     <span class="font-black text-lg ${c.ks < 1 ? 'text-red-500' : 'text-green-600'}">${c.ks.toFixed(2)}</span>
                 </li>
                 <li class="flex justify-between items-center pb-1">
-                    <span class="leading-snug"><b>Критичность (KB3)</b><br><span class="text-[10px] text-[var(--text-muted)] mt-0.5">Доля проверок с B3: ${c.rateB3.toFixed(1)}%</span></span>
+                    <span class="leading-snug"><b>${_t('quality.audit.contr.kb3', 'Критичность (KB3)')}</b><br><span class="text-[10px] text-[var(--text-muted)] mt-0.5">${_t('quality.audit.contr.kb3_hint', 'Доля проверок с B3: {pct}%', { pct: c.rateB3.toFixed(1) })}</span></span>
                     <span class="font-black text-lg ${c.kcritC < 1 ? 'text-red-500' : 'text-green-600'}">${c.kcritC.toFixed(2)}</span>
                 </li>
             </ul>
 
-            <div class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2">Стабильность</div>
+            <div class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2">${_t('quality.audit.contr.stability', 'Стабильность')}</div>
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] p-3 rounded-xl shadow-sm text-center mb-5 cursor-help" title="${c.stabDesc}">
-                <div class="text-[9px] text-[var(--text-muted)] font-bold uppercase mb-1 border-b border-dashed border-slate-300 pb-1 inline-block">Индекс стаб.</div>
+                <div class="text-[9px] text-[var(--text-muted)] font-bold uppercase mb-1 border-b border-dashed border-slate-300 pb-1 inline-block">${_t('quality.audit.contr.stab_index', 'Индекс стаб.')}</div>
                 <div class="text-xl font-black ${c.stabColor} leading-none">${c.stabilityIndex}</div>
                 <div class="text-[8px] font-bold uppercase mt-1 ${c.stabColor}">${c.stabText}</div>
             </div>
 
             <div class="text-[11px] font-bold ${c.finalC < 70 ? 'text-red-700 bg-red-50 border-red-200' : (c.finalC < 85 ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-green-700 bg-green-50 border-green-200')} mt-2 p-3 rounded-xl border shadow-sm leading-snug">
-                <span class="uppercase text-[9px] block mb-1 opacity-70">Основание / Вывод</span>${c.reason}
+                <span class="uppercase text-[9px] block mb-1 opacity-70">${_t('quality.audit.contr.basis', 'Основание / Вывод')}</span>${c.reason}
             </div>`;
     }
     document.body.classList.add('modal-open'); modal.style.display = 'flex';
@@ -1033,6 +1052,72 @@ import { AuditActions } from './audit.actions.js';
   window.toggleGroup = AuditRender.toggleGroup.bind(AuditRender);
   window.scrollToGroup = AuditRender.scrollToGroup.bind(AuditRender);
   window.expandCard = AuditRender.expandCard.bind(AuditRender);
+
+
+  // =========================================================================
+  // i18n: перерисовка UI chrome при смене локали (без сброса draft/выбора)
+  // =========================================================================
+  function refreshAuditStaticChrome() {
+    var tab = document.getElementById('tab-audit');
+    if (!tab) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = AuditRender.renderMarkup();
+    var empty = document.getElementById('empty-checklist-state');
+    var newEmpty = tmp.querySelector('#empty-checklist-state');
+    if (empty && newEmpty) {
+      var emptyDisp = empty.style.display;
+      empty.replaceWith(newEmpty);
+      if (emptyDisp) newEmpty.style.display = emptyDisp;
+    }
+    var actions = document.getElementById('audit-actions');
+    var newActions = tmp.querySelector('#audit-actions');
+    if (actions && newActions) {
+      var actDisp = actions.style.display;
+      actions.innerHTML = newActions.innerHTML;
+      actions.style.display = actDisp;
+    }
+    ['system-group', 'ref-system-group', 'fake-system-group'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.label = _t('quality.audit.checklist.group_system', 'Системные');
+    });
+    ['user-group', 'ref-user-group', 'fake-user-group'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.label = _t('quality.audit.checklist.group_user', 'Загруженные');
+    });
+    var fakeSel = document.getElementById('fake-checklist-selector');
+    if (fakeSel && fakeSel.options[0] && !fakeSel.options[0].value) {
+      fakeSel.options[0].textContent = _t('quality.audit.checklist.pick', 'Выбрать чек-лист');
+      fakeSel.setAttribute('aria-label', _t('quality.audit.checklist.pick', 'Выбрать чек-лист'));
+    }
+    var icon = document.getElementById('data-toggle-icon');
+    var content = document.getElementById('data-block-content');
+    if (icon && content) {
+      icon.innerText = (content.style.display === 'none')
+        ? _t('quality.audit.data.expand', 'РАЗВЕРНУТЬ ▼')
+        : _t('quality.audit.data.collapse', 'СВЕРНУТЬ ▲');
+    }
+  }
+
+  var _auditI18nBound = false;
+  function bindAuditI18n() {
+    if (_auditI18nBound) return;
+    _auditI18nBound = true;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try {
+        var tab = document.getElementById('tab-audit');
+        if (!tab) return;
+        refreshAuditStaticChrome();
+        if (typeof AuditRender.renderSelector === 'function') AuditRender.renderSelector();
+        if (typeof AuditRender.updateUI === 'function') AuditRender.updateUI();
+        if (typeof AuditRender.updateDataSummary === 'function') AuditRender.updateDataSummary();
+        if (AuditState.currentTemplateKey && typeof AuditRender.render === 'function') {
+          AuditRender.render();
+        }
+      } catch (_e) { /* ignore */ }
+    });
+  }
+  bindAuditI18n();
 
   console.log('[RBI Module] audit.render loaded (owner-module: full render logic)');
 }());

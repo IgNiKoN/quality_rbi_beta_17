@@ -1,6 +1,22 @@
 /* Файл: js/modules/quality/features/shared/multi-filter.js */
 /* Мульти-фильтры (dropdown Объект/Подрядчик/Инспектор/Вид работ) — общая логика для features quality/history и quality/analytics */
 
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
 // === МУЛЬТИ-ФИЛЬТРЫ (ЛОГИКА МОДАЛКИ С ПРАВАМИ ДОСТУПА) ===
 let _ctx = null;
 function bindCtx(ctx) {
@@ -106,9 +122,14 @@ function _permSvc() {
 }
 
 function _objectDirectory() {
-    return (window.RBI && window.RBI.services && window.RBI.services.objectDirectory)
+    return (window.RBI && window.RBI.services && window.RBI.services.objects)
         || window.ObjectDirectory
+        || (window.RBI && window.RBI.services && window.RBI.services.objectDirectory)
         || null;
+}
+
+function _isUuidLikeFilterVal(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 }
 
 /** Display name единственного закреплённого объекта инженера (или ''). */
@@ -130,10 +151,16 @@ function _singleAssignedProjectDisplayName() {
     if (od && typeof od.getAssignedProjectObjects === 'function') {
         const objs = od.getAssignedProjectObjects() || [];
         if (objs.length === 1) {
-            return String(objs[0].display_name || objs[0].canonical_key || assigned[0] || '').trim();
+            const name = String(objs[0].display_name || '').trim();
+            if (name && !_isUuidLikeFilterVal(name)) return name;
         }
     }
-    return String(assigned[0] || '').trim();
+    if (od && typeof od.getDisplayForAssignedRef === 'function') {
+        const shown = String(od.getDisplayForAssignedRef(assigned[0]) || '').trim();
+        if (shown && !_isUuidLikeFilterVal(shown)) return shown;
+    }
+    const fallback = String(assigned[0] || '').trim();
+    return _isUuidLikeFilterVal(fallback) ? '' : fallback;
 }
 
 /**
@@ -231,8 +258,9 @@ function openMultiFilterModal(type, title, context) {
 
     document.getElementById('multi-filter-title').innerHTML = `
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-        ${title}
+        <span class="truncate">${_t('quality.filter.modal.title', title || 'Фильтр')}</span>
     `;
+    _paintMultiFilterModalChrome();
 
     document.getElementById('multi-filter-search').value = '';
 
@@ -330,14 +358,22 @@ function openMultiFilterModal(type, title, context) {
         // даже если локальных проверок/СК по ним ещё нет.
         if (!isManager && role !== 'guest') {
             const od = _objectDirectory();
+            let assignedNames = [];
             if (od && typeof od.getAssignedProjectObjects === 'function') {
-                const assignedNames = (od.getAssignedProjectObjects() || [])
-                    .map(function (o) { return String(o.display_name || o.canonical_key || '').trim(); })
-                    .filter(Boolean);
-                uniqueValues = [...new Set([...uniqueValues, ...assignedNames])];
-            } else if (assignedProjects.length) {
-                uniqueValues = [...new Set([...uniqueValues, ...assignedProjects.map(String).filter(Boolean)])];
+                assignedNames = (od.getAssignedProjectObjects() || [])
+                    .map(function (o) { return String(o.display_name || '').trim(); })
+                    .filter(function (name) { return name && !_isUuidLikeFilterVal(name); });
             }
+            if (!assignedNames.length && od && typeof od.getDisplayForAssignedRef === 'function' && assignedProjects.length) {
+                assignedNames = assignedProjects
+                    .map(function (ref) { return String(od.getDisplayForAssignedRef(ref) || '').trim(); })
+                    .filter(function (name) { return name && !_isUuidLikeFilterVal(name); });
+            }
+            if (assignedNames.length) {
+                uniqueValues = [...new Set([...uniqueValues, ...assignedNames])];
+            }
+            // Убрать случайно попавшие UUID из списка опций
+            uniqueValues = uniqueValues.filter(function (v) { return v && !_isUuidLikeFilterVal(v); });
             if (uniqueValues.length > 0) emptyBecauseNoAssignments = false;
         }
         uniqueValues.sort();
@@ -368,10 +404,10 @@ function openMultiFilterModal(type, title, context) {
 
     if (uniqueValues.length === 0) {
         const emptyTitle = emptyBecauseNoAssignments
-            ? 'Нет закреплённых объектов'
-            : 'Нет данных';
+            ? _t('quality.filter.empty.no_assignments', 'Нет закреплённых объектов')
+            : _t('quality.filter.empty.no_data', 'Нет данных');
         const emptyHint = emptyBecauseNoAssignments
-            ? 'Обратитесь к администратору — без назначенных объектов список фильтра пуст'
+            ? _t('quality.filter.empty.no_assignments_hint', 'Обратитесь к администратору — без назначенных объектов список фильтра пуст')
             : '';
         listEl.innerHTML = `<div class="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-500"><svg class="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg><span class="text-xs font-bold uppercase tracking-wider">${emptyTitle}</span>${emptyHint ? `<span class="text-[10px] font-medium normal-case tracking-normal px-3 leading-snug">${emptyHint}</span>` : ''}</div>`;
     } else {
@@ -534,21 +570,21 @@ function updateFilterButtonLabels() {
             textEl.innerText = display;
             textEl.classList.add('text-indigo-600', 'font-black');
         } else {
-            textEl.innerText = `Выбрано: ${arr.length}`;
+            textEl.innerText = _t('quality.filter.selected_count', 'Выбрано: {n}', { n: arr.length });
             textEl.classList.add('text-indigo-600', 'font-black');
         }
     };
 
     const activeMultiFilters = getActiveMultiFilters();
-    updateBtn('btn-hist-project', activeMultiFilters.history.project, 'Все объекты');
-    updateBtn('btn-hist-contractor', activeMultiFilters.history.contractor, 'Все подрядчики');
-    updateBtn('btn-hist-template', activeMultiFilters.history.template, 'Все виды работ');
-    updateBtn('btn-hist-inspector', activeMultiFilters.history.inspector, 'Все инспекторы');
+    updateBtn('btn-hist-project', activeMultiFilters.history.project, _t('quality.filter.all_projects', 'Все объекты'));
+    updateBtn('btn-hist-contractor', activeMultiFilters.history.contractor, _t('quality.filter.all_contractors', 'Все подрядчики'));
+    updateBtn('btn-hist-template', activeMultiFilters.history.template, _t('quality.filter.all_templates', 'Все виды работ'));
+    updateBtn('btn-hist-inspector', activeMultiFilters.history.inspector, _t('quality.filter.all_inspectors', 'Все инспекторы'));
 
-    updateBtn('btn-ana-project', activeMultiFilters.analytics.project, 'Все объекты');
-    updateBtn('btn-ana-contractor', activeMultiFilters.analytics.contractor, 'Все подрядчики');
-    updateBtn('btn-ana-inspector', activeMultiFilters.analytics.inspector, 'Все инспекторы');
-    updateBtn('btn-ana-template', activeMultiFilters.analytics.template, 'Все виды работ');
+    updateBtn('btn-ana-project', activeMultiFilters.analytics.project, _t('quality.filter.all_projects', 'Все объекты'));
+    updateBtn('btn-ana-contractor', activeMultiFilters.analytics.contractor, _t('quality.filter.all_contractors', 'Все подрядчики'));
+    updateBtn('btn-ana-inspector', activeMultiFilters.analytics.inspector, _t('quality.filter.all_inspectors', 'Все инспекторы'));
+    updateBtn('btn-ana-template', activeMultiFilters.analytics.template, _t('quality.filter.all_templates', 'Все виды работ'));
 }
 
 // После загрузки модуля — закрепить единственный объект, если уже есть профиль.
@@ -581,12 +617,11 @@ try { ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
                             d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
                         </path>
                     </svg>
-                    <span class="truncate">Фильтр</span>
+                    <span class="truncate">${_t('quality.filter.modal.title', 'Фильтр')}</span>
                 </div>
                 <div class="flex gap-2 items-center shrink-0">
                     <button type="button" data-multifilter-action="selectAllMultiFilter"
-                        class="text-[9px] font-bold text-slate-500 hover:text-indigo-500 uppercase active:scale-95 transition-colors px-1">Выбрать
-                        всё</button>
+                        class="text-[9px] font-bold text-slate-500 hover:text-indigo-500 uppercase active:scale-95 transition-colors px-1">${_t('quality.filter.modal.select_all', 'Выбрать всё')}</button>
                     <button type="button" data-multifilter-action="closeMultiFilterModal"
                         class="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 active:scale-90 border border-slate-200 dark:border-slate-600">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -604,7 +639,7 @@ try { ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
                     </svg></span>
                 <input type="text" id="multi-filter-search"
                     class="input-base text-[11px] !py-2 pl-8 bg-white dark:bg-slate-900 shadow-inner"
-                    placeholder="Поиск..." oninput="filterMultiModalList()">
+                    placeholder="${_t('quality.filter.modal.search', 'Поиск...')}" oninput="filterMultiModalList()">
             </div>
 
             <div class="flex-1 overflow-y-auto p-2 custom-scrollbar space-y-1.5 bg-slate-50 dark:bg-slate-900/50 min-h-0"
@@ -618,7 +653,7 @@ try { ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    Применить
+                    ${_t('quality.filter.modal.apply', 'Применить')}
                 </button>
             </div>
         </div>
@@ -626,3 +661,44 @@ try { ensureSingleAssignedProjectFilter(); } catch (_) { /* ignore */ }
 `);
 }());
 window.updateFilterButtonLabels = updateFilterButtonLabels;
+
+function _paintMultiFilterModalChrome() {
+    var titleSpan = document.querySelector('#multi-filter-title .truncate');
+    if (titleSpan) titleSpan.textContent = _t('quality.filter.modal.title', 'Фильтр');
+    var selectAllBtn = document.querySelector('#multi-filter-modal-content [data-multifilter-action="selectAllMultiFilter"]');
+    if (selectAllBtn) selectAllBtn.textContent = _t('quality.filter.modal.select_all', 'Выбрать всё');
+    var search = document.getElementById('multi-filter-search');
+    if (search) search.placeholder = _t('quality.filter.modal.search', 'Поиск...');
+    var applyBtn = document.querySelector('#multi-filter-modal-content [data-multifilter-action="applyMultiFilter"]');
+    if (applyBtn) {
+        var applyLabel = _t('quality.filter.modal.apply', 'Применить');
+        var nodes = applyBtn.childNodes;
+        for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i].nodeType === 3 && String(nodes[i].textContent || '').trim()) {
+                nodes[i].textContent = ' ' + applyLabel;
+                break;
+            }
+        }
+    }
+}
+
+var _i18nBound = false;
+function _bindMultiFilterI18n() {
+    if (_i18nBound) return;
+    _i18nBound = true;
+    document.addEventListener('i18n:localeChanged', function () {
+        if (typeof updateFilterButtonLabels === 'function') {
+            updateFilterButtonLabels();
+        }
+        _paintMultiFilterModalChrome();
+        var overlay = document.getElementById('multi-filter-modal-overlay');
+        if (overlay && overlay.style.display === 'block' && currentFilterType && currentFilterContext) {
+            var type = currentFilterType;
+            var ctx = currentFilterContext;
+            // Сброс type, чтобы openMultiFilterModal не сработал как toggle-close.
+            currentFilterType = '';
+            openMultiFilterModal(type, _t('quality.filter.modal.title', 'Фильтр'), ctx);
+        }
+    });
+}
+_bindMultiFilterI18n();

@@ -236,6 +236,11 @@ body.rbi-audit-desktop-wide .audit-desk-tpl-face {
   text-transform: none !important;
   letter-spacing: 0 !important;
   color: var(--text-main, var(--text-main)) !important;
+  pointer-events: none;
+}
+
+body.rbi-audit-desktop-wide #header-checklist-container > #checklist-selector {
+  z-index: 10;
 }
 
 body.rbi-audit-desktop-wide .audit-desk-tpl-name {

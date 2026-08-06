@@ -103,6 +103,19 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
         return { status: 'failed', bytes: 0, fetched: false };
     }
 
+    // Уже в IDB — сразу skip без записей в FILE_REGISTRY (массовый автокэш).
+    try {
+        let quick = await dbGet(STORES.PHOTOS, url);
+        if (!(quick && quick.data) && item) {
+            const lk = item.local_key || item.localKey;
+            if (lk && lk !== url) quick = await dbGet(STORES.PHOTOS, lk);
+        }
+        if (quick && quick.data) {
+            const b = quick.size_bytes || quick.sizeBytes || quick.data.byteLength || 0;
+            return { status: 'already', bytes: b, fetched: false };
+        }
+    } catch (_) { /* дальше обычный download */ }
+
     for (let i = attempts; i < maxAttempts; i++) {
         try {
             await rbiUpsertFileCacheQueueItem(url, 'pending', {
@@ -117,14 +130,8 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
             const fetched = !!(dl && dl.fetched);
             const bytes = (dl && dl.bytes) || 0;
 
-            // Уже было в IDB — не считаем сетевым скачиванием.
+            // Уже было в IDB — без повторной записи реестра.
             if (dl && dl.ok && !fetched) {
-                await rbiUpsertFileCacheQueueItem(url, 'cached_cloud', {
-                    cache_attempts: i + 1,
-                    last_cache_error: '',
-                    next_cache_retry_at: null,
-                    size_bytes: bytes
-                });
                 return { status: 'already', bytes, fetched: false };
             }
 
@@ -142,12 +149,6 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
             const cached = await dbGet(STORES.PHOTOS, url);
             if (cached && cached.data) {
                 const b = cached.size_bytes || cached.sizeBytes || cached.data.byteLength || 0;
-                await rbiUpsertFileCacheQueueItem(url, 'cached_cloud', {
-                    cache_attempts: i + 1,
-                    last_cache_error: '',
-                    next_cache_retry_at: null,
-                    size_bytes: b
-                });
                 return { status: 'already', bytes: b, fetched: false };
             }
 
@@ -356,16 +357,24 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
 
         updateUi();
 
+        // Один раз URL → отчёт (без reportsArray.find на каждый файл).
+        const reportByUrl = new Map();
+        if (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray)) {
+            reportsArray.forEach((r) => {
+                if (!r) return;
+                const u = r.file_url || r.fileUrl;
+                if (u && typeof u === 'string') reportByUrl.set(u, r);
+            });
+        }
+
         for (let i = 0; i < total; i += concurrency) {
             const batch = urlArray.slice(i, i + concurrency);
 
             const promises = batch.map(async (url) => {
                 try {
                     const entryKind = kindByUrl.get(url) || '';
-                    const repObj = (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray))
-                        ? reportsArray.find((r) => r && (r.file_url === url || r.fileUrl === url))
-                        : null;
-                    // Не только path /reports/ — kind из collect + поиск в reportsArray.
+                    const repObj = reportByUrl.get(url) || null;
+                    // Не только path /reports/ — kind из collect + map reportsArray.
                     const isReportFile = entryKind === 'report_pdf'
                         || !!repObj
                         || (typeof url === 'string' && (
@@ -376,7 +385,7 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
 
                     if (isReportFile) {
                         if (!repObj) {
-                            // Нет метаданных в RAM — всё равно качаем в PHOTOS (openReport читает и оттуда).
+                            // Нет мета в RAM — качаем в PHOTOS (openReport 1c / нет строки REPORTS).
                             const result = await rbiDownloadFileWithRetry(url, 3);
                             if (result.status === 'cached' && result.fetched) {
                                 downloadedCount++;
@@ -465,35 +474,8 @@ window.downloadMissingCloudFiles = async function (silent = false, scope = 'all'
                                 updated_at: now
                             };
                             await dbPut(STORES.REPORTS, idbRecord);
-
-                            // Дубль в PHOTOS — запасной путь openReport (1c) на случай
-                            // битой записи app_reports после sync/cleanup.
-                            try {
-                                if (typeof dbPut === 'function' && STORES.PHOTOS && reportBuffer) {
-                                    await dbPut(STORES.PHOTOS, {
-                                        id: url,
-                                        data: reportBuffer,
-                                        mimeType: mime,
-                                        mime_type: mime,
-                                        sizeBytes: payloadBytes,
-                                        size_bytes: payloadBytes,
-                                        createdAt: now,
-                                        created_at: now,
-                                        cachedAt: now,
-                                        cached_at: now,
-                                        lastAccessedAt: now,
-                                        last_accessed_at: now,
-                                        sourceUrl: url,
-                                        source_url: url,
-                                        cacheStatus: 'cached_cloud',
-                                        cache_status: 'cached_cloud',
-                                        entityType: 'report_pdf',
-                                        entity_type: 'report_pdf'
-                                    });
-                                }
-                            } catch (dupErr) {
-                                console.warn('[Cache] PHOTOS mirror for report failed', dupErr);
-                            }
+                            // Без зеркала в PHOTOS: источник истины — app_reports.
+                            // openReport 1c по PHOTOS оставлен для старых копий, новые не дублируем.
 
                             repObj.file_blob = null;
                             repObj.file_size = payloadBytes;

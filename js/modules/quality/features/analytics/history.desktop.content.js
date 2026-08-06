@@ -24,6 +24,46 @@ let _deskPlansSelectedFloor = null;
 /** Expanded accordion keys in plans left pane: `b:{buildingId}` / `s:{sectionId}` / `o:{projectName}` */
 let _deskPlansExpanded = new Set();
 let _deskHistBound = false;
+let _historyDeskI18nBound = false;
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var out = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (out && out !== key) return out;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+function _bindHistoryDeskI18n() {
+  if (_historyDeskI18nBound) return;
+  if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+  _historyDeskI18nBound = true;
+  window.RBI.events.on('i18n:localeChanged', function () {
+    try {
+      const mounted = Object.keys(DESK_IDS).some(function (m) {
+        return !!document.getElementById(DESK_IDS[m]);
+      });
+      if (!mounted) return;
+      paintHistoryContent(window.currentHistoryViewMode || 'checks');
+    } catch (_e) { /* ignore */ }
+  });
+}
+
+function reportDocKindLabel(kind) {
+  if (kind === 'Плакат качества') return _t('quality.history.report.kind_poster', 'Плакат качества');
+  if (kind === 'День качества') return _t('quality.history.report.kind_day', 'День качества');
+  if (kind === 'Сводный отчёт') return _t('quality.history.report.kind_summary', 'Сводный отчёт');
+  if (kind === 'Прочее') return _t('quality.history.report.kind_other', 'Прочее');
+  return kind;
+}
 
 const CHECK_SORT_KEYS = ['place', 'date', 'tmpl', 'insp', 'urk'];
 const RU_COLLATOR = new Intl.Collator('ru', { sensitivity: 'base', numeric: true });
@@ -72,11 +112,11 @@ function reportAuthor(r) {
 
 function reportPeriod(r) {
   const raw = (r.metadata && (r.metadata.period || r.metadata.periodLabel)) || '';
-  return String(raw).trim() || 'Период не указан';
+  return String(raw).trim() || _t('quality.history.report.period_none', 'Период не указан');
 }
 
 function reportProject(r) {
-  return String((r.metadata && r.metadata.project) || 'Сводный Отчет').trim() || 'Сводный Отчет';
+  return String((r.metadata && r.metadata.project) || _t('quality.history.report.default_project', 'Сводный Отчет')).trim() || _t('quality.history.report.default_project', 'Сводный Отчет');
 }
 
 function filterHistoryRecords(allRecords) {
@@ -233,7 +273,7 @@ function resolveSelectedProject(selected, names) {
 function buildObjectRailHtml(kind, names, counts, selected, total) {
   const allOn = selected === 'ALL';
   const allBtn = `<button type="button" class="ana-desk-hist-obj${allOn ? ' is-on' : ''}" data-ana-desk-obj="${kind}" data-ana-desk-obj-id="ALL">`
-    + `<span class="ana-desk-hist-obj-name">Все объекты</span>`
+    + `<span class="ana-desk-hist-obj-name">${esc(_t('quality.history.rail.all_objects', 'Все объекты'))}</span>`
     + `<span class="ana-desk-hist-obj-count">${total}</span>`
     + `</button>`;
   const cards = names.map((name) => {
@@ -243,7 +283,7 @@ function buildObjectRailHtml(kind, names, counts, selected, total) {
       + `<span class="ana-desk-hist-obj-count">${counts.get(name) || 0}</span>`
       + `</button>`;
   }).join('');
-  return `<aside class="ana-desk-hist-rail" aria-label="Объекты">`
+  return `<aside class="ana-desk-hist-rail" aria-label="${esc(_t('quality.history.rail.aria', 'Объекты'))}">`
     + `<div class="ana-desk-hist-rail-list">${allBtn}${cards}</div>`
     + `</aside>`;
 }
@@ -256,7 +296,7 @@ function detailHeadHtml(title, count, unit) {
 }
 
 function checkProjectOf(item) {
-  return item.project_display_name || item.projectName || 'Без объекта';
+  return item.project_display_name || item.projectName || _t('quality.history.fallback.no_project', 'Без объекта');
 }
 
 function checkSortValue(item, key) {
@@ -292,11 +332,11 @@ function sortMark(key) {
 
 function buildChecksTableHtml(items) {
   const headCols = [
-    ['place', 'Место'],
-    ['date', 'Дата'],
-    ['tmpl', 'Вид работ'],
-    ['insp', 'Инспектор'],
-    ['urk', 'УрК']
+    ['place', _t('quality.history.sort.place', 'Место')],
+    ['date', _t('quality.history.sort.date', 'Дата')],
+    ['tmpl', _t('quality.history.sort.work', 'Вид работ')],
+    ['insp', _t('quality.history.sort.inspector', 'Инспектор')],
+    ['urk', _t('quality.history.sort.urk', 'УрК')]
   ];
   const head = `<div class="ana-desk-hist-row-head" role="row">`
     + `<span></span>`
@@ -308,7 +348,7 @@ function buildChecksTableHtml(items) {
 
   const rows = items.map((item) => {
     const id = String(item.id);
-    const place = item.location || 'Без локации';
+    const place = item.location || _t('quality.history.fallback.no_location', 'Без локации');
     const when = new Date(item.date).toLocaleString('ru-RU', {
       day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
     });
@@ -320,7 +360,7 @@ function buildChecksTableHtml(items) {
     return `<div class="ana-desk-hist-row" data-hist-id="${esc(id)}" role="row">`
       + `<input type="checkbox" class="hist-checkbox ana-desk-hist-row-cb" value="${esc(id)}">`
       + `<button type="button" class="ana-desk-hist-row-main" data-ana-desk-open-check="${esc(id)}">`
-      + `<span class="ana-desk-hist-row-place">${esc(place)}${hasPhoto ? ' · фото' : ''}</span>`
+      + `<span class="ana-desk-hist-row-place">${esc(place)}${hasPhoto ? _t('quality.history.row.has_photo', ' · фото') : ''}</span>`
       + `<span class="ana-desk-hist-row-when">${esc(when)}</span>`
       + `<span class="ana-desk-hist-row-tmpl">${esc(tmpl)}</span>`
       + `<span class="ana-desk-hist-row-insp">${esc(insp)}</span>`
@@ -350,14 +390,14 @@ function reportFileCard(r) {
     + `<input type="checkbox" class="report-checkbox ana-desk-hist-file-cb" value="${esc(r.id)}">`
     + `<span class="ana-desk-hist-file-type ${typeCls}">${type}</span>`
     + `<div class="ana-desk-hist-file-body">`
-    + `<div class="ana-desk-hist-file-title">${esc(r.title || 'Без названия')}</div>`
-    + `<div class="ana-desk-hist-file-meta">${esc(kind !== 'Прочее' ? kind : 'Отчёт')}`
+    + `<div class="ana-desk-hist-file-title">${esc(r.title || _t('quality.history.report.untitled', 'Без названия'))}</div>`
+    + `<div class="ana-desk-hist-file-meta">${esc(kind !== 'Прочее' ? reportDocKindLabel(kind) : _t('quality.history.report.generic', 'Отчёт'))}`
     + `${_deskReportsProject === 'ALL' ? ' · ' + esc(project) : ''}</div>`
     + `<div class="ana-desk-hist-file-sub">${esc(author)} · ${esc(period)} · ${esc(sizeStr)}</div>`
     + `</div>`
     + `<div class="ana-desk-hist-file-side">`
     + `<time class="ana-desk-hist-file-date">${esc(dateStr)}</time>`
-    + `<button type="button" class="ana-desk-hist-file-more" data-ana-desk-report-more="${esc(r.id)}" data-owner="${isOwner ? '1' : '0'}" data-title="${esc(safeTitle)}" aria-label="Действия">⋮</button>`
+    + `<button type="button" class="ana-desk-hist-file-more" data-ana-desk-report-more="${esc(r.id)}" data-owner="${isOwner ? '1' : '0'}" data-title="${esc(safeTitle)}" aria-label="${esc(_t('quality.history.report.actions', 'Действия'))}">⋮</button>`
     + `</div>`
     + `</article>`;
 }
@@ -372,11 +412,11 @@ function paintDeskReports() {
   const filtered = filterReports(all);
 
   if (!all.length) {
-    host.innerHTML = emptyHtml('Сохранённых отчётов пока нет.', 'Сформируйте отчёт — он появится здесь.');
+    host.innerHTML = emptyHtml(_t('quality.history.report.empty', 'Сохранённых отчётов пока нет.'), _t('quality.history.report.empty_hint', 'Сформируйте отчёт во вкладке Отчёты.'));
     return;
   }
   if (!filtered.length) {
-    host.innerHTML = emptyHtml('По выбранным фильтрам отчётов не найдено.', 'Смягчите период или объект.');
+    host.innerHTML = emptyHtml(_t('quality.history.report.empty_filtered', 'По выбранным фильтрам отчётов не найдено.'), _t('quality.history.report.empty_filtered_hint', 'Смягчите фильтры или период.'));
     return;
   }
 
@@ -411,26 +451,26 @@ function paintDeskReports() {
       + `${esc(label)} <span>${count}</span></button>`
     );
     chips = `<div class="ana-desk-hist-chips">`
-      + chip('Все', 'ALL', filtered.length, _deskReportsDocKind === 'ALL')
-      + kinds.map((k) => chip(k, k, kindCounts.get(k), _deskReportsDocKind === k)).join('')
+      + chip(_t('quality.history.report.chip_all', 'Все'), 'ALL', filtered.length, _deskReportsDocKind === 'ALL')
+      + kinds.map((k) => chip(reportDocKindLabel(k), k, kindCounts.get(k), _deskReportsDocKind === k)).join('')
       + `</div>`;
   }
 
   const actions = `<div class="ana-desk-hist-reports-actions">`
-    + `<label class="ana-desk-hist-check-all"><input type="checkbox" id="ana-desk-reports-select-all" class="accent-indigo-600"> Выбрать всё</label>`
-    + `<button type="button" class="ana-desk-hist-danger-btn" data-analytics-action="deleteSelectedReports">Удалить выбранные</button>`
+    + `<label class="ana-desk-hist-check-all"><input type="checkbox" id="ana-desk-reports-select-all" class="accent-indigo-600"> ${_t('quality.history.report.select_all', 'Выбрать всё')}</label>`
+    + `<button type="button" class="ana-desk-hist-danger-btn" data-analytics-action="deleteSelectedReports">${_t('quality.history.report.delete_selected', 'Удалить выбранные')}</button>`
     + `</div>`;
 
-  const title = _deskReportsProject === 'ALL' ? 'Все объекты' : _deskReportsProject;
+  const title = _deskReportsProject === 'ALL' ? _t('quality.history.rail.all_objects', 'Все объекты') : _deskReportsProject;
   let body = '';
   if (!selectedItems.length) {
-    body = emptyHtml('В этом объекте нет отчётов.', 'Выберите другой объект или смягчите фильтр вида документа.');
+    body = emptyHtml(_t('quality.history.report.empty_project', 'В этом объекте нет отчётов.'), _t('quality.history.report.empty_project_hint', 'Выберите другой объект.'));
   } else {
     body = `<div class="ana-desk-hist-files">${selectedItems.map(reportFileCard).join('')}</div>`;
   }
 
   const detail = `<div class="ana-desk-hist-detail">`
-    + detailHeadHtml(title, selectedItems.length, selectedItems.length === 1 ? 'отчёт' : 'отчётов')
+    + detailHeadHtml(title, selectedItems.length, selectedItems.length === 1 ? _t('quality.history.unit.report_one', 'отчёт') : _t('quality.history.unit.report_many', 'отчётов'))
     + chips + actions + body
     + `</div>`;
 
@@ -446,11 +486,11 @@ function paintDeskChecks() {
   const filtered = filterHistoryRecords(records);
 
   if (!records.length) {
-    host.innerHTML = emptyHtml('История пуста.', 'Создайте проверку или смягчите фильтры.');
+    host.innerHTML = emptyHtml(_t('quality.history.empty.all', 'История пуста.'), _t('quality.history.empty.all_hint', 'Создайте проверку или смягчите фильтры.'));
     return;
   }
   if (!filtered.length) {
-    host.innerHTML = emptyHtml('Нет проверок по фильтрам.', 'Смягчите период, объект или другие условия.');
+    host.innerHTML = emptyHtml(_t('quality.history.empty.filtered', 'По заданным фильтрам проверок не найдено.'), _t('quality.history.empty.filtered_hint', 'Смягчите период или условия фильтра.'));
     return;
   }
 
@@ -463,22 +503,22 @@ function paintDeskChecks() {
 
   const counts = new Map(names.map((n) => [n, (map.get(n) || []).length]));
   const rail = buildObjectRailHtml('checks', names, counts, _deskChecksProject, filtered.length);
-  const title = _deskChecksProject === 'ALL' ? 'Все объекты' : _deskChecksProject;
+  const title = _deskChecksProject === 'ALL' ? _t('quality.history.rail.all_objects', 'Все объекты') : _deskChecksProject;
 
   let body = '';
   if (!sorted.length) {
-    body = emptyHtml('В этом объекте нет проверок.', 'Выберите другой объект.');
+    body = emptyHtml(_t('quality.history.empty.project', 'В этом объекте нет проверок.'), _t('quality.history.empty.project_hint', 'Выберите другой объект.'));
   } else {
     body = buildChecksTableHtml(sorted);
   }
 
   let more = '';
   if (window.HistoryState && window.HistoryState.pageHasMore) {
-    more = `<button type="button" class="ana-desk-hist-more" data-history-action="loadMoreHistoryPage">Загрузить ещё</button>`;
+    more = `<button type="button" class="ana-desk-hist-more" data-history-action="loadMoreHistoryPage">${_t('quality.history.btn.load_more', 'Загрузить ещё')}</button>`;
   }
 
   const detail = `<div class="ana-desk-hist-detail">`
-    + detailHeadHtml(title, sorted.length, sorted.length === 1 ? 'проверка' : 'проверок')
+    + detailHeadHtml(title, sorted.length, sorted.length === 1 ? _t('quality.history.unit.check_one', 'проверка') : _t('quality.history.unit.check_many', 'проверок'))
     + body + more
     + `</div>`;
 
@@ -524,7 +564,7 @@ function pdfFloorsForObject(loc, objectNode) {
           buildingName: b.displayName || '',
           buildingsCount: buildings.length,
           sectionId: String(s.id),
-          sectionName: s.displayName || 'Секция',
+          sectionName: s.displayName || _t('quality.history.plan.section', 'Секция'),
           sectionsCount: sections.length
         });
       });
@@ -561,7 +601,7 @@ function groupPdfFloors(floors) {
     const sKey = row.sectionId || row.sectionName || '_';
     let s = b.sMap.get(sKey);
     if (!s) {
-      s = { sectionId: row.sectionId, sectionName: row.sectionName || 'Секция', floors: [] };
+      s = { sectionId: row.sectionId, sectionName: row.sectionName || _t('quality.history.plan.section', 'Секция'), floors: [] };
       b.sMap.set(sKey, s);
       b.sections.push(s);
     }
@@ -572,13 +612,13 @@ function groupPdfFloors(floors) {
 }
 
 function projectNameOf(item) {
-  return (item && (item.project_display_name || item.projectName)) || 'Без объекта';
+  return (item && (item.project_display_name || item.projectName)) || _t('quality.history.fallback.no_project', 'Без объекта');
 }
 
 function buildAggTableHtml(items, headLabel) {
   const pins = items || [];
   if (!pins.length) {
-    return `<div class="ana-desk-hist-plan-defects-empty">Нет точек на планах по текущим фильтрам.</div>`;
+    return `<div class="ana-desk-hist-plan-defects-empty">${esc(_t('quality.history.plan.no_pins_filtered', 'Нет точек на планах по текущим фильтрам.'))}</div>`;
   }
   const groups = groupPinsByTemplate(pins);
   let sumChecks = 0;
@@ -612,20 +652,20 @@ function buildAggTableHtml(items, headLabel) {
   }).join('');
   const sumTotal = sumB1 + sumB2 + sumB3;
   return `<div class="ana-desk-hist-plan-defects">`
-    + `<div class="ana-desk-hist-plan-defects-head">${esc(headLabel || 'Замечания по видам работ')}</div>`
+    + `<div class="ana-desk-hist-plan-defects-head">${esc(headLabel || _t('quality.history.plan.agg_work', 'Замечания на плане · по видам работ'))}</div>`
     + `<div class="ana-desk-hist-plan-agg-wrap">`
     + `<table class="ana-desk-hist-plan-agg">`
     + `<thead><tr>`
-    + `<th class="ana-desk-hist-plan-agg-name">Вид работ</th>`
-    + `<th class="ana-desk-hist-plan-agg-num">Проверок</th>`
-    + `<th class="ana-desk-hist-plan-agg-num">Всего</th>`
+    + `<th class="ana-desk-hist-plan-agg-name">${esc(_t('quality.history.plan.col_work', 'Вид работ'))}</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">${esc(_t('quality.history.plan.col_checks', 'Проверок'))}</th>`
+    + `<th class="ana-desk-hist-plan-agg-num">${esc(_t('quality.history.plan.col_total', 'Всего'))}</th>`
     + `<th class="ana-desk-hist-plan-agg-num">B3</th>`
     + `<th class="ana-desk-hist-plan-agg-num">B2</th>`
     + `<th class="ana-desk-hist-plan-agg-num">B1</th>`
     + `</tr></thead>`
     + `<tbody>${rows}</tbody>`
     + `<tfoot><tr>`
-    + `<td>Итого</td>`
+    + `<td>${esc(_t('quality.history.plan.total', 'Итого'))}</td>`
     + `<td class="ana-desk-hist-plan-agg-num">${sumChecks}</td>`
     + `<td class="ana-desk-hist-plan-agg-num">${sumTotal}</td>`
     + `<td class="ana-desk-hist-plan-agg-num is-b3">${sumB3}</td>`
@@ -638,7 +678,7 @@ function buildAggTableHtml(items, headLabel) {
 function groupPinsByTemplate(items) {
   const map = new Map();
   (items || []).forEach((item) => {
-    const key = item.templateTitle || item.templateKey || 'Без вида работ';
+    const key = item.templateTitle || item.templateKey || _t('quality.history.fallback.no_work', 'Без вида работ');
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(item);
   });
@@ -754,12 +794,12 @@ function buildPlansCascadeHtml(loc, usableMeta, filtered, selectedFloorId) {
   });
 
   const allBtn = `<button type="button" class="ana-desk-hist-obj${allOn ? ' is-on' : ''}" data-ana-desk-plans-all="1">`
-    + `<span class="ana-desk-hist-obj-name">Все объекты</span>`
+    + `<span class="ana-desk-hist-obj-name">${esc(_t('quality.history.rail.all_objects', 'Все объекты'))}</span>`
     + `<span class="ana-desk-hist-obj-count">${totalPins}</span>`
     + `</button>`;
 
   return {
-    html: `<aside class="ana-desk-hist-plan-cascade" aria-label="Планы">`
+    html: `<aside class="ana-desk-hist-plan-cascade" aria-label="${esc(_t('quality.history.plan.aria', 'Планы'))}">`
       + `<div class="ana-desk-hist-plan-cascade-list">${allBtn}${parts.join('')}</div>`
       + `</aside>`,
     totalFloors,
@@ -772,7 +812,7 @@ function floorLabelForId(floorId) {
   const fromMap = _deskPlansFloorLabels.get(String(floorId));
   if (fromMap) return fromMap;
   const btn = document.querySelector(`.ana-desk-hist-floor[data-ana-desk-floor="${String(floorId).replace(/"/g, '')}"]`);
-  return (btn && btn.getAttribute('data-ana-desk-floor-label')) || 'План этажа';
+  return (btn && btn.getAttribute('data-ana-desk-floor-label')) || _t('quality.history.plan.floor_title', 'План этажа');
 }
 
 async function mountSelectedFloorPreview(floorId) {
@@ -788,9 +828,9 @@ async function mountSelectedFloorPreview(floorId) {
 
   if (previewWrap) previewWrap.classList.remove('is-hidden');
   const items = _deskPlansFloorItems.get(String(floorId)) || [];
-  if (defectsHost) defectsHost.innerHTML = buildAggTableHtml(items, 'Замечания на плане · по видам работ');
+  if (defectsHost) defectsHost.innerHTML = buildAggTableHtml(items, _t('quality.history.plan.agg_work', 'Замечания на плане · по видам работ'));
   if (!host) return;
-  host.innerHTML = `<div class="ana-desk-hist-plan-preview-loading">Загрузка плана…</div>`;
+  host.innerHTML = `<div class="ana-desk-hist-plan-preview-loading">${esc(_t('quality.history.plan.loading', 'Загрузка плана…'))}</div>`;
 
   const openFullscreen = function () {
     openHistoryPlanViewer({
@@ -813,7 +853,7 @@ async function mountSelectedFloorPreview(floorId) {
     });
   } catch (e) {
     console.warn('[history.desk.plans] preview', e);
-    host.innerHTML = `<div class="ana-desk-hist-plan-preview-empty">Не удалось открыть план</div>`;
+    host.innerHTML = `<div class="ana-desk-hist-plan-preview-empty">${esc(_t('quality.history.plan.open_failed', 'Не удалось открыть план'))}</div>`;
   }
 }
 
@@ -827,7 +867,7 @@ function paintDeskPlans() {
   _deskPlansFloorLabels = new Map();
 
   if (!loc || typeof loc.getPlanForFloor !== 'function') {
-    host.innerHTML = emptyHtml('Справочник локаций недоступен.', '');
+    host.innerHTML = emptyHtml(_t('quality.history.plan.locations_unavailable', 'Справочник локаций недоступен.'), '');
     return;
   }
 
@@ -867,8 +907,8 @@ function paintDeskPlans() {
 
   if (!usableMeta.length) {
     host.innerHTML = emptyHtml(
-      'Нет объектов с PDF-планами по фильтрам.',
-      'Проверьте привязку планов этажей или смягчите фильтр.'
+      _t('quality.history.plan.empty_filtered', 'Нет объектов с PDF-планами этажей по заданным фильтрам.'),
+      _t('quality.history.plan.empty_filtered_hint', 'Смягчите фильтры или загрузите планы в Настройках.')
     );
     return;
   }
@@ -887,8 +927,8 @@ function paintDeskPlans() {
     ? (_deskPlansFloorItems.get(String(selFloor)) || [])
     : cascade.allPins;
   const tableHead = showPreview
-    ? 'Замечания на плане · по видам работ'
-    : 'Замечания по всем объектам · по видам работ';
+    ? _t('quality.history.plan.agg_work', 'Замечания на плане · по видам работ')
+    : _t('quality.history.plan.agg_all', 'Замечания по всем объектам · по видам работ');
 
   // Keep live PDF viewer across chrome re-paints (same floor) — avoids reload/toast while zooming.
   const prevHost = document.getElementById('ana-desk-hist-plan-preview');
@@ -943,6 +983,7 @@ function paintDeskPlans() {
 /* ─── Public paint API ──────────────────────────────────────────────── */
 
 export function paintHistoryContent(mode) {
+  _bindHistoryDeskI18n();
   const m = mode || window.currentHistoryViewMode || 'checks';
   showDeskMode(m);
   // Object rail owns project selection on desktop — drop multifilter duplicate
@@ -952,7 +993,7 @@ export function paintHistoryContent(mode) {
     }
     const projBtn = document.getElementById('btn-hist-project');
     const span = projBtn && projBtn.querySelector('span.truncate');
-    if (span) span.textContent = 'Все объекты';
+    if (span) span.textContent = _t('quality.history.rail.all_objects', 'Все объекты');
   } catch (_) { /* ignore */ }
   if (m === 'reports') paintDeskReports();
   else if (m === 'plans') paintDeskPlans();
@@ -986,6 +1027,7 @@ export function clearHistoryDeskPanels() {
 export function bindHistoryDeskEvents() {
   if (_deskHistBound) return;
   _deskHistBound = true;
+  _bindHistoryDeskI18n();
 
   document.addEventListener('click', (e) => {
     const t = e.target;

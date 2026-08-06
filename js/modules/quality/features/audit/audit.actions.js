@@ -5,6 +5,22 @@
 // Эмитит кастомные события для межмодульной коммуникации (сохранён паттерн
 // делегатора, существовавший ранее в этом файле).
 
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
 (function () {
   'use strict';
 
@@ -265,7 +281,7 @@
           var now = Date.now();
           if (!window.__rbiLastAutosaveToastAt || (now - window.__rbiLastAutosaveToastAt) >= 30000) {
             window.__rbiLastAutosaveToastAt = now;
-            showToast('⚠️ Ошибка автосохранения!');
+            showToast(_t('quality.audit.toast.autosave_error', '⚠️ Ошибка автосохранения!'));
           }
         }
       }
@@ -358,7 +374,7 @@
         if (nav) { nav.innerHTML = ''; nav.classList.add('hidden'); }
 
         document.getElementById('data-block-summary')?.classList.add('hidden');
-        if (document.getElementById('current-checklist-label')) document.getElementById('current-checklist-label').innerText = 'Вид работ не выбран';
+        if (document.getElementById('current-checklist-label')) document.getElementById('current-checklist-label').innerText = _t('quality.audit.checklist.none', 'Вид работ не выбран');
 
         AuditActions.saveSession();
         if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
@@ -419,7 +435,7 @@
         var _ind = document.getElementById('quality-plan-pin-indicator');
         if (_ind) { _ind.classList.add('hidden'); _ind.classList.remove('flex'); }
         var roomPh = document.getElementById('inp-room');
-        if (roomPh) roomPh.placeholder = 'Оси/Пом.*';
+        if (roomPh) roomPh.placeholder = _t('quality.audit.field.room_required', 'Оси/Пом.*');
       } catch (_e) { /* ignore */ }
       AuditState.resetSession();
       assignPhotosMap({});
@@ -431,7 +447,7 @@
     // Вызывается из index.html: onclick="resetChecklist()"
     // =====================================================================
     resetChecklist: function () {
-      if (!confirm('Очистить только текущий чек-лист?')) return;
+      if (!confirm(_t('quality.audit.confirm.reset_checklist', 'Очистить только текущий чек-лист?'))) return;
       AuditState.resetSession(); assignPhotosMap({}); document.getElementById('inp-location').value = '';
       if (document.getElementById('inp-section')) document.getElementById('inp-section').value = '';
       if (document.getElementById('inp-floor')) document.getElementById('inp-floor').value = '';
@@ -453,7 +469,7 @@
     saveProductToArray: async function () {
       var _permSvc = (AuditActions._ctx && AuditActions._ctx.permissions) || window.RBI.services.permissions;
       if (_permSvc && !_permSvc.canCreate()) {
-        return showToast("⛔ Ваша роль не позволяет создавать проверки");
+        return showToast(_t('quality.audit.toast.role_no_create', '⛔ Ваша роль не позволяет создавать проверки'));
       }
       var projInput = document.getElementById('inp-project');
       var inspInput = document.getElementById('inp-inspector');
@@ -468,7 +484,7 @@
       }
 
       if (!inspInput || !inspInput.value.trim()) {
-        return showToast('⚠️ Укажите ваше Имя во вкладке "Инженер -> Профиль" перед сохранением!');
+        return showToast(_t('quality.audit.toast.need_engineer_name', '⚠️ Укажите ваше Имя во вкладке "Инженер -> Профиль" перед сохранением!'));
       }
 
       var hasError = false;
@@ -488,7 +504,7 @@
       });
 
       if (hasError) {
-        showToast('⚠️ Заполните все поля со звездочкой (Объект, Подрядчик, Секция)!');
+        showToast(_t('quality.audit.toast.fill_required', '⚠️ Заполните все поля со звездочкой (Объект, Подрядчик, Секция)!'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -530,7 +546,7 @@
               localStorage.setItem('rbi_cloud_dirty', '1');
             });
           }
-          showToast(`🏢 Объект "${newObjName}" отправлен на согласование руководителю.`);
+          showToast(_t('quality.audit.toast.object_pending', '🏢 Объект "{name}" отправлен на согласование руководителю.', { name: newObjName }));
         }
       }
 
@@ -567,7 +583,7 @@
       });
 
       if (isDuplicate) {
-        return showToast('⚠️ Проверка с такой локацией уже существует в Истории!');
+        return showToast(_t('quality.audit.toast.duplicate_location', '⚠️ Проверка с такой локацией уже существует в Истории!'));
       }
 
       var settingsChanged = false;
@@ -603,7 +619,7 @@
       });
 
       if (checkedStageNames.length === 0) {
-        return showToast('⚠️ Чек-лист пуст. Заполните хотя бы один пункт.');
+        return showToast(_t('quality.audit.toast.empty_checklist', '⚠️ Чек-лист пуст. Заполните хотя бы один пункт.'));
       }
 
       var finalMetrics = getProductMetrics(mergedState, stagesToMetric);
@@ -616,7 +632,7 @@
         };
       }
       var isFullCheck = checkedStageNames.length === AuditState.currentChecklist.length;
-      var stageNameLabel = isFullCheck ? 'Полная проверка' : 'Частичная проверка';
+      var stageNameLabel = isFullCheck ? _t('quality.audit.stage.full', 'Полная проверка') : _t('quality.audit.stage.partial', 'Частичная проверка');
 
       var selectEl = document.getElementById('checklist-selector');
       var tTitle = selectEl.options[selectEl.selectedIndex].text.replace('▼', '').trim();
@@ -702,7 +718,7 @@
       var inspType = isConstructionMode ? 'sk_acceptance' : 'rbi_audit';
 
       var initialSyncStatus = isConstructionMode ? 'blocked' : 'not_synced';
-      var initialSyncReason = isConstructionMode ? 'Модуль СК временно отключен от облака' : '';
+      var initialSyncReason = isConstructionMode ? _t('quality.audit.sync.sk_offline', 'Модуль СК временно отключен от облака') : '';
 
       var newItem = {
         id: String(Date.now() + Math.floor(Math.random() * 1000)),
@@ -869,9 +885,9 @@
       if (window.activeAcceptanceRequestId) {
         var _acceptanceStatus = (finalMetrics.isDanger || finalMetrics.final < 85) ? 'rejected' : 'accepted';
         if (_acceptanceStatus === 'rejected') {
-          showToast("❌ Работы отклонены по результатам чек-листа");
+          showToast(_t('quality.audit.toast.works_rejected', '❌ Работы отклонены по результатам чек-листа'));
         } else {
-          showToast("✅ Работы успешно приняты!");
+          showToast(_t('quality.audit.toast.works_accepted', '✅ Работы успешно приняты!'));
         }
         emit('audit:acceptanceStatusChanged', { requestId: window.activeAcceptanceRequestId, status: _acceptanceStatus });
         window.activeAcceptanceRequestId = null;
@@ -887,7 +903,7 @@
         try {
           var _indSaveKeep = document.getElementById('quality-plan-pin-indicator');
           if (_indSaveKeep) { _indSaveKeep.classList.add('hidden'); _indSaveKeep.classList.remove('flex'); }
-          if (roomInput) roomInput.placeholder = 'Оси/Пом.*';
+          if (roomInput) roomInput.placeholder = _t('quality.audit.field.room_required', 'Оси/Пом.*');
         } catch (_eSaveKeep) { /* ignore */ }
       } else {
         secInput.value = ''; floorInput.value = ''; roomInput.value = ''; locHidden.value = '';
@@ -898,14 +914,14 @@
           var _indSave = document.getElementById('quality-plan-pin-indicator');
           if (_indSave) { _indSave.classList.add('hidden'); _indSave.classList.remove('flex'); }
           var roomPh = document.getElementById('inp-room');
-          if (roomPh) roomPh.placeholder = 'Оси/Пом.*';
+          if (roomPh) roomPh.placeholder = _t('quality.audit.field.room_required', 'Оси/Пом.*');
         } catch (_eSave) { /* ignore */ }
       }
 
       AuditActions.scheduleSessionSave();
 
       window.scrollTo({ top: 0, behavior: "smooth" });
-      showToast(`✅ Сохранено в Историю!`);
+      showToast(_t('quality.audit.toast.saved_history', '✅ Сохранено в Историю!'));
 
       window.render();
       window.updateUI();
@@ -974,7 +990,7 @@
     // =====================================================================
     removePhoto: function (id, e, index) {
       if (e) e.stopPropagation();
-      if (!confirm('Удалить фото?')) return;
+      if (!confirm(_t('quality.audit.confirm.delete_photo', 'Удалить фото?'))) return;
 
       if (index === undefined || index === null) {
         delete AuditState.photos[id];
@@ -1002,11 +1018,12 @@
       var currentData = AuditState.details[id] || {};
       var savedCodes = currentData.causeCode ? currentData.causeCode.split(',') : [];
 
-      var DEFECT_CAUSES = window._AUDIT_DEFECT_CAUSES || [];
+      var DEFECT_CAUSES = window._AUDIT_DEFECT_CAUSES || window.DEFECT_CAUSES || [];
       var html = '';
       DEFECT_CAUSES.forEach(function (c) {
         var isChecked = savedCodes.includes(c.code) ? 'checked' : '';
-        html += '<label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-700 dark:text-slate-300"><input type="checkbox" value="' + c.code + '" class="cause-checkbox w-4 h-4 accent-indigo-600 rounded cursor-pointer" ' + isChecked + '> ' + c.name + '</label>';
+        var causeLabel = _t('quality.audit.cause.' + String(c.code).toLowerCase(), c.name);
+        html += '<label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-700 dark:text-slate-300"><input type="checkbox" value="' + c.code + '" class="cause-checkbox w-4 h-4 accent-indigo-600 rounded cursor-pointer" ' + isChecked + '> ' + causeLabel + '</label>';
       });
       if (container) container.innerHTML = html;
 
@@ -1043,7 +1060,7 @@
       var id = window._auditCurrentCommentId;
       if (!id) return;
 
-      var DEFECT_CAUSES = window._AUDIT_DEFECT_CAUSES || [];
+      var DEFECT_CAUSES = window._AUDIT_DEFECT_CAUSES || window.DEFECT_CAUSES || [];
       var checkboxes = document.querySelectorAll('.cause-checkbox:checked');
       var checkedCodes = Array.from(checkboxes).map(function (cb) { return cb.value; });
       var code = checkedCodes.join(',');
@@ -1054,6 +1071,7 @@
       AuditState.details[id] = AuditState.details[id] || {};
       AuditState.details[id].causeCode = code;
 
+      // Stored comment keeps canonical (RU) cause names — data, not UI chrome.
       var causeNames = checkedCodes.map(function (cCode) {
         var found = DEFECT_CAUSES.find(function (c) { return c.code === cCode; });
         return found ? found.name : null;
@@ -1106,7 +1124,7 @@
     if (!input || !input.hasAttribute('readonly')) return;
 
     smartLockTimer = setTimeout(() => {
-      if (confirm('Разблокировать поле для изменения значения?')) {
+      if (confirm(_t('quality.audit.confirm.unlock_field', 'Разблокировать поле для изменения значения?'))) {
         unlockSmartField(inputId);
         // Если разблокировали инспектора, убираем из настроек
         if (inputId === 'inp-inspector') { _setSetting('engineerName', ''); }
@@ -1200,11 +1218,10 @@ function renderCommentModalOverlayMarkup() {
                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                     </path>
                 </svg>
-                Детали дефекта
+                ${_t('quality.audit.comment.title', 'Детали дефекта')}
             </div>
             <div class="mb-4">
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">Причины дефекта
-                    (Можно выбрать несколько)</label>
+                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.causes_label', 'Причины дефекта (Можно выбрать несколько)')}</label>
                 <!-- ВСТАВКА: Контейнер для чекбоксов вместо селекта -->
                 <div id="modal-cause-checkboxes" class="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto custom-scrollbar p-2 bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl" data-action="generateAiHintForDefect" data-action-event="change"></div>
                 <!-- Сюда будет падать ответ нейросети -->
@@ -1213,17 +1230,16 @@ function renderCommentModalOverlayMarkup() {
                 </div>
             </div>
             <div class="mb-5">
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">Уточняющий
-                    комментарий</label>
+                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.detail_label', 'Уточняющий комментарий')}</label>
                 <textarea id="modal-cause-comment"
                     class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] outline-none h-24 resize-none text-slate-800 dark:text-slate-200"
-                    placeholder="Напишите детали (величину отклонения, размеры и т.д.)..."></textarea>
+                    placeholder="${_t('quality.audit.comment.placeholder', 'Напишите детали (величину отклонения, размеры и т.д.)...')}"></textarea>
             </div>
             <div class="flex gap-2">
                 <button data-audit-action="closeCommentModal"
-                    class="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 flex-1">Отмена</button>
+                    class="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 flex-1">${_t('quality.audit.comment.cancel', 'Отмена')}</button>
                 <button data-audit-action="saveCommentModal"
-                    class="flex-1 bg-indigo-600 text-white px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase shadow-md active:scale-95">Сохранить</button>
+                    class="flex-1 bg-indigo-600 text-white px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase shadow-md active:scale-95">${_t('quality.audit.comment.save', 'Сохранить')}</button>
             </div>
         </div>
     </div>

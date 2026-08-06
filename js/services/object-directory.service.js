@@ -1031,25 +1031,53 @@
             }
         },
 
-        // Получить закреплённые объекты как полноценные объекты справочника
+        /**
+         * Закреплённые объекты → карточки для UI (display_name, не сырой UUID).
+         * Берёт permissions.getAssignedProjects() (уже UUID-нормализованный),
+         * резолв через resolveObjectRef (UUID | key | name).
+         */
         getAssignedProjectObjects() {
-            const assigned = this.getAssignedProjects();
-
-            return assigned.map(key => {
-                const obj = this.getObjectByKey(key);
-
-                if (obj) {
-                    return {
-                        canonical_key: obj.canonical_key,
-                        display_name: obj.display_name
-                    };
+            let assigned = [];
+            try {
+                const perm = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                if (perm && typeof perm.getAssignedProjects === 'function') {
+                    assigned = perm.getAssignedProjects() || [];
                 }
+            } catch (_e) { /* fall through */ }
+            if (!Array.isArray(assigned) || assigned.length === 0) {
+                assigned = this.getAssignedProjects();
+            }
 
-                return {
-                    canonical_key: key,
-                    display_name: key
-                };
+            const out = [];
+            const seen = {};
+            (Array.isArray(assigned) ? assigned : []).forEach((ref) => {
+                const raw = String(ref || '').trim();
+                if (!raw) return;
+                const obj = this.resolveObjectRef(raw);
+                let id = '';
+                let key = '';
+                let display = '';
+                if (obj) {
+                    id = String(obj.id || '').trim();
+                    key = String(obj.canonical_key || '').trim();
+                    display = String(obj.display_name || obj.name || key || '').trim();
+                } else {
+                    key = raw;
+                    display = String(this.getDisplayForAssignedRef(raw) || '').trim();
+                    // Нерезолвленный UUID не показываем как «имя» в списках
+                    if (this._isUuidLike(display)) display = key && !this._isUuidLike(key) ? key : '';
+                }
+                const dedupe = id || key || display || raw;
+                if (!dedupe || seen[dedupe]) return;
+                seen[dedupe] = true;
+                // Для lock/count оставляем запись даже если display ещё пуст (карточка не подгрузилась)
+                out.push({
+                    id: id || undefined,
+                    canonical_key: key || raw,
+                    display_name: display || (this._isUuidLike(raw) ? '' : raw) || key
+                });
             });
+            return out;
         },
         getAssignedProjects() {
             if (typeof appSettings === 'undefined' || !appSettings.assignedProjects) return [];
@@ -1081,20 +1109,23 @@
 
             const objectNames = [...new Set(
                 availableObjects
-                    .map(o => String(o.display_name || o.name || o.canonical_key || '').trim())
-                    .filter(Boolean)
+                    .map(o => String(o.display_name || o.name || '').trim())
+                    .filter((name) => name && !this._isUuidLike(name))
             )];
 
-            // C1: merge locations.object names (clean-unique)
-            try {
-                const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
-                if (loc && typeof loc.listNodes === 'function') {
-                    const locObjs = loc.listNodes({ nodeType: 'object', parentId: null }) || [];
-                    locObjs.forEach(function (n) {
-                        if (n && n.displayName) objectNames.push(String(n.displayName).trim());
-                    });
-                }
-            } catch (_e) { /* ignore */ }
+            // C1: полный каталог locations.object — только менеджерам.
+            // У инженера/РП список = только assigned (как до регресса 5852a45).
+            if (isManagerRole) {
+                try {
+                    const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
+                    if (loc && typeof loc.listNodes === 'function') {
+                        const locObjs = loc.listNodes({ nodeType: 'object', parentId: null }) || [];
+                        locObjs.forEach(function (n) {
+                            if (n && n.displayName) objectNames.push(String(n.displayName).trim());
+                        });
+                    }
+                } catch (_e) { /* ignore */ }
+            }
 
             const clean = (typeof this.cleanString === 'function')
                 ? (s) => this.cleanString(s)
@@ -1148,11 +1179,19 @@
 
             if (shouldLock) {
                 const onlyObj = availableObjects[0];
-                const displayName = onlyObj.display_name || onlyObj.name || onlyObj.canonical_key || '';
+                let displayName = String(onlyObj.display_name || onlyObj.name || '').trim();
+                if (!displayName || this._isUuidLike(displayName)) {
+                    displayName = String(this.getDisplayForAssignedRef(onlyObj.id || onlyObj.canonical_key) || '').trim();
+                }
+                if (!displayName || this._isUuidLike(displayName)) {
+                    const ck = String(onlyObj.canonical_key || '').trim();
+                    displayName = (ck && !this._isUuidLike(ck)) ? ck : displayName;
+                }
 
                 projectInput.value = displayName;
                 projectInput.dataset.displayName = displayName;
                 projectInput.dataset.canonicalKey = onlyObj.canonical_key || displayName;
+                if (onlyObj.id) projectInput.dataset.projectId = String(onlyObj.id);
 
                 projectInput.setAttribute('readonly', 'true');
 
@@ -1657,6 +1696,10 @@
 
         getDisplayForAssignedRef: function (ref) {
             return objectDirectory.getDisplayForAssignedRef(ref);
+        },
+
+        getAssignedProjectObjects: function () {
+            return objectDirectory.getAssignedProjectObjects();
         },
 
         canonicalKeysForAssignedProjects: function (list) {

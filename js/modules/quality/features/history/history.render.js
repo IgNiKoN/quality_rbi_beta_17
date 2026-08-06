@@ -19,6 +19,52 @@ import { openHistoryPlanViewer } from '../audit/features/quality-plan-pin.js';
 let _ctx = null;
 /** Cache floorId → Map(id→num) for one History render pass. */
 let _histFloorNumCache = new Map();
+let _historyI18nBound = false;
+let _historyDetailId = null;
+
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var out = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (out && out !== key) return out;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
+function _bindHistoryI18n() {
+    if (_historyI18nBound) return;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    _historyI18nBound = true;
+    window.RBI.events.on('i18n:localeChanged', function () {
+        try {
+            if (typeof HistoryRender.render === 'function') HistoryRender.render();
+            var modal = document.getElementById('modal-overlay');
+            if (_historyDetailId && modal && modal.style.display === 'flex'
+                && typeof HistoryRender.renderDetail === 'function') {
+                HistoryRender.renderDetail(_historyDetailId);
+            }
+        } catch (_e) { /* ignore */ }
+    });
+}
+
+function _pinWord(n) {
+    if (n === 1) return _t('quality.history.plan.pin_one', 'точка');
+    if (n > 1 && n < 5) return _t('quality.history.plan.pin_few', 'точки');
+    return _t('quality.history.plan.pin_many', 'точек');
+}
+
+function _floorsLabel(n) {
+    if (n === 1) return _t('quality.history.plan.floors_one', '1 этаж');
+    if (n > 1 && n < 5) return _t('quality.history.plan.floors_few', '{n} этажа', { n: n });
+    return _t('quality.history.plan.floors_many', '{n} этажей', { n: n });
+}
 
 function _locationsSvc() {
     try {
@@ -98,10 +144,10 @@ function _showMiniFloorPicker(floors, onPick) {
     overlay.innerHTML = `
       <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700">
         <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-          <div class="text-sm font-bold text-slate-800 dark:text-slate-100">Выбор этажа</div>
+          <div class="text-sm font-bold text-slate-800 dark:text-slate-100">${_t('quality.history.plan.pick_floor', 'Выбор этажа')}</div>
           <button type="button" data-hplan-cancel class="text-slate-400 hover:text-slate-700 text-xl leading-none px-2">×</button>
         </div>
-        <div class="overflow-y-auto p-2 flex-1">${rows || '<div class="p-4 text-center text-[11px] text-slate-400">Нет этажей</div>'}</div>
+        <div class="overflow-y-auto p-2 flex-1">${rows || ('<div class="p-4 text-center text-[11px] text-slate-400">' + _t('quality.history.plan.empty_floors', 'Нет этажей') + '</div>')}</div>
       </div>`;
     document.body.appendChild(overlay);
     const close = function () { overlay.remove(); };
@@ -119,7 +165,7 @@ function _showMiniFloorPicker(floors, onPick) {
 function _openHistoryPlanForItems(items) {
     const pinItems = _workTypePinItems(items);
     if (!pinItems.length) {
-        if (typeof showToast === 'function') showToast('Нет точек на плане в этой группе');
+        if (typeof showToast === 'function') showToast(_t('quality.history.plan.no_pins_group', 'Нет точек на плане в этой группе'));
         return;
     }
     const loc = _locationsSvc();
@@ -139,7 +185,7 @@ function _openHistoryPlanForItems(items) {
     });
     const floors = [...floorMap.values()];
     if (!floors.length) {
-        if (typeof showToast === 'function') showToast('⚠️ У этажей нет PDF-плана');
+        if (typeof showToast === 'function') showToast(_t('quality.history.plan.no_pdf', '⚠️ У этажей нет PDF-плана'));
         return;
     }
     const openFloor = function (floorId) {
@@ -231,15 +277,15 @@ function _histCollator() {
 }
 
 function _projectNameOf(item) {
-    return (item && item.projectName) || 'Без объекта';
+    return (item && item.projectName) || _t('quality.history.fallback.no_project', 'Без объекта');
 }
 
 function _contractorNameOf(item) {
-    return (item && item.contractorName) || 'Не указан';
+    return (item && item.contractorName) || _t('quality.history.fallback.unspecified', 'Не указан');
 }
 
 function _workTypeNameOf(item) {
-    return (item && item.templateTitle) || 'Неизвестный вид работ';
+    return (item && item.templateTitle) || _t('quality.history.fallback.unknown_work', 'Неизвестный вид работ');
 }
 
 function _filterHistoryRecords(allRecords) {
@@ -368,7 +414,7 @@ function _pdfFloorsForObject(loc, objectNode) {
                     buildingName: b.displayName || '',
                     buildingsCount: buildings.length,
                     sectionId: String(s.id),
-                    sectionName: s.displayName || 'Секция',
+                    sectionName: s.displayName || _t('quality.history.plan.section', 'Секция'),
                     sectionsCount: sections.length
                 });
             });
@@ -418,7 +464,7 @@ function _groupPdfFloors(floors) {
         if (!s) {
             s = {
                 sectionId: row.sectionId,
-                sectionName: row.sectionName || 'Секция',
+                sectionName: row.sectionName || _t('quality.history.plan.section', 'Секция'),
                 floors: []
             };
             b.sMap.set(sKey, s);
@@ -435,7 +481,7 @@ function _floorBtnHtml(row, count, grouped) {
         ? 'text-slate-400 dark:text-slate-500'
         : 'text-indigo-600 dark:text-indigo-400';
     const emptyHint = count === 0
-        ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">пусто</span>'
+        ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">' + _t('quality.history.plan.empty_badge', 'пусто') + '</span>'
         : '';
     return `<button type="button" data-hist-plans-floor="${_escAttr(row.id)}"
         class="w-full text-left flex items-center justify-between gap-2 px-3 py-2.5 mb-1.5 last:mb-0 rounded-xl box-border
@@ -443,7 +489,7 @@ function _floorBtnHtml(row, count, grouped) {
                hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20
                transition-colors">
         <span class="min-w-0 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escHtml(_floorRowLabel(row, grouped))}</span>
-        <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(count === 1 ? 'точка' : (count > 1 && count < 5 ? 'точки' : 'точек'))}${emptyHint}</span>
+        <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(_pinWord(count))}${emptyHint}</span>
     </button>`;
 }
 
@@ -518,7 +564,7 @@ function _renderHistoryPlansList(filteredArr) {
 
     const loc = _locationsSvc();
     if (!loc || typeof loc.getPlanForFloor !== 'function') {
-        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">Справочник локаций недоступен.</div>`;
+        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.plan.locations_unavailable', 'Справочник локаций недоступен.')}</div>`;
         return;
     }
 
@@ -560,10 +606,8 @@ function _renderHistoryPlansList(filteredArr) {
         const floorRows = grouped.html;
 
         const pEsc = _escAttr(pName);
-        const floorsLabel = floors.length === 1
-            ? '1 этаж'
-            : (floors.length > 1 && floors.length < 5 ? floors.length + ' этажа' : floors.length + ' этажей');
-        const pinsLabel = totalPins + ' на планах';
+        const floorsLabel = _floorsLabel(floors.length);
+        const pinsLabel = _t('quality.history.plan.pins_on_plans', '{n} на планах', { n: totalPins });
 
         // Toggle via closest() — не getElementById: checks/plans оба в DOM, hist-group-N дублировались.
         blocks.push(`
@@ -594,7 +638,7 @@ function _renderHistoryPlansList(filteredArr) {
     });
 
     if (!blocks.length) {
-        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">Нет объектов с PDF-планами этажей по заданным фильтрам.</div>`;
+        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.plan.empty_filtered', 'Нет объектов с PDF-планами этажей по заданным фильтрам.')}</div>`;
         return;
     }
     listDiv.innerHTML = blocks.join('');
@@ -622,9 +666,9 @@ function _renderHistoryRowHtml(item) {
     const photoIcon = (item.photos && Object.keys(item.photos).length > 0) ? `📸` : '';
     const syncBadge = getSyncBadgeHtml(item);
     const docScore = _getDocumentaryScore(item);
-    const tTitle = item.templateTitle || 'Неизвестный вид работ';
+    const tTitle = item.templateTitle || _t('quality.history.fallback.unknown_work', 'Неизвестный вид работ');
     const when = new Date(item.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const insp = item.inspectorName || 'Не указан';
+    const insp = item.inspectorName || _t('quality.history.fallback.unspecified', 'Не указан');
     const metaLine = when + ' · ' + tTitle + ' · ' + insp;
     const ts = new Date(item.date).getTime() || 0;
     const idAttr = _escAttr(item.id);
@@ -648,7 +692,7 @@ function _renderHistoryRowHtml(item) {
                             </div>
                             <div class="flex flex-col items-end gap-0.5 shrink-0">
                                 <span class="status-tag ${statusCls} !text-[9px] !px-1.5 !py-0.5 shadow-sm">${finalPct}%</span>
-                                ${(docScore !== null && docScore !== undefined) ? `<span class="text-[9px] font-bold text-indigo-400 whitespace-nowrap" title="Документарный УрК">Док: ${docScore}%</span>` : ''}
+                                ${(docScore !== null && docScore !== undefined) ? `<span class="text-[9px] font-bold text-indigo-400 whitespace-nowrap" title="${_t('quality.history.urk.doc_title', 'Документарный УрК')}">${_t('quality.history.urk.doc_prefix', 'Док: {pct}%', { pct: docScore })}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -659,7 +703,7 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
     const safeWorkTypeName = `${safeContractorName}-wt-${tIndex}`;
     const wtAvgUrk = _avgFinalUrk(items);
     const wtUrkHtml = (wtAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(wtAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-wt title="Средний УрК по виду работ">${wtAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(wtAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-wt title="${_t('quality.history.urk.avg_work', 'Средний УрК по виду работ')}">${wtAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-wt></span>`;
     const reversed = [...items].sort((a, b) => new Date(b.date) - new Date(a.date));
     const visibleItems = reversed.slice(0, HIST_CONTRACTOR_VISIBLE);
@@ -671,7 +715,7 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
             class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
                    bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
                    px-2 py-1 rounded-md active:scale-95"
-            onclick="event.stopPropagation()">План</button>`
+            onclick="event.stopPropagation()">${_t('quality.history.btn.plan', 'План')}</button>`
         : '';
 
     let html = `<div class="mb-1 mt-1 flex justify-between items-center gap-2 cursor-pointer select-none rounded-md px-1.5 py-1 hover:bg-[var(--hover-bg)] transition-colors" data-hist-worktype-head="${tEsc}" onclick="
@@ -688,14 +732,14 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
                     <div class="flex items-center gap-1.5 shrink-0">
                         ${planBtn}
                         ${wtUrkHtml}
-                        <span class="text-[8px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-wt>${items.length} шт</span>
+                        <span class="text-[8px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-wt>${_t('quality.history.count.pcs', '{n} шт', { n: items.length })}</span>
                     </div>
                 </div>`;
     html += `<div id="${safeWorkTypeName}" class="rbi-acc min-w-0 pl-1" data-hist-worktype="${tEsc}"><div class="rbi-acc-inner">`;
     html += visibleItems.map(_renderHistoryRowHtml).join('');
     if (hiddenItems.length > 0) {
         html += `<div id="${hiddenGroupId}" class="hidden" data-hist-hidden>${hiddenItems.map(_renderHistoryRowHtml).join('')}</div>`;
-        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">Показать еще проверки (${hiddenItems.length})</button>`;
+        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">${_t('quality.history.btn.show_more', 'Показать еще проверки ({n})', { n: hiddenItems.length })}</button>`;
     }
     html += `</div></div>`;
     return html;
@@ -713,7 +757,7 @@ function _renderContractorBlockHtml(safeGroupName, cName, cIndex, workTypesMap) 
     });
     const contrAvgUrk = _avgFinalUrk(allItems);
     const contrUrkHtml = (contrAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="Средний УрК по подрядчику">${contrAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="${_t('quality.history.urk.avg_contractor', 'Средний УрК по подрядчику')}">${contrAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-contr></span>`;
     const cEsc = _escAttr(cName);
 
@@ -730,7 +774,7 @@ function _renderContractorBlockHtml(safeGroupName, cName, cIndex, workTypesMap) 
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         ${contrUrkHtml}
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${allItems.length} шт</span>
+                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${_t('quality.history.count.pcs', '{n} шт', { n: allItems.length })}</span>
                     </div>
                 </div>`;
     html += `<div id="${safeContractorName}" class="rbi-acc min-w-0" data-hist-contractor="${cEsc}"><div class="rbi-acc-inner">`;
@@ -756,7 +800,7 @@ function _renderProjectGroupHtml(pName, contractorsMap) {
     const totalChecksInGroup = allObjectItems.length;
     const objAvgUrk = _avgFinalUrk(allObjectItems);
     const objUrkHtml = (objAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(objAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-obj title="Средний УрК по объекту">${objAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(objAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-obj title="${_t('quality.history.urk.avg_project', 'Средний УрК по объекту')}">${objAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-obj></span>`;
     const pEsc = _escAttr(pName);
 
@@ -775,12 +819,12 @@ function _renderProjectGroupHtml(pName, contractorsMap) {
                     </div>
                     <div class="min-w-0">
                         <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${pName}</div>
-                        <div class="text-[9px] font-bold text-slate-400 truncate mt-[1px]" data-hist-contractor-count>${contractorNames.length} подрядч.</div>
+                        <div class="text-[9px] font-bold text-slate-400 truncate mt-[1px]" data-hist-contractor-count>${_t('quality.history.count.contractors', '{n} подрядч.', { n: contractorNames.length })}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0 pl-1">
                     ${objUrkHtml}
-                    <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-obj>${totalChecksInGroup} шт</span>
+                    <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-obj>${_t('quality.history.count.pcs', '{n} шт', { n: totalChecksInGroup })}</span>
                     <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
             </div>
@@ -952,7 +996,7 @@ function _enforceWorkTypeVisibleLimit(wtBody) {
     host.appendChild(hiddenWrap);
     host.appendChild(showMoreBtn);
     const wasExpanded = !hiddenWrap.classList.contains('hidden') || showMoreBtn.style.display === 'none';
-    showMoreBtn.textContent = 'Показать еще проверки (' + (rows.length - HIST_CONTRACTOR_VISIBLE) + ')';
+    showMoreBtn.textContent = _t('quality.history.btn.show_more', 'Показать еще проверки ({n})', { n: rows.length - HIST_CONTRACTOR_VISIBLE });
     if (wasExpanded) {
         hiddenWrap.classList.remove('hidden');
         showMoreBtn.style.display = 'none';
@@ -975,28 +1019,28 @@ function _updateProjectCardStats(card, pName, filteredArr) {
     if (!card) return;
     const objItems = filteredArr.filter(i => _projectNameOf(i) === pName);
     const countObj = card.querySelector('[data-hist-count-obj]');
-    if (countObj) countObj.textContent = objItems.length + ' шт';
-    _patchUrkEl(card.querySelector('[data-hist-urk-obj]'), _avgFinalUrk(objItems), 'Средний УрК по объекту');
+    if (countObj) countObj.textContent = _t('quality.history.count.pcs', '{n} шт', { n: objItems.length });
+    _patchUrkEl(card.querySelector('[data-hist-urk-obj]'), _avgFinalUrk(objItems), _t('quality.history.urk.avg_project', 'Средний УрК по объекту'));
 
     const contractors = new Set(objItems.map(_contractorNameOf));
     const cCount = card.querySelector('[data-hist-contractor-count]');
-    if (cCount) cCount.textContent = contractors.size + ' подрядч.';
+    if (cCount) cCount.textContent = _t('quality.history.count.contractors', '{n} подрядч.', { n: contractors.size });
 
     card.querySelectorAll('[data-hist-contractor]').forEach((cBody) => {
         const cName = cBody.getAttribute('data-hist-contractor');
         const items = objItems.filter(i => _contractorNameOf(i) === cName);
         const head = cBody.previousElementSibling;
         const countContr = head && head.querySelector('[data-hist-count-contr]');
-        if (countContr) countContr.textContent = items.length + ' шт';
-        _patchUrkEl(head && head.querySelector('[data-hist-urk-contr]'), _avgFinalUrk(items), 'Средний УрК по подрядчику');
+        if (countContr) countContr.textContent = _t('quality.history.count.pcs', '{n} шт', { n: items.length });
+        _patchUrkEl(head && head.querySelector('[data-hist-urk-contr]'), _avgFinalUrk(items), _t('quality.history.urk.avg_contractor', 'Средний УрК по подрядчику'));
 
         cBody.querySelectorAll('[data-hist-worktype]').forEach((wtBody) => {
             const tTitle = wtBody.getAttribute('data-hist-worktype');
             const wtItems = items.filter(i => _workTypeNameOf(i) === tTitle);
             const wtHead = wtBody.previousElementSibling;
             const countWt = wtHead && wtHead.querySelector('[data-hist-count-wt]');
-            if (countWt) countWt.textContent = wtItems.length + ' шт';
-            _patchUrkEl(wtHead && wtHead.querySelector('[data-hist-urk-wt]'), _avgFinalUrk(wtItems), 'Средний УрК по виду работ');
+            if (countWt) countWt.textContent = _t('quality.history.count.pcs', '{n} шт', { n: wtItems.length });
+            _patchUrkEl(wtHead && wtHead.querySelector('[data-hist-urk-wt]'), _avgFinalUrk(wtItems), _t('quality.history.urk.avg_work', 'Средний УрК по виду работ'));
         });
     });
 }
@@ -1016,7 +1060,7 @@ function _syncLoadMoreFooter(listDiv) {
     }
     if (!existingBtn) {
         listDiv.insertAdjacentHTML('beforeend', `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 py-3 mt-1 mb-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-colors border border-indigo-200 dark:border-indigo-800 shadow-sm">
-            Загрузить более старые проверки
+            ${_t('quality.history.btn.load_older', 'Загрузить более старые проверки')}
         </button>
         <div id="history-load-sentinel" class="h-2 -mt-2"></div>`);
     } else if (!existingSentinel) {
@@ -1145,7 +1189,7 @@ function _ensureWorkTypePlanButton(wtBody) {
             class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
                    bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
                    px-2 py-1 rounded-md active:scale-95"
-            onclick="event.stopPropagation()">План</button>`;
+            onclick="event.stopPropagation()">${_t('quality.history.btn.plan', 'План')}</button>`;
     if (countEl) countEl.insertAdjacentHTML('beforebegin', btnHtml);
 }
 
@@ -1196,8 +1240,9 @@ function getSyncBadgeHtml(item) {
     var iconBlocked = '<svg class="w-2.5 h-2.5 inline-block mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
 
     if (syncStatus === 'blocked') {
-        var reason = item.syncBlockReason || item.sync_block_reason || 'Отправка запрещена';
-        return '<button onclick="event.stopPropagation(); showToast(\'Причина: ' + String(reason).replace(/'/g, "\\'") + '\')" class="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconBlocked + 'Заблок.</button>';
+        var reason = item.syncBlockReason || item.sync_block_reason || _t('quality.history.sync.blocked_default', 'Отправка запрещена');
+        var toastMsg = _t('quality.history.sync.reason_prefix', 'Причина: {reason}', { reason: reason });
+        return '<button onclick="event.stopPropagation(); showToast(\'' + String(toastMsg).replace(/'/g, "\\'") + '\')" class="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconBlocked + _t('quality.history.sync.blocked_badge', 'Заблок.') + '</button>';
     }
     if (source === 'cloud' || syncStatus === 'synced') {
         return '<span class="px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconCloud + '</span>';
@@ -1209,6 +1254,7 @@ export const HistoryRender = {
 
     bindCtx(ctx) {
         _ctx = ctx;
+        _bindHistoryI18n();
     },
 
     /**
@@ -1221,6 +1267,7 @@ export const HistoryRender = {
      *              hist-filter-photo, hist-filter-b3
      */
     render() {
+        _bindHistoryI18n();
         if (window.currentHistoryViewMode === 'plans') {
             HistoryRender.renderPlans();
             return;
@@ -1250,7 +1297,7 @@ export const HistoryRender = {
         if (countEl) countEl.innerText = filteredArr.length;
 
         if (filteredArr.length === 0) {
-            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">По заданным фильтрам проверок не найдено.</div>`;
+            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.empty.filtered', 'По заданным фильтрам проверок не найдено.')}</div>`;
             return;
         }
 
@@ -1271,7 +1318,7 @@ export const HistoryRender = {
 
         if (HistoryState.pageHasMore) {
             html += `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 py-3 mt-1 mb-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-colors border border-indigo-200 dark:border-indigo-800 shadow-sm">
-            Загрузить более старые проверки
+            ${_t('quality.history.btn.load_older', 'Загрузить более старые проверки')}
         </button>
         <div id="history-load-sentinel" class="h-2 -mt-2"></div>`;
         }
@@ -1292,7 +1339,7 @@ export const HistoryRender = {
 
         const source = HistoryState.allRecords || [];
         if (source.length === 0) {
-            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">История пуста.</div>`;
+            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.empty.all', 'История пуста.')}</div>`;
             if (countEl) countEl.innerText = '0';
             return;
         }
@@ -1442,6 +1489,7 @@ export const HistoryRender = {
      *              rbiHydrateLocalImages, modal-overlay, modal-title, modal-body DOM IDs
      */
     renderDetail(id) {
+        _historyDetailId = id;
         let sortedArray = [...HistoryState.allRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
         let currIdx = sortedArray.findIndex(x => String(x.id) === String(id));
 
@@ -1497,7 +1545,7 @@ export const HistoryRender = {
             let extraData = '';
             if (item.details && item.details[i.id]) {
                 const d = item.details[i.id];
-                if (d.fact && d.tol) extraData += `<div class="text-[10px] font-bold text-orange-600 mt-1">Факт: ${d.fact}${d.unit} при допуске ${d.tol}${d.unit} (Превышение ${(d.fact / d.tol).toFixed(1)}x)</div>`;
+                if (d.fact && d.tol) extraData += `<div class="text-[10px] font-bold text-orange-600 mt-1">${_t('quality.history.detail.fact_tol', 'Факт: {fact} при допуске {tol} (Превышение {x}x)', { fact: d.fact + d.unit, tol: d.tol + d.unit, x: (d.fact / d.tol).toFixed(1) })}</div>`;
                 if (d.comment) extraData += `<div class="text-[10px] text-slate-500 italic mt-1">${d.comment}</div>`;
             }
 
@@ -1516,16 +1564,16 @@ export const HistoryRender = {
         document.getElementById('modal-body').innerHTML = `
         <div class="text-xs font-bold text-slate-500 mb-1">${item.contractorName}</div>
         <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-1">${item.templateTitle}</div>
-        ${item.checkedStagesInfo ? `<div class="text-[9px] bg-slate-100 dark:bg-slate-800 p-2 rounded mt-2 mb-2 text-slate-500 dark:text-slate-400 font-bold leading-snug"><span class="text-slate-400 uppercase tracking-widest block mb-1">Проверенные этапы:</span> ${item.checkedStagesInfo.join('<br>')}</div>` : ''}
+        ${item.checkedStagesInfo ? `<div class="text-[9px] bg-slate-100 dark:bg-slate-800 p-2 rounded mt-2 mb-2 text-slate-500 dark:text-slate-400 font-bold leading-snug"><span class="text-slate-400 uppercase tracking-widest block mb-1">${_t('quality.history.detail.checked_stages', 'Проверенные этапы:')}</span> ${item.checkedStagesInfo.join('<br>')}</div>` : ''}
         <div class="text-[10px] text-slate-400 mb-4">${new Date(item.date).toLocaleString('ru-RU')}</div>
         
         <div class="grid grid-cols-2 gap-3 mb-4">
             <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
-                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">УрК Изделия (физика)</div>
+                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">${_t('quality.history.detail.urk_physical', 'УрК Изделия (физика)')}</div>
                 <div class="text-3xl font-black ${item.metrics.isDanger ? 'text-red-600' : (item.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${item.metrics.final}%</div>
             </div>
             <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
-                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">УрК Документации</div>
+                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">${_t('quality.history.detail.urk_doc', 'УрК Документации')}</div>
                 <div class="text-3xl font-black ${detailDocScore === null ? 'text-slate-400' : (detailDocScore < 70 ? 'text-red-600' : (detailDocScore < 85 ? 'text-orange-500' : 'text-green-600'))}">${detailDocScore === null ? '—' : detailDocScore + '%'}</div>
             </div>
         </div>
@@ -1534,30 +1582,30 @@ export const HistoryRender = {
         
         ${item.templateKey === 'sys_etalon_act'
                 ? `<div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-4 text-center shadow-sm">
-                   <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">Это Акт-Эталон</div>
+                   <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">${_t('quality.history.detail.etalon_badge', 'Это Акт-Эталон')}</div>
                    <button onclick="closeModal(); setTimeout(() => window.printEtalonAct('${item.id}'), 300)" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
-                       🖨️ РАСПЕЧАТАТЬ (PDF)
+                       ${_t('quality.history.detail.print_etalon', '🖨️ РАСПЕЧАТАТЬ (PDF)')}
                    </button>
                </div>`
                 : `<button onclick="closeModal(); setTimeout(() => window.printInspectionAct('${item.id}', 'browser'), 300)" class="w-full mb-2 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
-                   🖨️ Печать акта осмотра (PDF)
+                   ${_t('quality.history.detail.print_act', '🖨️ Печать акта осмотра (PDF)')}
                </button>
                <button onclick="closeModal(); setTimeout(() => window.RBI.services.ai.generatePrescriptionAi('${item.id}'), 300)" class="w-full mb-4 bg-slate-800 text-white dark:bg-white dark:text-slate-800 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
-                   📄 Создать предписание (ИИ)
+                   ${_t('quality.history.detail.ai_prescription', '📄 Создать предписание (ИИ)')}
                </button>`
             }
         
         <div class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 mb-4">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">Инженерный breakdown</div>
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">${_t('quality.history.detail.breakdown', 'Инженерный breakdown')}</div>
             <div class="grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-300">
-                <div>Проверено: <b>${nTotal} из ${item.metrics.totalCount}</b></div>
-                <div>Соответствует: <b class="text-green-600">${nOk}</b></div>
-                <div>Нарушения: <b class="text-red-600">${nTotal - nOk}</b></div>
+                <div>${_t('quality.history.detail.checked', 'Проверено:')} <b>${nTotal} из ${item.metrics.totalCount}</b></div>
+                <div>${_t('quality.history.detail.passed', 'Соответствует:')} <b class="text-green-600">${nOk}</b></div>
+                <div>${_t('quality.history.detail.failed', 'Нарушения:')} <b class="text-red-600">${nTotal - nOk}</b></div>
                 <div class="col-span-2 text-[10px] mt-1">B1: <b>${item.metrics.n_B1_fail}</b> | B2: <b>${item.metrics.n_B2_fail}</b> | B3: <b>${item.metrics.n_B3_fail}</b></div>
-                <div class="col-span-2 text-[10px] font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded mt-1 text-center font-bold">Формула: ${item.metrics.baseUrkPerc}% × ${item.metrics.kc.toFixed(2)} × ${item.metrics.kcrit.toFixed(2)} = ${item.metrics.final}%</div>
+                <div class="col-span-2 text-[10px] font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded mt-1 text-center font-bold">${_t('quality.history.detail.formula', 'Формула:')} ${item.metrics.baseUrkPerc}% × ${item.metrics.kc.toFixed(2)} × ${item.metrics.kcrit.toFixed(2)} = ${item.metrics.final}%</div>
             </div>
         </div>
-        <div class="text-[11px] font-bold text-slate-400 uppercase mb-2 mt-6">Детализация проверки</div>
+        <div class="text-[11px] font-bold text-slate-400 uppercase mb-2 mt-6">${_t('quality.history.detail.items', 'Детализация проверки')}</div>
         <div class="pb-6">${resultItems}</div>
     `;
 

@@ -74,6 +74,239 @@ function ensureQualityMode() {
     } catch (_) { /* ignore */ }
 }
 
+/** SVG-плейсхолдеры демо (те же, что в startDemoMode) — для re-seed без полного demo restart. */
+function _demoPhotoGood() {
+    return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'><rect width='800' height='600' fill='%23f0fdf4'/><path d='M250 300 L350 400 L550 200' stroke='%2322c55e' stroke-width='40' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='400' y='520' font-family='Arial' font-size='36' font-weight='bold' fill='%23166534' text-anchor='middle'>ЭТАЛОН (ВЕРНО)</text></svg>";
+}
+function _demoPhotoBad() {
+    return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'><rect width='800' height='600' fill='%23fef2f2'/><path d='M250 200 L550 400 M250 400 L550 200' stroke='%23ef4444' stroke-width='40' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='400' y='520' font-family='Arial' font-size='36' font-weight='bold' fill='%23991b1b' text-anchor='middle'>БРАК (НАРУШЕНИЕ)</text></svg>";
+}
+
+/** Вернуть демо-статусы/фото 108(ok)+109(fail), если пропали после remount. */
+function ensureDemoFilledSample() {
+    if (!_isDemoMode()) return;
+    try {
+        var st = (window.AuditState && window.AuditState.state) || window.state || null;
+        var details = (window.AuditState && window.AuditState.details) || window.details || null;
+        if (!st) return;
+        var needOk = st['108'] !== 'ok' && st[108] !== 'ok';
+        var needFail = st['109'] !== 'fail' && st[109] !== 'fail';
+        if (needOk) st['108'] = 'ok';
+        if (needFail) st['109'] = 'fail';
+        if (details && (!details['109'] || !details['109'].comment)) {
+            details['109'] = { causeCode: 'C01', comment: '[Нарушение технологии] Отклонение' };
+        }
+        var photos = window.photos || (window.AuditState && window.AuditState.photos) || null;
+        if (photos) {
+            if (!photos['108'] && !photos[108]) photos['108'] = _demoPhotoGood();
+            if (!photos['109'] && !photos[109]) photos['109'] = _demoPhotoBad();
+        } else if (typeof window.setPhoto === 'function') {
+            try { window.setPhoto('108', _demoPhotoGood()); } catch (_) { /* ignore */ }
+            try { window.setPhoto('109', _demoPhotoBad()); } catch (_) { /* ignore */ }
+        }
+        // Session bridge (если есть)
+        try {
+            var sess = window.RBI && window.RBI.services && window.RBI.services.session;
+            if (sess) {
+                if (typeof sess.getState === 'function') {
+                    var gs = sess.getState();
+                    if (gs) { gs['108'] = 'ok'; gs['109'] = 'fail'; }
+                }
+                if (typeof sess.getDetails === 'function') {
+                    var gd = sess.getDetails();
+                    if (gd) gd['109'] = { causeCode: 'C01', comment: '[Нарушение технологии] Отклонение' };
+                }
+                if (typeof sess.setPhotoRaw === 'function') {
+                    if (needOk || !(window.photos && (window.photos['108'] || window.photos[108]))) {
+                        sess.setPhotoRaw('108', _demoPhotoGood());
+                    }
+                    if (needFail || !(window.photos && (window.photos['109'] || window.photos[109]))) {
+                        sess.setPhotoRaw('109', _demoPhotoBad());
+                    }
+                }
+            }
+        } catch (_) { /* ignore */ }
+    } catch (_) { /* ignore */ }
+}
+
+/** Раскрыть группу, в которой лежит карточка (defaultGroupsCollapsed / display:none). */
+function revealChecklistCard(cardEl) {
+    if (!cardEl) return;
+    try {
+        var parent = cardEl.parentElement;
+        while (parent && parent.id !== 'audit-items') {
+            if (parent.id && String(parent.id).indexOf('group_content_') === 0) {
+                parent.style.display = 'block';
+                var gIdx = String(parent.id).replace('group_content_', '');
+                var title = document.getElementById('group-title-' + gIdx);
+                if (title && title.innerText && title.innerText.indexOf('▶') === 0) {
+                    title.innerText = title.innerText.replace(/^▶/, '▼');
+                }
+                break;
+            }
+            parent = parent.parentElement;
+        }
+        // ok-карточки могут быть свёрнуты autoCollapseOk
+        var inner = cardEl.querySelector('.card-audit.card-collapsed');
+        if (inner && typeof window.expandCard === 'function') {
+            var idAttr = cardEl.id || '';
+            var id = idAttr.replace(/^card_wrapper_/, '');
+            if (id) {
+                try { window.expandCard(id); } catch (_) { /* ignore */ }
+            }
+        }
+    } catch (_) { /* ignore */ }
+}
+
+/** Карточка с наглядными демо-данными (fail 109 → ok 108 → любая filled). */
+function filledChecklistCard() {
+    var prefer = ['109', '108'];
+    for (var p = 0; p < prefer.length; p++) {
+        var el = document.getElementById('card_wrapper_' + prefer[p]);
+        if (el) {
+            revealChecklistCard(el);
+            var r0 = el.getBoundingClientRect();
+            if (isVisibleEl(el) || (r0.width > 2 && r0.height > 2)) return el;
+            return el; // после reveal всё равно цель для scroll/highlight
+        }
+    }
+    var cards = document.querySelectorAll('[id^="card_wrapper_"]');
+    for (var i = 0; i < cards.length; i++) {
+        var c = cards[i];
+        var filled = c.querySelector('.bg-red-500, .bg-green-500, .bg-red-50, .bg-green-50, img, .indicator-ok, .indicator-2, .indicator-3');
+        if (!filled) continue;
+        revealChecklistCard(c);
+        return c;
+    }
+    return null;
+}
+
+function firstChecklistCard() {
+    var filled = filledChecklistCard();
+    if (filled) return filled;
+    var cards = document.querySelectorAll('[id^="card_wrapper_"]');
+    for (var i = 0; i < cards.length; i++) {
+        revealChecklistCard(cards[i]);
+        if (isVisibleEl(cards[i])) return cards[i];
+        var r = cards[i].getBoundingClientRect();
+        if (r.width > 2 && r.height > 2) return cards[i];
+    }
+    return cards.length ? cards[0] : null;
+}
+
+/** После teardown #tab-audit DOM = welcome, но session (демо-state/фото) жива.
+ *  Нельзя звать changeTemplate каждый раз — он resetSession и стирает демо.
+ *  Soft-restore: показать чек-лист + render/updateUI. changeTemplate — только если ключа нет. */
+function ensureTutorialChecklist() {
+    ensureQualityMode();
+    go('#/quality/audit');
+
+    if (typeof window.ensureAuditMarkup === 'function') {
+        try { window.ensureAuditMarkup(); } catch (_) { /* ignore */ }
+    }
+    if (typeof window.renderSelector === 'function') {
+        try { window.renderSelector(); } catch (_) { /* ignore */ }
+    }
+
+    var key = '';
+    try {
+        key = String((window.AuditState && window.AuditState.currentTemplateKey) || window.currentTemplateKey || '').trim();
+    } catch (_) { key = ''; }
+
+    var groups = null;
+    try {
+        groups = (window.AuditState && window.AuditState.currentChecklist)
+            || window.currentChecklist
+            || null;
+    } catch (_) { groups = null; }
+    var hasGroups = Array.isArray(groups) && groups.length > 0;
+
+    if (!key || key === 'HOME' || !hasGroups) {
+        var pick = '';
+        var sel = document.getElementById('checklist-selector') || document.getElementById('fake-checklist-selector');
+        if (sel && sel.options) {
+            for (var i = 0; i < sel.options.length; i++) {
+                if (String(sel.options[i].value || '') === 'sys_nvf_facade') {
+                    pick = 'sys_nvf_facade';
+                    break;
+                }
+            }
+            if (!pick) {
+                for (var j = 0; j < sel.options.length; j++) {
+                    var opt = sel.options[j];
+                    var v = String(opt && opt.value || '').trim();
+                    if (!v || v === 'HOME' || opt.disabled) continue;
+                    pick = v;
+                    break;
+                }
+            }
+        }
+        key = pick || 'sys_nvf_facade';
+        if (typeof window.changeTemplate === 'function') {
+            try { window.changeTemplate(key); } catch (_) { /* ignore */ }
+        }
+        // После первого changeTemplate — сразу засеять демо-sample (если демо)
+        ensureDemoFilledSample();
+        try {
+            if (typeof window.render === 'function') window.render();
+            if (typeof window.updateUI === 'function') window.updateUI();
+        } catch (_) { /* ignore */ }
+        if (window.__auditDesktop && typeof window.__auditDesktop.sync === 'function') {
+            try { window.__auditDesktop.sync(); } catch (_) { /* ignore */ }
+        }
+        filledChecklistCard();
+        return key;
+    }
+
+    // Soft restore UI after remount — сохранить демо state/details/photos
+    try {
+        var sel2 = document.getElementById('checklist-selector');
+        if (sel2) sel2.value = key;
+        var fake = document.getElementById('fake-checklist-selector');
+        if (fake) fake.value = key;
+    } catch (_) { /* ignore */ }
+
+    var emptyState = document.getElementById('empty-checklist-state');
+    if (emptyState) emptyState.style.display = 'none';
+    var auditItems = document.getElementById('audit-items');
+    if (auditItems) auditItems.style.display = 'block';
+    var auditActions = document.getElementById('audit-actions');
+    if (auditActions) auditActions.style.display = 'grid';
+
+    // Демо-поля шапки + sample 108/109 до render
+    try {
+        if (_isDemoMode()) {
+            var setVal = function (id, val) {
+                var el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+            setVal('inp-project', 'ЖК "Демонстрационный"');
+            setVal('inp-inspector', 'Иванов И.И.');
+            setVal('inp-contractor', 'ООО "Фасад-Мастер"');
+            setVal('inp-section', 'Корпус 1, секция 2');
+            ensureDemoFilledSample();
+        }
+    } catch (_) { /* ignore */ }
+
+    try {
+        if (typeof window.updateDataSummary === 'function') window.updateDataSummary();
+        if (typeof window.render === 'function') window.render();
+        if (typeof window.updateUI === 'function') window.updateUI();
+    } catch (_) { /* ignore */ }
+
+    // Desktop shell: checklist живёт в #audit-desktop-check — sync после remount
+    try {
+        if (window.__auditDesktop && typeof window.__auditDesktop.sync === 'function') {
+            window.__auditDesktop.sync();
+        }
+    } catch (_) { /* ignore */ }
+
+    // Раскрыть группу с заполненными пунктами (иначе highlight = пустая область)
+    filledChecklistCard();
+
+    return key;
+}
+
 function ensureConstructionMode() {
     try {
         if (typeof window.changeAppMode === 'function') window.changeAppMode('construction');
@@ -90,20 +323,27 @@ function pickTarget(step) {
         var sel = list[i];
         if (!sel) continue;
         var el = null;
+        // Специальный маркер: заполненная демо-карточка, не пустой shell
+        if (sel === '@filled-card' || sel === '@demo-card') {
+            el = filledChecklistCard();
+            if (el) return el;
+            continue;
+        }
         try {
             el = document.querySelector(sel);
         } catch (_) {
             el = null;
         }
+        // card_wrapper_* может быть в свёрнутой группе — раскрыть и проверить снова
+        if (el && el.id && String(el.id).indexOf('card_wrapper_') === 0) {
+            revealChecklistCard(el);
+        }
         if (isVisibleEl(el)) return el;
-    }
-    return null;
-}
-
-function firstChecklistCard() {
-    var cards = document.querySelectorAll('[id^="card_wrapper_"]');
-    for (var i = 0; i < cards.length; i++) {
-        if (isVisibleEl(cards[i])) return cards[i];
+        // После reveal высота могла появиться без полного isVisible (opacity на предке)
+        if (el && el.isConnected) {
+            var r = el.getBoundingClientRect();
+            if (r.width > 2 && r.height > 2) return el;
+        }
     }
     return null;
 }
@@ -324,42 +564,58 @@ var tutorialSteps = [
         title: '8. Осмотр',
         text: 'Осмотр — фактическая проверка по чек-листу. От выбора объекта, подрядчика и статусов зависят УрК, задачи, отчёты и аналитика.',
         deskText: 'Desktop-shell Осмотра: данные и чек-лист, зона работы и план при наличии.',
-        targets: ['#audit-desktop-shell', '#empty-checklist-state', '#tab-audit'].concat(NAV_AUDIT),
+        // Сначала заполненная демо-карточка (не пустой shell)
+        targets: ['@filled-card', '#card_wrapper_109', '#audit-items', '#audit-desktop-check', '#checklist-container', '#tab-audit'].concat(NAV_AUDIT),
+        waitMs: 1100,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            ensureTutorialChecklist();
+            setTimeout(function () {
+                var card = filledChecklistCard();
+                if (card) scrollTarget(card);
+            }, 350);
         }
     },
     {
         chapter: 'audit',
         title: '9. Выбор чек-листа',
-        text: 'Начните с выбора или продолжения чек-листа. Системные и корпоративные шаблоны живут в Базе знаний; здесь вы применяете их на объекте.',
-        targets: ['[data-audit-desk-slot-checklist]', '#empty-checklist-state', '#checklist-select', '#btn-select-checklist'],
+        text: 'Начните с выбора или продолжения чек-листа. Системные и корпоративные шаблоны живут в Базе знаний; здесь вы применяете их на объекте. Переключатель — в шапке Осмотра.',
+        targets: ['#checklist-selector', '#header-checklist-container', '[data-audit-desk-slot-checklist]', '#start-checklist-wrap'],
+        waitMs: 1000,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
+            ensureTutorialChecklist();
+            setTimeout(function () {
+                var wrap = document.getElementById('header-checklist-container')
+                    || document.querySelector('[data-audit-desk-slot-checklist]')
+                    || document.getElementById('start-checklist-wrap');
+                if (wrap) scrollTarget(wrap);
+            }, 250);
         }
     },
     {
         chapter: 'audit',
         title: '10. Данные проверки',
         text: 'Заполните объект, подрядчика и локацию. Эти поля связывают осмотр с ролями, рейтингом подрядчика, ПК СК и аналитикой.',
-        targets: ['#header-data-block', '[data-audit-desk-slot-data]', '.audit-desk-field'],
+        targets: ['#inp-project', '#inp-contractor', '[data-audit-desk-slot-data]', '#data-block-content', '#header-data-block'],
+        waitMs: 1000,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            ensureTutorialChecklist();
+            setTimeout(function () {
+                if (typeof window.toggleDataBlock === 'function') {
+                    try { window.toggleDataBlock(true); } catch (_) { /* ignore */ }
+                }
+                var f = document.getElementById('inp-project') || document.getElementById('inp-contractor');
+                if (f) scrollTarget(f);
+            }, 200);
         }
     },
     {
         chapter: 'audit',
         title: '11. Мини-дашборд',
         text: 'В шапке видно качество текущего осмотра и накопленную надёжность подрядчика — быстрый индикатор риска на площадке.',
-        targets: ['#header-dashboard', '[data-audit-desk-slot-dash]', '#dash-expanded-view'],
+        targets: ['#header-dashboard', '[data-audit-desk-slot-dash]', '#dash-expanded-view', '#audit-desktop-metrics'],
+        waitMs: 1000,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
+            ensureTutorialChecklist();
             var icon = document.getElementById('dash-expand-icon');
             var exp = document.getElementById('dash-expanded-view');
             if (icon && exp && exp.classList.contains('hidden')) icon.click();
@@ -369,34 +625,43 @@ var tutorialSteps = [
         chapter: 'audit',
         title: '12. Статусы пунктов',
         text: '«Соответствует» — реально проверено и ок. «Не соответствует» — есть дефект. «Не проверялось» — нельзя проверить сейчас. «Не применимо» — пункт не относится к зоне.',
-        targets: ['#audit-desktop-check', '#checklist-container', '#empty-checklist-state'],
+        targets: ['@filled-card', '#card_wrapper_109', '#card_wrapper_108'],
+        waitMs: 1200,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
+            ensureTutorialChecklist();
             setTimeout(function () {
-                var card = firstChecklistCard();
+                var card = filledChecklistCard();
                 if (card) scrollTarget(card);
-            }, 200);
+            }, 450);
         }
     },
     {
         chapter: 'audit',
         title: '13. B1 / B2 / B3',
         text: 'B1 — мелкая доработка, B2 — значимый технологический дефект, B3 — критический риск. B2/B3 сильно влияют на УрК, задачи и управленческие выводы.',
-        targets: ['#audit-desktop-check', '#checklist-container', '#empty-checklist-state'],
+        // 109 = B2 fail с комментарием — наглядно вес B*
+        targets: ['@filled-card', '#card_wrapper_109', '#card_wrapper_108'],
+        waitMs: 1200,
         action: function () {
-            var card = firstChecklistCard();
-            if (card) scrollTarget(card);
+            ensureTutorialChecklist();
+            setTimeout(function () {
+                var card = filledChecklistCard();
+                if (card) scrollTarget(card);
+            }, 450);
         }
     },
     {
         chapter: 'audit',
         title: '14. Фото, комментарии, TWI',
         text: 'Хорошее замечание: место, суть, требуемое действие и фото. Если к пункту привязана TWI — покажите прорабу эталон и брак прямо из карточки.',
-        targets: ['#audit-desktop-check', '#checklist-container', '#empty-checklist-state'],
+        targets: ['@filled-card', '#card_wrapper_109', '#card_wrapper_108'],
+        waitMs: 1200,
         action: function () {
-            var card = firstChecklistCard();
-            if (card) scrollTarget(card);
+            ensureTutorialChecklist();
+            setTimeout(function () {
+                var card = filledChecklistCard();
+                if (card) scrollTarget(card);
+            }, 450);
         }
     },
     {
@@ -649,10 +914,10 @@ var tutorialSteps = [
         title: '44. Финал',
         text: 'Главная логика: инженер качества как Business Quality Partner — видеть риски, предотвращать дефекты и улучшать процесс. Construction OS даёт общий каркас данных и модулей. Тур можно пройти снова из Настроек или пустого Осмотра.',
         deskText: 'На ПК запуск — из блока «Онбординг платформы» в Настройках.',
-        targets: NAV_AUDIT.concat(['#empty-checklist-state', '#audit-desktop-shell']),
+        targets: NAV_AUDIT.concat(['#audit-desktop-shell', '#audit-desktop-check', '#tab-audit']),
+        waitMs: 900,
         action: function () {
-            ensureQualityMode();
-            go('#/quality/audit');
+            ensureTutorialChecklist();
         },
         isEnd: true
     }

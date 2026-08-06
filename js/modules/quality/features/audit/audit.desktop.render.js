@@ -109,22 +109,26 @@ function locations() {
 }
 
 const DESK_FIELD_LABELS = [
-  ['inp-contractor', 'Подрядчик'],
-  ['inp-project', 'Объект'],
-  ['inp-section', 'Корпус'],
-  ['inp-floor', 'Этаж'],
-  ['inp-room', 'Оси / помещение']
+  ['inp-contractor', 'quality.audit.field.contractor', 'Подрядчик'],
+  ['inp-project', 'quality.audit.field.project', 'Объект'],
+  ['inp-section', 'quality.audit.field.building', 'Корпус'],
+  ['inp-floor', 'quality.audit.field.floor', 'Этаж'],
+  ['inp-room', 'quality.audit.field.room', 'Оси / помещение']
 ];
 
 function decorateDeskFields() {
   DESK_FIELD_LABELS.forEach(function (pair) {
     const id = pair[0];
-    const text = pair[1];
+    const text = _t(pair[1], pair[2]);
     const inp = document.getElementById(id);
     if (!inp || !inp.parentElement) return;
     const wrap = inp.parentElement;
     wrap.classList.add('audit-desk-field');
-    if (wrap.querySelector(':scope > .audit-desk-field-label')) return;
+    const existing = wrap.querySelector(':scope > .audit-desk-field-label');
+    if (existing) {
+      existing.textContent = text;
+      return;
+    }
     const lab = document.createElement('label');
     lab.className = 'audit-desk-field-label';
     lab.htmlFor = id;
@@ -145,7 +149,7 @@ function undecorateDeskFields() {
   const selSpan = document.querySelector('#header-checklist-container > span');
   if (selSpan) {
     selSpan.className = 'text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase flex items-center gap-1.5';
-    selSpan.textContent = 'Чек-лист ▾';
+    selSpan.textContent = _t('quality.audit.checklist.chevron', 'Чек-лист ▾');
   }
   const expanded = document.getElementById('dash-expanded-view');
   if (expanded) expanded.classList.add('hidden');
@@ -400,7 +404,9 @@ function onPlanToolbarClick(e) {
   if (clr) {
     e.preventDefault();
     clearPin();
-    if (typeof window.showToast === 'function') window.showToast('Точка на плане снята');
+    if (typeof window.showToast === 'function') {
+      window.showToast(_t('quality.audit.plan.pin_cleared', 'Точка на плане снята'));
+    }
     updatePinIndicator();
     paintPlanPanel();
   }
@@ -489,10 +495,15 @@ function paintPlanPanel() {
     ? loc.getPlanForFloor(pin.locationId)
     : null;
   if (meta) {
-    const floorName = (floor && (floor.name || floor.title)) || pin.locationId || 'этаж';
+    const floorName = (floor && (floor.name || floor.title))
+      || pin.locationId
+      || _t('quality.audit.plan.floor_fallback', 'этаж');
     meta.textContent = plan && plan.pdf_url
-      ? (floorName + ' · точка ' + Math.round(pin.x) + '% / ' + Math.round(pin.y) + '%')
-      : (floorName + ' · PDF нет');
+      ? (floorName + ' ' + _t('quality.audit.plan.pin_meta', '· точка {x}% / {y}%', {
+        x: Math.round(pin.x),
+        y: Math.round(pin.y)
+      }))
+      : (floorName + ' ' + _t('quality.audit.plan.no_pdf', '· PDF нет'));
   }
 
   if (!plan || !plan.pdf_url) {
@@ -643,6 +654,27 @@ function refreshAuditDeskChromeI18n() {
   if (metricsTitle) metricsTitle.textContent = _t('quality.desk.audit.metrics_title', 'УрК и коэффициенты');
   const metricsHint = document.querySelector('.audit-desk-metrics-hint');
   if (metricsHint) metricsHint.textContent = _t('quality.desk.audit.metrics_hint', 'Подрядчик · изделие · формулы расчёта');
+
+  decorateDeskFields();
+
+  const meta = document.querySelector('[data-audit-desk-plan-meta]');
+  const pin = getPlanPin();
+  if (meta && pin && pin.x != null && pin.y != null) {
+    const loc = locations();
+    const floor = loc && typeof loc.getNode === 'function' ? loc.getNode(pin.locationId) : null;
+    const plan = loc && typeof loc.getPlanForFloor === 'function'
+      ? loc.getPlanForFloor(pin.locationId)
+      : null;
+    const floorName = (floor && (floor.name || floor.title))
+      || pin.locationId
+      || _t('quality.audit.plan.floor_fallback', 'этаж');
+    meta.textContent = plan && plan.pdf_url
+      ? (floorName + ' ' + _t('quality.audit.plan.pin_meta', '· точка {x}% / {y}%', {
+        x: Math.round(pin.x),
+        y: Math.round(pin.y)
+      }))
+      : (floorName + ' ' + _t('quality.audit.plan.no_pdf', '· PDF нет'));
+  }
 
   syncChromeSubtitle();
 }

@@ -14,7 +14,24 @@
 // ПРИВАТНЫЕ ХЕЛПЕРЫ (изоляция от прямых dbPut/STORES/triggerSync)
 // =========================================================================
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) { /* ignore */ }
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
 let _ctx = null;
+var _tasksI18nBound = false;
 
 function _getSetting(key) {
     if (_ctx && _ctx.settings) return _ctx.settings.get(key);
@@ -249,15 +266,15 @@ function _touchTaskForSync(task) {
 }
 
 function _taskSourceLabel(t) {
-    if (!t) return 'система';
+    if (!t) return _t('quality.tasks.source.system', 'система');
     if (t.type === 'manual' || t.taskType === 'Поручение') {
         var creator = _normalizeEngName(t.createdBy || t.created_by || '');
         var owner = _normalizeEngName(t.engineerName || t.inspectorName || '');
-        if (creator && owner && creator !== owner) return 'руководитель';
-        return 'я';
+        if (creator && owner && creator !== owner) return _t('quality.tasks.source.manager', 'руководитель');
+        return _t('quality.tasks.source.self', 'я');
     }
-    if (t.type === 'auto' || t.source === 'ai' || t.contractor === 'Системная') return 'система';
-    return 'система';
+    if (t.type === 'auto' || t.source === 'ai' || t.contractor === 'Системная') return _t('quality.tasks.source.system', 'система');
+    return _t('quality.tasks.source.system', 'система');
 }
 
 /** Воркшоп: один дефект в fail на этой и прошлой неделе у подрядчика (уровень = подрядчик). */
@@ -382,7 +399,7 @@ function _openTaskModal() {
     var cSelect = document.getElementById('manual-task-contractor');
     if (cSelect) {
         var uniqueContrs = Array.from(new Set(_allInspections.map(function(c){ return c.contractorName; }).filter(Boolean))).sort();
-        cSelect.innerHTML = '<option value="">-- Общая задача --</option>' + uniqueContrs.map(function(c){ return '<option value="' + c.replace(/"/g, '&quot;') + '">' + c + '</option>'; }).join('');
+        cSelect.innerHTML = '<option value="">' + _t('quality.tasks.manual.general', '-- Общая задача --') + '</option>' + uniqueContrs.map(function(c){ return '<option value="' + c.replace(/"/g, '&quot;') + '">' + c + '</option>'; }).join('');
     }
 
     var eSelect = document.getElementById('manual-task-engineer');
@@ -421,7 +438,7 @@ function _closeTaskModal() {
 }
 
 async function _saveManualTask() {
-    if (_isDemoMode()) return showToast("В демо-режиме сохранение отключено");
+    if (_isDemoMode()) return showToast(_t('quality.tasks.toast.demo_no_save', 'В демо-режиме сохранение отключено'));
 
     var title    = document.getElementById('manual-task-title').value.trim();
     var promptText = document.getElementById('manual-task-prompt').value.trim();
@@ -429,7 +446,7 @@ async function _saveManualTask() {
     var dateStr  = document.getElementById('manual-task-date').value;
     var assignee = (document.getElementById('manual-task-engineer') ? document.getElementById('manual-task-engineer').value : null) || 'Инженер';
 
-    if (!title) return showToast("⚠️ Укажите название задачи!");
+    if (!title) return showToast(_t('quality.tasks.toast.need_title', '⚠️ Укажите название задачи!'));
 
     var tDate = dateStr ? new Date(dateStr) : null;
     if (tDate) tDate.setHours(12, 0, 0, 0);
@@ -468,7 +485,7 @@ async function _saveManualTask() {
     }
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
-    showToast("✅ Поручение создано!");
+    showToast(_t('quality.tasks.toast.created', '✅ Поручение создано!'));
     _closeTaskModal();
     _renderTasksList(true);
 }
@@ -479,7 +496,7 @@ async function _saveManualTask() {
 
 async function _gameForceUpdatePlan(silent) {
     if (typeof silent === 'undefined') silent = false;
-    if (!silent) showToast("🧠 ИИ зачищает дубликаты и перестраивает план...");
+    if (!silent) showToast(_t('quality.tasks.toast.cleanup', '🧠 ИИ зачищает дубликаты и перестраивает план...'));
 
     if (_softDeleteStaffMeetingTasks()) {
         // штаб-спам убран; дальше обычный дедуп
@@ -537,7 +554,7 @@ async function _gameForceUpdatePlan(silent) {
         _sync('silent');
     }
 
-    if (!silent) setTimeout(function(){ showToast("✨ База очищена, дубликаты инспекций удалены!"); }, 500);
+    if (!silent) setTimeout(function(){ showToast(_t('quality.tasks.toast.cleaned', '✨ База очищена, дубликаты инспекций удалены!')); }, 500);
 }
 
 async function _gameGenerateWeeklyPlan(force) {
@@ -987,7 +1004,7 @@ async function _renderTasksList(forceRender) {
     var assignedProjects = _permSvc3 ? _permSvc3.getAssignedProjects() : [];
 
     if (_permSvc3 ? !_permSvc3.canViewWeeklyPlan() : ['guest', 'contractor'].includes(currentRole)) {
-        container.innerHTML = '<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] text-[var(--text-muted)] font-bold text-[11px] uppercase shadow-sm">План недоступен для вашей роли</div>';
+        container.innerHTML = '<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] text-[var(--text-muted)] font-bold text-[11px] uppercase shadow-sm">' + _t('quality.tasks.empty.role', 'План недоступен для вашей роли') + '</div>';
         if (typeof window.__rbiAfterTasksListRender === 'function') {
             try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
         }
@@ -1090,51 +1107,61 @@ async function _renderTasksList(forceRender) {
         return '<button type="button" onclick="rbi_filterTaskHub(\'' + cat + '\', this)" class="hub-filter-btn px-3 py-1.5 rounded-full text-[10px] font-bold active:scale-95 whitespace-nowrap transition-colors shrink-0 ' +
             (on ? chipOn : chipOff) + '">' + label + '</button>';
     };
+    var hubLabels = {
+        all: _t('quality.tasks.hub.all', 'Все'),
+        control: _t('quality.tasks.hub.audits', 'Аудиты'),
+        etalon: _t('quality.tasks.hub.etalons', 'Эталоны'),
+        meeting: _t('quality.tasks.hub.meetings', 'Планерки'),
+        report: _t('quality.tasks.hub.reports', 'Отчёты'),
+        method: _t('quality.tasks.hub.ppr', 'ППР'),
+        dev: _t('quality.tasks.hub.training', 'Обучение'),
+        other: _t('quality.tasks.hub.manual', 'Ручные')
+    };
     var hubRow =
         '<div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="hub-filters">' +
-            hubChip('all', 'Все') +
-            hubChip('control', 'Аудиты') +
-            hubChip('etalon', 'Эталоны') +
-            hubChip('meeting', 'Планерки') +
-            hubChip('report', 'Отчёты') +
-            hubChip('method', 'ППР') +
-            hubChip('dev', 'Обучение') +
-            hubChip('other', 'Ручные') +
+            hubChip('all', hubLabels.all) +
+            hubChip('control', hubLabels.control) +
+            hubChip('etalon', hubLabels.etalon) +
+            hubChip('meeting', hubLabels.meeting) +
+            hubChip('report', hubLabels.report) +
+            hubChip('method', hubLabels.method) +
+            hubChip('dev', hubLabels.dev) +
+            hubChip('other', hubLabels.other) +
             '<button type="button" id="rbi-critical-only-btn" onclick="rbi_toggleCriticalOnlyFilter(this)" class="px-3 py-1.5 rounded-full text-[10px] font-bold active:scale-95 whitespace-nowrap transition-colors shrink-0 ' +
                 (window._rbiTaskCriticalOnly ? 'bg-red-600 text-white shadow-sm' : chipOff + ' text-red-600 dark:text-red-400') +
-            '">🔴 Критичные</button>' +
+            '">' + _t('quality.tasks.hub.critical', '🔴 Критичные') + '</button>' +
         '</div>';
 
     var selectsHtml =
         '<div class="grid grid-cols-2 gap-2">' +
             (isLeadership
                 ?             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskEngineerFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
-                    '<option value="ALL"' + (window.taskEngineerFilter === 'ALL' ? ' selected' : '') + '>Все инженеры</option>' +
+                    '<option value="ALL"' + (window.taskEngineerFilter === 'ALL' ? ' selected' : '') + '>' + _t('quality.tasks.filter.all_engineers', 'Все инженеры') + '</option>' +
                     allEngsInTasks.map(function(e){
                         return '<option value="' + e.replace(/"/g, '&quot;') + '"' + (window.taskEngineerFilter === e ? ' selected' : '') + '>' + e + '</option>';
                     }).join('') +
                   '</select>'
                 : '') +
             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskStatusFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
-                '<option value="ACTIVE"' + (window.taskStatusFilter === 'ACTIVE' ? ' selected' : '') + '>Открытые</option>' +
-                '<option value="OVERDUE"' + (window.taskStatusFilter === 'OVERDUE' ? ' selected' : '') + '>Просрочка</option>' +
-                '<option value="DONE"' + (window.taskStatusFilter === 'DONE' ? ' selected' : '') + '>Готово</option>' +
-                '<option value="ALL"' + (window.taskStatusFilter === 'ALL' ? ' selected' : '') + '>Все статусы</option>' +
+                '<option value="ACTIVE"' + (window.taskStatusFilter === 'ACTIVE' ? ' selected' : '') + '>' + _t('quality.tasks.filter.status_open', 'Открытые') + '</option>' +
+                '<option value="OVERDUE"' + (window.taskStatusFilter === 'OVERDUE' ? ' selected' : '') + '>' + _t('quality.tasks.filter.status_overdue', 'Просрочка') + '</option>' +
+                '<option value="DONE"' + (window.taskStatusFilter === 'DONE' ? ' selected' : '') + '>' + _t('quality.tasks.filter.status_done', 'Готово') + '</option>' +
+                '<option value="ALL"' + (window.taskStatusFilter === 'ALL' ? ' selected' : '') + '>' + _t('quality.tasks.filter.status_all', 'Все статусы') + '</option>' +
             '</select>' +
             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskTypeFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
-                '<option value="ALL"' + (window.taskTypeFilter === 'ALL' ? ' selected' : '') + '>Все типы</option>' +
+                '<option value="ALL"' + (window.taskTypeFilter === 'ALL' ? ' selected' : '') + '>' + _t('quality.tasks.filter.all_types', 'Все типы') + '</option>' +
                 allTypes.map(function(t){
                     return '<option value="' + String(t).replace(/"/g, '&quot;') + '"' + (window.taskTypeFilter === t ? ' selected' : '') + '>' + t + '</option>';
                 }).join('') +
             '</select>' +
             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)]" onchange="window.taskProjectFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
-                '<option value="ALL"' + (window.taskProjectFilter === 'ALL' ? ' selected' : '') + '>Все объекты</option>' +
+                '<option value="ALL"' + (window.taskProjectFilter === 'ALL' ? ' selected' : '') + '>' + _t('quality.tasks.filter.all_projects', 'Все объекты') + '</option>' +
                 allProjs.map(function(p){
                     return '<option value="' + String(p).replace(/"/g, '&quot;') + '"' + (window.taskProjectFilter === p ? ' selected' : '') + '>' + p + '</option>';
                 }).join('') +
             '</select>' +
             '<select class="input-base !py-1.5 text-[10px] font-bold bg-[var(--hover-bg)] col-span-2" onchange="window.taskContractorFilter=this.value;window._rbiTasksFiltersOpen=true;rbi_renderTasksList(true)">' +
-                '<option value="ALL"' + (window.taskContractorFilter === 'ALL' ? ' selected' : '') + '>Все подрядчики</option>' +
+                '<option value="ALL"' + (window.taskContractorFilter === 'ALL' ? ' selected' : '') + '>' + _t('quality.tasks.filter.all_contractors', 'Все подрядчики') + '</option>' +
                 allContrs.map(function(c){
                     return '<option value="' + String(c).replace(/"/g, '&quot;') + '"' + (window.taskContractorFilter === c ? ' selected' : '') + '>' + c + '</option>';
                 }).join('') +
@@ -1146,14 +1173,14 @@ async function _renderTasksList(forceRender) {
         window.taskProjectFilter !== 'ALL' || window.taskContractorFilter !== 'ALL' ||
         window.taskStatusFilter !== 'ACTIVE');
     var filterHint = [];
-    if (hubCatActive !== 'all') filterHint.push(hubCatActive === 'control' ? 'Аудиты' : hubCatActive === 'etalon' ? 'Эталоны' : hubCatActive === 'meeting' ? 'Планерки' : hubCatActive === 'report' ? 'Отчёты' : hubCatActive === 'method' ? 'ППР' : hubCatActive === 'dev' ? 'Обучение' : hubCatActive === 'other' ? 'Ручные' : 'Фильтр');
-    if (window._rbiTaskCriticalOnly) filterHint.push('Критичные');
-    if (window.taskStatusFilter !== 'ACTIVE') filterHint.push(window.taskStatusFilter === 'OVERDUE' ? 'Просрочка' : window.taskStatusFilter === 'DONE' ? 'Готово' : 'Все статусы');
+    if (hubCatActive !== 'all') filterHint.push(hubLabels[hubCatActive] || _t('quality.tasks.filter.title', 'Фильтры'));
+    if (window._rbiTaskCriticalOnly) filterHint.push(_t('quality.tasks.hub.critical', '🔴 Критичные'));
+    if (window.taskStatusFilter !== 'ACTIVE') filterHint.push(window.taskStatusFilter === 'OVERDUE' ? _t('quality.tasks.filter.status_overdue', 'Просрочка') : window.taskStatusFilter === 'DONE' ? _t('quality.tasks.filter.status_done', 'Готово') : _t('quality.tasks.filter.status_all', 'Все статусы'));
     if (window.taskEngineerFilter !== 'ALL') filterHint.push(window.taskEngineerFilter);
     if (window.taskContractorFilter !== 'ALL') filterHint.push(window.taskContractorFilter);
     var filterSummary = filtersActive
         ? (filterHint.slice(0, 2).join(' · ') + (filterHint.length > 2 ? ' +' + (filterHint.length - 2) : ''))
-        : 'Тип, статус, объект, подрядчик';
+        : _t('quality.tasks.filter.summary_idle', 'Тип, статус, объект, подрядчик');
 
     var filtersHtml =
         '<details class="mb-3 group/filters bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden [&_summary::-webkit-details-marker]:hidden"' +
@@ -1165,7 +1192,7 @@ async function _renderTasksList(forceRender) {
                 '</div>' +
                 '<div class="min-w-0 flex-1">' +
                     '<div class="text-[11px] font-black uppercase tracking-wide text-slate-800 dark:text-white flex items-center gap-1.5">' +
-                        'Фильтры' +
+                        _t('quality.tasks.filter.title', 'Фильтры') +
                         (filtersActive ? '<span class="inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-black">' + filterHint.length + '</span>' : '') +
                     '</div>' +
                     '<div class="text-[9px] font-bold text-[var(--text-muted)] truncate">' + filterSummary + '</div>' +
@@ -1190,15 +1217,15 @@ async function _renderTasksList(forceRender) {
 
     var globalActionsHtml =
         '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">' +
-            '<button onclick="gameForceUpdatePlan()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Синхронизировать</button>' +
-            '<button onclick="rbi_openTaskModal()" class="bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Поручение</button>' +
-            '<button onclick="rbi_openCalendarModal()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Календарь</button>' +
-            '<button onclick="window.RBI.services.game.toggleAbsence()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">Отпуск</button>' +
+            '<button onclick="gameForceUpdatePlan()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">' + _t('quality.tasks.actions.sync', 'Синхронизировать') + '</button>' +
+            '<button onclick="rbi_openTaskModal()" class="bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">' + _t('quality.tasks.actions.assign', 'Поручение') + '</button>' +
+            '<button onclick="rbi_openCalendarModal()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">' + _t('quality.tasks.actions.calendar', 'Календарь') + '</button>' +
+            '<button onclick="window.RBI.services.game.toggleAbsence()" class="bg-[var(--card-bg)] text-slate-700 dark:text-slate-200 border border-[var(--card-border)] py-2.5 rounded-xl font-bold text-[10px] uppercase active:scale-95 shadow-sm">' + _t('quality.tasks.actions.leave', 'Отпуск') + '</button>' +
         '</div>';
 
     var _engineerAbsence = _getEngineerAbsence();
     if (_engineerAbsence.isActive) {
-        container.innerHTML = globalActionsHtml + '<div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-6 text-center text-slate-600 shadow-sm"><div class="font-black uppercase mb-1">Режим: ' + _engineerAbsence.reason + '</div>Инспекции приостановлены.</div>';
+        container.innerHTML = globalActionsHtml + '<div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-6 text-center text-slate-600 shadow-sm"><div class="font-black uppercase mb-1">' + _t('quality.tasks.absence.mode', 'Режим: {mode}', { mode: _engineerAbsence.reason }) + '</div>' + _t('quality.tasks.absence.paused', 'Инспекции приостановлены.') + '</div>';
         if (typeof window.__rbiAfterTasksListRender === 'function') {
             try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
         }
@@ -1260,13 +1287,13 @@ async function _renderTasksList(forceRender) {
         if (typeof nested === 'undefined') nested = false;
         var itemCategory = t.taskType === 'Эталон' ? 'etalon' : (t.category || 'other');
         var icon = t.icon ? (RBI_TASK_ICONS[t.icon] || RBI_TASK_ICONS['Контроль']) : RBI_TASK_ICONS['Контроль'];
-        var dateStr = t.date ? new Date(t.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Без даты';
+        var dateStr = t.date ? new Date(t.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : _t('quality.tasks.card.no_date', 'Без даты');
         var borderClass = isOverdue ? 'border-red-300 dark:border-red-800' : 'border-[var(--card-border)]';
         var bgClass = isOverdue && !isArchive ? 'bg-red-50/50 dark:bg-red-950/20' : 'bg-[var(--hover-bg)]';
         var opacityClass = isArchive ? 'opacity-60' : '';
         var titleMain = nested
-            ? (t.taskType || t.title || 'Задача')
-            : (t.contractor || t.title || 'Задача');
+            ? (t.taskType || t.title || _t('quality.tasks.fallback.task', 'Задача'))
+            : (t.contractor || t.title || _t('quality.tasks.fallback.task', 'Задача'));
         var titleSub = nested
             ? (t.workTitle || t.templateTitle || t.title || '')
             : (t.workTitle || t.templateTitle || t.taskType || '');
@@ -1286,7 +1313,7 @@ async function _renderTasksList(forceRender) {
                     (t.prompt ? '<div class="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-snug">' + t.prompt + '</div>' : '') +
                     '<div class="mt-1.5 flex items-center justify-between gap-2">' +
                         '<span class="text-[8px] sm:text-[9px] font-black uppercase ' + (isOverdue && !isArchive ? 'text-red-500' : 'text-slate-400') + '">' +
-                            (isOverdue && !isArchive ? 'Просрочено · ' : '') + dateStr +
+                            (isOverdue && !isArchive ? _t('quality.tasks.card.overdue', 'Просрочено · ') : '') + dateStr +
                         '</span>' + progressHtml +
                     '</div>' +
                 '</div>' +
@@ -1300,7 +1327,7 @@ async function _renderTasksList(forceRender) {
         var groups = {};
         var order = [];
         tasks.forEach(function(t) {
-            var name = t.contractor || 'Без подрядчика';
+            var name = t.contractor || _t('quality.tasks.detail.no_contractor', 'Без подрядчика');
             if (!groups[name]) {
                 groups[name] = { name: name, entries: [], hasCritical: false, overdueCount: 0, criticalCount: 0 };
                 order.push(name);
@@ -1331,11 +1358,11 @@ async function _renderTasksList(forceRender) {
         var renderGroup = function(g, weekly) {
             var slug = g.name.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '_').replace(/^_+|_+$/g, '') || 'contractor';
             var groupKey = sectionKey + '__' + slug;
-            var title = weekly ? 'Еженедельные' : (g.name === 'Поручение' ? 'Поручения' : g.name);
+            var title = weekly ? _t('quality.tasks.group.weekly', 'Еженедельные') : (g.name === 'Поручение' ? _t('quality.tasks.group.assignments', 'Поручения') : g.name);
             var typeCounts = {};
             var workTitles = {};
             g.entries.forEach(function(e) {
-                var k = e.task.taskType || e.task.title || 'Задача';
+                var k = e.task.taskType || e.task.title || _t('quality.tasks.fallback.task', 'Задача');
                 typeCounts[k] = (typeCounts[k] || 0) + 1;
                 var wt = e.task.workTitle || e.task.templateTitle || '';
                 if (wt) workTitles[wt] = true;
@@ -1353,9 +1380,9 @@ async function _renderTasksList(forceRender) {
                 ' rounded-xl shadow-sm overflow-hidden [&_summary::-webkit-details-marker]:hidden">' +
                 '<summary class="relative p-2.5 sm:p-3 cursor-pointer select-none active:scale-[0.98] transition-transform list-none">' +
                     (weekly
-                        ? '<div class="absolute top-0 right-0 z-[1] bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">Регламент</div>'
+                        ? '<div class="absolute top-0 right-0 z-[1] bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">' + _t('quality.tasks.badge.reglament', 'Регламент') + '</div>'
                         : (g.hasCritical
-                            ? '<div class="absolute top-0 right-0 z-[1] bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">Крит.</div>'
+                            ? '<div class="absolute top-0 right-0 z-[1] bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase leading-none">' + _t('quality.tasks.badge.critical', 'Крит.') + '</div>'
                             : '')) +
                     '<div class="min-w-0">' +
                         '<div class="text-[10px] sm:text-[11px] font-black leading-snug mb-0.5 pr-10 line-clamp-2 break-words ' +
@@ -1363,18 +1390,18 @@ async function _renderTasksList(forceRender) {
                         '<div class="text-[8px] sm:text-[9px] font-bold text-[var(--text-muted)] truncate mb-2">' + workBrief + '</div>' +
                         '<div class="flex items-end justify-between gap-2 mb-2">' +
                             '<div class="min-w-0">' +
-                                '<div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold">Задач</div>' +
+                                '<div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold">' + _t('quality.tasks.group.tasks', 'Задач') + '</div>' +
                                 '<div data-group-count="1" class="text-xl sm:text-2xl font-black leading-none tabular-nums ' + countColor + '">' + g.entries.length + '</div>' +
                             '</div>' +
                             '<div class="text-right shrink-0">' +
                                 (g.overdueCount
-                                    ? '<div class="text-[8px] font-black text-red-500 tabular-nums">Проср. ' + g.overdueCount + '</div>'
-                                    : '<div class="text-[8px] font-bold text-slate-400">В срок</div>') +
+                                    ? '<div class="text-[8px] font-black text-red-500 tabular-nums">' + _t('quality.tasks.group.overdue', 'Проср. {n}', { n: g.overdueCount }) + '</div>'
+                                    : '<div class="text-[8px] font-bold text-slate-400">' + _t('quality.tasks.group.on_time', 'В срок') + '</div>') +
                                 '<div class="text-[8px] text-slate-400 font-bold mt-0.5 transition-transform group-open/contractor:rotate-180">▾</div>' +
                             '</div>' +
                         '</div>' +
                         '<div class="flex flex-wrap justify-between items-center gap-1 bg-[var(--hover-bg)] rounded-md px-1.5 py-1.5 border border-[var(--card-border)]">' +
-                            '<div class="text-[7px] sm:text-[8px] font-black text-slate-500 uppercase shrink-0">Типы</div>' +
+                            '<div class="text-[7px] sm:text-[8px] font-black text-slate-500 uppercase shrink-0">' + _t('quality.tasks.group.types', 'Типы') + '</div>' +
                             '<div class="flex flex-wrap justify-end gap-0.5 min-w-0">' + badgesHtml + '</div>' +
                         '</div>' +
                     '</div>' +
@@ -1388,7 +1415,7 @@ async function _renderTasksList(forceRender) {
         html += '</div>';
         if (weeklyGroups.length) {
             html += '<div class="mt-3">' +
-                '<div class="text-[10px] font-black uppercase tracking-wide text-indigo-500/90 mb-2 px-0.5">Регламент</div>' +
+                '<div class="text-[10px] font-black uppercase tracking-wide text-indigo-500/90 mb-2 px-0.5">' + _t('quality.tasks.badge.reglament', 'Регламент') + '</div>' +
                 '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">';
             weeklyGroups.forEach(function(g) { html += renderGroup(g, true); });
             html += '</div></div>';
@@ -1420,33 +1447,33 @@ async function _renderTasksList(forceRender) {
     var openArchive = filtersActive && archiveTasks.length > 0;
 
     if (focusTasks.length) {
-        accordionsHtml += sectionBlock('today', 'Сегодня', focusTasks, openToday, function(t){ return overdue.indexOf(t) !== -1; });
+        accordionsHtml += sectionBlock('today', _t('quality.tasks.section.today', 'Сегодня'), focusTasks, openToday, function(t){ return overdue.indexOf(t) !== -1; });
     } else if (!filtersActive) {
-        accordionsHtml += sectionBlock('today', 'Сегодня', [], true, null,
-            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">На сегодня задач нет</div>');
+        accordionsHtml += sectionBlock('today', _t('quality.tasks.section.today', 'Сегодня'), [], true, null,
+            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">' + _t('quality.tasks.empty.today', 'На сегодня задач нет') + '</div>');
     }
     if (weekTasks.length) {
-        accordionsHtml += sectionBlock('week', 'На этой неделе', weekTasks, openWeek, function(){ return false; });
+        accordionsHtml += sectionBlock('week', _t('quality.tasks.section.week', 'На этой неделе'), weekTasks, openWeek, function(){ return false; });
     }
     if (monthTasks.length) {
-        accordionsHtml += sectionBlock('month', 'В этом месяце', monthTasks, openMonth, function(){ return false; });
+        accordionsHtml += sectionBlock('month', _t('quality.tasks.section.month', 'В этом месяце'), monthTasks, openMonth, function(){ return false; });
     }
     // Архив — всегда внизу (свёрнут), даже при фильтре «Открытые»
     if (archiveTasks.length) {
         var recentArchive = archiveTasks.slice(0, 30);
-        accordionsHtml += sectionBlock('archive', 'Архив', recentArchive, openArchive, null,
+        accordionsHtml += sectionBlock('archive', _t('quality.tasks.section.archive', 'Архив'), recentArchive, openArchive, null,
             '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
                 recentArchive.map(function(t){ return renderCard(t, false, true, false); }).join('') +
             '</div>', archiveTasks.length);
     } else if (!filtersActive || window.taskStatusFilter === 'DONE') {
-        accordionsHtml += sectionBlock('archive', 'Архив', [], false, null,
-            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">Выполненных задач пока нет</div>', 0);
+        accordionsHtml += sectionBlock('archive', _t('quality.tasks.section.archive', 'Архив'), [], false, null,
+            '<div class="text-center py-4 text-[10px] font-bold uppercase text-slate-400">' + _t('quality.tasks.empty.archive', 'Выполненных задач пока нет') + '</div>', 0);
     }
 
     if (!focusTasks.length && !weekTasks.length && !monthTasks.length && !archiveTasks.length) {
         container.innerHTML = globalActionsHtml + filtersHtml +
             '<div class="text-center py-6 text-slate-400 font-bold text-[11px] uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">' +
-            'Нет задач в этой категории</div>';
+            _t('quality.tasks.empty.category', 'Нет задач в этой категории') + '</div>';
         if (typeof window.__rbiAfterTasksListRender === 'function') {
             try { window.__rbiAfterTasksListRender(); } catch (_e) { /* ignore */ }
         }
@@ -1631,7 +1658,7 @@ async function _openTaskAction(taskId) {
     if (!task) return;
 
     currentTaskContext = task;
-    document.getElementById('task-details-header-title').innerHTML = '\n        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2"></path></svg>\n        Детали Задачи\n    ';
+    document.getElementById('task-details-header-title').innerHTML = '\n        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2"></path></svg>\n        ' + _t('quality.tasks.detail.title', 'Детали Задачи') + '\n    ';
 
     var body = document.getElementById('task-details-body');
     var footer = document.getElementById('task-details-footer');
@@ -1662,29 +1689,29 @@ async function _openTaskAction(taskId) {
     var safeProject     = (task.project || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     var safeWorkTitle   = (task.workTitle || task.templateTitle || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-    body.innerHTML = '\n        <div class="mb-4">\n            <div class="text-[16px] font-black text-slate-800 dark:text-white leading-tight mb-1">' + (task.contractor || 'Без подрядчика') + '</div>\n            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">' + (task.templateTitle || task.workTitle || task.taskType || 'Поручение') + '</div>\n        </div>\n        <div class="bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-2xl p-4 mb-4 shadow-sm">\n            <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Суть задачи</div>\n            <div class="text-[12px] text-slate-700 dark:text-slate-300 font-medium leading-relaxed">' + (task.prompt || 'Описание отсутствует') + '</div>\n        </div>\n        <div class="flex gap-2 mb-4">\n            <div class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm text-center">\n                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Прогресс</div>\n                <div class="text-[16px] font-black text-slate-800 dark:text-white"><span class="' + ((task.done || 0) >= (task.target || 1) ? 'text-green-500' : 'text-indigo-600') + '">' + (task.done || 0) + '</span> из ' + (task.target || 1) + '</div>\n            </div>\n            <div class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm text-center">\n                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Дедлайн</div>\n                <div class="text-[16px] font-black ' + (new Date(task.date) < new Date() && task.status !== 'done' ? 'text-red-500' : 'text-slate-800 dark:text-white') + '">' + (task.date ? new Date(task.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Без срока') + '</div>\n            </div>\n        </div>\n        ' + (task.type === 'manual' ? '' : '<div class="border border-[var(--card-border)] bg-[var(--card-bg)] rounded-2xl p-4 mb-2 shadow-sm"><div class="text-[10px] font-black px-2 py-1 rounded border uppercase w-fit mb-2 ' + logicColor + '">' + logicTitle + '</div><div class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">' + logicDesc + '</div></div>') + '\n    ';
+    body.innerHTML = '\n        <div class="mb-4">\n            <div class="text-[16px] font-black text-slate-800 dark:text-white leading-tight mb-1">' + (task.contractor || _t('quality.tasks.detail.no_contractor', 'Без подрядчика')) + '</div>\n            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">' + (task.templateTitle || task.workTitle || task.taskType || _t('quality.tasks.detail.assignment', 'Поручение')) + '</div>\n        </div>\n        <div class="bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-2xl p-4 mb-4 shadow-sm">\n            <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ' + _t('quality.tasks.detail.essence', 'Суть задачи') + '</div>\n            <div class="text-[12px] text-slate-700 dark:text-slate-300 font-medium leading-relaxed">' + (task.prompt || _t('quality.tasks.detail.no_desc', 'Описание отсутствует')) + '</div>\n        </div>\n        <div class="flex gap-2 mb-4">\n            <div class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm text-center">\n                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">' + _t('quality.tasks.detail.progress', 'Прогресс') + '</div>\n                <div class="text-[16px] font-black text-slate-800 dark:text-white"><span class="' + ((task.done || 0) >= (task.target || 1) ? 'text-green-500' : 'text-indigo-600') + '">' + (task.done || 0) + '</span> ' + _t('quality.tasks.detail.of', 'из') + ' ' + (task.target || 1) + '</div>\n            </div>\n            <div class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm text-center">\n                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">' + _t('quality.tasks.detail.deadline', 'Дедлайн') + '</div>\n                <div class="text-[16px] font-black ' + (new Date(task.date) < new Date() && task.status !== 'done' ? 'text-red-500' : 'text-slate-800 dark:text-white') + '">' + (task.date ? new Date(task.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : _t('quality.tasks.detail.no_deadline', 'Без срока')) + '</div>\n            </div>\n        </div>\n        ' + (task.type === 'manual' ? '' : '<div class="border border-[var(--card-border)] bg-[var(--card-bg)] rounded-2xl p-4 mb-2 shadow-sm"><div class="text-[10px] font-black px-2 py-1 rounded border uppercase w-fit mb-2 ' + logicColor + '">' + logicTitle + '</div><div class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">' + logicDesc + '</div></div>') + '\n    ';
 
     var actionButtonsHtml = '';
 
     if (task.status !== 'pending') {
         var historyHtml = task.history ? '<div class="text-[10px] text-slate-500 mt-2 text-left bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 max-h-24 overflow-y-auto font-medium">' + task.history.join('<br>') + '</div>' : '';
-        actionButtonsHtml = '\n            <div class="text-[11px] text-slate-600 dark:text-slate-300 font-bold mb-2 text-center w-full uppercase tracking-widest">Статус: <span class="' + (task.status === 'done' ? 'text-green-600' : 'text-orange-500') + '">' + task.status + '</span></div>\n            <div class="text-[10px] text-slate-500 text-center mb-3">' + (task.resultComment || '') + '</div>\n            ' + historyHtml + '\n            <button onclick="rbi_resumeTask(\'' + task.id + '\')" class="w-full mt-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-transform border border-slate-300 dark:border-slate-600 shadow-sm flex justify-center items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Возобновить задачу</button>\n        ';
+        actionButtonsHtml = '\n            <div class="text-[11px] text-slate-600 dark:text-slate-300 font-bold mb-2 text-center w-full uppercase tracking-widest">' + _t('quality.tasks.detail.status', 'Статус:') + ' <span class="' + (task.status === 'done' ? 'text-green-600' : 'text-orange-500') + '">' + task.status + '</span></div>\n            <div class="text-[10px] text-slate-500 text-center mb-3">' + (task.resultComment || '') + '</div>\n            ' + historyHtml + '\n            <button onclick="rbi_resumeTask(\'' + task.id + '\')" class="w-full mt-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-transform border border-slate-300 dark:border-slate-600 shadow-sm flex justify-center items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> ' + _t('quality.tasks.detail.resume', 'Возобновить задачу') + '</button>\n        ';
     } else {
         if (task.type === 'manual') {
             var photoPreviewHtml = task.completionPhoto
                 ? '<div class="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm"><img ' + ((typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(task.completionPhoto, { preferThumb: true }) : ('src="' + window.getPhotoSrc(task.completionPhoto) + '"')) + ' class="w-full h-full object-cover"></div>'
                 : '<div id="task-photo-preview" class="hidden mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div>';
-            actionButtonsHtml += '\n                <div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-indigo-50 dark:bg-slate-800 border border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> Прикрепить фото (Опционально)</button>' + photoPreviewHtml + '</div>\n                <button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Отметить выполненной</button>';
+            actionButtonsHtml += '\n                <div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-indigo-50 dark:bg-slate-800 border border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> ' + _t('quality.tasks.action.attach_photo', 'Прикрепить фото результата') + '</button>' + photoPreviewHtml + '</div>\n                <button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ' + _t('quality.tasks.action.mark_done', 'Отметить выполненной') + '</button>';
         } else if (task.taskType === 'ППР') {
-            actionButtonsHtml += '<div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 p-3 rounded-xl mb-3 text-center"><div class="text-[10px] font-black text-blue-700 uppercase mb-2">Проверка нормативной базы</div><button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); rbi_markTaskDone(\'' + task.id + '\', true); if (window.AppRouter) AppRouter.navigate(\'#/quality/reference/docs\'); setTimeout(() => { const s = document.getElementById(\'doc-search-input\'); if(s) {s.value=\'' + safeWorkTitle + '\'; window.RBI.services.knowledge.renderDocsList();} }, 300);" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> Открыть базу НД</button></div>';
+            actionButtonsHtml += '<div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 p-3 rounded-xl mb-3 text-center"><div class="text-[10px] font-black text-blue-700 uppercase mb-2">Проверка нормативной базы</div><button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); rbi_markTaskDone(\'' + task.id + '\', true); if (window.AppRouter) AppRouter.navigate(\'#/quality/reference/docs\'); setTimeout(() => { const s = document.getElementById(\'doc-search-input\'); if(s) {s.value=\'' + safeWorkTitle + '\'; window.RBI.services.knowledge.renderDocsList();} }, 300);" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> ' + _t('quality.tasks.action.open_kb', 'Открыть базу НД') + '</button></div>';
         } else if (task.taskType === 'Инструктаж') {
             actionButtonsHtml += '<div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-blue-700 uppercase">Подготовка материалов</div><button onclick="rbi_generateIntroBriefing(\'' + task.id + '\')" id="btn-gen-intro" class="bg-blue-600 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Собрать базу (AI)</button></div><div id="intro-result-box" class="hidden"><div class="text-[10px] text-blue-800 dark:text-blue-300 mb-2 font-medium">Система сформировала речь, собрала допуски и подтянула TWI-карты.</div><div class="flex gap-2 mb-2"><button onclick="rbi_printIntroBriefing(\'' + task.id + '\')" class="w-1/2 bg-white text-blue-700 border border-blue-200 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> В PDF</button><button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-1/2 bg-blue-600 text-white py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Проведено</button></div></div></div>';
         } else if (task.taskType === 'Финал') {
             actionButtonsHtml += '<div class="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">Справка для КС-2</div><button onclick="rbi_generateFinalAcceptance(\'' + task.id + '\')" id="btn-gen-final" class="bg-slate-700 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Анализ (AI)</button></div><div id="final-result-box" class="hidden"><textarea id="final-ai-text" class="w-full h-40 text-[11px] p-2 rounded-lg border border-slate-300 dark:border-slate-600 resize-none outline-none leading-relaxed text-slate-800 dark:text-white bg-white dark:bg-slate-900 shadow-inner mb-2" placeholder="Здесь будет справка..."></textarea><div class="flex gap-2"><button onclick="rbi_printFinalAcceptance(\'' + task.id + '\')" class="w-1/2 bg-white dark:bg-slate-700 text-slate-700 dark:text-white border border-slate-300 dark:border-slate-500 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Скачать</button><button onclick="rbi_saveFinalAndClose(\'' + task.id + '\')" class="w-1/2 bg-slate-800 text-white py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Сохранить</button></div></div></div>';
         } else if (task.taskType === 'Воркшоп') {
-            actionButtonsHtml += '<div class="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-purple-700 uppercase">AI-Сценарий Воркшопа</div><button onclick="window.RBI.services.ai.rbi_generateWorkshop(\'' + task.id + '\')" id="btn-gen-workshop" class="bg-purple-600 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Сгенерировать</button></div><textarea id="workshop-ai-scenario" class="hidden w-full min-h-[200px] max-h-[50vh] overflow-y-auto custom-scrollbar text-[11px] p-2 rounded-lg border border-purple-200 resize-none outline-none leading-relaxed text-slate-800 dark:text-white bg-white dark:bg-slate-800 shadow-inner mb-2" placeholder="..."></textarea><div id="workshop-actions" class="hidden"><div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-white dark:bg-slate-800 border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> Добавить фото (для отчета)</button><div id="task-photo-preview" class="hidden mt-2 relative w-full h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div></div><div class="flex gap-2"><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'script\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> PDF</button><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'browser\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Печать</button><button onclick="rbi_finishWorkshop(\'' + task.id + '\')" class="w-full bg-purple-600 text-white py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Завершить</button></div></div></div>';
+            actionButtonsHtml += '<div class="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-purple-700 uppercase">AI-Сценарий Воркшопа</div><button onclick="window.RBI.services.ai.rbi_generateWorkshop(\'' + task.id + '\')" id="btn-gen-workshop" class="bg-purple-600 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ' + _t('quality.tasks.action.generate', 'Сгенерировать') + '</button></div><textarea id="workshop-ai-scenario" class="hidden w-full min-h-[200px] max-h-[50vh] overflow-y-auto custom-scrollbar text-[11px] p-2 rounded-lg border border-purple-200 resize-none outline-none leading-relaxed text-slate-800 dark:text-white bg-white dark:bg-slate-800 shadow-inner mb-2" placeholder="..."></textarea><div id="workshop-actions" class="hidden"><div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-white dark:bg-slate-800 border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> Добавить фото (для отчета)</button><div id="task-photo-preview" class="hidden mt-2 relative w-full h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div></div><div class="flex gap-2"><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'script\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> PDF</button><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'browser\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> ' + _t('quality.tasks.action.print', 'Печать') + '</button><button onclick="rbi_finishWorkshop(\'' + task.id + '\')" class="w-full bg-purple-600 text-white py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ' + _t('quality.tasks.action.finish', 'Завершить') + '</button></div></div></div>';
         } else if (task.taskType === 'Эталон') {
-            actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; openEtalonVersionChooserFromTask(\'' + task.id + '\');" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> Снять Эталон</button>';
+            actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; openEtalonVersionChooserFromTask(\'' + task.id + '\');" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> ' + _t('quality.tasks.action.remove_etalon', 'Снять Эталон') + '</button>';
         } else if (task.taskType === 'Совещание' || task.title.includes('Еженедельный разбор')) {
             actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; rbi_openReportSettingsModal(\'full_report\', \'browser\', \'' + task.id + '\', false);" class="w-full bg-blue-50 text-blue-700 border border-blue-200 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> 1. Подготовить отчет (PDF)</button><button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; rbi_openMeetingSetupModal(\'' + task.id + '\');" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> 2. Открыть Протокол (Мемо)</button><div class="text-[9px] text-slate-500 text-center mb-2 leading-tight">Сначала скачайте отчет, затем проведите встречу и зафиксируйте протокол.</div>';
         } else if (task.title.includes('Разбор критического брака')) {
@@ -1702,24 +1729,24 @@ async function _openTaskAction(taskId) {
         } else if (task.taskType === 'Отчет' && task.title.includes('FMEA')) {
             actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); if (window.AppRouter) AppRouter.navigate(\'#/quality/engineer/fmea\'); else { switchTab(\'tab-engineer\'); setTimeout(function(){ rbi_switchEngineerSubTab(\'eng-sub-fmea\'); }, 300); }" class="w-full bg-slate-700 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Перейти к FMEA</button>';
         } else if (task.taskType === 'Аудит' || task.taskType === 'Плановая' || task.taskType === 'Старт') {
-            actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; window.RBI.services.game.startInspection(\'' + safeContractor + '\', \'' + task.templateKey + '\', null, \'' + safeProject + '\');" class="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"></path></svg> Провести аудит</button>';
+            actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; window.RBI.services.game.startInspection(\'' + safeContractor + '\', \'' + task.templateKey + '\', null, \'' + safeProject + '\');" class="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"></path></svg> ' + _t('quality.tasks.action.do_audit', 'Провести аудит') + '</button>';
         } else if (task.taskType === 'Магия TWI') {
             actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); if (window.AppRouter) AppRouter.navigate(\'#/quality/reference/twi\'); setTimeout(() => { const magicBlock = document.getElementById(\'twi-magic-block\'); if(magicBlock) magicBlock.classList.remove(\'magic-collapsed\'); }, 300);" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Сделать сейчас</button>';
         } else {
-            actionButtonsHtml += '<button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Отметить выполненной</button>';
+            actionButtonsHtml += '<button onclick="rbi_markTaskDone(\'' + task.id + '\');" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ' + _t('quality.tasks.action.mark_done', 'Отметить выполненной') + '</button>';
         }
 
         var postponeCountHtml = task.postponeCount > 0 ? '<span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-black">' + task.postponeCount + '</span>' : '';
         var _permSvc4 = (_ctx && _ctx.permissions) || window.RBI.services.permissions;
         var canDeleteForever = _permSvc4 ? _permSvc4.canDelete(task.engineerName || task.inspectorName || '') : false;
-        var deleteForeverBtnHtml = canDeleteForever ? '<button onclick="rbi_deleteTaskForever(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-red-600 dark:text-red-400 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Удалить</button>' : '';
-        actionButtonsHtml += '\n            <div class="grid ' + (canDeleteForever ? 'grid-cols-4' : 'grid-cols-3') + ' gap-2 w-full mt-2 pt-2 border-t border-[var(--card-border)]">\n                <button onclick="rbi_postponeTask(\'' + task.id + '\')" class="relative flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg> Сдвинуть' + postponeCountHtml + '</button>\n                <button onclick="rbi_pauseTask(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Пауза</button>\n                <button onclick="rbi_cancelTask(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-orange-500 dark:text-orange-400 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> Отменить</button>\n                ' + deleteForeverBtnHtml + '\n            </div>\n        ';
+        var deleteForeverBtnHtml = canDeleteForever ? '<button onclick="rbi_deleteTaskForever(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-red-600 dark:text-red-400 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> ' + _t('quality.tasks.action.delete', 'Удалить') + '</button>' : '';
+        actionButtonsHtml += '\n            <div class="grid ' + (canDeleteForever ? 'grid-cols-4' : 'grid-cols-3') + ' gap-2 w-full mt-2 pt-2 border-t border-[var(--card-border)]">\n                <button onclick="rbi_postponeTask(\'' + task.id + '\')" class="relative flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg> ' + _t('quality.tasks.action.postpone', 'Сдвинуть') + postponeCountHtml + '</button>\n                <button onclick="rbi_pauseTask(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ' + _t('quality.tasks.action.pause', 'Пауза') + '</button>\n                <button onclick="rbi_cancelTask(\'' + task.id + '\')" class="flex flex-col justify-center items-center p-2 rounded-xl bg-[var(--card-bg)] text-orange-500 dark:text-orange-400 font-bold text-[9px] uppercase active:scale-95 border border-[var(--card-border)] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"><svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ' + _t('quality.tasks.action.cancel', 'Отменить') + '</button>\n                ' + deleteForeverBtnHtml + '\n            </div>\n        ';
     }
 
     var _permSvc5 = (_ctx && _ctx.permissions) || window.RBI.services.permissions;
     var canEditTasks = _permSvc5 ? _permSvc5.canCreate() : true;
     if (!canEditTasks) {
-        actionButtonsHtml = '<div class="text-[11px] text-slate-500 font-bold text-center p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 mt-2">У вашей роли нет прав для выполнения и изменения задач.</div>';
+        actionButtonsHtml = '<div class="text-[11px] text-slate-500 font-bold text-center p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 mt-2">' + _t('quality.tasks.detail.no_rights', 'У вашей роли нет прав для выполнения и изменения задач.') + '</div>';
     }
 
     footer.innerHTML = actionButtonsHtml;
@@ -1760,7 +1787,7 @@ async function _markTaskDone(taskId, silent) {
         localStorage.setItem('rbi_cloud_dirty', '1');
         _sync('silent');
         if (!silent) {
-            showToast("✅ Задача выполнена и перенесена в Архив!");
+            showToast(_t('quality.tasks.toast.done', '✅ Задача выполнена'));
             _renderTasksList(true);
         }
     }
@@ -1775,7 +1802,7 @@ async function _resumeTask(taskId) {
     _touchTaskForSync(task);
     await _storage().put(_storage().stores().TASKS, task);
     localStorage.setItem('rbi_cloud_dirty', '1');
-    showToast("🔄 Задача снова активна");
+    showToast(_t('quality.tasks.toast.resumed', '✅ Задача снова активна'));
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
     _renderTasksList(true);
@@ -1784,9 +1811,9 @@ async function _resumeTask(taskId) {
 async function _pauseTask(taskId) {
     var task = window.rbi_tasksData.find(function(t){ return t.id === taskId; });
     if (!task) return;
-    var reason = prompt("Укажите причину паузы:");
+    var reason = prompt(_t('quality.tasks.prompt.pause_reason', 'Укажите причину паузы:'));
     if (reason === null) return;
-    if (reason.trim() === "") return showToast("⚠️ Причина обязательна!");
+    if (reason.trim() === "") return showToast(_t('quality.tasks.toast.reason_required', '⚠️ Причина обязательна!'));
     task.status = 'paused'; task.resultComment = 'На паузе: ' + reason;
     if (!task.history) task.history = [];
     task.history.unshift('[' + new Date().toLocaleDateString('ru-RU') + '] Пауза: ' + reason);
@@ -1794,7 +1821,7 @@ async function _pauseTask(taskId) {
     await _storage().put(_storage().stores().TASKS, task);
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
-    showToast("⏸ Задача скрыта в архив (Пауза)");
+    showToast(_t('quality.tasks.toast.hidden', 'Задача скрыта'));
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
     _renderTasksList(true);
@@ -1805,11 +1832,11 @@ async function _cancelTask(taskId) {
     if (!task) return;
     var _permSvc6 = (_ctx && _ctx.permissions) || window.RBI.services.permissions;
     if (!_permSvc6.canDelete(task.engineerName || task.inspectorName || '')) {
-        return showToast("⚠️ Нет прав на отмену чужой задачи!");
+        return showToast(_t('quality.tasks.toast.no_cancel_rights', '⚠️ Нет прав на отмену чужой задачи!'));
     }
-    var reason = prompt("Укажите причину отмены задачи:");
+    var reason = prompt(_t('quality.tasks.prompt.cancel_reason', 'Укажите причину отмены задачи:'));
     if (reason === null) return;
-    if (reason.trim() === "") return showToast("⚠️ Причина обязательна!");
+    if (reason.trim() === "") return showToast(_t('quality.tasks.toast.reason_required', '⚠️ Причина обязательна!'));
     task.status = 'blocked'; task.resultComment = 'Отменена: ' + reason;
     if (!task.history) task.history = [];
     task.history.unshift('[' + new Date().toLocaleDateString('ru-RU') + '] Отменена: ' + reason);
@@ -1817,7 +1844,7 @@ async function _cancelTask(taskId) {
     await _storage().put(_storage().stores().TASKS, task);
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
-    showToast("🚫 Задача отменена");
+    showToast(_t('quality.tasks.toast.cancelled', 'Задача отменена'));
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
     _renderTasksList(true);
@@ -1828,9 +1855,9 @@ async function _deleteTaskForever(taskId) {
     if (!task) return;
     var _permSvc7 = (_ctx && _ctx.permissions) || window.RBI.services.permissions;
     if (!_permSvc7 || !_permSvc7.canDelete(task.engineerName || task.inspectorName || '')) {
-        return showToast("⚠️ Нет прав на удаление этой задачи!");
+        return showToast(_t('quality.tasks.toast.no_delete_rights', '⚠️ Нет прав на удаление этой задачи!'));
     }
-    if (!confirm("Удалить задачу навсегда? Это действие необратимо.")) return;
+    if (!confirm(_t('quality.tasks.confirm.delete_forever', 'Удалить задачу навсегда? Это действие необратимо.'))) return;
     task._deleted = true;
     task.updatedAt = new Date().toISOString();
     await _storage().put(_storage().stores().TASKS, task);
@@ -1839,7 +1866,7 @@ async function _deleteTaskForever(taskId) {
     }
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
-    showToast("🗑 Задача удалена навсегда");
+    showToast(_t('quality.tasks.toast.deleted', 'Задача удалена'));
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
     _renderTasksList(true);
@@ -1848,10 +1875,10 @@ async function _deleteTaskForever(taskId) {
 async function _postponeTask(taskId) {
     var task = window.rbi_tasksData.find(function(t){ return t.id === taskId; });
     if (!task) return;
-    var days = prompt("На сколько дней перенести задачу? (введите число)", "1");
+    var days = prompt(_t('quality.tasks.prompt.postpone_days', 'На сколько дней перенести задачу? (введите число)'), '1');
     if (days === null) return;
     var daysNum = parseInt(days);
-    if (isNaN(daysNum) || daysNum <= 0) return showToast("⚠️ Введите корректное число дней!");
+    if (isNaN(daysNum) || daysNum <= 0) return showToast(_t('quality.tasks.toast.bad_days', '⚠️ Введите корректное число дней!'));
     var oldDateStr = new Date(task.date).toLocaleDateString('ru-RU');
     var newDate = new Date(task.date);
     newDate.setDate(newDate.getDate() + daysNum);
@@ -1862,9 +1889,9 @@ async function _postponeTask(taskId) {
     if (task.postponeCount > 2) {
         task.priorityLvl = 4;
         task.history.unshift('[СИСТЕМА] Приоритет повышен до критического из-за частых переносов!');
-        showToast("⚠️ Приоритет повышен до Критического!");
+        showToast(_t('quality.tasks.toast.priority_critical', '⚠️ Приоритет повышен до Критического!'));
     } else {
-        showToast('➡️ Задача перенесена на ' + newDate.toLocaleDateString('ru-RU'));
+        showToast(_t('quality.tasks.toast.postpone_ok', '✅ Срок сдвинут'));
     }
     task.updatedAt = new Date().toISOString();
     await _storage().put(_storage().stores().TASKS, task);
@@ -1916,14 +1943,14 @@ async function _saveFinalAndClose(taskId) {
     await _storage().put(_storage().stores().TASKS, task);
     document.getElementById('task-details-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
-    showToast("✅ Задача финальной приемки закрыта!");
+    showToast(_t('quality.tasks.toast.done', '✅ Задача выполнена'));
     _renderTasksList(true);
 }
 
 function _handleTaskCompletionPhoto(event) {
     var file = event.target.files[0];
     if (!file) return;
-    showToast("⚙️ Прикрепляю фото факта проведения...");
+    showToast(_t('quality.tasks.toast.photo_attaching', '⚙️ Прикрепляю фото факта проведения...'));
     window.compressImageToBase64(file, 1000, 0.8, async function(base64) {
         var localUrl = await PhotoManager.saveLocal(base64, 'task');
         var taskId = window.currentTaskPhotoId;
@@ -1977,14 +2004,14 @@ function _openReportSettingsModal(actionType, mode, taskId, closeTask) {
     if (typeof closeTask === 'undefined') closeTask = true;
     var modal = document.getElementById('modal-overlay');
     var uniqueProjects = Array.from(new Set(_allInspections.map(function(c){ return c.projectName; }).filter(Boolean))).sort();
-    var projOptions = '<option value="ALL">Все объекты компании (Глобально)</option>';
+    var projOptions = '<option value="ALL">' + _t('quality.tasks.report_settings.all_projects', 'Все объекты компании (Глобально)') + '</option>';
     uniqueProjects.forEach(function(p) { projOptions += '<option value="' + p.replace(/"/g, '&quot;') + '">' + p + '</option>'; });
     document.getElementById('modal-icon').innerHTML = '<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200">⚙️</div>';
-    document.getElementById('modal-title').innerHTML = '<div class="text-center font-black uppercase text-lg">Настройки Отчета</div>';
+    document.getElementById('modal-title').innerHTML = '<div class="text-center font-black uppercase text-lg">' + _t('quality.tasks.report_settings.title', 'Настройки Отчета') + '</div>';
     var taskInfoText = closeTask
-        ? "Выберите параметры для формирования выгрузки. Система автоматически закроет эту задачу после скачивания файла."
-        : "Выберите объект и период для формирования презентации. После скачивания вернитесь в задачу для заполнения протокола.";
-    document.getElementById('modal-body').innerHTML = '<div class="text-center text-[12px] text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">' + taskInfoText + '</div><div class="space-y-3 mb-6"><div><label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Объект</label><select id="task-rep-project" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none">' + projOptions + '</select></div><div><label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Период Анализа</label><select id="task-rep-period" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none"><option value="WEEK">За последние 7 дней (Неделя)</option><option value="MONTH">За последние 30 дней (Месяц)</option><option value="ALL">За всё время</option></select></div></div><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700">Отмена</button><button onclick="closeModal(); rbi_executeTaskReport(\'' + actionType + '\', \'' + mode + '\', \'' + taskId + '\', ' + closeTask + ')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">🚀 Скачать PDF</button></div>';
+        ? _t('quality.tasks.report_settings.info_close', 'Выберите параметры для формирования выгрузки. Система автоматически закроет эту задачу после скачивания файла.')
+        : _t('quality.tasks.report_settings.info_keep', 'Выберите объект и период для формирования презентации. После скачивания вернитесь в задачу для заполнения протокола.');
+    document.getElementById('modal-body').innerHTML = '<div class="text-center text-[12px] text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">' + taskInfoText + '</div><div class="space-y-3 mb-6"><div><label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">' + _t('quality.tasks.report_settings.project', 'Объект') + '</label><select id="task-rep-project" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none">' + projOptions + '</select></div><div><label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">' + _t('quality.tasks.report_settings.period', 'Период Анализа') + '</label><select id="task-rep-period" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none"><option value="WEEK">' + _t('quality.tasks.report_settings.period_week', 'За последние 7 дней (Неделя)') + '</option><option value="MONTH">' + _t('quality.tasks.report_settings.period_month', 'За последние 30 дней (Месяц)') + '</option><option value="ALL">' + _t('quality.tasks.report_settings.period_all', 'За всё время') + '</option></select></div></div><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700">' + _t('quality.tasks.report_settings.cancel', 'Отмена') + '</button><button onclick="closeModal(); rbi_executeTaskReport(\'' + actionType + '\', \'' + mode + '\', \'' + taskId + '\', ' + closeTask + ')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">' + _t('quality.tasks.report_settings.download', 'Скачать PDF') + '</button></div>';
     document.body.classList.add('modal-open');
     modal.style.display = 'flex';
 }
@@ -2097,10 +2124,10 @@ async function _generateAutoTasks(silent) {
 
     setTimeout(function() {
         if (!silent && (generatedCount > 0 || updatedCount > 0 || deletedCount > 0)) {
-            showToast('✅ Задачи обновлены! Новых: ' + generatedCount + ', Сдвинуто: ' + updatedCount + ', Удалено: ' + deletedCount);
+            showToast(_t('quality.tasks.toast.sync_ok', '✅ Синхронизировано'));
             if (typeof rbi_renderScheduleTab === 'function') rbi_renderScheduleTab(true);
         } else if (!silent) {
-            showToast('✅ Задачи синхронизированы с графиком');
+            showToast(_t('quality.tasks.toast.sync_ok', '✅ Синхронизировано'));
             if (typeof rbi_renderScheduleTab === 'function') rbi_renderScheduleTab(true);
         }
         _renderTasksList();
@@ -2114,9 +2141,10 @@ async function _generateAutoTasks(silent) {
 function _openCalendarModal() {
     var modal = document.getElementById('task-calendar-modal');
     currentCalendarDate = new Date();
+    _refreshCalendarStaticChrome();
     _renderCalendarGrid();
-    document.getElementById('calendar-tasks-list').innerHTML = '<div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-sm">Кликните на число в календаре</div>';
-    document.getElementById('calendar-selected-date-label').innerText = 'Выберите дату';
+    document.getElementById('calendar-tasks-list').innerHTML = '<div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-sm">' + _t('quality.tasks.calendar.click_day', 'Кликните на число в календаре') + '</div>';
+    document.getElementById('calendar-selected-date-label').innerText = _t('quality.tasks.calendar.pick_date', 'Выберите дату');
     _renderNoDateTasks();
     modal.style.display = 'flex';
     document.body.classList.add('modal-open');
@@ -2140,7 +2168,20 @@ function _changeCalendarMonth(offset) {
 function _renderCalendarGrid() {
     var year = currentCalendarDate.getFullYear();
     var month = currentCalendarDate.getMonth();
-    var monthNames = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+    var monthNames = [
+        _t('quality.tasks.calendar.month_1', 'Январь'),
+        _t('quality.tasks.calendar.month_2', 'Февраль'),
+        _t('quality.tasks.calendar.month_3', 'Март'),
+        _t('quality.tasks.calendar.month_4', 'Апрель'),
+        _t('quality.tasks.calendar.month_5', 'Май'),
+        _t('quality.tasks.calendar.month_6', 'Июнь'),
+        _t('quality.tasks.calendar.month_7', 'Июль'),
+        _t('quality.tasks.calendar.month_8', 'Август'),
+        _t('quality.tasks.calendar.month_9', 'Сентябрь'),
+        _t('quality.tasks.calendar.month_10', 'Октябрь'),
+        _t('quality.tasks.calendar.month_11', 'Ноябрь'),
+        _t('quality.tasks.calendar.month_12', 'Декабрь')
+    ];
     document.getElementById('calendar-month-label').innerText = monthNames[month] + ' ' + year;
     var grid = document.getElementById('calendar-grid');
     grid.innerHTML = '';
@@ -2171,16 +2212,16 @@ function _renderCalendarGrid() {
 function _renderCalendarTaskCard(t) {
     var icon = t.icon ? (RBI_TASK_ICONS[t.icon] || RBI_TASK_ICONS['Контроль']) : RBI_TASK_ICONS['Контроль'];
     var priorityColor = t.priorityLvl === 4 ? 'text-red-600 bg-red-50 border-red-200' : 'text-green-600 bg-green-50 border-green-200';
-    var priorityText = t.priorityLvl === 4 ? 'Крит.' : 'Обычная';
-    return '<div onclick="rbi_closeCalendarModal(); setTimeout(()=>rbi_openTaskAction(\'' + t.id + '\'),300)" class="cursor-pointer w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col relative shadow-sm active:scale-[0.98] hover:border-indigo-400 transition-all"><div class="flex items-start justify-between gap-3 mb-2"><div class="w-8 h-8 rounded-lg bg-[var(--hover-bg)] text-slate-500 flex items-center justify-center border border-[var(--card-border)] shrink-0">' + icon + '</div><div class="flex-1 min-w-0"><div class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-0.5">' + (t.taskType || t.title) + '</div><div class="text-[13px] font-black text-slate-800 dark:text-white leading-tight truncate">' + (t.contractor || 'Без подрядчика') + '</div></div></div><div class="text-[11px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 font-medium mb-3">' + (t.prompt || 'Без описания') + '</div><div class="border-t border-slate-100 dark:border-slate-700 pt-2 flex justify-between items-center"><span class="text-[8px] font-black uppercase px-2 py-1 rounded border ' + priorityColor + '">' + priorityText + '</span><span class="text-[10px] font-bold text-slate-400">' + (t.engineerName || 'Инженер') + '</span></div></div>';
+    var priorityText = t.priorityLvl === 4 ? _t('quality.tasks.badge.critical', 'Крит.') : _t('quality.tasks.calendar.priority_normal', 'Обычная');
+    return '<div onclick="rbi_closeCalendarModal(); setTimeout(()=>rbi_openTaskAction(\'' + t.id + '\'),300)" class="cursor-pointer w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col relative shadow-sm active:scale-[0.98] hover:border-indigo-400 transition-all"><div class="flex items-start justify-between gap-3 mb-2"><div class="w-8 h-8 rounded-lg bg-[var(--hover-bg)] text-slate-500 flex items-center justify-center border border-[var(--card-border)] shrink-0">' + icon + '</div><div class="flex-1 min-w-0"><div class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-0.5">' + (t.taskType || t.title) + '</div><div class="text-[13px] font-black text-slate-800 dark:text-white leading-tight truncate">' + (t.contractor || _t('quality.tasks.detail.no_contractor', 'Без подрядчика')) + '</div></div></div><div class="text-[11px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 font-medium mb-3">' + (t.prompt || _t('quality.tasks.detail.no_desc', 'Описание отсутствует')) + '</div><div class="border-t border-slate-100 dark:border-slate-700 pt-2 flex justify-between items-center"><span class="text-[8px] font-black uppercase px-2 py-1 rounded border ' + priorityColor + '">' + priorityText + '</span><span class="text-[10px] font-bold text-slate-400">' + (t.engineerName || 'Инженер') + '</span></div></div>';
 }
 
 function _showTasksForDate(dateStr) {
-    document.getElementById('calendar-selected-date-label').innerText = 'Задачи на: ' + new Date(dateStr).toLocaleDateString('ru-RU');
+    document.getElementById('calendar-selected-date-label').innerText = _t('quality.tasks.calendar.tasks_on', 'Задачи на: {date}', { date: new Date(dateStr).toLocaleDateString('ru-RU') });
     var list = document.getElementById('calendar-tasks-list');
     var tasks = window.rbi_tasksData.filter(function(t){ return !t._deleted && t.status !== 'done' && t.status !== 'blocked' && t.date && t.date.split('T')[0] === dateStr; });
     if (tasks.length === 0) {
-        list.innerHTML = '<div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">На этот день задач нет</div>';
+        list.innerHTML = '<div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">' + _t('quality.tasks.calendar.empty', 'Нет задач на эту дату') + '</div>';
     } else {
         list.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + tasks.map(_renderCalendarTaskCard).join('') + '</div>';
     }
@@ -2190,10 +2231,99 @@ function _renderNoDateTasks() {
     var list = document.getElementById('calendar-nodate-list');
     var tasks = window.rbi_tasksData.filter(function(t){ return !t._deleted && t.status !== 'done' && t.status !== 'blocked' && !t.date; });
     if (tasks.length === 0) {
-        list.innerHTML = '<div class="text-center py-4 text-slate-400 text-[10px] font-bold uppercase">Все задачи привязаны к датам</div>';
+        list.innerHTML = '<div class="text-center py-4 text-slate-400 text-[10px] font-bold uppercase">' + _t('quality.tasks.calendar.all_dated', 'Все задачи привязаны к датам') + '</div>';
     } else {
         list.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + tasks.map(_renderCalendarTaskCard).join('') + '</div>';
     }
+}
+
+function _refreshCalendarStaticChrome() {
+    var titleEl = document.querySelector('#task-calendar-modal [data-i18n-tasks="calendar.title"]');
+    if (titleEl) {
+        var svg = titleEl.querySelector('svg');
+        titleEl.textContent = '';
+        if (svg) titleEl.appendChild(svg);
+        titleEl.appendChild(document.createTextNode(' ' + _t('quality.tasks.calendar.title', 'Календарь задач')));
+    }
+    var dow = document.getElementById('calendar-dow-row');
+    if (dow) {
+        dow.innerHTML =
+            '<div class="text-[10px] font-black text-slate-400 uppercase">' + _t('quality.tasks.calendar.dow_1', 'Пн') + '</div>' +
+            '<div class="text-[10px] font-black text-slate-400 uppercase">' + _t('quality.tasks.calendar.dow_2', 'Вт') + '</div>' +
+            '<div class="text-[10px] font-black text-slate-400 uppercase">' + _t('quality.tasks.calendar.dow_3', 'Ср') + '</div>' +
+            '<div class="text-[10px] font-black text-slate-400 uppercase">' + _t('quality.tasks.calendar.dow_4', 'Чт') + '</div>' +
+            '<div class="text-[10px] font-black text-slate-400 uppercase">' + _t('quality.tasks.calendar.dow_5', 'Пт') + '</div>' +
+            '<div class="text-[10px] font-black text-red-400 uppercase">' + _t('quality.tasks.calendar.dow_6', 'Сб') + '</div>' +
+            '<div class="text-[10px] font-black text-red-400 uppercase">' + _t('quality.tasks.calendar.dow_7', 'Вс') + '</div>';
+    }
+    var nodateTitle = document.getElementById('calendar-nodate-title');
+    if (nodateTitle) nodateTitle.textContent = _t('quality.tasks.calendar.no_deadline', 'Задачи без дедлайна');
+}
+
+function _refreshManualModalChrome() {
+    var modal = document.getElementById('manual-task-modal');
+    if (!modal) return;
+    var title = document.getElementById('manual-task-modal-title');
+    if (title) {
+        var svg = title.querySelector('svg');
+        title.textContent = '';
+        if (svg) title.appendChild(svg);
+        title.appendChild(document.createTextNode(' ' + _t('quality.tasks.manual.title', 'Новое поручение')));
+    }
+    var map = {
+        'manual.title_label': _t('quality.tasks.manual.title_label', 'Название'),
+        'manual.desc_label': _t('quality.tasks.manual.desc_label', 'Описание'),
+        'manual.category_label': _t('quality.tasks.manual.category_label', 'Категория (Где отображать)'),
+        'manual.deadline_label': _t('quality.tasks.manual.deadline_label', 'Срок'),
+        'manual.assignee_label': _t('quality.tasks.manual.assignee_label', 'Исполнитель')
+    };
+    Object.keys(map).forEach(function (k) {
+        var el = modal.querySelector('[data-i18n-tasks="' + k + '"]');
+        if (el) el.textContent = map[k];
+    });
+    var titleInp = document.getElementById('manual-task-title');
+    if (titleInp) titleInp.placeholder = _t('quality.tasks.manual.placeholder_title', 'Краткая суть...');
+    var descInp = document.getElementById('manual-task-prompt');
+    if (descInp) descInp.placeholder = _t('quality.tasks.manual.placeholder_desc', 'Что именно нужно сделать...');
+    var urg = document.getElementById('manual-task-urgency');
+    if (urg && urg.options && urg.options.length >= 2) {
+        urg.options[0].text = _t('quality.tasks.manual.urgency_planned', 'Плановые (На эту неделю)');
+        urg.options[1].text = _t('quality.tasks.manual.urgency_future', 'Будущие (Отложенные)');
+    }
+    var createBtn = document.getElementById('manual-task-create-btn');
+    if (createBtn) createBtn.textContent = _t('quality.tasks.manual.create', 'Создать поручение');
+}
+
+function _bindTasksI18n() {
+    if (_tasksI18nBound) return;
+    _tasksI18nBound = true;
+    var events = window.RBI && window.RBI.events;
+    if (!(events && typeof events.on === 'function')) return;
+    events.on('i18n:localeChanged', function () {
+        try {
+            var container = document.getElementById('rbi-tasks-container');
+            if (!container) return;
+            var detailsModal = document.getElementById('task-details-modal');
+            var openTaskId = null;
+            if (detailsModal && detailsModal.style.display === 'flex' && currentTaskContext && currentTaskContext.id) {
+                openTaskId = currentTaskContext.id;
+            }
+            var calModal = document.getElementById('task-calendar-modal');
+            var calOpen = !!(calModal && calModal.style.display === 'flex');
+            _refreshCalendarStaticChrome();
+            _refreshManualModalChrome();
+            _renderTasksList(true);
+            if (openTaskId) _openTaskAction(openTaskId);
+            if (calOpen) {
+                _renderCalendarGrid();
+                var pick = document.getElementById('calendar-selected-date-label');
+                if (pick && (!pick.dataset || !pick.dataset.locked)) {
+                    /* keep selected label if user already picked a day — only refresh empty state chrome */
+                }
+                _renderNoDateTasks();
+            }
+        } catch (_e) { /* ignore */ }
+    });
 }
 
 // =========================================================================
@@ -2350,9 +2480,9 @@ function renderTaskCalendarModalMarkup() {
             
             <!-- Шапка календаря -->
             <div class="bg-indigo-600 text-white p-4 flex justify-between items-center shadow-md z-10 shrink-0">
-                <div class="font-black text-[14px] uppercase tracking-widest flex items-center gap-2">
+                <div class="font-black text-[14px] uppercase tracking-widest flex items-center gap-2" data-i18n-tasks="calendar.title">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Календарь задач
+                    ${_t('quality.tasks.calendar.title', 'Календарь задач')}
                 </div>
                 <button data-tasks-action="rbi_closeCalendarModal" class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center font-black active:scale-90 border border-indigo-400">✕</button>
             </div>
@@ -2367,8 +2497,8 @@ function renderTaskCalendarModalMarkup() {
                     </div>
                     
                     <!-- Дни недели -->
-                    <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                        <div class="text-[10px] font-black text-slate-400 uppercase">Пн</div><div class="text-[10px] font-black text-slate-400 uppercase">Вт</div><div class="text-[10px] font-black text-slate-400 uppercase">Ср</div><div class="text-[10px] font-black text-slate-400 uppercase">Чт</div><div class="text-[10px] font-black text-slate-400 uppercase">Пт</div><div class="text-[10px] font-black text-red-400 uppercase">Сб</div><div class="text-[10px] font-black text-red-400 uppercase">Вс</div>
+                    <div class="grid grid-cols-7 gap-1 text-center mb-2" id="calendar-dow-row">
+                        <div class="text-[10px] font-black text-slate-400 uppercase">${_t('quality.tasks.calendar.dow_1', 'Пн')}</div><div class="text-[10px] font-black text-slate-400 uppercase">${_t('quality.tasks.calendar.dow_2', 'Вт')}</div><div class="text-[10px] font-black text-slate-400 uppercase">${_t('quality.tasks.calendar.dow_3', 'Ср')}</div><div class="text-[10px] font-black text-slate-400 uppercase">${_t('quality.tasks.calendar.dow_4', 'Чт')}</div><div class="text-[10px] font-black text-slate-400 uppercase">${_t('quality.tasks.calendar.dow_5', 'Пт')}</div><div class="text-[10px] font-black text-red-400 uppercase">${_t('quality.tasks.calendar.dow_6', 'Сб')}</div><div class="text-[10px] font-black text-red-400 uppercase">${_t('quality.tasks.calendar.dow_7', 'Вс')}</div>
                     </div>
                     <!-- Сетка дат -->
                     <div id="calendar-grid" class="grid grid-cols-7 gap-1 sm:gap-2">
@@ -2378,13 +2508,13 @@ function renderTaskCalendarModalMarkup() {
 
                 <!-- Список задач под календарем -->
                 <div class="p-4">
-                    <div id="calendar-selected-date-label" class="text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-3 tracking-widest border-b border-slate-200 dark:border-slate-700 pb-2">Выберите дату</div>
+                    <div id="calendar-selected-date-label" class="text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-3 tracking-widest border-b border-slate-200 dark:border-slate-700 pb-2">${_t('quality.tasks.calendar.pick_date', 'Выберите дату')}</div>
                     <div id="calendar-tasks-list" class="space-y-3">
-                        <div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">Кликните на число в календаре</div>
+                        <div class="text-center py-6 text-slate-400 text-[11px] font-bold uppercase border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">${_t('quality.tasks.calendar.click_day', 'Кликните на число в календаре')}</div>
                     </div>
                     
                     <!-- Задачи без даты -->
-                    <div class="text-[12px] font-black uppercase text-slate-500 mb-3 tracking-widest border-b border-slate-200 dark:border-slate-700 pb-2 mt-8">Задачи без дедлайна</div>
+                    <div id="calendar-nodate-title" class="text-[12px] font-black uppercase text-slate-500 mb-3 tracking-widest border-b border-slate-200 dark:border-slate-700 pb-2 mt-8">${_t('quality.tasks.calendar.no_deadline', 'Задачи без дедлайна')}</div>
                     <div id="calendar-nodate-list" class="space-y-3 pb-8">
                     </div>
                 </div>
@@ -2405,7 +2535,7 @@ function renderTaskDetailsModalMarkup() {
                 class="p-4 border-b border-[var(--card-border)] bg-[var(--hover-bg)] flex justify-between items-center shrink-0">
                 <div class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2"
                     id="task-details-header-title">
-                    📋 Детализация задачи
+                    ${_t('quality.tasks.detail.title_full', '📋 Детализация задачи')}
                 </div>
                 <button
                     onclick="document.getElementById('task-details-modal').style.display='none'; document.body.classList.remove('modal-open');"
@@ -2434,12 +2564,12 @@ function renderManualTaskModalMarkup() {
             onclick="event.stopPropagation()">
             <div
                 class="p-4 border-b border-[var(--card-border)] bg-[var(--hover-bg)] flex justify-between items-center shrink-0">
-                <div
+                <div id="manual-task-modal-title"
                     class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"></path>
-                    </svg> Новое поручение
+                    </svg> ${_t('quality.tasks.manual.title', 'Новое поручение')}
                 </div>
                 <button data-tasks-action="rbi_closeTaskModal"
                     class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-700">✕</button>
@@ -2447,33 +2577,33 @@ function renderManualTaskModalMarkup() {
 
             <div class="p-4 space-y-4 overflow-y-auto max-h-[70vh]">
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Название задачи *</label>
-                    <input type="text" id="manual-task-title" class="input-base" placeholder="Краткая суть...">
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block" data-i18n-tasks="manual.title_label">${_t('quality.tasks.manual.title_label', 'Название')}</label>
+                    <input type="text" id="manual-task-title" class="input-base" placeholder="${_t('quality.tasks.manual.placeholder_title', 'Краткая суть...')}">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Описание (Подробно)</label>
-                    <textarea id="manual-task-prompt" class="input-base h-16 resize-none text-[12px]" placeholder="Что именно нужно сделать..."></textarea>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block" data-i18n-tasks="manual.desc_label">${_t('quality.tasks.manual.desc_label', 'Описание')}</label>
+                    <textarea id="manual-task-prompt" class="input-base h-16 resize-none text-[12px]" placeholder="${_t('quality.tasks.manual.placeholder_desc', 'Что именно нужно сделать...')}"></textarea>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Категория (Где отображать)</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block" data-i18n-tasks="manual.category_label">${_t('quality.tasks.manual.category_label', 'Категория (Где отображать)')}</label>
                     <select id="manual-task-urgency" class="input-base font-bold">
-                        <option value="planned">Плановые (На эту неделю)</option>
-                        <option value="future">Будущие (Отложенные)</option>
+                        <option value="planned">${_t('quality.tasks.manual.urgency_planned', 'Плановые (На эту неделю)')}</option>
+                        <option value="future">${_t('quality.tasks.manual.urgency_future', 'Будущие (Отложенные)')}</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Срок (Дедлайн)</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block" data-i18n-tasks="manual.deadline_label">${_t('quality.tasks.manual.deadline_label', 'Срок')}</label>
                         <input type="date" id="manual-task-date" class="input-base !py-2 text-[12px]">
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-indigo-600 uppercase mb-1 block">Исполнитель</label>
+                        <label class="text-[10px] font-bold text-indigo-600 uppercase mb-1 block" data-i18n-tasks="manual.assignee_label">${_t('quality.tasks.manual.assignee_label', 'Исполнитель')}</label>
                         <select id="manual-task-engineer" class="input-base font-bold text-slate-800 dark:text-white bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800"></select>
                     </div>
                 </div>
-                <button data-tasks-action="rbi_saveManualTask"
+                <button data-tasks-action="rbi_saveManualTask" id="manual-task-create-btn"
                     class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2">
-                    Создать поручение
+                    ${_t('quality.tasks.manual.create', 'Создать поручение')}
                 </button>
             </div>
         </div>
@@ -2495,6 +2625,7 @@ function renderManualTaskModalMarkup() {
     if (!document.getElementById('manual-task-modal')) {
         root.insertAdjacentHTML('beforeend', renderManualTaskModalMarkup());
     }
+    _bindTasksI18n();
 }());
 
 export const TasksModule = {
@@ -2508,6 +2639,7 @@ export const TasksModule = {
         _ctx = ctx;
         if (window.TasksActions) window.TasksActions.bindCtx(ctx);
         bindTasksActionDelegation();
+        _bindTasksI18n();
         var svc = ctx && ctx.tasks;
         var events = ctx && ctx.events;
 
