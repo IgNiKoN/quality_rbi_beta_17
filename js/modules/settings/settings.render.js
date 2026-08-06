@@ -343,8 +343,8 @@ var SettingsRender = {
                             </div>
                             <select id="set-auto-collapse-filters" class="input-base w-36 shrink-0"
                                 data-settings-action="toggleSetting" data-settings-action-key="autoCollapseFilters" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="manual" selected data-i18n="settings.opt.collapse.manual">Ручное</option>
                                 <option value="auto" data-i18n="settings.opt.collapse.auto">Авто</option>
-                                <option value="manual" data-i18n="settings.opt.collapse.manual">Ручное</option>
                             </select>
                         </div>
                         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center gap-3">
@@ -898,7 +898,7 @@ var SettingsRender = {
                     <summary
                         class="p-4 font-black text-[12px] text-orange-700 dark:text-orange-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-orange-50 dark:bg-orange-900/20 transition-colors select-none group-open:border-b border-orange-200 dark:border-orange-800 rounded-2xl group-open:rounded-b-none">
                         <span data-i18n="settings.accordion.object_requests">Заявки на объекты</span>
-                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); if (window.ObjectDirectory) ObjectDirectory.loadRequests();"
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); (window.RBI&&window.RBI.services&&window.RBI.services.objects&&window.RBI.services.objects.loadRequests());"
                             class="bg-white dark:bg-slate-800 text-orange-600 border border-orange-200 dark:border-orange-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm" data-i18n="settings.action.refresh">Обновить</button>
                     </summary>
                     <div id="obj-requests-list" class="p-3 max-h-[40vh] overflow-y-auto custom-scrollbar bg-[var(--hover-bg)] rounded-b-2xl">
@@ -1572,6 +1572,33 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         return window.appSettings ? window.appSettings[key] : undefined;
     }
 
+    function _objects() {
+        try {
+            var ctx = SettingsActions._ctx;
+            if (ctx && ctx.services && ctx.services.objects) return ctx.services.objects;
+            if (ctx && ctx.objects) return ctx.objects;
+        } catch (e) {}
+        return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+    }
+    function _objectList() {
+        var o = _objects();
+        if (!o) return [];
+        if (typeof o.list === 'function') {
+            var l = o.list();
+            return Array.isArray(l) ? l : [];
+        }
+        return Array.isArray(o.objects) ? o.objects : [];
+    }
+    function _leftoverList() {
+        var o = _objects();
+        if (!o) return [];
+        if (typeof o.leftoverList === 'function') {
+            var l = o.leftoverList();
+            return Array.isArray(l) ? l : [];
+        }
+        return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+    }
+
     /** Chrome Настроек (sticky title / reset / subnav / aria) — без remount панелей. */
     function _settingsT(key, fallback, vars) {
         try {
@@ -1655,8 +1682,9 @@ console.log('[SettingsRender] settings.render.js markup mounted');
     }
 
     function _mountAdminOpsContent() {
-        if (typeof window.ObjectDirectory !== 'undefined' && typeof window.ObjectDirectory.loadRequests === 'function') {
-            window.ObjectDirectory.loadRequests();
+        var od = _objects();
+        if (od && typeof od.loadRequests === 'function') {
+            od.loadRequests();
         }
         if (typeof window.gameLoadRoles === 'function') {
             window.gameLoadRoles();
@@ -1828,6 +1856,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (document.getElementById('set-dashmode')) document.getElementById('set-dashmode').value = _getSetting('dashboardMode') || 'compact';
         if (document.getElementById('set-auto-collapse-filters')) {
             var acf = _getSetting('autoCollapseFilters');
+            // Дефолт / неизвестное → manual (не auto)
             document.getElementById('set-auto-collapse-filters').value =
                 (acf === true || acf === 'auto') ? 'auto' : 'manual';
         }
@@ -2171,9 +2200,10 @@ console.log('[SettingsRender] settings.render.js markup mounted');
 
         var _permSvc2 = (SettingsActions._ctx && SettingsActions._ctx.permissions) || window.RBI.services.permissions;
         if (typeof _permSvc2 !== 'undefined') _permSvc2.applyUIConstraints();
-        if (typeof window.ObjectDirectory !== 'undefined') {
+        var odInit = _objects();
+        if (odInit && typeof odInit.initUI === 'function') {
             // C2b: initUI для suggestions/заявок; плоский OD CRUD скрыт в renderManagerPanel
-            window.ObjectDirectory.initUI();
+            odInit.initUI();
         }
 
         var themeSelect = document.getElementById('set-theme');

@@ -48,6 +48,8 @@ let _hooksBound = false;
 let _localeBound = false;
 let _onResizeNavigate = null;
 let _selectedContractor = null;
+/** Desktop contractors table sort: key = name|urk|doc|rel|n|defects|stab */
+let _deskContractorSort = { key: 'rel', dir: 'desc' };
 const _deskCharts = {};
 
 function _t(key, fallback, vars) {
@@ -623,11 +625,51 @@ function buildContractorRows(data) {
   }
 
   filtered.sort((a, b) => {
-    if (a.metrics.count < 7 && b.metrics.count >= 7) return 1;
-    if (b.metrics.count < 7 && a.metrics.count >= 7) return -1;
-    return b.metrics.finalC - a.metrics.finalC;
+    const dir = _deskContractorSort.dir === 'asc' ? 1 : -1;
+    const key = _deskContractorSort.key || 'rel';
+    const num = (v) => {
+      if (v == null || v === '—' || Number.isNaN(Number(v))) return null;
+      return Number(v);
+    };
+    const cmpNullLast = (av, bv) => {
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return av === bv ? 0 : (av < bv ? -1 : 1);
+    };
+    let cmp = 0;
+    if (key === 'name') {
+      cmp = String(a.name).localeCompare(String(b.name), 'ru');
+    } else if (key === 'urk') {
+      cmp = cmpNullLast(num(a.metrics.baseUrkContrPerc), num(b.metrics.baseUrkContrPerc));
+    } else if (key === 'doc') {
+      cmp = cmpNullLast(num(a.metrics.documentaryC), num(b.metrics.documentaryC));
+    } else if (key === 'rel') {
+      // default: «сбор» (N<7) вниз, затем надёжность
+      const aP = a.metrics.count < 7;
+      const bP = b.metrics.count < 7;
+      if (aP !== bP) return aP ? 1 : -1;
+      cmp = cmpNullLast(num(a.metrics.finalC), num(b.metrics.finalC));
+    } else if (key === 'n') {
+      cmp = cmpNullLast(num(a.metrics.count), num(b.metrics.count));
+    } else if (key === 'defects') {
+      cmp = cmpNullLast(a.b3, b.b3)
+        || cmpNullLast(a.b2, b.b2)
+        || cmpNullLast(a.b1, b.b1);
+    } else if (key === 'stab') {
+      cmp = cmpNullLast(num(a.metrics.stabilityIndex), num(b.metrics.stabilityIndex));
+    } else {
+      cmp = cmpNullLast(num(a.metrics.finalC), num(b.metrics.finalC));
+    }
+    if (cmp !== 0) return cmp * dir;
+    return String(a.name).localeCompare(String(b.name), 'ru');
   });
   return filtered;
+}
+
+function contractorSortMark(key) {
+  if (_deskContractorSort.key !== key) return '';
+  return _deskContractorSort.dir === 'asc' ? ' ↑' : ' ↓';
 }
 
 function paintContractorsTable() {
@@ -640,8 +682,20 @@ function paintContractorsTable() {
     return;
   }
 
+  const th = (key, label) => {
+    const on = _deskContractorSort.key === key ? ' is-on' : '';
+    return '<th class="ana-desk-th-sort' + on + '" data-ana-desk-c-sort="' + key + '" scope="col" title="Сортировать">'
+      + label + contractorSortMark(key) + '</th>';
+  };
+
   let html = '<div class="ana-desk-table-wrap"><table class="ana-desk-table"><thead><tr>'
-    + '<th>Подрядчик</th><th>УрК</th><th>Док</th><th>Надёжн.</th><th>N</th><th>B1/B2/B3</th><th>Стаб.</th>'
+    + th('name', 'Подрядчик')
+    + th('urk', 'УрК')
+    + th('doc', 'Док')
+    + th('rel', 'Надёжн.')
+    + th('n', 'N')
+    + th('defects', 'B1/B2/B3')
+    + th('stab', 'Стаб.')
     + '</tr></thead><tbody>';
 
   rows.forEach((c) => {
@@ -2338,6 +2392,24 @@ function bindDesktopHooks() {
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (!t || !_shellApplied || !isDesktopViewport()) return;
+
+    const sortTh = t.closest && t.closest('[data-ana-desk-c-sort]');
+    if (sortTh) {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = sortTh.getAttribute('data-ana-desk-c-sort');
+      if (!key) return;
+      if (_deskContractorSort.key === key) {
+        _deskContractorSort.dir = _deskContractorSort.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        _deskContractorSort = {
+          key,
+          dir: (key === 'name') ? 'asc' : 'desc'
+        };
+      }
+      try { paintContractorsTable(); } catch (_) { /* ignore */ }
+      return;
+    }
 
     const row = t.closest && t.closest('[data-ana-desk-contractor]');
     if (row) {

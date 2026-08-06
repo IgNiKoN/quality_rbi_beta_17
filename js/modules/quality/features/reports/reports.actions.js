@@ -12,6 +12,47 @@ import { ReportsState } from './reports.state.js';
 import { buildMeetingProtocolHtml } from '../meetings/meetings.protocol.js';
 import { buildInspectionPlanSheetHtml } from '../shared/plan-pin-print.js';
 
+function _objects() {
+    try {
+        if (ReportsActions._ctx && ReportsActions._ctx.services && ReportsActions._ctx.services.objects) {
+            return ReportsActions._ctx.services.objects;
+        }
+        if (ReportsActions._ctx && ReportsActions._ctx.objects) {
+            return ReportsActions._ctx.objects;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _contractors() {
+    try {
+        if (ReportsActions._ctx && ReportsActions._ctx.services && ReportsActions._ctx.services.contractors) {
+            return ReportsActions._ctx.services.contractors;
+        }
+        if (ReportsActions._ctx && ReportsActions._ctx.contractors) {
+            return ReportsActions._ctx.contractors;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+        var l = c.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+}
+
 function _getSetting(key) {
     if (ReportsActions._ctx && ReportsActions._ctx.settings) return ReportsActions._ctx.settings.get(key);
     return window.RBI.services.settings.get(key);
@@ -2343,8 +2384,9 @@ async function saveReportToLocal(reportData, htmlContent) {
 
     // Пытаемся найти системный ключ объекта для правильной синхронизации
     let canonicalKey = '';
-    if (typeof ObjectDirectory !== 'undefined' && reportData.project) {
-        const found = ObjectDirectory.objects.find(o =>
+    if (reportData.project) {
+        var repObjList = _objectList();
+        const found = repObjList.find(o =>
             o.display_name === reportData.project ||
             o.canonical_key === reportData.project
         );

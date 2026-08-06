@@ -114,9 +114,10 @@ function markSubSections() {
   });
 }
 
-/** Sync underline active: legacy switch toggles bg-white, not .active */
+/** Sync active: desktop = цвет (.active); mobile = чип как в аналитике (bg-white + shadow). */
 function syncSubtabActive(subId) {
   const id = subId || currentSubId();
+  const deskChrome = isDesktopViewport() && _shellApplied;
   const btns = document.querySelectorAll('#engineer-subtabs-block .sub-tab-btn');
   btns.forEach(function (btn) {
     const arg = btn.getAttribute('data-action-arg') || '';
@@ -133,7 +134,17 @@ function syncSubtabActive(subId) {
       'text-green-600'
     );
     if (on) {
-      btn.classList.add('text-indigo-600');
+      if (deskChrome) {
+        btn.classList.add('text-indigo-600');
+      } else {
+        btn.classList.add(
+          'bg-white',
+          'shadow-sm',
+          'text-indigo-600',
+          'dark:bg-slate-700',
+          'dark:text-indigo-400'
+        );
+      }
       btn.classList.remove('text-[var(--text-muted)]');
     } else {
       btn.classList.add('text-[var(--text-muted)]');

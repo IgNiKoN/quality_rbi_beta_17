@@ -507,13 +507,9 @@
             else if (secondary && secondary.length > 0) raw = secondary;
             else raw = primary || secondary || [];
 
-            const od = window.ObjectDirectory || (window.RBI && window.RBI.services && window.RBI.services.objects);
-            if (od && typeof od.normalizeAssignedProjectsList === 'function') {
-                try { return od.normalizeAssignedProjectsList(raw); } catch (_e) { /* fall through */ }
-            }
-            if (window.RBI && window.RBI.services && window.RBI.services.objects
-                && typeof window.RBI.services.objects.normalizeAssignedProjectsList === 'function') {
-                try { return window.RBI.services.objects.normalizeAssignedProjectsList(raw); } catch (_e2) { /* fall through */ }
+            const objs = window.RBI && window.RBI.services && window.RBI.services.objects;
+            if (objs && typeof objs.normalizeAssignedProjectsList === 'function') {
+                try { return objs.normalizeAssignedProjectsList(raw); } catch (_e) { /* fall through */ }
             }
             return raw;
         },
@@ -523,13 +519,9 @@
          */
         isRecordInAssignedProjects(rec, assignedList) {
             const assigned = assignedList != null ? assignedList : this.getAssignedProjects();
-            const od = window.ObjectDirectory;
-            if (od && typeof od.isRecordInAssignedProjects === 'function') {
-                return od.isRecordInAssignedProjects(rec, assigned);
-            }
-            if (window.RBI && window.RBI.services && window.RBI.services.objects
-                && typeof window.RBI.services.objects.isRecordInAssignedProjects === 'function') {
-                return window.RBI.services.objects.isRecordInAssignedProjects(rec, assigned);
+            const objs = window.RBI && window.RBI.services && window.RBI.services.objects;
+            if (objs && typeof objs.isRecordInAssignedProjects === 'function') {
+                return objs.isRecordInAssignedProjects(rec, assigned);
             }
             // Fallback без справочника: строгое includes по типичным полям
             const list = Array.isArray(assigned) ? assigned : [];
@@ -564,9 +556,9 @@
             if (!window.supabaseClient || !inspectorId) return { error: 'no_client_or_id' };
 
             let safeProjects = Array.isArray(projectsArray) ? projectsArray : [];
-            const od = window.ObjectDirectory;
-            if (od && typeof od.normalizeAssignedProjectsList === 'function') {
-                safeProjects = od.normalizeAssignedProjectsList(safeProjects);
+            const objs = window.RBI && window.RBI.services && window.RBI.services.objects;
+            if (objs && typeof objs.normalizeAssignedProjectsList === 'function') {
+                safeProjects = objs.normalizeAssignedProjectsList(safeProjects);
             }
             const nowIso = new Date().toISOString();
 
@@ -582,8 +574,8 @@
                 const currentSettings = (rows && rows[0] && rows[0].settings) ? rows[0].settings : {};
                 const patch = Object.assign({}, settingsPatch || {});
                 if (patch.assignedProjects) {
-                    patch.assignedProjects = od && typeof od.normalizeAssignedProjectsList === 'function'
-                        ? od.normalizeAssignedProjectsList(patch.assignedProjects)
+                    patch.assignedProjects = objs && typeof objs.normalizeAssignedProjectsList === 'function'
+                        ? objs.normalizeAssignedProjectsList(patch.assignedProjects)
                         : patch.assignedProjects;
                 }
                 const newSettings = Object.assign({}, currentSettings, patch, {

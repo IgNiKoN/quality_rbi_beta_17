@@ -487,9 +487,9 @@ export const AnalyticsActions = {
         // Скрываем все секции
         document.querySelectorAll('.analytics-sub-section').forEach(el => el.classList.add('hidden'));
 
-        // Сбрасываем стили всех кнопок
+        // Сбрасываем стили всех кнопок (в т.ч. legacy `active` с Подрядчиков в markup)
         document.querySelectorAll('#analytics-subtabs-block .sub-tab-btn').forEach(el => {
-            el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400');
+            el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400', 'active');
             el.classList.add('text-[var(--text-muted)]');
         });
 
@@ -502,7 +502,7 @@ export const AnalyticsActions = {
             btnElement = document.querySelector(`#analytics-subtabs-block button[data-action-arg="${tabId}"]`);
         }
         if (btnElement) {
-            btnElement.classList.add('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400');
+            btnElement.classList.add('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400', 'active');
             btnElement.classList.remove('text-[var(--text-muted)]');
         }
 

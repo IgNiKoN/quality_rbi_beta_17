@@ -122,10 +122,7 @@ function _permSvc() {
 }
 
 function _objectDirectory() {
-    return (window.RBI && window.RBI.services && window.RBI.services.objects)
-        || window.ObjectDirectory
-        || (window.RBI && window.RBI.services && window.RBI.services.objectDirectory)
-        || null;
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
 }
 
 function _isUuidLikeFilterVal(value) {

@@ -72,13 +72,6 @@ function _contractorLabel(id: string | null | undefined): string {
   } catch {
     /* ignore */
   }
-  const dir = (
-    window as unknown as {
-      ContractorDirectory?: { contractors?: Array<{ id?: string; display_name?: string }> };
-    }
-  ).ContractorDirectory;
-  const hit2 = (dir?.contractors || []).find((c) => String(c.id) === cid);
-  if (hit2) return String(hit2.display_name || cid);
   return cid.length > 12 ? `${cid.slice(0, 8)}…` : cid;
 }
 

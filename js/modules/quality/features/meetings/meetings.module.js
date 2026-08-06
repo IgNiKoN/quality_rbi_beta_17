@@ -35,6 +35,47 @@ let _meetingPreviewDraft = null;
 /** не пересохранять черновик при закрытии после успешного save */
 let _meetingDraftSkipSave = false;
 
+function _objects() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.objects) {
+            return _ctx.services.objects;
+        }
+        if (_ctx && _ctx.objects) {
+            return _ctx.objects;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _contractors() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.contractors) {
+            return _ctx.services.contractors;
+        }
+        if (_ctx && _ctx.contractors) {
+            return _ctx.contractors;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+        var l = c.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+}
+
 function _escTa(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
@@ -1276,8 +1317,9 @@ function _meetingGetAssignedProjectKeys() {
 function _meetingResolveProjectDisplayName(key) {
     const raw = String(key || '').trim();
     if (!raw) return '';
-    if (typeof ObjectDirectory !== 'undefined' && Array.isArray(ObjectDirectory.objects)) {
-        const obj = ObjectDirectory.objects.find(o => o.canonical_key === raw || o.display_name === raw);
+    var meetObjList = _objectList();
+    if (meetObjList.length) {
+        const obj = meetObjList.find(o => o.canonical_key === raw || o.display_name === raw);
         if (obj) return String(obj.display_name || obj.canonical_key || raw).trim();
     }
     const hit = _getAllInspections().find(c =>
@@ -1331,10 +1373,11 @@ function _meetingFormatProjectNameForSave(isAll, selected) {
 function _meetingResolveCanonicalKey(displayOrKey) {
     const raw = String(displayOrKey || '').trim();
     if (!raw || raw === 'Все объекты') return '';
-    if (typeof ObjectDirectory !== 'undefined' && Array.isArray(ObjectDirectory.objects)) {
-        const byKey = ObjectDirectory.objects.find(o => o.canonical_key === raw);
+    var meetObjList2 = _objectList();
+    if (meetObjList2.length) {
+        const byKey = meetObjList2.find(o => o.canonical_key === raw);
         if (byKey) return String(byKey.canonical_key || '').trim();
-        const byName = ObjectDirectory.objects.find(o => o.display_name === raw);
+        const byName = meetObjList2.find(o => o.display_name === raw);
         if (byName) return String(byName.canonical_key || '').trim();
     }
     const hit = _getAllInspections().find(c =>

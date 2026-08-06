@@ -60,8 +60,23 @@ function safeToast(msg) {
 window.rbiBgCacheQueue = window.rbiBgCacheQueue || [];
 window.rbiBgCacheProcessing = false;
 window.rbiFullOfflineCacheProcessing = false;
+/** URL, уже успешно проверенные/закэшированные в этой сессии — не ставить в очередь снова на каждом sync. */
+window.rbiBgCacheDone = (window.rbiBgCacheDone instanceof Set) ? window.rbiBgCacheDone : new Set();
 /** Пауза sync на время полного автокэша / «скачать всё» (не лёгкая bg-очередь). */
 window.rbiOfflineCacheBlocksSync = false;
+
+function rbiBgCacheMarkDone(url) {
+    if (typeof url === 'string' && url) window.rbiBgCacheDone.add(url);
+}
+
+function rbiBgCacheIsDone(url) {
+    if (!url || typeof url !== 'string') return true;
+    if (window.rbiBgCacheDone.has(url)) return true;
+    try {
+        if (typeof PhotoManager !== 'undefined' && PhotoManager.cache && PhotoManager.cache[url]) return true;
+    } catch (_) { /* ignore */ }
+    return false;
+}
 
 function rbiIsOfflineCacheBlockingSync() {
     return !!(
@@ -126,7 +141,8 @@ function rbiEnqueueCloudFilesForCache(urls, source = 'unknown') {
             typeof url === 'string' &&
             url.startsWith('http') &&
             url.includes('/storage/v1/object/') &&
-            !existing.has(url)
+            !existing.has(url) &&
+            !rbiBgCacheIsDone(url)
         ) {
             window.rbiBgCacheQueue.push({
                 url,
@@ -161,13 +177,20 @@ async function rbiProcessBgCacheQueue(options = {}) {
     window.rbiBgCacheProcessing = true;
 
     try {
-        const batch = window.rbiBgCacheQueue.splice(0, maxPerRun);
-        if (batch.length === 0) return;
-
-        console.log(`[Cache] Старт фонового кэша: ${batch.length} файлов, потоков: ${concurrency}, осталось в очереди: ${window.rbiBgCacheQueue.length}`);
+        // Уже done в этой сессии — выкидываем без скачивания/логов.
+        const raw = window.rbiBgCacheQueue.splice(0, maxPerRun);
+        const batch = raw.filter((item) => item && item.url && !rbiBgCacheIsDone(item.url));
+        // Хвост очереди мог накопиться — не потерять, но done-URL не возвращаем.
+        if (batch.length === 0) {
+            if (window.rbiBgCacheQueue.length > 0) {
+                setTimeout(() => { rbiProcessBgCacheQueue(options); }, pauseBetweenRounds);
+            }
+            return;
+        }
 
         let cursor = 0;
-        let done = 0;
+        let fetched = 0;
+        let skipped = 0;
 
         const workers = Array.from({ length: concurrency }, async () => {
             while (cursor < batch.length) {
@@ -175,8 +198,10 @@ async function rbiProcessBgCacheQueue(options = {}) {
                 if (!item || !item.url) continue;
 
                 try {
-                    await PhotoManager.downloadForOffline(item.url, { skipMemoryCache: true });
-                    done++;
+                    const res = await PhotoManager.downloadForOffline(item.url, { skipMemoryCache: true });
+                    rbiBgCacheMarkDone(item.url);
+                    if (res && res.fetched === true) fetched++;
+                    else skipped++;
                 } catch (e) {
                     console.warn('[Cache] Не удалось закэшировать файл:', item.source, e);
                 }
@@ -185,7 +210,13 @@ async function rbiProcessBgCacheQueue(options = {}) {
 
         await Promise.allSettled(workers);
 
-        console.log(`[Cache] Фоновый кэш: обработано ${done}/${batch.length}, осталось ${window.rbiBgCacheQueue.length}`);
+        // Лог только если было реальное скачивание — иначе sync каждый раз «перекэшировал» одни и те же URL.
+        if (fetched > 0) {
+            console.log(
+                `[Cache] Фоновый кэш: скачано ${fetched}, уже локально ${skipped}, ` +
+                `потоков ${concurrency}, осталось в очереди: ${window.rbiBgCacheQueue.length}`
+            );
+        }
 
         if (window.rbiBgCacheQueue.length > 0) {
             setTimeout(() => {
@@ -249,6 +280,8 @@ function rbiRequestFullOfflineCache(reason = '') {
     localStorage.removeItem('rbi_first_full_offline_cache_done');
     localStorage.removeItem('rbi_first_full_offline_cache_started_at');
     localStorage.setItem('rbi_need_full_offline_cache', '1');
+    // Полный перекэш — сбросить session-done, иначе лёгкая очередь не возьмёт те же URL.
+    window.rbiBgCacheDone = new Set();
     if (reason) {
         console.log('[OfflineCache] Запрошено полное копирование:', reason);
     }

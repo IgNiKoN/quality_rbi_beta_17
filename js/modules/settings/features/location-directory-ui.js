@@ -25,6 +25,28 @@ let _selectedId = null;
 /** Свёрнутость дерева: id узлов, у которых дети раскрыты. */
 const _expandedIds = new Set();
 
+function _objects() {
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _leftoverList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.leftoverList === 'function') {
+        var l = o.leftoverList();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+}
+
 function _svc() {
     return (window.RBI && window.RBI.services && window.RBI.services.locations) || null;
 }
@@ -147,9 +169,9 @@ function _migrateBannerHtml(svc) {
     if (!isAdmin) return '';
     let leftover = 0;
     try {
-        if (typeof window.ObjectDirectory !== 'undefined'
-            && Array.isArray(window.ObjectDirectory.leftoverObjects)) {
-            leftover = window.ObjectDirectory.leftoverObjects.length;
+        var od = _objects();
+        if (od) {
+            leftover = _leftoverList().length;
         } else if (typeof svc.listUnlinkedObjects === 'function') {
             leftover = ((svc.listUnlinkedObjects() || {}).odOnly || []).length;
         }
@@ -333,9 +355,9 @@ function _bindDelegation() {
                 });
                 _selectedId = n.id;
                 // C2b: без shadow OD / createOdFromLocation — SoT уже locations
-                if (typeof window.ObjectDirectory !== 'undefined'
-                    && typeof window.ObjectDirectory.rebuildFromLocations === 'function') {
-                    try { await window.ObjectDirectory.rebuildFromLocations(); } catch (_e) { /* ignore */ }
+                var od = _objects();
+                if (od && typeof od.rebuildFromLocations === 'function') {
+                    try { await od.rebuildFromLocations(); } catch (_e) { /* ignore */ }
                 }
                 _toast(_t('settings.admin.locations.toast_created', 'Объект создан'));
                 await mountLocationDirectoryUI();

@@ -2,14 +2,17 @@
 //
 // Read-only сервис данных о компании. Единственная существующая
 // компания (single-tenant) — не multi-tenant engine, не матрица прав,
-// без UI. enabledModules — статический список текущих platform-модулей
-// (дублирует MODULE_KEYS из js/core/app.entry.js, изменяется редко).
+// без UI. enabledModules — каталог platform-модулей компании (согласован
+// с MODULE_KEYS / modules.manifest.js). app.entry режет init по
+// availableModules (= enabled ∩ getAllowedModules) + бандлы; settings
+// всегда в init как platform chrome, даже если нет в availableModules.
 
 (function () {
   'use strict';
   if (typeof window === 'undefined') return;
 
-  var ENABLED_MODULES = ['quality', 'sk', 'settings', 'knowledge', 'construction', 'game', 'ai'];
+  var ENABLED_MODULES = ['quality', 'sk', 'settings', 'knowledge', 'construction', 'construction-v2', 'game', 'ai'];
+
 
   var CompanyService = {
     getCompany: function () {

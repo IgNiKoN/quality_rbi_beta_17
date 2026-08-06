@@ -68,18 +68,9 @@ function _contractors() {
   var _a, _b;
   const svc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
   const rows = typeof (svc == null ? void 0 : svc.list) === "function" ? svc.list() : [];
-  const fromSvc = (rows || []).filter((r) => r && r.id).map((r) => ({
+  return (rows || []).filter((r) => r && r.id).map((r) => ({
     id: String(r.id),
     label: String(r.display_name || r.displayName || r.id)
-  }));
-  if (fromSvc.length) {
-    return fromSvc.sort((a, b) => a.label.localeCompare(b.label, "ru"));
-  }
-  const dir = window.ContractorDirectory;
-  const list = (dir == null ? void 0 : dir.contractors) || [];
-  return list.filter((c) => c && (c.id || c.display_name)).map((c) => ({
-    id: String(c.id || c.display_name),
-    label: String(c.display_name || c.id)
   })).sort((a, b) => a.label.localeCompare(b.label, "ru"));
 }
 function _sysTemplates$2() {
@@ -4149,9 +4140,6 @@ function _contractorLabel(id) {
     if (hit) return String(hit.display_name || hit.name || cid);
   } catch {
   }
-  const dir = window.ContractorDirectory;
-  const hit2 = ((dir == null ? void 0 : dir.contractors) || []).find((c) => String(c.id) === cid);
-  if (hit2) return String(hit2.display_name || cid);
   return cid.length > 12 ? `${cid.slice(0, 8)}…` : cid;
 }
 function _locationIdsUnderObject(loc, objectId) {

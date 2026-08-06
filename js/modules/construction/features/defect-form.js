@@ -14,6 +14,48 @@ function bindCtx(ctx) {
     bindDefectFormI18n();
 }
 
+function _objects() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.objects) return _ctx.services.objects;
+        if (_ctx && _ctx.objects) return _ctx.objects;
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _contractors() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.contractors) return _ctx.services.contractors;
+        if (_ctx && _ctx.contractors) return _ctx.contractors;
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _leftoverList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.leftoverList === 'function') {
+        var l = o.leftoverList();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+        var l = c.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+}
+
 function _t(key, fallback, vars) {
     try {
         var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
@@ -374,8 +416,9 @@ window.ConstDefectForm = {
         const contrSelect = document.getElementById('const-defect-contractor');
         let contrHtml = '<option value="">' + _t('construction.form.select_contractor', '-- Выберите подрядчика --') + '</option>';
         let uniqueContrs = [];
-        if (typeof ContractorDirectory !== 'undefined' && ContractorDirectory.contractors.length > 0) {
-            uniqueContrs = ContractorDirectory.contractors.map(c => c.display_name);
+        var _contrList = _contractorList();
+        if (_contrList.length > 0) {
+            uniqueContrs = _contrList.map(c => c.display_name);
         } else {
             var _allInsp = _getAllInspections();
             if (_allInsp.length) {
@@ -795,7 +838,7 @@ window.ConstDefectForm = {
         const prevDefect = existingIndex !== -1 ? window.ConstManager.defects[existingIndex] : null;
 
         let contractorId = '';
-        const contractorsSvc = window.RBI?.services?.contractors || window.ContractorDirectory;
+        const contractorsSvc = _contractors();
         if (contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === 'function') {
             contractorId = contractorsSvc.resolveIdFromNormalized({
                 display_name: contractor,

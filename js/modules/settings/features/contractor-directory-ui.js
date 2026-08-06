@@ -55,9 +55,9 @@ function _canEdit() {
 }
 
 function _makeKeyFromName(name) {
-    const dir = window.ContractorDirectory;
-    if (dir && typeof dir.makeCanonicalKey === 'function') {
-        return dir.makeCanonicalKey(name);
+    const svc = _svc();
+    if (svc && typeof svc.makeCanonicalKey === 'function') {
+        return svc.makeCanonicalKey(name);
     }
     return String(name || '')
         .toLowerCase()

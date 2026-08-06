@@ -6,16 +6,7 @@
  */
 
 :root {
-  /* Radii */
-  --rbi-radius-sm: 9px;
-  --rbi-radius-md: 12px;
-  --rbi-radius-lg: 16px;
-
-  /* Module chrome */
-  --rbi-strip-h: 48px;
-  --rbi-subtab-fs: 13px;
-  --rbi-subtab-gap: 6px;
-  --rbi-subtab-pad-x: 10px;
+  /* Radii / chrome — источник: css/brand/rbi.css (pack). Здесь только размеры примитивов. */
 
   /* Buttons */
   --rbi-btn-pad-y: 0.4rem;

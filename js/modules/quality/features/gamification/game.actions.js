@@ -52,6 +52,47 @@ function emit(eventName, detail) {
     return window.RBI.services.settings.set(key, value);
   }
 
+  function _objects() {
+    try {
+      if (GameActions._ctx && GameActions._ctx.services && GameActions._ctx.services.objects) {
+        return GameActions._ctx.services.objects;
+      }
+      if (GameActions._ctx && GameActions._ctx.objects) {
+        return GameActions._ctx.objects;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+  }
+  function _contractors() {
+    try {
+      if (GameActions._ctx && GameActions._ctx.services && GameActions._ctx.services.contractors) {
+        return GameActions._ctx.services.contractors;
+      }
+      if (GameActions._ctx && GameActions._ctx.contractors) {
+        return GameActions._ctx.contractors;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+  }
+  function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+      var l = o.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+  }
+  function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+      var l = c.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+  }
+
   function _getAllInspections() {
     if (GameActions._ctx && GameActions._ctx.inspections) return GameActions._ctx.inspections.getAllSync();
     return window.RBI.services.inspections.getAllSync();
@@ -1400,8 +1441,9 @@ function emit(eventName, detail) {
     const engineerName = document.getElementById('inp-inspector')?.value || (typeof appSettings !== 'undefined' ? _getSetting('engineerName') : 'Инженер');
 
     let canonicalKey = projectInput;
-    if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.objects?.length) {
-      const found = ObjectDirectory.objects.find(o =>
+    var fmeaObjList = _objectList();
+    if (fmeaObjList.length) {
+      const found = fmeaObjList.find(o =>
         o.display_name === projectInput || o.canonical_key === projectInput
       );
       if (found) canonicalKey = found.canonical_key;
@@ -1692,7 +1734,8 @@ function emit(eventName, detail) {
       showToast('✏️ Название подрядчика успешно обновлено');
       gameLoadContractorDirectory();
 
-      if (window.ContractorDirectory) await window.ContractorDirectory.init();
+      var contrEditSvc = _contractors();
+      if (contrEditSvc && typeof contrEditSvc.init === 'function') await contrEditSvc.init();
 
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
@@ -1730,7 +1773,8 @@ function emit(eventName, detail) {
       showToast('🗑️ Подрядчик удален из справочника');
       gameLoadContractorDirectory();
 
-      if (window.ContractorDirectory) await window.ContractorDirectory.init();
+      var contrEditSvc = _contractors();
+      if (contrEditSvc && typeof contrEditSvc.init === 'function') await contrEditSvc.init();
 
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
@@ -1853,8 +1897,11 @@ function emit(eventName, detail) {
       // Логика: СОЗДАТЬ НОВОГО
       if (action === 'create') {
         let canonicalKey = String(req.suggested_canonical_key || '').trim();
-        if (!canonicalKey && window.ContractorDirectory) {
-          canonicalKey = window.ContractorDirectory.makeCanonicalKey(rawName);
+        if (!canonicalKey) {
+          var contrKeySvc = _contractors();
+          if (contrKeySvc && typeof contrKeySvc.makeCanonicalKey === 'function') {
+            canonicalKey = contrKeySvc.makeCanonicalKey(rawName);
+          }
         }
 
         const contractorPayload = {
@@ -1963,12 +2010,13 @@ function emit(eventName, detail) {
     try { projectsArray = JSON.parse(input.value || '[]'); } catch (e) { projectsArray = []; }
 
     let idToAdd = objectRef;
-    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
-      const resolved = ObjectDirectory.resolveProjectId(objectRef);
+    var odAdd = _objects();
+    if (odAdd && typeof odAdd.resolveProjectId === 'function') {
+      const resolved = odAdd.resolveProjectId(objectRef);
       if (resolved) idToAdd = resolved;
     }
-    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
-      projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray.concat([idToAdd]));
+    if (odAdd && typeof odAdd.normalizeAssignedProjectsList === 'function') {
+      projectsArray = odAdd.normalizeAssignedProjectsList(projectsArray.concat([idToAdd]));
     } else if (!projectsArray.includes(idToAdd)) {
       projectsArray.push(idToAdd);
     }
@@ -1985,22 +2033,23 @@ function emit(eventName, detail) {
     let projectsArray = [];
     try { projectsArray = JSON.parse(input.value || '[]'); } catch (e) { projectsArray = []; }
 
-    const refClean = (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString)
-      ? ObjectDirectory.cleanString(objectRef)
+    var odRemove = _objects();
+    const refClean = (odRemove && odRemove.cleanString)
+      ? odRemove.cleanString(objectRef)
       : String(objectRef || '').toLowerCase().trim();
-    const refId = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function')
-      ? ObjectDirectory.resolveProjectId(objectRef)
+    const refId = (odRemove && typeof odRemove.resolveProjectId === 'function')
+      ? odRemove.resolveProjectId(objectRef)
       : '';
 
     projectsArray = projectsArray.filter(v => {
       const s = String(v || '');
       if (s === objectRef || (refId && s === refId)) return false;
-      if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString
-          && ObjectDirectory.cleanString(s) === refClean) return false;
+      if (odRemove && odRemove.cleanString
+          && odRemove.cleanString(s) === refClean) return false;
       return true;
     });
-    if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
-      projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray);
+    if (odRemove && typeof odRemove.normalizeAssignedProjectsList === 'function') {
+      projectsArray = odRemove.normalizeAssignedProjectsList(projectsArray);
     }
     input.value = JSON.stringify(projectsArray);
     gameRenderAssignedProjectChips(domId);
@@ -2046,12 +2095,11 @@ function emit(eventName, detail) {
 
     try {
       // 1. БЕРЕМ ОБЪЕКТЫ ИЗ ЛОКАЛЬНОГО СПРАВОЧНИКА (чтобы мгновенно видеть добавленные вручную)
-      if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.init === 'function') {
-        await ObjectDirectory.init(); // Убеждаемся, что кэш свежий
+      var odRoles = _objects();
+      if (odRoles && typeof odRoles.init === 'function') {
+        await odRoles.init(); // Убеждаемся, что кэш свежий
       }
-      const projectObjects = (typeof ObjectDirectory !== 'undefined')
-        ? ObjectDirectory.objects.filter(o => !o._deleted && !o.is_deleted)
-        : [];
+      const projectObjects = _objectList().filter(o => !o._deleted && !o.is_deleted);
 
       // 2. Справочник подрядчиков для назначения роли contractor
       const { data: contractorDirectoryRaw, error: contrErr } = await window.supabaseClient
@@ -2524,14 +2572,15 @@ function emit(eventName, detail) {
           // запрещено — current_plan.md §8): реально убираем id/canonical
           // из массива, который ниже пойдёт в writeUserProjectAssignment.
           const keyToRemove = req.canonical_key || req.raw_name;
-          const idToRemove = (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function')
-            ? (ObjectDirectory.resolveProjectId(req.projectId || keyToRemove) || keyToRemove)
+          var odUnassign = _objects();
+          const idToRemove = (odUnassign && typeof odUnassign.resolveProjectId === 'function')
+            ? (odUnassign.resolveProjectId(req.projectId || keyToRemove) || keyToRemove)
             : keyToRemove;
           projectsArray = projectsArray.filter(p => {
             const s = String(p || '');
             if (s === keyToRemove || s === idToRemove) return false;
-            if (typeof ObjectDirectory !== 'undefined' && ObjectDirectory.cleanString
-                && ObjectDirectory.cleanString(s) === ObjectDirectory.cleanString(keyToRemove)) return false;
+            if (odUnassign && odUnassign.cleanString
+                && odUnassign.cleanString(s) === odUnassign.cleanString(keyToRemove)) return false;
             return true;
           });
           continue;
@@ -2541,16 +2590,17 @@ function emit(eventName, detail) {
           // Привязка к существующему объекту (UUID или canonical)
           const linkRef = action.replace('link_', '');
           let projectId = linkRef;
-          if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.resolveProjectId === 'function') {
-            projectId = ObjectDirectory.resolveProjectId(linkRef) || linkRef;
+          var odLink = _objects();
+          if (odLink && typeof odLink.resolveProjectId === 'function') {
+            projectId = odLink.resolveProjectId(linkRef) || linkRef;
           }
           if (!projectsArray.includes(projectId)) projectsArray.push(projectId);
 
           // Сохраняем как синоним + merge spelling
-          if (req.raw_name && typeof ObjectDirectory !== 'undefined'
-              && typeof ObjectDirectory.mergeRawNameIntoObject === 'function') {
+          if (req.raw_name && odLink
+              && typeof odLink.mergeRawNameIntoObject === 'function') {
             try {
-              await ObjectDirectory.mergeRawNameIntoObject(req.raw_name, projectId);
+              await odLink.mergeRawNameIntoObject(req.raw_name, projectId);
             } catch (mergeErr) {
               console.warn('[gameSaveUserAccess] merge synonym', mergeErr);
             }
@@ -2577,28 +2627,32 @@ function emit(eventName, detail) {
         if (action === 'create') {
           // Создание нового объекта через locations (UUID) + synonym из raw
           let createdId = '';
-          if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.createFromLocation === 'function') {
-            const created = await ObjectDirectory.createFromLocation({
+          var odCreate = _objects();
+          if (odCreate && typeof odCreate.createFromLocation === 'function') {
+            const created = await odCreate.createFromLocation({
               displayName: req.raw_name,
-              canonical_key: (typeof ObjectDirectory.cleanString === 'function')
-                ? ObjectDirectory.cleanString(req.raw_name)
+              canonical_key: (typeof odCreate.cleanString === 'function')
+                ? odCreate.cleanString(req.raw_name)
                 : String(req.raw_name || '').toLowerCase().trim()
             });
             createdId = created && created.id ? String(created.id) : '';
-            if (req.raw_name && createdId && typeof ObjectDirectory.mergeRawNameIntoObject === 'function') {
-              try { await ObjectDirectory.mergeRawNameIntoObject(req.raw_name, createdId); } catch (_e) { /* ignore */ }
+            if (req.raw_name && createdId && typeof odCreate.mergeRawNameIntoObject === 'function') {
+              try { await odCreate.mergeRawNameIntoObject(req.raw_name, createdId); } catch (_e) { /* ignore */ }
             }
           }
           if (!createdId) {
-            const newKey = (typeof ObjectDirectory !== 'undefined') ? ObjectDirectory.cleanString(req.raw_name) : req.raw_name.toLowerCase().replace(/\s+/g, '_');
+            const newKey = odCreate && typeof odCreate.cleanString === 'function'
+              ? odCreate.cleanString(req.raw_name)
+              : req.raw_name.toLowerCase().replace(/\s+/g, '_');
             createdId = newKey;
           }
           if (!projectsArray.includes(createdId)) projectsArray.push(createdId);
         }
       }
 
-      if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeAssignedProjectsList === 'function') {
-        projectsArray = ObjectDirectory.normalizeAssignedProjectsList(projectsArray);
+      var odNorm = _objects();
+      if (odNorm && typeof odNorm.normalizeAssignedProjectsList === 'function') {
+        projectsArray = odNorm.normalizeAssignedProjectsList(projectsArray);
       }
 
       // Единая точка записи (permission.service.js) — обновляет ОБА поля
@@ -2943,7 +2997,8 @@ function emit(eventName, detail) {
       // Заставляем локальный кэш обновиться
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
-      if (window.ContractorDirectory) await window.ContractorDirectory.init();
+      var contrEditSvc = _contractors();
+      if (contrEditSvc && typeof contrEditSvc.init === 'function') await contrEditSvc.init();
       if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') window.RBI.events.emit('sk:renderRequested', { view: 'banner' });
 
     } catch (e) {

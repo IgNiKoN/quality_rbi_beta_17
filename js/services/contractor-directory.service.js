@@ -1053,6 +1053,10 @@
             return contractorDirectory.aliases;
         },
 
+        makeCanonicalKey: function (str) {
+            return contractorDirectory.makeCanonicalKey(str);
+        },
+
         getById: function (id) {
             return contractorDirectory.getById(id);
         },

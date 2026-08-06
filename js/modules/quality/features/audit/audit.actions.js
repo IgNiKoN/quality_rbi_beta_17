@@ -32,6 +32,47 @@ function _t(key, fallback, vars) {
     }
   }
 
+  function _objects() {
+    try {
+      if (AuditActions._ctx && AuditActions._ctx.services && AuditActions._ctx.services.objects) {
+        return AuditActions._ctx.services.objects;
+      }
+      if (AuditActions._ctx && AuditActions._ctx.objects) {
+        return AuditActions._ctx.objects;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+  }
+  function _contractors() {
+    try {
+      if (AuditActions._ctx && AuditActions._ctx.services && AuditActions._ctx.services.contractors) {
+        return AuditActions._ctx.services.contractors;
+      }
+      if (AuditActions._ctx && AuditActions._ctx.contractors) {
+        return AuditActions._ctx.contractors;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+  }
+  function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+      var l = o.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+  }
+  function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+      var l = c.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+  }
+
   // Фаза 50-B (перенесено из audit.legacy.js): единая точка доступа к
   // настройкам через SettingsService с fallback.
   function _getSetting(key) {
@@ -377,7 +418,7 @@ function _t(key, fallback, vars) {
         if (document.getElementById('current-checklist-label')) document.getElementById('current-checklist-label').innerText = _t('quality.audit.checklist.none', 'Вид работ не выбран');
 
         AuditActions.saveSession();
-        if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
+        { var o = _objects(); if (o && typeof o.initUI === 'function') o.initUI(); }
         emit('audit:state:changed', { action: 'template', key: val });
         return;
       }
@@ -410,7 +451,7 @@ function _t(key, fallback, vars) {
       document.getElementById('audit-actions').style.display = 'grid';
 
       if (document.getElementById('tab-audit').classList.contains('active')) { window.render(); window.updateUI(); }
-      if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
+      { var o2 = _objects(); if (o2 && typeof o2.initUI === 'function') o2.initUI(); }
       emit('audit:state:changed', { action: 'template', key: val });
     },
 
@@ -662,24 +703,26 @@ function _t(key, fallback, vars) {
       var projectDisplayName = rawProjectName;
       var projectId = '';
 
-      if (typeof ObjectDirectory !== 'undefined') {
+      var od = _objects();
+      if (od) {
         var resolved = null;
-        if (typeof ObjectDirectory.resolveObjectRef === 'function') {
-          resolved = ObjectDirectory.resolveObjectRef(rawProjectValue)
-            || ObjectDirectory.resolveObjectRef(rawProjectName);
+        if (typeof od.resolveObjectRef === 'function') {
+          resolved = od.resolveObjectRef(rawProjectValue)
+            || od.resolveObjectRef(rawProjectName);
         }
-        if (!resolved && Array.isArray(ObjectDirectory.objects)) {
-          var clean = ObjectDirectory.cleanString
-            ? ObjectDirectory.cleanString(rawProjectName)
+        var objList = _objectList();
+        if (!resolved && objList.length) {
+          var clean = od.cleanString
+            ? od.cleanString(rawProjectName)
             : rawProjectName.toLowerCase().trim();
 
-          resolved = ObjectDirectory.objects.find(function (o) {
-            var displayClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.display_name || '') : String(o.display_name || '').toLowerCase().trim();
-            var keyClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(o.canonical_key || '') : String(o.canonical_key || '').toLowerCase().trim();
+          resolved = objList.find(function (o) {
+            var displayClean = od.cleanString ? od.cleanString(o.display_name || '') : String(o.display_name || '').toLowerCase().trim();
+            var keyClean = od.cleanString ? od.cleanString(o.canonical_key || '') : String(o.canonical_key || '').toLowerCase().trim();
 
             var synonymMatch = Array.isArray(o.synonyms)
               ? o.synonyms.some(function (syn) {
-                var synClean = ObjectDirectory.cleanString ? ObjectDirectory.cleanString(syn) : String(syn).toLowerCase().trim();
+                var synClean = od.cleanString ? od.cleanString(syn) : String(syn).toLowerCase().trim();
                 return synClean === clean;
               })
               : false;
@@ -1166,7 +1209,7 @@ function _t(key, fallback, vars) {
     }
 
     // Блокировку объекта мы полностью делегировали в ObjectDirectory.initUI()
-    if (typeof ObjectDirectory !== 'undefined') ObjectDirectory.initUI();
+    { var o3 = _objects(); if (o3 && typeof o3.initUI === 'function') o3.initUI(); }
   };
 
   // =========================================================================

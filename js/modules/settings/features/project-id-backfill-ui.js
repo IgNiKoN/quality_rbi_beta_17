@@ -23,8 +23,30 @@ function _t(key, fallback, vars) {
 let _delegationBound = false;
 let _running = false;
 
+function _objects() {
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _leftoverList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.leftoverList === 'function') {
+        var l = o.leftoverList();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+}
+
 function _svc() {
-    return (window.RBI && window.RBI.services && window.RBI.services.objects) || window.ObjectDirectory || null;
+    return _objects();
 }
 
 function _perm() {
@@ -191,9 +213,7 @@ async function _onMerge() {
 }
 
 function _objectOptionsHtml() {
-    const list = (window.ObjectDirectory && Array.isArray(window.ObjectDirectory.objects))
-        ? window.ObjectDirectory.objects.filter(o => o && !o._deleted && !o.is_deleted)
-        : [];
+    const list = _objectList().filter(o => o && !o._deleted && !o.is_deleted);
     return list.map(o =>
         `<option value="${_escapeHtml(o.id || o.canonical_key)}">${_escapeHtml(o.display_name || o.canonical_key)}</option>`
     ).join('');

@@ -1,7 +1,7 @@
 /* Файл: js/services/masterData.service.js */
-/* Master Data Service v0.1 — агрегатор мастер-данных */
-/* Единая точка доступа к SYSTEM_TEMPLATES, SYSTEM_DOCS, SYSTEM_NODES, SYSTEM_TWI, FAQ_DATA */
-/* Паттерн ленивых ссылок: каждый геттер читает актуальное значение window.* в момент вызова */
+/* Master Data Service — агрегатор мастер-данных */
+/* Единая точка: SYSTEM_TEMPLATES, SYSTEM_DOCS, SYSTEM_NODES, SYSTEM_TWI_CARDS, FAQ_DATA + objects/contractors */
+/* Паттерн ленивых ссылок: каждый геттер читает актуальное значение window.* / services в момент вызова */
 
 (function () {
     'use strict';
@@ -41,7 +41,7 @@
         },
 
         getSystemTwi: function () {
-            return Array.isArray(window.SYSTEM_TWI) ? window.SYSTEM_TWI : [];
+            return Array.isArray(window.SYSTEM_TWI_CARDS) ? window.SYSTEM_TWI_CARDS : [];
         },
 
         /* ── FAQ ── */
@@ -54,22 +54,18 @@
 
         getObjects: function () {
             if (window.RBI && window.RBI.services && window.RBI.services.objects &&
-                    typeof window.RBI.services.objects.getAll === 'function') {
-                return window.RBI.services.objects.getAll();
-            }
-            if (window.ObjectDirectory && Array.isArray(window.ObjectDirectory.objects)) {
-                return window.ObjectDirectory.objects;
+                    typeof window.RBI.services.objects.list === 'function') {
+                var objs = window.RBI.services.objects.list();
+                return Array.isArray(objs) ? objs : [];
             }
             return [];
         },
 
         getContractors: function () {
             if (window.RBI && window.RBI.services && window.RBI.services.contractors &&
-                    typeof window.RBI.services.contractors.getAll === 'function') {
-                return window.RBI.services.contractors.getAll();
-            }
-            if (window.ContractorDirectory && Array.isArray(window.ContractorDirectory.contractors)) {
-                return window.ContractorDirectory.contractors;
+                    typeof window.RBI.services.contractors.list === 'function') {
+                var list = window.RBI.services.contractors.list();
+                return Array.isArray(list) ? list : [];
             }
             return [];
         }

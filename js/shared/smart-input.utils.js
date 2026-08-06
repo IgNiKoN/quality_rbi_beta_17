@@ -1,6 +1,35 @@
 /* Файл: js/shared/smart-input.utils.js */
 /* Умная структурированная локация + кастомные dropdown автозаполнения (без datalist) — перенесено из js/app.js */
 
+function _objects() {
+    try {
+        if (window.RBI && window.RBI.services && window.RBI.services.objects) {
+            return window.RBI.services.objects;
+        }
+    } catch (e) {}
+    return null;
+}
+function _contractors() {
+    try {
+        if (window.RBI && window.RBI.services && window.RBI.services.contractors) {
+            return window.RBI.services.contractors;
+        }
+    } catch (e) {}
+    return null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o || typeof o.list !== 'function') return [];
+    var l = o.list();
+    return Array.isArray(l) ? l : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c || typeof c.list !== 'function') return [];
+    var l = c.list();
+    return Array.isArray(l) ? l : [];
+}
+
 // === УМНАЯ СТРУКТУРИРОВАННАЯ ЛОКАЦИЯ ===
 // === НАЧАЛО ЗАМЕНЫ 1 (УМНАЯ ЛОКАЦИЯ) ===
 function updateLocationFromStructured() {
@@ -100,8 +129,9 @@ window.loadContractorDirectoryToInspectionInput = async function () {
         let contractorNames = [];
 
         // Берем подрядчиков из справочника
-        if (typeof ContractorDirectory !== 'undefined' && ContractorDirectory.contractors.length > 0) {
-            contractorNames = ContractorDirectory.contractors.map(c => c.display_name);
+        var contractorItems = _contractorList();
+        if (contractorItems.length > 0) {
+            contractorNames = contractorItems.map(c => c.display_name);
         } else if (window.RBI && window.RBI.services && window.RBI.services.storage) {
             const dirs = await window.RBI.services.storage.getAll('contractor_directory');
             if (dirs) {
@@ -144,8 +174,9 @@ window.loadObjectDirectoryToInspectionInput = async function () {
         let objectNames = [];
 
         const cleanFn = (function () {
-            if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.cleanString === 'function') {
-                return function (s) { return ObjectDirectory.cleanString(s); };
+            var o = _objects();
+            if (o && typeof o.cleanString === 'function') {
+                return function (s) { return o.cleanString(s); };
             }
             const loc = window.RBI && window.RBI.services && window.RBI.services.locations;
             if (loc && typeof loc.cleanObjectName === 'function') {
@@ -157,12 +188,9 @@ window.loadObjectDirectoryToInspectionInput = async function () {
         })();
 
         // 1. Берём объекты из ObjectDirectory (C2b: проекция locations)
-        if (
-            typeof ObjectDirectory !== 'undefined' &&
-            Array.isArray(ObjectDirectory.objects) &&
-            ObjectDirectory.objects.length > 0
-        ) {
-            objectNames = ObjectDirectory.objects
+        var objectItems = _objectList();
+        if (objectItems.length > 0) {
+            objectNames = objectItems
                 .filter(o => !o._deleted && !o.is_deleted)
                 .map(o => o.display_name || o.name || o.canonical_key)
                 .filter(Boolean);
@@ -241,8 +269,9 @@ window.loadObjectDirectoryToInspectionInput = async function () {
         localStorage.setItem('smart_input_cache', JSON.stringify(cacheObj));
 
         initSmartInput('inp-project', 'projectName');
-        if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.initUI === 'function') {
-            ObjectDirectory.initUI();
+        var od = _objects();
+        if (od && typeof od.initUI === 'function') {
+            od.initUI();
             // initUI может перезаписать projectName только из OD — возвращаем merge
             cacheObj = window._smartInputMemoryCache || cacheObj;
             cacheObj.projectName = objectNames;
@@ -260,12 +289,14 @@ window.loadObjectDirectoryToInspectionInput = async function () {
 window.refreshInspectionDirectoriesAfterSync = async function () {
     try {
         // Обновляем внутренние справочники из IndexedDB после pull
-        if (window.ContractorDirectory && typeof window.ContractorDirectory.init === 'function') {
-            await window.ContractorDirectory.init();
+        var contrSvc = _contractors();
+        if (contrSvc && typeof contrSvc.init === 'function') {
+            await contrSvc.init();
         }
 
-        if (window.ObjectDirectory && typeof window.ObjectDirectory.init === 'function') {
-            await window.ObjectDirectory.init();
+        var objSvc = _objects();
+        if (objSvc && typeof objSvc.init === 'function') {
+            await objSvc.init();
         }
 
         // Пересобираем выпадающие списки в шапке осмотра
@@ -277,8 +308,9 @@ window.refreshInspectionDirectoriesAfterSync = async function () {
             await window.loadObjectDirectoryToInspectionInput();
         }
 
-        if (typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.initUI === 'function') {
-            ObjectDirectory.initUI();
+        var odRefresh = _objects();
+        if (odRefresh && typeof odRefresh.initUI === 'function') {
+            odRefresh.initUI();
         }
 
         console.log('[Inspection] Справочники подрядчиков и объектов обновлены после синхронизации');
@@ -353,24 +385,24 @@ window.normalizeInspectionContractorBeforeSave = async function () {
     }
 
     const resolveContractorId = (normalized) => {
-        const svc = window.RBI && window.RBI.services && window.RBI.services.contractors;
-        if (svc && typeof svc.resolveIdFromNormalized === 'function') {
-            return svc.resolveIdFromNormalized(normalized) || '';
+        var contrSvc = _contractors();
+        if (contrSvc && typeof contrSvc.resolveIdFromNormalized === 'function') {
+            return contrSvc.resolveIdFromNormalized(normalized) || '';
         }
-        if (window.ContractorDirectory && typeof window.ContractorDirectory.resolveIdFromNormalized === 'function') {
-            return window.ContractorDirectory.resolveIdFromNormalized(normalized) || '';
-        }
-        if (window.ContractorDirectory && typeof window.ContractorDirectory.getByCanonicalKey === 'function') {
+        if (contrSvc && typeof contrSvc.getByCanonicalKey === 'function') {
             const key = normalized && normalized.canonical_key;
-            const card = key ? window.ContractorDirectory.getByCanonicalKey(key) : null;
+            const card = key ? contrSvc.getByCanonicalKey(key) : null;
             return (card && card.id) ? String(card.id) : '';
         }
         return '';
     };
 
     // Если справочник подрядчиков подключен — пробуем нормализовать
-    if (window.ContractorDirectory && typeof window.ContractorDirectory.normalizeContractorName === 'function') {
-        const result = await window.ContractorDirectory.normalizeContractorName(rawName);
+    var contrNormSvc = _contractors();
+    if (contrNormSvc && (typeof contrNormSvc.normalize === 'function' || typeof contrNormSvc.normalizeContractorName === 'function')) {
+        const result = typeof contrNormSvc.normalize === 'function'
+            ? await contrNormSvc.normalize(rawName)
+            : await contrNormSvc.normalizeContractorName(rawName);
 
         // Нашли подрядчика в справочнике / алиасах / синонимах
         if (result && result.canonical_key && result.display_name) {

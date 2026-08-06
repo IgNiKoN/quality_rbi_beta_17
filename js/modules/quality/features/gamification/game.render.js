@@ -25,6 +25,47 @@ let gameChartInstance = null;
     return window.RBI.services.settings.get(key);
   }
 
+  function _objects() {
+    try {
+      if (GameActions._ctx && GameActions._ctx.services && GameActions._ctx.services.objects) {
+        return GameActions._ctx.services.objects;
+      }
+      if (GameActions._ctx && GameActions._ctx.objects) {
+        return GameActions._ctx.objects;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+  }
+  function _contractors() {
+    try {
+      if (GameActions._ctx && GameActions._ctx.services && GameActions._ctx.services.contractors) {
+        return GameActions._ctx.services.contractors;
+      }
+      if (GameActions._ctx && GameActions._ctx.contractors) {
+        return GameActions._ctx.contractors;
+      }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+  }
+  function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+      var l = o.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+  }
+  function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+      var l = c.list();
+      return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+  }
+
   function _getAllInspections() {
     if (GameActions._ctx && GameActions._ctx.inspections) return GameActions._ctx.inspections.getAllSync();
     return window.RBI.services.inspections.getAllSync();
@@ -1605,8 +1646,9 @@ let gameChartInstance = null;
   function _fmeaResolveDisplayName(key) {
     const raw = String(key || '').trim();
     if (!raw) return '';
-    if (typeof ObjectDirectory !== 'undefined' && Array.isArray(ObjectDirectory.objects)) {
-      const obj = ObjectDirectory.objects.find(o => o.canonical_key === raw || o.display_name === raw);
+    var objList = _objectList();
+    if (objList.length) {
+      const obj = objList.find(o => o.canonical_key === raw || o.display_name === raw);
       if (obj) return String(obj.display_name || obj.canonical_key || raw).trim();
     }
     const hit = _getAllInspections().find(c =>
@@ -1621,10 +1663,11 @@ let gameChartInstance = null;
   function _fmeaResolveCanonicalKey(displayOrKey) {
     const raw = String(displayOrKey || '').trim();
     if (!raw || raw === 'Все объекты') return '';
-    if (typeof ObjectDirectory !== 'undefined' && Array.isArray(ObjectDirectory.objects)) {
-      const byKey = ObjectDirectory.objects.find(o => o.canonical_key === raw);
+    var objList2 = _objectList();
+    if (objList2.length) {
+      const byKey = objList2.find(o => o.canonical_key === raw);
       if (byKey) return String(byKey.canonical_key || '').trim();
-      const byName = ObjectDirectory.objects.find(o => o.display_name === raw);
+      const byName = objList2.find(o => o.display_name === raw);
       if (byName) return String(byName.canonical_key || '').trim();
     }
     const hit = _getAllInspections().find(c =>
@@ -2089,11 +2132,13 @@ let gameChartInstance = null;
 
     box.innerHTML = projectsArray.map(key => {
       let displayName = key;
-      if (typeof ObjectDirectory !== 'undefined') {
-        if (typeof ObjectDirectory.getDisplayForAssignedRef === 'function') {
-          displayName = ObjectDirectory.getDisplayForAssignedRef(key);
-        } else if (ObjectDirectory.objects) {
-          const obj = ObjectDirectory.objects.find(o => o.canonical_key === key || o.id === key);
+      var odChip = _objects();
+      if (odChip) {
+        if (typeof odChip.getDisplayForAssignedRef === 'function') {
+          displayName = odChip.getDisplayForAssignedRef(key);
+        } else {
+          var chipObjList = _objectList();
+          const obj = chipObjList.find(o => o.canonical_key === key || o.id === key);
           if (obj) displayName = obj.display_name;
         }
       }

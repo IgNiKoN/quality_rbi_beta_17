@@ -454,7 +454,7 @@ window.ConstAcceptance = {
 
         const contractorName = window.syncConfig?.engineerName || 'Подрядчик';
         let contractorId = '';
-        const contractorsSvc = window.RBI?.services?.contractors || window.ContractorDirectory;
+        const contractorsSvc = window.RBI?.services?.contractors || null;
         if (contractorsSvc && typeof contractorsSvc.resolveIdFromNormalized === 'function') {
             contractorId = contractorsSvc.resolveIdFromNormalized({
                 display_name: contractorName,

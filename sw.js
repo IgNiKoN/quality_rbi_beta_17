@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.58.0';
-const SW_VERSION = '18.58.61';
+const SW_VERSION = '18.58.74';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 // 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
@@ -10,6 +10,7 @@ const urlsToCache = [
   './',
   './index.html',
   './report.html',
+  './css/brand/rbi.css',
   './css/style.css',
   './css/app-shell.desktop.css',
   './css/rbi-ui.css',

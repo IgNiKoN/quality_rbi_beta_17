@@ -11,7 +11,7 @@
 }
 
 body.rbi-analytics-desktop-wide #tab-analytics {
-  padding-bottom: 1.25rem !important;
+  padding-bottom: 0 !important;
   max-width: none !important;
   width: 100% !important;
 }
@@ -58,6 +58,32 @@ body.rbi-analytics-desktop-wide #analytics-subtabs-block .sub-tab-btn.text-indig
   box-shadow: none !important;
 }
 
+/*
+ * HOTFIX (2026-08-06): sticky strip «отпускается», когда низ #analytics-desktop-shell
+ * уезжает за viewport → полоска уходит под fixed topbar (RBI v3 / все вкладки).
+ * На desktop + desk-topbar держим strip position:fixed под шапкой (как topbar).
+ */
+body.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
+body.nav-pos-bottom.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
+body.nav-pos-top.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block,
+body.nav-pos-auto.rbi-analytics-desktop-wide.has-desk-topbar #analytics-subtabs-block {
+  position: fixed !important;
+  top: var(--desk-topbar-h) !important;
+  bottom: auto !important;
+  left: var(--desk-chrome) !important;
+  right: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  z-index: 50 !important; /* topbar = 58 */
+}
+
+/* Fixed убирает strip из потока — резерв высоты, чтобы контент не прыгал под полоску */
+body.rbi-analytics-desktop-wide.has-desk-topbar #analytics-desktop-shell {
+  padding-top: var(--rbi-strip-h) !important;
+  box-sizing: border-box;
+}
+
 body.rbi-analytics-desktop-wide #analytics-filters-block,
 body.nav-pos-bottom.rbi-analytics-desktop-wide #analytics-filters-block,
 body.rbi-analytics-desktop-wide #analytics-filters-block.sticky-top-panel {
@@ -76,7 +102,7 @@ body.rbi-analytics-desktop-wide #analytics-filters-block.sticky-top-panel {
  * Подрядчики / Сводка / ПК СК — chrome как История:
  * shell на высоту viewport, strip+filters не скроллятся,
  * скролл только в workspace (KPI на подрядчиках — внутри workspace).
- * Subtabs внутри shell: top:0 (не desk-topbar-h) — shell уже под topbar.
+ * Subtabs: fixed под topbar (см. HOTFIX выше) — не relative/sticky внутри shell.
  */
 body.rbi-analytics-desktop-wide:has(#sub-contractors:not(.hidden)) #analytics-desktop-shell,
 body.rbi-analytics-desktop-wide:has(#sub-onepager:not(.hidden)) #analytics-desktop-shell,
@@ -119,10 +145,8 @@ body.rbi-analytics-desktop-wide.has-desk-topbar:has(#sub-sk:not(.hidden)) #analy
 body.nav-pos-bottom.rbi-analytics-desktop-wide.has-desk-topbar:has(#sub-sk:not(.hidden)) #analytics-subtabs-block,
 body.nav-pos-top.rbi-analytics-desktop-wide.has-desk-topbar:has(#sub-sk:not(.hidden)) #analytics-subtabs-block,
 body.nav-pos-auto.rbi-analytics-desktop-wide.has-desk-topbar:has(#sub-sk:not(.hidden)) #analytics-subtabs-block {
-  position: relative !important;
-  top: auto !important;
+  /* position/top — общий HOTFIX fixed; здесь только flex в column-shell */
   flex: 0 0 auto;
-  z-index: 40;
 }
 
 body.rbi-analytics-desktop-wide:has(#sub-contractors:not(.hidden)) #analytics-desktop-top,
@@ -364,12 +388,19 @@ body.rbi-analytics-desktop-wide.has-desk-topbar #app-root,
 body.rbi-analytics-desktop-wide #tab-analytics.analytics-desktop-active,
 body.rbi-analytics-desktop-wide #tab-analytics {
   padding-top: 0 !important;
+  padding-bottom: 0 !important;
   margin-top: 0 !important;
 }
 
-/* Kill mobile header body-pad; clear only the 52px desk topbar once */
+/* Kill mobile header/bottom body-pad — иначе окно скроллится и chrome/filters уезжают под topbar */
 body.rbi-analytics-desktop-wide.has-desk-topbar {
   padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden !important;
+}
+
+html:has(body.rbi-analytics-desktop-wide.has-desk-topbar) {
+  overflow: hidden !important;
 }
 
 body.rbi-analytics-desktop-wide.has-desk-topbar #app-root.rbi-analytics-desktop-wide {
@@ -1046,8 +1077,9 @@ body.rbi-analytics-desktop-wide .ana-desk-table {
 body.rbi-analytics-desktop-wide .ana-desk-table th {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: var(--hover-bg);
+  z-index: 2;
+  /* opaque: --hover-bg на RBI-темах часто rgba → строки просвечивают */
+  background: color-mix(in srgb, var(--text-muted) 8%, var(--card-bg));
   text-align: left;
   font-size: 11px;
   font-weight: 800;
@@ -1057,6 +1089,24 @@ body.rbi-analytics-desktop-wide .ana-desk-table th {
   padding: 0.75rem 0.85rem;
   border-bottom: 1px solid var(--card-border);
   white-space: nowrap;
+  box-shadow: 0 1px 0 var(--card-border);
+}
+
+body.rbi-analytics-desktop-wide .ana-desk-table thead {
+  background: color-mix(in srgb, var(--text-muted) 8%, var(--card-bg));
+}
+
+body.rbi-analytics-desktop-wide .ana-desk-table th.ana-desk-th-sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+body.rbi-analytics-desktop-wide .ana-desk-table th.ana-desk-th-sort:hover {
+  color: var(--text-main);
+}
+
+body.rbi-analytics-desktop-wide .ana-desk-table th.ana-desk-th-sort.is-on {
+  color: var(--primary);
 }
 
 body.rbi-analytics-desktop-wide .ana-desk-table td {
@@ -1533,9 +1583,11 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist {
   max-width: none;
   margin-top: 0 !important;
   padding: 0;
-  /* Fill viewport under topbar+subtabs — stage scrolls inside, not under chrome */
-  min-height: calc(100vh - 52px - 48px - 0.75rem);
-  max-height: calc(100vh - 52px - 48px - 0.5rem);
+  /* Fill shell under fixed topbar+subtabs — stage scrolls inside */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -1544,10 +1596,23 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist.hidden {
   display: none !important;
 }
 
-/* Flush History under subtabs — kill shell/workspace rhythm gaps */
-body.rbi-analytics-desktop-wide:has(#sub-history.ana-desk-hist:not(.hidden)) #analytics-desktop-shell,
+/* Flush History under subtabs — kill shell/workspace rhythm gaps;
+ * lock shell to viewport so window doesn't scroll (chrome/filters stay put). */
+body.rbi-analytics-desktop-wide:has(#sub-history.ana-desk-hist:not(.hidden)) #analytics-desktop-shell {
+  gap: 0 !important;
+  height: calc(100vh - var(--desk-topbar-h, 52px));
+  max-height: calc(100vh - var(--desk-topbar-h, 52px));
+  min-height: 0;
+  overflow: hidden;
+}
+
 body.rbi-analytics-desktop-wide:has(#sub-history.ana-desk-hist:not(.hidden)) #analytics-desktop-workspace {
   gap: 0 !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-exec {
@@ -1561,10 +1626,10 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-exec {
   overflow: hidden;
 }
 
-/* Title + mode pills + filters — fixed chrome; work area scrolls below */
+/* Mode pills + filters — flex chrome (не sticky): скролл только в .ana-desk-hist-stage */
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-chrome {
-  position: sticky;
-  top: 0;
+  position: relative;
+  top: auto;
   z-index: 20;
   flex: 0 0 auto;
   display: flex;
@@ -2990,7 +3055,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-split {
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-rail {
   position: sticky;
   top: 0;
-  max-height: calc(100vh - 52px - 48px - 9rem);
+  max-height: calc(100vh - var(--desk-topbar-h, 52px) - var(--rbi-strip-h, 48px) - 9rem);
   overflow: auto;
   border: 1px solid var(--card-border);
   border-radius: 0.85rem;
@@ -3418,7 +3483,7 @@ body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-exe
 
 body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-chrome {
   position: sticky;
-  top: 0;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px));
   z-index: 4;
   background: var(--card-bg);
   border: 1px solid var(--card-border);

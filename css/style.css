@@ -200,16 +200,10 @@
 
 /* === БАЗОВЫЕ ПЕРЕМЕННЫЕ (СВЕТЛАЯ ТЕМА ПО УМОЛЧАНИЮ) === */
 :root {
-    --bg-main: #f8fafc;
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    --card-bg: #ffffff;
-    --card-border: #e2e8f0;
+    /* Фирменные --primary/--bg-main/--card-* / … — css/brand/rbi.css (до этого файла). */
     --header-bg: rgba(255, 255, 255, 0.95);
     --nav-bg: rgba(255, 255, 255, 0.85);
     --hover-bg: #f1f5f9;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
 
     /* Цвета статусов (оставляем константными для узнаваемости) */
     --color-green: #22c55e;
@@ -242,18 +236,13 @@
     --primary: #6366f1;
 }
 
-/* === ПРИНУДИТЕЛЬНАЯ СВЕТЛАЯ ТЕМА === */
+/* === ПРИНУДИТЕЛЬНАЯ СВЕТЛАЯ ТЕМА ===
+   Фирменные цвета/фон/карточки — из brand pack (:root).
+   Здесь только chrome, который тёмная тема переопределяет. */
 [data-theme="light"] {
-    --bg-main: #f8fafc;
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    --card-bg: #ffffff;
-    --card-border: #e2e8f0;
     --header-bg: rgba(255, 255, 255, 0.95);
     --nav-bg: rgba(255, 255, 255, 0.85);
     --hover-bg: #f1f5f9;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
 }
 /* === RBI СВЕТЛАЯ ТЕМА === */
 [data-theme="rbi-light"] {
@@ -3328,6 +3317,26 @@ html[data-theme="rbi-dark-v3"] .nav-item.active {
 }
 html[data-theme="rbi-dark-v3"] .nav-item.active {
     color: var(--gold) !important;
+}
+
+/* Mobile: активная подвкладка — белый чип+контур как в Аналитике (не только цвет иконки).
+ * Только .active — не .bg-white.shadow-sm alone (иначе залипший active + новый chip дают «две активные»).
+ * Desktop strip (≥1280) оставляет underline/цвет через module *.desktop.css. */
+@media (max-width: 1279px) {
+    .sub-tab-btn.active {
+        background-color: var(--card-bg) !important;
+        color: var(--primary) !important;
+        box-shadow:
+            0 0 0 1px var(--card-border),
+            0 1px 2px rgba(15, 23, 42, 0.06) !important;
+    }
+    html[data-theme="rbi-dark-v3"] .sub-tab-btn.active,
+    html.dark .sub-tab-btn.active {
+        background-color: var(--card-bg) !important;
+        box-shadow:
+            0 0 0 1px var(--card-border),
+            0 1px 2px rgba(0, 0, 0, 0.35) !important;
+    }
 }
 
 

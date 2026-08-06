@@ -116,8 +116,10 @@ function markSubSections() {
   });
 }
 
+/** Sync active: desktop = цвет; mobile = чип как в аналитике (bg-white + shadow). */
 function syncSubtabActive(subId) {
   const id = subId || currentSubId();
+  const deskChrome = isDesktopViewport() && _shellApplied;
   const btns = document.querySelectorAll('#reference-subtabs-block .sub-tab-btn');
   btns.forEach(function (btn) {
     const arg = btn.getAttribute('data-action-arg') || '';
@@ -131,7 +133,17 @@ function syncSubtabActive(subId) {
       'dark:text-indigo-400'
     );
     if (on) {
-      btn.classList.add('text-indigo-600');
+      if (deskChrome) {
+        btn.classList.add('text-indigo-600');
+      } else {
+        btn.classList.add(
+          'bg-white',
+          'shadow-sm',
+          'text-indigo-600',
+          'dark:bg-slate-700',
+          'dark:text-indigo-400'
+        );
+      }
       btn.classList.remove('text-[var(--text-muted)]');
     } else {
       btn.classList.add('text-[var(--text-muted)]');

@@ -36,6 +36,32 @@ function _permissions() {
     return window.RBI.services.permissions;
 }
 
+function _objects() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.objects) return _ctx.services.objects;
+        if (_ctx && _ctx.objects) return _ctx.objects;
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _leftoverList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.leftoverList === 'function') {
+        var l = o.leftoverList();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+}
+
 function _sync() {
     if (_ctx && _ctx.sync) return _ctx.sync;
     if (window.RBI && window.RBI.services && window.RBI.services.sync) return window.RBI.services.sync;
@@ -253,9 +279,10 @@ window.ConstAdmin = {
 
         if (isManager) {
             // Прямое добавление для администраторов
-            if (window.ObjectDirectory) {
-                const canonical = window.ObjectDirectory.cleanString(name);
-                if (window.ObjectDirectory.objects.find(o => o.canonical_key === canonical)) {
+            var od = _objects();
+            if (od) {
+                const canonical = od.cleanString(name);
+                if (_objectList().find(o => o.canonical_key === canonical)) {
                     return showToast("⚠️ Объект с таким названием уже существует!");
                 }
                 const newObj = {
@@ -270,7 +297,7 @@ window.ConstAdmin = {
                     source: 'local',
                     sync_status: 'not_synced'
                 };
-                window.ObjectDirectory.objects.push(newObj);
+                _objectList().push(newObj);
                 _storage().put('project_objects', newObj);
 
                 localStorage.setItem('rbi_cloud_dirty', '1');
@@ -287,7 +314,10 @@ window.ConstAdmin = {
 
                 const requestedProject = {
                     raw_name: name.trim(),
-                    canonical_key: window.ObjectDirectory ? window.ObjectDirectory.cleanString(name) : name.trim().toLowerCase(),
+                    canonical_key: (function () {
+                        var o = _objects();
+                        return o && typeof o.cleanString === 'function' ? o.cleanString(name) : name.trim().toLowerCase();
+                    })(),
                     display_name: name.trim(),
                     status: 'pending',
                     // request_type НЕ 'directory': заявки с этим типом уходят в

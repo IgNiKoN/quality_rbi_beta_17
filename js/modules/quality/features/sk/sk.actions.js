@@ -26,6 +26,47 @@ import {
     sk_fillContractorSuggestion
 } from './sk.render.js';
 
+function _objects() {
+    try {
+        if (SKActions._ctx && SKActions._ctx.services && SKActions._ctx.services.objects) {
+            return SKActions._ctx.services.objects;
+        }
+        if (SKActions._ctx && SKActions._ctx.objects) {
+            return SKActions._ctx.objects;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _contractors() {
+    try {
+        if (SKActions._ctx && SKActions._ctx.services && SKActions._ctx.services.contractors) {
+            return SKActions._ctx.services.contractors;
+        }
+        if (SKActions._ctx && SKActions._ctx.contractors) {
+            return SKActions._ctx.contractors;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+        var l = c.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+}
+
 // Фаза (перенос из sk.legacy.js): единая точка доступа к настройкам через
 // SettingsService с fallback.
 function _getSetting(key) {
@@ -319,14 +360,19 @@ async function sk_parseLocation(rawStr) {
         floor = floorMatch ? floorMatch[0] : floorPart;
     }
     var result = { raw_path: rawPath, raw_name: rawProject, canonical_key: '', display_name: rawProject || 'Не указан', block: block, floor: floor, normalization_status: 'pending' };
-    if (rawProject && typeof ObjectDirectory !== 'undefined' && typeof ObjectDirectory.normalizeProjectName === 'function') {
+    if (rawProject) {
+        var o = _objects();
+        if (o && (typeof o.normalize === 'function' || typeof o.normalizeProjectName === 'function')) {
         try {
-            var match = await ObjectDirectory.normalizeProjectName(rawProject, true);
+            var match = typeof o.normalize === 'function'
+                ? await o.normalize(rawProject, { isFromSkImport: true })
+                : await o.normalizeProjectName(rawProject, true);
             result.canonical_key = match.canonical_key || '';
             result.display_name = match.display_name || rawProject;
             result.normalization_status = (match.status && match.status.includes('matched')) ? 'matched' : 'pending';
         } catch (e) {
             console.warn('[ПК СК] Не удалось нормализовать объект:', rawProject, e);
+        }
         }
     }
     return result;
@@ -433,8 +479,9 @@ async function sk_loadData() {
         if (cmap && cmap.data) window.skContractorMap = cmap.data;
         var catMap = await _storage().get(_storage().stores().SK_CATEGORY_MAP, 'main');
         if (catMap && catMap.data) window.skCategoryMap = catMap.data;
-        if (window.ContractorDirectory && typeof window.ContractorDirectory.init === 'function') {
-            await window.ContractorDirectory.init();
+        var contrInitSvc = _contractors();
+        if (contrInitSvc && typeof contrInitSvc.init === 'function') {
+            await contrInitSvc.init();
         }
     } catch (e) { console.error('Ошибка загрузки данных ПК СК', e); }
 }
@@ -679,15 +726,18 @@ async function sk_finalizeImport() {
         var stableId = 'sk_' + skUniqueKey;
         var rawContractor = getVal('contractor') ? String(getVal('contractor')).trim() : 'Неизвестно';
         var contractorMatch = null;
-        if (window.ContractorDirectory && typeof window.ContractorDirectory.normalizeContractorName === 'function') {
-            contractorMatch = await window.ContractorDirectory.normalizeContractorName(rawContractor);
+        var contrNormSvc = _contractors();
+        if (contrNormSvc && (typeof contrNormSvc.normalize === 'function' || typeof contrNormSvc.normalizeContractorName === 'function')) {
+            contractorMatch = typeof contrNormSvc.normalize === 'function'
+                ? await contrNormSvc.normalize(rawContractor)
+                : await contrNormSvc.normalizeContractorName(rawContractor);
         }
         var cleanContractor = (contractorMatch && contractorMatch.display_name) || sk_cleanContractorName(rawContractor);
         var contractorKey = (contractorMatch && contractorMatch.canonical_key) || '';
         var contractorNormStatus = (contractorMatch && contractorMatch.status && contractorMatch.status.includes('matched')) ? 'matched' : 'pending';
         var contractorId = '';
         if (contractorNormStatus === 'matched') {
-            var resolveSvc = (window.RBI && window.RBI.services && window.RBI.services.contractors) || window.ContractorDirectory;
+            var resolveSvc = _contractors();
             if (resolveSvc && typeof resolveSvc.resolveIdFromNormalized === 'function') {
                 contractorId = resolveSvc.resolveIdFromNormalized(contractorMatch) || '';
             } else if (resolveSvc && typeof resolveSvc.getByCanonicalKey === 'function' && contractorKey) {
@@ -992,8 +1042,7 @@ async function sk_saveContractorLink() {
             return;
         }
 
-        var contractorsSvc = (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
-        var directoryApi = window.ContractorDirectory || contractorsSvc;
+        var directoryApi = _contractors();
         if (!directoryApi || typeof directoryApi.create !== 'function') {
             showToast('❌ Сервис справочника подрядчиков недоступен');
             return;
@@ -1005,8 +1054,6 @@ async function sk_saveContractorLink() {
         if (existingCard) {
             if (typeof directoryApi.saveAlias === 'function') {
                 await directoryApi.saveAlias(rawName, canonicalKey);
-            } else if (contractorsSvc && typeof contractorsSvc.saveAlias === 'function') {
-                await contractorsSvc.saveAlias(rawName, canonicalKey);
             }
         } else {
             linkedCard = await directoryApi.create({
@@ -1048,7 +1095,8 @@ async function sk_saveContractorLink() {
             }
         }
 
-        if (window.ContractorDirectory) await window.ContractorDirectory.init();
+        var contrInitSvc2 = _contractors();
+        if (contrInitSvc2 && typeof contrInitSvc2.init === 'function') await contrInitSvc2.init();
         localStorage.setItem('rbi_cloud_dirty', '1');
         var historyUpdated = 0;
         if (typeof window.applyContractorAliasToInspectionHistory === 'function') {

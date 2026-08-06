@@ -79,27 +79,11 @@ function _contractors(): ContractorOpt[] {
     | { list?: () => Array<{ id?: string; display_name?: string; displayName?: string }> }
     | undefined;
   const rows = typeof svc?.list === 'function' ? svc.list() : [];
-  const fromSvc = (rows || [])
+  return (rows || [])
     .filter((r) => r && r.id)
     .map((r) => ({
       id: String(r.id),
       label: String(r.display_name || r.displayName || r.id)
-    }));
-  if (fromSvc.length) {
-    return fromSvc.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-  }
-  // fallback: ContractorDirectory → resolve id by display name if possible
-  const dir = (
-    window as unknown as {
-      ContractorDirectory?: { contractors?: Array<{ id?: string; display_name?: string }> };
-    }
-  ).ContractorDirectory;
-  const list = dir?.contractors || [];
-  return list
-    .filter((c) => c && (c.id || c.display_name))
-    .map((c) => ({
-      id: String(c.id || c.display_name),
-      label: String(c.display_name || c.id)
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 }

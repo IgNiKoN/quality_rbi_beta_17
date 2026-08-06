@@ -9,6 +9,47 @@
 
 import { sk_loadData, sk_switchView, sk_executeImport, sk_normalizeCategoryKey, SKActions } from './sk.actions.js';
 
+function _objects() {
+    try {
+        if (SKActions._ctx && SKActions._ctx.services && SKActions._ctx.services.objects) {
+            return SKActions._ctx.services.objects;
+        }
+        if (SKActions._ctx && SKActions._ctx.objects) {
+            return SKActions._ctx.objects;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _contractors() {
+    try {
+        if (SKActions._ctx && SKActions._ctx.services && SKActions._ctx.services.contractors) {
+            return SKActions._ctx.services.contractors;
+        }
+        if (SKActions._ctx && SKActions._ctx.contractors) {
+            return SKActions._ctx.contractors;
+        }
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.contractors) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _contractorList() {
+    var c = _contractors();
+    if (!c) return [];
+    if (typeof c.list === 'function') {
+        var l = c.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(c.contractors) ? c.contractors : [];
+}
+
 // Фаза (перенос из sk.legacy.js): единая точка доступа к IndexedDB через
 // StorageService или fallback — локальная копия, нужна только
 // sk_getPendingContractorsQueue() (используется sk_renderContractorQueueBanner).
@@ -1066,8 +1107,9 @@ function sk_fillContractorSuggestion() {
     if (!item) return;
     var raw = String(item.raw_name || '').trim();
     displayInput.value = raw;
-    if (window.ContractorDirectory && typeof window.ContractorDirectory.makeCanonicalKey === 'function') {
-        keyInput.value = window.ContractorDirectory.makeCanonicalKey(raw);
+    var contrSvc = _contractors();
+    if (contrSvc && typeof contrSvc.makeCanonicalKey === 'function') {
+        keyInput.value = contrSvc.makeCanonicalKey(raw);
     } else {
         keyInput.value = raw.toLowerCase().replace(/ё/g, 'е').replace(/["'«»]/g, '').replace(/\b(ооо|оао|зао|пао|ао|ип)\b/gi, '').replace(/[^a-zа-я0-9]+/gi, '_').replace(/^_+|_+$/g, '');
     }

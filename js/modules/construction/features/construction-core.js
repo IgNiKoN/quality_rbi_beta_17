@@ -7,6 +7,32 @@ function bindCtx(ctx) {
     bindConstructionCoreI18n();
 }
 
+function _objects() {
+    try {
+        if (_ctx && _ctx.services && _ctx.services.objects) return _ctx.services.objects;
+        if (_ctx && _ctx.objects) return _ctx.objects;
+    } catch (e) {}
+    return (window.RBI && window.RBI.services && window.RBI.services.objects) || null;
+}
+function _objectList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.list === 'function') {
+        var l = o.list();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.objects) ? o.objects : [];
+}
+function _leftoverList() {
+    var o = _objects();
+    if (!o) return [];
+    if (typeof o.leftoverList === 'function') {
+        var l = o.leftoverList();
+        return Array.isArray(l) ? l : [];
+    }
+    return Array.isArray(o.leftoverObjects) ? o.leftoverObjects : [];
+}
+
 function _t(key, fallback) {
     try {
         var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
@@ -236,15 +262,17 @@ window.ConstManager = {
 
         // 1) ObjectDirectory (проекция locations + leftover)
         try {
-            if (typeof ObjectDirectory !== 'undefined') {
+            var od = _objects();
+            if (od) {
+                var objList = _objectList();
                 if (
-                    (!Array.isArray(ObjectDirectory.objects) || ObjectDirectory.objects.length === 0) &&
-                    typeof ObjectDirectory.rebuildFromLocations === 'function'
+                    objList.length === 0 &&
+                    typeof od.rebuildFromLocations === 'function'
                 ) {
-                    await ObjectDirectory.rebuildFromLocations();
+                    await od.rebuildFromLocations();
                 }
-                const fromOd = (ObjectDirectory.objects || []).filter(alive).map(mapOd).filter((o) => o.id && o.name);
-                const leftover = (ObjectDirectory.leftoverObjects || []).filter(alive).map(mapOd).filter((o) => o.id && o.name);
+                const fromOd = _objectList().filter(alive).map(mapOd).filter((o) => o.id && o.name);
+                const leftover = _leftoverList().filter(alive).map(mapOd).filter((o) => o.id && o.name);
                 if (fromOd.length || leftover.length) {
                     const seen = new Set();
                     return [...fromOd, ...leftover].filter((o) => {

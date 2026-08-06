@@ -7,9 +7,12 @@
  *
  * Паттерн:
  *   1. Получить ctx через RBI.createContext()
- *   2. Получить все модули из RBI.registry
- *   3. Вызвать module.init(ctx) на каждом
+ *   2. Резолв allowlist (availableModules + бандлы + всегда settings)
+ *   3. Вызвать loadModule/init только для разрешённых ключей (порядок MODULE_KEYS)
  *   4. Зарегистрировать себя как window.RBI.entry
+ *
+ * Platform runtime independence · столп A Фаза A: фильтр init; статичные
+ * <script> модулей пока остаются (следующая фаза).
  */
 (function () {
     'use strict';
@@ -25,9 +28,73 @@
         'module.ai',
     ];
 
+    /** Feature-of бандлы: бизнес-id → дополнительные ключи init. */
+    var BUNDLES = {
+        quality: ['sk', 'knowledge', 'game', 'ai'],
+        construction: ['construction-v2']
+    };
+
+    /** Platform chrome — всегда в init, даже если нет в availableModules. */
+    var ALWAYS_INIT = ['settings'];
+
     /** Извлекает id манифеста ('quality', 'sk', ...) из registry-ключа ('module.quality'). */
     function shortIdFromKey(key) {
         return key.replace(/^module\./, '');
+    }
+
+    /**
+     * Бизнес-allowlist = enabledModules ∩ getAllowedModules(role).
+     * Предпочтительно userContext; fallback — тот же расчёт через company + permissions.
+     */
+    function resolveAvailableModules(ctx) {
+        try {
+            if (ctx && ctx.userContext && typeof ctx.userContext.getUserContext === 'function') {
+                var snap = ctx.userContext.getUserContext();
+                if (snap && Array.isArray(snap.availableModules)) {
+                    return snap.availableModules.slice();
+                }
+            }
+        } catch (e) { /* fallback ниже */ }
+
+        var services = window.RBI && window.RBI.services;
+        var company = services && services.company;
+        var permissions = services && services.permissions;
+        var enabled = company && typeof company.getCompany === 'function'
+            ? (company.getCompany().enabledModules || [])
+            : [];
+        var role = permissions && typeof permissions.getCurrentRole === 'function'
+            ? permissions.getCurrentRole()
+            : 'guest';
+        var allowed = permissions && typeof permissions.getAllowedModules === 'function'
+            ? permissions.getAllowedModules(role)
+            : enabled.slice();
+        return enabled.filter(function (m) {
+            return allowed.indexOf(m) !== -1;
+        });
+    }
+
+    /**
+     * Expand availableModules + бандлы + ALWAYS_INIT → Set shortId.
+     * Порядок init сохраняется через MODULE_KEYS.
+     */
+    function resolveInitShortIds(availableModules) {
+        var allow = Object.create(null);
+        var i, id, extras, j;
+
+        for (i = 0; i < availableModules.length; i++) {
+            id = availableModules[i];
+            allow[id] = true;
+            extras = BUNDLES[id];
+            if (extras) {
+                for (j = 0; j < extras.length; j++) {
+                    allow[extras[j]] = true;
+                }
+            }
+        }
+        for (i = 0; i < ALWAYS_INIT.length; i++) {
+            allow[ALWAYS_INIT[i]] = true;
+        }
+        return allow;
     }
 
     var initPromise = null;
@@ -55,11 +122,24 @@
 
         var ctx = window.RBI.createContext();
 
-        console.log('[app.entry] Инициализация модулей...');
+        var availableModules = resolveAvailableModules(ctx);
+        var allowSet = resolveInitShortIds(availableModules);
+        var initedCount = 0;
+
+        console.log('[app.entry] Инициализация модулей...', {
+            availableModules: availableModules.slice(),
+            allowSet: Object.keys(allowSet)
+        });
 
         for (var i = 0; i < MODULE_KEYS.length; i++) {
             var key = MODULE_KEYS[i];
             var shortId = shortIdFromKey(key);
+
+            if (!allowSet[shortId]) {
+                console.warn('[app.entry] skip init ' + key + ' — вне allowlist (availableModules+бандлы+settings)');
+                continue;
+            }
+
             try {
                 if (window.RBI.moduleLoader && typeof window.RBI.moduleLoader.loadModule === 'function') {
                     await window.RBI.moduleLoader.loadModule(shortId, ctx);
@@ -76,13 +156,14 @@
                     }
                     await mod.init(ctx);
                 }
+                initedCount++;
                 console.log('[app.entry] \u2705 ' + key + ' \u2014 init() \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d');
             } catch (e) {
                 console.error('[app.entry] \u274c \u041e\u0448\u0438\u0431\u043a\u0430 init() \u0434\u043b\u044f ' + key + ':', e);
             }
         }
 
-        console.log('[app.entry] \u0412\u0441\u0435 \u043c\u043e\u0434\u0443\u043b\u0438 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b.');
+        console.log('[app.entry] \u041c\u043e\u0434\u0443\u043b\u0438 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b: ' + initedCount + '/' + MODULE_KEYS.length);
 
         // i18n: quality/settings markup mounts during module init (after bootstrap applyDom).
         // Re-apply + notify desk chrome so first paint is not stuck on RU fallbacks.
@@ -108,7 +189,7 @@
         }
 
         if (window.RBI.events && typeof window.RBI.events.emit === 'function') {
-            window.RBI.events.emit('platform:ready', { modules: MODULE_KEYS.length });
+            window.RBI.events.emit('platform:ready', { modules: initedCount });
         }
     }
 

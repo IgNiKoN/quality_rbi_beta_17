@@ -1657,12 +1657,44 @@
             return objectDirectory.init();
         },
 
+        initUI: function () {
+            return objectDirectory.initUI();
+        },
+
         list: function () {
             return objectDirectory.objects;
         },
 
+        leftoverList: function () {
+            return objectDirectory.leftoverObjects || [];
+        },
+
         aliases: function () {
             return objectDirectory.aliases;
+        },
+
+        cleanString: function (str) {
+            return objectDirectory.cleanString(str);
+        },
+
+        getObjectById: function (id) {
+            return objectDirectory.getObjectById(id);
+        },
+
+        getObjectByKey: function (canonicalKey) {
+            return objectDirectory.getObjectByKey(canonicalKey);
+        },
+
+        rebuildFromLocations: async function () {
+            return objectDirectory.rebuildFromLocations();
+        },
+
+        loadRequests: async function () {
+            return objectDirectory.loadRequests();
+        },
+
+        createFromLocation: async function (opts) {
+            return objectDirectory.createFromLocation(opts);
         },
 
         normalize: async function (rawName, options) {
