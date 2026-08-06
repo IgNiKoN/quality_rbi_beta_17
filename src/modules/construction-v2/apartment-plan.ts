@@ -56,6 +56,24 @@ let _openUnitId: string | null = null;
 let _apartmentId: string | null = null;
 let _addMode = false;
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -96,7 +114,9 @@ function _pathLabel(apartmentId: string): string {
 function _syncAddBtn() {
   const btn = document.querySelector('[data-c2-apt-add-mode]') as HTMLElement | null;
   if (!btn) return;
-  btn.textContent = _addMode ? 'Кликни на план…' : '+ Замечание';
+  btn.textContent = _addMode
+    ? _t('construction.v2.add_picking', 'Кликни…')
+    : _t('construction.v2.add_defect', '+ Замечание');
   btn.className = _addMode
     ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600'
     : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
@@ -114,7 +134,7 @@ async function _refreshPins(): Promise<void> {
   }
   _viewer.setMarkers(filtered);
   const countEl = document.getElementById('c2-apt-overlay-count');
-  if (countEl) countEl.textContent = `Показано ${filtered.length} из ${all.length}`;
+  if (countEl) countEl.textContent = _t('construction.v2.apt_overlay_count', 'Показано {shown} из {total}', { shown: filtered.length, total: all.length });
 }
 
 async function _maybeMarkHasDefects(unitId: string): Promise<void> {
@@ -162,18 +182,18 @@ export async function openApartmentPlan(
 
   const pdfUrl = String(unit.pdf_url || '');
   if (!pdfUrl.startsWith('http')) {
-    cb.toast('Сначала загрузите PDF плана квартиры');
+    cb.toast(_t('construction.v2.apt_upload_pdf', 'Сначала загрузите PDF плана квартиры'));
     return;
   }
 
   const uSvc = _units();
   const dSvc = _defects();
   if (!dSvc) {
-    cb.toast('service.constructionDefects не загружен');
+    cb.toast(_t('construction.v2.svc_defects_missing', 'service.constructionDefects не загружен'));
     return;
   }
   if (!uSvc) {
-    cb.toast('service.constructionUnits не загружен');
+    cb.toast(_t('construction.v2.svc_units_missing', 'service.constructionUnits не загружен'));
     return;
   }
 
@@ -183,20 +203,20 @@ export async function openApartmentPlan(
       fresh = await uSvc.ensureApartmentForUnit(unit.id);
     }
   } catch (e) {
-    cb.toast(`Нужна миграция квартиры: ${(e as Error)?.message || e}`);
+    cb.toast(_t('construction.v2.apt_migration_needed', 'Нужна миграция квартиры: {msg}', { msg: (e as Error)?.message || String(e) }));
     return;
   }
 
   const loc = _loc();
   const node = loc?.getNode?.(fresh.locationId);
   if (node && node.nodeType && node.nodeType !== 'apartment') {
-    cb.toast('Сначала откройте Передачу — нужна привязка к квартире');
+    cb.toast(_t('construction.v2.apt_open_transfer', 'Сначала откройте Передачу — нужна привязка к квартире'));
     return;
   }
 
   const apartmentId = fresh.locationId;
   if (!apartmentId) {
-    cb.toast('У помещения нет locationId');
+    cb.toast(_t('construction.v2.apt_no_location', 'У помещения нет locationId'));
     return;
   }
 
@@ -216,28 +236,28 @@ export async function openApartmentPlan(
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.apt_fs_title', 'Замечания на плане · весь экран'))}</div>
           <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape(title)}</div>
           <div class="text-[10px] font-bold text-slate-400 truncate">${_escape(path)}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Показано 0 из 0</span>
+          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">${_escape(_t('construction.v2.apt_overlay_count', 'Показано {shown} из {total}', { shown: 0, total: 0 }))}</span>
           <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
             <button type="button" data-c2-apt-zoom-out
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_out', 'Уменьшить'))}">−</button>
             <button type="button" data-c2-apt-zoom-in
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_in', 'Увеличить'))}">+</button>
             <button type="button" data-c2-apt-zoom-fit
-              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_fit', 'По размеру'))}">Fit</button>
           </div>
           ${
             guest
               ? ''
               : `<button type="button" data-c2-apt-add-mode
-                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`
+                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">${_escape(_t('construction.v2.add_defect', '+ Замечание'))}</button>`
           }
           <button type="button" data-c2-apt-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">${_escape(_t('construction.v2.fs_close', 'Закрыть'))}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="apt"></div>
@@ -322,7 +342,7 @@ export async function openApartmentPlan(
           _viewer?.setAddMode(false);
           _viewer?.clearTempPin();
           _syncAddBtn();
-          cb.toast('Замечание сохранено');
+          cb.toast(_t('construction.v2.defect_saved', 'Замечание сохранено'));
           await _refreshPins();
           await cb.onChanged?.();
         },
@@ -336,13 +356,13 @@ export async function openApartmentPlan(
         d,
         async (defectId) => {
           await dSvc.softDelete(defectId);
-          cb.toast('Замечание удалено');
+          cb.toast(_t('construction.v2.defect_deleted', 'Замечание удалено'));
           await _refreshPins();
           await cb.onChanged?.();
         },
         async (defectId, patch) => {
           await dSvc.update(defectId, patch);
-          cb.toast('Замечание обновлено');
+          cb.toast(_t('construction.v2.defect_updated', 'Замечание обновлено'));
           await _refreshPins();
         },
         async (defectId, input) => {
@@ -350,7 +370,7 @@ export async function openApartmentPlan(
             comment: input.comment,
             photos: input.photos
           });
-          cb.toast('✅ Статус обновлён');
+          cb.toast(_t('construction.v2.status_updated', '✅ Статус обновлён'));
           await _refreshPins();
         }
       );
@@ -363,7 +383,7 @@ export async function openApartmentPlan(
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape(msg)}</div>`;
+    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.plan_error', 'Ошибка плана: {msg}', { msg }))}</div>`;
     _viewer = null;
   }
 }

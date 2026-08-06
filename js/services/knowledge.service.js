@@ -192,7 +192,11 @@
             return window.customTwiCards;
         },
         setTwiCardsSync: function (arr) {
-            window.customTwiCards = Array.isArray(arr) ? arr : [];
+            var list = Array.isArray(arr) ? arr : [];
+            if (typeof window.rbi_slimKnowledgeRecordForMemory === 'function') {
+                list = list.map(window.rbi_slimKnowledgeRecordForMemory);
+            }
+            window.customTwiCards = list;
             return window.customTwiCards;
         },
         getCustomDocsSync: function () {
@@ -203,7 +207,11 @@
             return window.customDocs;
         },
         setCustomDocsSync: function (arr) {
-            window.customDocs = Array.isArray(arr) ? arr : [];
+            var list = Array.isArray(arr) ? arr : [];
+            if (typeof window.rbi_slimKnowledgeRecordForMemory === 'function') {
+                list = list.map(window.rbi_slimKnowledgeRecordForMemory);
+            }
+            window.customDocs = list;
             return window.customDocs;
         },
         getCustomNodesSync: function () {

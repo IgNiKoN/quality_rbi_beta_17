@@ -68,11 +68,20 @@ window.renderSyncUI = function () {
         // повторно нажать ✕.
         const pendingUnassign = (typeof appSettings !== 'undefined' && Array.isArray(appSettings.pendingUnassignProjects)) ? appSettings.pendingUnassignProjects : [];
         // Убираем из "Ожидающих" те объекты, которые уже есть в "Подтвержденных"
-        const filteredPending = pendingProjects.filter(p =>
-            !myProjects.includes(p.canonical_key) &&
-            !myProjects.includes(p.raw_name) &&
-            !myProjects.includes(p.display_name)
-        );
+        const filteredPending = pendingProjects.filter(p => {
+            const refs = [p.canonical_key, p.raw_name, p.display_name, p.id, p.projectId]
+                .map(function (x) { return String(x || '').trim(); })
+                .filter(Boolean);
+            if (refs.some(function (r) { return myProjects.includes(r); })) return false;
+            if (typeof ObjectDirectory !== 'undefined'
+                && typeof ObjectDirectory.resolveProjectId === 'function') {
+                const pendingId = ObjectDirectory.resolveProjectId(
+                    p.id || p.projectId || p.canonical_key || p.raw_name || p.display_name
+                );
+                if (pendingId && myProjects.includes(pendingId)) return false;
+            }
+            return true;
+        });
         let projectsHtml = '';
 
         if (myProjects.length === 0 && pendingProjects.length === 0) {
@@ -82,16 +91,28 @@ window.renderSyncUI = function () {
         } else {
             // Рисуем зеленые (Подтвержденные)
             projectsHtml += myProjects.map(p => {
-                const unassignPending = pendingUnassign.includes(p);
+                const unassignPending = pendingUnassign.includes(p)
+                    || (typeof ObjectDirectory !== 'undefined'
+                        && typeof ObjectDirectory.resolveProjectId === 'function'
+                        && pendingUnassign.some(function (u) {
+                            return ObjectDirectory.resolveProjectId(u) === ObjectDirectory.resolveProjectId(p)
+                                || String(u) === String(p);
+                        }));
+                const displayName = (typeof ObjectDirectory !== 'undefined'
+                    && typeof ObjectDirectory.getDisplayForAssignedRef === 'function')
+                    ? ObjectDirectory.getDisplayForAssignedRef(p)
+                    : String(p || '');
+                const safeDisplay = String(displayName)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 return `
                 <div class="flex justify-between items-center bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2 rounded-lg mb-1.5 shadow-sm">
                     <div>
-                        <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">${p}</div>
+                        <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">${safeDisplay}</div>
                         <div class="text-[8px] font-black uppercase ${unassignPending ? 'text-orange-600' : 'text-green-600'}">${unassignPending ? _t('settings.sync.unassign_pending', 'Заявка на снятие отправлена') : _t('settings.sync.confirmed', 'Подтверждён')}</div>
                     </div>
                     ${unassignPending
                         ? ''
-                        : `<button onclick="window.removeAssignedProject('${p.replace(/'/g, "\\'")}')" class="text-red-500 font-black text-[12px] px-2 active:scale-90">✕</button>`}
+                        : `<button onclick="window.removeAssignedProject('${String(p).replace(/'/g, "\\'")}')" class="text-red-500 font-black text-[12px] px-2 active:scale-90">✕</button>`}
                 </div>
             `;
             }).join('');

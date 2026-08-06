@@ -24,6 +24,24 @@ type LocSvc = {
   getNode: (id: string) => LocationNode | null;
 };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -73,20 +91,20 @@ function _cardHtml(r: ConstructionAcceptanceV2, loc: LocSvc): string {
           progress.fail ? ` · FAIL ${progress.fail}` : ''
         }</div>`
       : progress.total > 0
-        ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>`
+        ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">${_escape(_t('construction.v2.kanban.checklist_progress', 'Чек-лист 0/{total}', { total: progress.total }))}</div>`
         : '';
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
          data-c2-acc-card="${_escape(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape(r.work_type || 'Без вида работ')}</div>
-        ${overdue ? '<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">просрочено</span>' : ''}
+        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape(r.work_type || _t('construction.v2.kanban.no_work_type', 'Без вида работ'))}</div>
+        ${overdue ? `<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
       </div>
       <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape(path || r.locationId)}</div>
       <div class="flex justify-between items-center text-[10px]">
         <span class="font-bold text-slate-600">${_escape(r.requested_date || '—')} ${_escape(r.requested_time || '')}</span>
         <button type="button" data-c2-acc-plan="${_escape(r.id)}"
-          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">План</button>
+          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">${_escape(_t('construction.v2.kanban.plan_btn', 'План'))}</button>
       </div>
       ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape(r.volume)}</div>` : ''}
       ${progressHtml}
@@ -104,7 +122,7 @@ function _column(title: string, color: string, items: ConstructionAcceptanceV2[]
         ${
           items.length
             ? items.map((r) => _cardHtml(r, loc)).join('')
-            : '<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">Заявок нет</div>'
+            : `<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">${_escape(_t('construction.v2.kanban.no_requests', 'Заявок нет'))}</div>`
         }
       </div>
     </div>`;
@@ -114,7 +132,7 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
   const acc = _acc();
   const loc = _loc();
   if (!acc || !loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">constructionAcceptance / locations не загружены</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.kanban.svc_missing', 'constructionAcceptance / locations не загружены'))}</div>`;
     return;
   }
   await loc.init();
@@ -122,7 +140,7 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
 
   const objects = loc.listNodes({ nodeType: 'object', parentId: null });
   const objOpts =
-    `<option value="">Все объекты</option>` +
+    `<option value="">${_escape(_t('construction.v2.kanban.all_objects', 'Все объекты'))}</option>` +
     objects
       .map(
         (o) =>
@@ -143,20 +161,20 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Канбан приёмки (v2)</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.kanban.title', 'Канбан приёмки (v2)'))}</div>
         <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">Слоты дня</label>
+        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">${_escape(_t('construction.v2.kanban.slots_day', 'Слоты дня'))}</label>
         <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape(
           slotsDate
         )}">
       </div>
-      ${slotBoardHtml(occupancy, { title: `Занятость ${slotsDate}` })}
+      ${slotBoardHtml(occupancy, { title: _t('construction.v2.slots.occupancy', 'Занятость {date}', { date: slotsDate }) })}
       <div class="flex flex-col lg:flex-row gap-3">
-        ${_column('Ожидают', 'text-blue-600', pending, loc)}
-        ${_column('Отклонены', 'text-red-600', rejected, loc)}
-        ${_column('Приняты', 'text-green-600', accepted, loc)}
+        ${_column(_t('construction.v2.kanban.col_pending', 'Ожидают'), 'text-blue-600', pending, loc)}
+        ${_column(_t('construction.v2.kanban.col_rejected', 'Отклонены'), 'text-red-600', rejected, loc)}
+        ${_column(_t('construction.v2.kanban.col_accepted', 'Приняты'), 'text-green-600', accepted, loc)}
       </div>
     </div>`;
 
@@ -205,13 +223,13 @@ function _bindOnce() {
           onFocusPlan: (rid) => focusAcceptanceOnPlan(rid),
           onChangeStatus: async (rid, status) => {
             await acc.changeStatus(rid, status);
-            window.showToast?.('✅ Статус обновлён');
+            window.showToast?.(_t('construction.v2.status_updated', '✅ Статус обновлён'));
             const root = document.getElementById('construction-v2-root');
             if (root) await renderAcceptanceKanban(root);
           },
           onSoftDelete: async (rid) => {
             await acc.softDelete(rid);
-            window.showToast?.('Заявка отозвана');
+            window.showToast?.(_t('construction.v2.acc_revoked', 'Заявка отозвана'));
             const root = document.getElementById('construction-v2-root');
             if (root) await renderAcceptanceKanban(root);
           },
@@ -231,7 +249,7 @@ export function focusAcceptanceOnPlan(id: string): void {
   const acc = _acc();
   const item = acc?.get(id);
   if (!item?.locationId || !item.zone) {
-    window.showToast?.('⚠️ Для этой заявки не была выделена зона на плане');
+    window.showToast?.(_t('construction.v2.kanban.no_zone', '⚠️ Для этой заявки не была выделена зона на плане'));
     return;
   }
   window.RBI?.events?.emit?.('construction-acceptance:focus', {

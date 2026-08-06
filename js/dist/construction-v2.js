@@ -45,6 +45,22 @@ function filterAcceptancesForRole(list) {
   if (!myId) return [];
   return (list || []).filter((a) => String(a.contractorId || "").trim() === myId);
 }
+function _t$e(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$b(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -89,21 +105,22 @@ function _resolveTemplateGroups(tmplKey) {
   return [];
 }
 function _catLabel(c) {
-  if (c === "B1" || c === "minor") return "B1 (Мелкий)";
-  if (c === "B3" || c === "critical") return "B3 (Критика)";
-  return "B2 (Значимый)";
+  if (c === "B1" || c === "minor") return _t$e("construction.form.cat_b1", "B1 (Мелкий)");
+  if (c === "B3" || c === "critical") return _t$e("construction.form.cat_b3", "B3 (Критика)");
+  return _t$e("construction.form.cat_b2", "B2 (Значимый)");
 }
 function _statusLabel$3(s) {
   const map = {
-    issued: "Выдано",
-    in_progress: "В работе",
-    fixed: "Устранено",
-    closed: "Закрыто",
-    rejected: "Отклонено",
-    open: "Выдано",
-    cancelled: "Отклонено"
+    issued: ["construction.status.issued", "Выдано"],
+    in_progress: ["construction.status.in_progress", "В работе"],
+    fixed: ["construction.form.status_fixed", "Устранено"],
+    closed: ["construction.status.closed", "Закрыто"],
+    rejected: ["construction.status.rejected", "Отклонено"],
+    open: ["construction.status.issued", "Выдано"],
+    cancelled: ["construction.status.rejected", "Отклонено"]
   };
-  return map[s] || s;
+  const entry = map[s];
+  return entry ? _t$e(entry[0], entry[1]) : s;
 }
 function _deadlineInputValue(v) {
   if (v == null || v === "") return "";
@@ -134,7 +151,7 @@ async function _fileToDataUrl$1(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ""));
-    r.onerror = () => reject(new Error("Не удалось прочитать файл"));
+    r.onerror = () => reject(new Error(_t$e("construction.form.file_read_error", "Не удалось прочитать файл")));
     r.readAsDataURL(file);
   });
 }
@@ -176,7 +193,7 @@ function closeDefectForm() {
   el.classList.remove("flex");
 }
 function _templateOptionsHtml(selected) {
-  let html = '<option value="">— вид работ —</option>';
+  let html = `<option value="">${_escape$b(_t$e("construction.form.work_type_select", "— вид работ —"))}</option>`;
   const st = _sysTemplates$2();
   Object.keys(st).sort().forEach((k) => {
     const sel = selected === `sys_${k}` ? " selected" : "";
@@ -191,14 +208,14 @@ function _templateOptionsHtml(selected) {
 }
 function _contractorOptionsHtml(selected) {
   const opts = _contractors();
-  return `<option value="">— без подрядчика —</option>` + opts.map((o) => {
+  return `<option value="">${_escape$b(_t$e("construction.form.no_contractor", "— без подрядчика —"))}</option>` + opts.map((o) => {
     const sel = selected === o.id ? " selected" : "";
     return `<option value="${_escape$b(o.id)}"${sel}>${_escape$b(o.label)}</option>`;
   }).join("");
 }
 function _renderGallery(photos) {
   if (!photos.length) {
-    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>Нет фото</div>`;
+    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>${_escape$b(_t$e("construction.form.no_photos", "Нет фото"))}</div>`;
   }
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos.map(
@@ -275,7 +292,7 @@ function _bindItemSearch(panel) {
     if (!dd) return;
     const tmplKey = (tmpl == null ? void 0 : tmpl.value) || "";
     if (!tmplKey) {
-      dd.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Сначала выберите вид работ</div>';
+      dd.innerHTML = `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape$b(_t$e("construction.form.select_work_first", "Сначала выберите вид работ"))}</div>`;
       dd.classList.remove("hidden");
       return;
     }
@@ -288,7 +305,7 @@ function _bindItemSearch(panel) {
       }
     );
     if (!matched.length) {
-      dd.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Ничего не найдено</div>';
+      dd.innerHTML = `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape$b(_t$e("construction.form.search_empty", "Ничего не найдено"))}</div>`;
       dd.classList.remove("hidden");
       return;
     }
@@ -320,8 +337,8 @@ function _bindItemSearch(panel) {
           normBlock == null ? void 0 : normBlock.classList.add("hidden");
         }
         if (desc) {
-          let auto = `Нарушение: ${name}.`;
-          if (norm && norm !== "Без норматива") auto += ` Требования: ${norm}`;
+          let auto = _t$e("construction.form.violation_prefix", "Нарушение: {name}.", { name });
+          if (norm && norm !== "Без норматива") auto += _t$e("construction.form.requirements_prefix", " Требования: {norm}", { norm });
           desc.value = auto;
         }
         if (cat) {
@@ -398,17 +415,17 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
   ).join("");
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">Новое замечание</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
+      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape$b(_t$e("construction.form.new_defect", "Новое замечание"))}</h3>
+      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape$b(_t$e("construction.form.close", "Закрыть"))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-3">Координаты: ${coords.x.toFixed(1)}% × ${coords.y.toFixed(1)}%</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ (чек-лист) *</label>
+    <p class="text-[10px] text-slate-400 mb-3">${_escape$b(_t$e("construction.form.coords", "Координаты: {x}% × {y}%", { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.work_type_label", "Вид работ (чек-лист) *"))}</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
       ${_templateOptionsHtml(prefill == null ? void 0 : prefill.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
-      <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.violation_label", "Нарушение *"))}</label>
+      <input type="text" data-c2-item-search autocomplete="off" placeholder="${_escape$b(_t$e("construction.form.violation_placeholder", "Начните вводить нарушение..."))}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
         value="${_escape$b((prefill == null ? void 0 : prefill.item_name) || "")}" />
       <input type="hidden" data-c2-item-id value="${_escape$b((prefill == null ? void 0 : prefill.item_id) || "")}" />
@@ -416,39 +433,39 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${(prefill == null ? void 0 : prefill.norm_text) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$b(_t$e("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
       <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b((prefill == null ? void 0 : prefill.norm_text) || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.category", "Категория"))}</label>
         <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]">
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.deadline", "Срок"))}</label>
         <input type="date" data-c2-defect-deadline
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.contractor", "Подрядчик"))}</label>
     <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
       ${_contractorOptionsHtml()}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$b((prefill == null ? void 0 : prefill.description) || (prefill == null ? void 0 : prefill.item_name) || "")}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
       class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
-      + Добавить фото
+      + ${_escape$b(_t$e("construction.form.add_photo", "+ Добавить фото"))}
     </button>
     <div class="flex gap-2 justify-end">
-      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Отмена</button>
-      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">Сохранить</button>
+      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape$b(_t$e("construction.form.cancel", "Отмена"))}</button>
+      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">${_escape$b(_t$e("construction.form.save", "Сохранить"))}</button>
     </div>`;
   root.classList.remove("hidden");
   root.classList.add("flex");
@@ -473,16 +490,16 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
     var _a2, _b2, _c, _d;
     const fields = _readCommonFields(panel);
     if (!fields.template_key) {
-      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "Выберите вид работ (чек-лист)");
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$e("construction.form.toast_select_work", "Выберите вид работ (чек-лист)"));
       return;
     }
     if (!fields.item_id && !fields.item_name) {
-      (_b2 = window.showToast) == null ? void 0 : _b2.call(window, "Выберите нарушение из списка");
+      (_b2 = window.showToast) == null ? void 0 : _b2.call(window, _t$e("construction.form.toast_select_violation", "Выберите нарушение из списка"));
       return;
     }
     const description = fields.description || fields.item_name || "";
     if (!description) {
-      (_c = window.showToast) == null ? void 0 : _c.call(window, "Укажите описание замечания");
+      (_c = window.showToast) == null ? void 0 : _c.call(window, _t$e("construction.form.toast_desc_required", "Укажите описание замечания"));
       return;
     }
     try {
@@ -512,42 +529,42 @@ function _actionButtonsHtml(defect) {
   const st = String(defect.status || "issued");
   if (st === "issued") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">В работу</button>
-        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Фото)</button>`;
+      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape$b(_t$e("construction.form.action_in_progress", "В работу"))}</button>
+        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.action_fixed_photo", "Устранено (Фото)"))}</button>`;
     }
     if (isEngineer) {
       return `<button type="button" data-c2-defect-delete class="bg-red-50 text-red-600 py-2.5 px-3 rounded-xl text-[11px] font-bold uppercase border border-red-200">🗑️</button>
-        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.action_update", "💾 Обновить"))}</button>`;
     }
   } else if (st === "in_progress") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Приложить фото)</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.action_fixed_attach", "Устранено (Приложить фото)"))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">Подрядчик взял в работу</div>`;
+    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">${_escape$b(_t$e("construction.form.contractor_working", "Подрядчик взял в работу"))}</div>`;
   } else if (st === "fixed") {
     if (isEngineer) {
-      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">❌ Отклонить</button>
-        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">✅ Принять</button>`;
+      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape$b(_t$e("construction.form.action_reject", "❌ Отклонить"))}</button>
+        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.action_accept", "✅ Принять"))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">Ожидает проверки инженером</div>`;
+    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">${_escape$b(_t$e("construction.form.awaiting_review", "Ожидает проверки инженером"))}</div>`;
   } else if (st === "closed") {
-    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">Дефект закрыт</div>`;
+    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">${_escape$b(_t$e("construction.form.defect_closed", "Дефект закрыт"))}</div>`;
   } else if (st === "rejected") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Повторно предъявить (Фото)</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.resubmit_photo", "Повторно предъявить (Фото)"))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$b(_t$e("construction.form.action_update", "💾 Обновить"))}</button>`;
     }
   }
-  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Закрыть</button>`;
+  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape$b(_t$e("construction.form.close", "Закрыть"))}</button>`;
 }
 function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   var _a, _b, _c, _d;
   if (isContractorRole()) {
     const myId = resolveMyContractorId();
     if (!myId || String(defect.contractorId || "").trim() !== myId) {
-      (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Нет доступа к чужому замечанию");
+      (_a = window.showToast) == null ? void 0 : _a.call(window, _t$e("construction.form.no_access", "⚠️ Нет доступа к чужому замечанию"));
       return;
     }
   }
@@ -566,17 +583,17 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   const disabled = canEditFields ? "" : " disabled";
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
+      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape$b(_t$e("construction.form.defect_title", "Замечание"))}</h3>
+      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape$b(_t$e("construction.form.close", "Закрыть"))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape$b(_statusLabel$3(String(defect.status)))}</b></p>
-    <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
+    <p class="text-[10px] text-slate-400 mb-1">${_escape$b(_t$e("construction.form.status_line", "Статус: {status}", { status: _statusLabel$3(String(defect.status)) }))}</p>
+    <p class="text-[10px] text-slate-400 mb-3">${_escape$b(_t$e("construction.form.coords", "Координаты: {x}% × {y}%", { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.work_type_view", "Вид работ"))}</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
       ${_templateOptionsHtml(defect.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение</label>
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.violation_view", "Нарушение"))}</label>
       <input type="text" data-c2-item-search autocomplete="off" value="${_escape$b(defect.item_name || "")}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       <input type="hidden" data-c2-item-id value="${_escape$b(defect.item_id || "")}" />
@@ -584,35 +601,35 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${defect.norm_text ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$b(_t$e("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
       <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b(defect.norm_text || "")}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.category", "Категория"))}</label>
         <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled}>
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.deadline", "Срок"))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape$b(deadlineVal)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.contractor", "Подрядчик"))}</label>
     <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
       ${_contractorOptionsHtml(defect.contractorId)}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$b(defect.description)}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${canEditFields ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
       class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
-      + Добавить фото
+      + ${_escape$b(_t$e("construction.form.add_photo", "+ Добавить фото"))}
     </button>` : `<div class="mb-3"></div>`}
     ${_historyHtml(defect.history)}
     <div class="flex gap-2 justify-between mt-3 flex-wrap" data-c2-actions>
@@ -657,7 +674,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     const fields = _readCommonFields(panel);
     const description = fields.description || fields.item_name || defect.description;
     if (!description) {
-      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "Укажите описание замечания");
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$e("construction.form.toast_desc_required", "Укажите описание замечания"));
       return;
     }
     try {
@@ -680,7 +697,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   });
   (_d = panel.querySelector("[data-c2-defect-delete]")) == null ? void 0 : _d.addEventListener("click", async () => {
     var _a2;
-    if (!confirm("Удалить замечание?")) return;
+    if (!confirm(_t$e("construction.form.confirm_delete", "Удалить замечание?"))) return;
     try {
       await onDelete(defect.id);
       closeDefectForm();
@@ -697,14 +714,14 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       let comment = null;
       let fixPhotos = [];
       if (status === "rejected") {
-        comment = prompt("Укажите причину отклонения:") || "";
+        comment = prompt(_t$e("construction.form.prompt_reject", "Укажите причину отклонения:")) || "";
         if (!comment) {
-          (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "⚠️ Для отклонения нужен комментарий");
+          (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$e("construction.form.toast_reject_comment", "⚠️ Для отклонения нужен комментарий"));
           return;
         }
       }
       if (status === "fixed") {
-        comment = prompt("Краткий комментарий об устранении:");
+        comment = prompt(_t$e("construction.form.prompt_fixed", "Краткий комментарий об устранении:"));
         if (comment === null) return;
         const picker = document.createElement("input");
         picker.type = "file";
@@ -716,7 +733,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
           picker.click();
         });
         if (!picked || !picked.length) {
-          (_b2 = window.showToast) == null ? void 0 : _b2.call(window, "⚠️ Для статуса «Устранено» нужно фото");
+          (_b2 = window.showToast) == null ? void 0 : _b2.call(window, _t$e("construction.form.toast_fixed_photo", "⚠️ Для статуса «Устранено» нужно фото"));
           return;
         }
         try {
@@ -727,7 +744,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
           return;
         }
         if (!fixPhotos.length) {
-          (_d2 = window.showToast) == null ? void 0 : _d2.call(window, "⚠️ Не удалось сохранить фото");
+          (_d2 = window.showToast) == null ? void 0 : _d2.call(window, _t$e("construction.form.toast_photo_save_fail", "⚠️ Не удалось сохранить фото"));
           return;
         }
       }
@@ -831,6 +848,22 @@ function _zoneColors(status) {
   if (st === "rejected") return { box: "bg-red-500/20 border-red-500", label: "bg-red-600" };
   if (st === "accepted") return { box: "bg-green-500/20 border-green-500", label: "bg-green-600" };
   return { box: "bg-blue-500/20 border-blue-500", label: "bg-blue-600" };
+}
+function _t$d(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
 }
 function _escapeAttr(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -975,7 +1008,7 @@ class PlanViewer {
         </div>
       </div>
       <div data-c2-plan-loader class="absolute inset-0 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-        Загрузка плана…
+        ${_t$d("construction.v2.plan_loading", "Загрузка плана…")}
       </div>`;
     this.wrap = this.host.querySelector("[data-c2-plan-wrap]");
     this.stage = this.host.querySelector("[data-c2-plan-stage]");
@@ -1067,7 +1100,7 @@ class PlanViewer {
                    border border-white shadow z-25 flex items-center justify-center
                    pointer-events-auto panzoom-exclude"
             style="left:${item.x}%;top:${item.y}%;transform:translate(-50%,-50%);transition:transform 150ms ease"
-            title="Свернуть">×</button>`);
+            title="${_escapeAttr(_t$d("construction.v2.collapse_cluster", "Свернуть"))}">×</button>`);
         } else {
           parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
         }
@@ -1125,7 +1158,7 @@ class PlanViewer {
     return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
       class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
              z-30 pointer-events-auto panzoom-exclude"
-      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="Замечаний: ${total}">
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="${_escapeAttr(_t$d("construction.v2.defects_count", "Замечаний: {count}", { count: total }))}">
       <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
                    text-[11px] font-black border border-slate-200">${total}</span>
     </button>`;
@@ -1146,14 +1179,14 @@ class PlanViewer {
       const h = Number(z.h);
       if (![x, y, w, h].every(Number.isFinite)) return "";
       const colors = _zoneColors(String(a.status));
-      const title = _escapeAttr(String(a.work_type || "Приёмка").slice(0, 60));
+      const title = _escapeAttr(String(a.work_type || _t$d("construction.v2.acceptance_default", "Приёмка")).slice(0, 60));
       const focus = this.focusZoneId === a.id ? "ring-4 ring-indigo-400" : "";
       const zIndex = this.focusZoneId === a.id ? 25 : 10;
       return `<button type="button" data-c2-zone="${_escapeAttr(a.id)}"
           class="absolute border-2 ${colors.box} ${focus} shadow-inner flex items-center justify-center
                  cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;z-index:${zIndex}" title="${title}">
-          <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">зона</span>
+          <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">${_t$d("construction.v2.zone_label", "зона")}</span>
         </button>`;
     }).join("");
     this.zonesEl.innerHTML = html;
@@ -1409,7 +1442,7 @@ const STATUS_LABEL_KEYS = {
   closed: { key: "construction.status.closed", fallback: "Закрыто" },
   rejected: { key: "construction.status.rejected", fallback: "Отклонено" }
 };
-function _t$1(key, fallback) {
+function _t$c(key, fallback) {
   var _a, _b;
   try {
     const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
@@ -1423,7 +1456,7 @@ function _t$1(key, fallback) {
 }
 function _statusLabel$2(statusKey) {
   const meta = STATUS_LABEL_KEYS[statusKey];
-  return _t$1(meta.key, meta.fallback);
+  return _t$c(meta.key, meta.fallback);
 }
 const STATUS_STYLES = {
   issued: {
@@ -1522,7 +1555,7 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
     </button>`;
   }).join("");
   const cats = [
-    { key: "ALL", label: _t$1("construction.pin.all", "Все") },
+    { key: "ALL", label: _t$c("construction.pin.all", "Все") },
     { key: "B3", label: "B3" },
     { key: "B2", label: "B2" },
     { key: "B1", label: "B1" }
@@ -1536,7 +1569,7 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
   return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
     <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
     <div class="flex gap-1 items-center">
-      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t$1("construction.pin.cat", "Кат.")}</span>
+      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t$c("construction.pin.cat", "Кат.")}</span>
       <div class="flex gap-0.5">${catBtns}</div>
     </div>
   </div>`;
@@ -1555,6 +1588,22 @@ let _viewer$1 = null;
 let _openUnitId = null;
 let _apartmentId = null;
 let _addMode$1 = false;
+function _t$b(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$a(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -1588,7 +1637,7 @@ function _pathLabel$2(apartmentId) {
 function _syncAddBtn() {
   const btn = document.querySelector("[data-c2-apt-add-mode]");
   if (!btn) return;
-  btn.textContent = _addMode$1 ? "Кликни на план…" : "+ Замечание";
+  btn.textContent = _addMode$1 ? _t$b("construction.v2.add_picking", "Кликни…") : _t$b("construction.v2.add_defect", "+ Замечание");
   btn.className = _addMode$1 ? "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600" : "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200";
 }
 async function _refreshPins() {
@@ -1603,7 +1652,7 @@ async function _refreshPins() {
   }
   _viewer$1.setMarkers(filtered);
   const countEl = document.getElementById("c2-apt-overlay-count");
-  if (countEl) countEl.textContent = `Показано ${filtered.length} из ${all.length}`;
+  if (countEl) countEl.textContent = _t$b("construction.v2.apt_overlay_count", "Показано {shown} из {total}", { shown: filtered.length, total: all.length });
 }
 async function _maybeMarkHasDefects(unitId) {
   const uSvc = _units$1();
@@ -1636,17 +1685,17 @@ async function openApartmentPlan(unit, cb) {
   closeApartmentPlan();
   const pdfUrl = String(unit.pdf_url || "");
   if (!pdfUrl.startsWith("http")) {
-    cb.toast("Сначала загрузите PDF плана квартиры");
+    cb.toast(_t$b("construction.v2.apt_upload_pdf", "Сначала загрузите PDF плана квартиры"));
     return;
   }
   const uSvc = _units$1();
   const dSvc = _defects$2();
   if (!dSvc) {
-    cb.toast("service.constructionDefects не загружен");
+    cb.toast(_t$b("construction.v2.svc_defects_missing", "service.constructionDefects не загружен"));
     return;
   }
   if (!uSvc) {
-    cb.toast("service.constructionUnits не загружен");
+    cb.toast(_t$b("construction.v2.svc_units_missing", "service.constructionUnits не загружен"));
     return;
   }
   let fresh = unit;
@@ -1655,18 +1704,18 @@ async function openApartmentPlan(unit, cb) {
       fresh = await uSvc.ensureApartmentForUnit(unit.id);
     }
   } catch (e) {
-    cb.toast(`Нужна миграция квартиры: ${(e == null ? void 0 : e.message) || e}`);
+    cb.toast(_t$b("construction.v2.apt_migration_needed", "Нужна миграция квартиры: {msg}", { msg: (e == null ? void 0 : e.message) || String(e) }));
     return;
   }
   const loc = _loc$3();
   const node = (_a = loc == null ? void 0 : loc.getNode) == null ? void 0 : _a.call(loc, fresh.locationId);
   if (node && node.nodeType && node.nodeType !== "apartment") {
-    cb.toast("Сначала откройте Передачу — нужна привязка к квартире");
+    cb.toast(_t$b("construction.v2.apt_open_transfer", "Сначала откройте Передачу — нужна привязка к квартире"));
     return;
   }
   const apartmentId = fresh.locationId;
   if (!apartmentId) {
-    cb.toast("У помещения нет locationId");
+    cb.toast(_t$b("construction.v2.apt_no_location", "У помещения нет locationId"));
     return;
   }
   _openUnitId = fresh.id;
@@ -1683,24 +1732,24 @@ async function openApartmentPlan(unit, cb) {
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Замечания на плане · весь экран</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$a(_t$b("construction.v2.apt_fs_title", "Замечания на плане · весь экран"))}</div>
           <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$a(title)}</div>
           <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$a(path)}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">Показано 0 из 0</span>
+          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">${_escape$a(_t$b("construction.v2.apt_overlay_count", "Показано {shown} из {total}", { shown: 0, total: 0 }))}</span>
           <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
             <button type="button" data-c2-apt-zoom-out
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Уменьшить">−</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$a(_t$b("construction.v2.zoom_out", "Уменьшить"))}">−</button>
             <button type="button" data-c2-apt-zoom-in
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="Увеличить">+</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$a(_t$b("construction.v2.zoom_in", "Увеличить"))}">+</button>
             <button type="button" data-c2-apt-zoom-fit
-              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="По размеру">Fit</button>
+              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$a(_t$b("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
           </div>
           ${guest ? "" : `<button type="button" data-c2-apt-add-mode
-                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">+ Замечание</button>`}
+                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">${_escape$a(_t$b("construction.v2.add_defect", "+ Замечание"))}</button>`}
           <button type="button" data-c2-apt-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">Закрыть</button>
+            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">${_escape$a(_t$b("construction.v2.fs_close", "Закрыть"))}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="apt"></div>
@@ -1782,7 +1831,7 @@ async function openApartmentPlan(unit, cb) {
           _viewer$1 == null ? void 0 : _viewer$1.setAddMode(false);
           _viewer$1 == null ? void 0 : _viewer$1.clearTempPin();
           _syncAddBtn();
-          cb.toast("Замечание сохранено");
+          cb.toast(_t$b("construction.v2.defect_saved", "Замечание сохранено"));
           await _refreshPins();
           await ((_a2 = cb.onChanged) == null ? void 0 : _a2.call(cb));
         },
@@ -1797,13 +1846,13 @@ async function openApartmentPlan(unit, cb) {
         async (defectId) => {
           var _a2;
           await dSvc.softDelete(defectId);
-          cb.toast("Замечание удалено");
+          cb.toast(_t$b("construction.v2.defect_deleted", "Замечание удалено"));
           await _refreshPins();
           await ((_a2 = cb.onChanged) == null ? void 0 : _a2.call(cb));
         },
         async (defectId, patch) => {
           await dSvc.update(defectId, patch);
-          cb.toast("Замечание обновлено");
+          cb.toast(_t$b("construction.v2.defect_updated", "Замечание обновлено"));
           await _refreshPins();
         },
         async (defectId, input) => {
@@ -1811,7 +1860,7 @@ async function openApartmentPlan(unit, cb) {
             comment: input.comment,
             photos: input.photos
           });
-          cb.toast("✅ Статус обновлён");
+          cb.toast(_t$b("construction.v2.status_updated", "✅ Статус обновлён"));
           await _refreshPins();
         }
       );
@@ -1823,11 +1872,27 @@ async function openApartmentPlan(unit, cb) {
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape$a(msg)}</div>`;
+    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$a(_t$b("construction.v2.plan_error", "Ошибка плана: {msg}", { msg }))}</div>`;
     _viewer$1 = null;
   }
 }
 const ACTIVE_DEFECT_STATUSES_FOR_BATCH = /* @__PURE__ */ new Set(["issued", "in_progress", "fixed"]);
+function _t$a(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$9(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -1978,13 +2043,13 @@ function acceptGateWarning(item) {
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   if (!tmplKey) return null;
   if (!item.checklist_results || progress.done === 0) {
-    return "Чек-лист ещё не начат. Принять заявку anyway?";
+    return _t$a("construction.v2.acc.gate_not_started", "Чек-лист ещё не начат. Принять заявку anyway?");
   }
   if (progress.fail > 0) {
-    return `Есть ${progress.fail} пункт(ов) FAIL. Принять заявку anyway?`;
+    return _t$a("construction.v2.acc.gate_fail", "Есть {count} пункт(ов) FAIL. Принять заявку anyway?", { count: progress.fail });
   }
   if (progress.unset > 0) {
-    return `Не пройдено ${progress.unset} пункт(ов) чек-листа. Принять anyway?`;
+    return _t$a("construction.v2.acc.gate_unset", "Не пройдено {count} пункт(ов) чек-листа. Принять anyway?", { count: progress.unset });
   }
   return null;
 }
@@ -1993,7 +2058,7 @@ function _bBadgeHtml(b) {
   const tone = b.final < 70 || b.isDanger ? "bg-red-50 text-red-700 border-red-200" : b.final < 85 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
   return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
       <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-black uppercase">УрК B</span>
+        <span class="text-[10px] font-black uppercase">${_escape$9(_t$a("construction.v2.acc.quality_b", "УрК B"))}</span>
         <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape$9(String(b.final))}%</span>
       </div>
       <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$9(b.statusTxt || "")}</div>
@@ -2004,32 +2069,35 @@ function renderChecklistSectionHtml(item, opts) {
   const editable = (opts == null ? void 0 : opts.editable) !== false;
   const tmplKey = String(item.template_key || ((_a = item.checklist_results) == null ? void 0 : _a.template_key) || "");
   if (!tmplKey) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">Чек-лист: вид работ не выбран</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">${_escape$9(_t$a("construction.v2.acc.checklist_no_work", "Чек-лист: вид работ не выбран"))}</div>`;
   }
   const templateItems = listTemplateChecklistItems(tmplKey);
   if (!templateItems.length) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">Чек-лист шаблона пуст или не найден</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">${_escape$9(_t$a("construction.v2.acc.checklist_empty", "Чек-лист шаблона пуст или не найден"))}</div>`;
   }
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   const b = computeAcceptanceQualityB(tmplKey, item.checklist_results);
   const batchN = (opts == null ? void 0 : opts.batchFailCount) != null ? opts.batchFailCount : listFailBatchCandidates(item, []).length;
   const openBtn = editable ? `<button type="button" data-c2-cl-open
          class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase shadow-md">
-         Пройти чек-лист</button>` : "";
+         ${_escape$9(_t$a("construction.v2.acc.run_checklist", "Пройти чек-лист"))}</button>` : "";
   const batchBtn = editable && batchN > 0 ? `<button type="button" data-c2-cl-batch-fail
            class="w-full mt-2 bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-[11px] font-black uppercase">
-           Создать замечания по FAIL (${batchN})</button>` : "";
+           ${_escape$9(_t$a("construction.v2.acc.batch_fail_btn", "Создать замечания по FAIL ({count})", { count: batchN }))}</button>` : "";
   return `
     <div class="mt-3 pt-3 border-t border-[var(--card-border)]" data-c2-cl-section>
       <div class="flex items-center justify-between gap-2 mb-1">
-        <div class="text-[10px] font-black uppercase text-indigo-600">Чек-лист</div>
+        <div class="text-[10px] font-black uppercase text-indigo-600">${_escape$9(_t$a("construction.v2.acc.checklist", "Чек-лист"))}</div>
         <div class="text-[10px] font-bold text-slate-500" data-c2-cl-progress>
           ${progress.done}/${progress.total}
           · OK ${progress.ok} · FAIL ${progress.fail} · N/A ${progress.na}
         </div>
       </div>
       <div class="text-[10px] text-slate-400 font-bold">
-        ${_escape$9(String(templateItems.length))} пункт(ов) · ${_escape$9(String(new Set(templateItems.map((t) => t.group)).size))} групп
+        ${_escape$9(_t$a("construction.v2.acc.checklist_summary", "{items} пункт(ов) · {groups} групп", {
+    items: String(templateItems.length),
+    groups: String(new Set(templateItems.map((t) => t.group)).size)
+  }))}
       </div>
       ${_bBadgeHtml(b)}
       ${openBtn}
@@ -2047,6 +2115,22 @@ const SLOT_HOURS = [
   "16:00",
   "17:00"
 ];
+function _t$9(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$8(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -2100,10 +2184,10 @@ function slotTimeOptionsHtml(selected) {
   }).join("");
 }
 function slotBoardHtml(occupancy, opts) {
-  const title = (opts == null ? void 0 : opts.title) || "Слоты дня";
+  const title = (opts == null ? void 0 : opts.title) || _t$9("construction.v2.slots.day_title", "Слоты дня");
   const cells = occupancy.map((o) => {
     const cls = o.taken ? "bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200" : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-300";
-    const label = o.taken ? `занято${o.count > 1 ? ` ×${o.count}` : ""}` : "свободно";
+    const label = o.taken ? _t$9("construction.v2.slots.taken", "занято{suffix}", { suffix: o.count > 1 ? ` ×${o.count}` : "" }) : _t$9("construction.v2.slots.free", "свободно");
     const tip = o.items.map((i) => String(i.work_type || i.id || "").slice(0, 40)).filter(Boolean).join("; ");
     return `<div class="rounded-xl border px-2 py-1.5 text-center ${cls}" title="${_escape$8(tip)}">
         <div class="text-[10px] font-black">${o.time}</div>
@@ -2120,6 +2204,22 @@ const APARTMENT_FULL_ZONE = { x: 0, y: 0, w: 100, h: 100 };
 function _checklistRunner() {
   var _a, _b;
   return window.ChecklistRunner || (((_b = (_a = window.RBI) == null ? void 0 : _a.shared) == null ? void 0 : _b.checklistRunner) ?? null);
+}
+function _t$8(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
 }
 function _escape$7(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -2141,7 +2241,7 @@ async function _fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ""));
-    r.onerror = () => reject(new Error("Не удалось прочитать файл"));
+    r.onerror = () => reject(new Error(_t$8("construction.form.file_read_error", "Не удалось прочитать файл")));
     r.readAsDataURL(file);
   });
 }
@@ -2200,7 +2300,7 @@ async function _pickAndSaveChecklistPhotos() {
   });
 }
 function _tmplOptions(selected) {
-  let html = '<option value="">-- Выберите вид работ --</option>';
+  let html = `<option value="">${_escape$7(_t$8("construction.v2.acc.work_type_select", "-- Выберите вид работ --"))}</option>`;
   const st = _sysTemplates();
   Object.keys(st).sort().forEach((k) => {
     const v = `sys_${k}`;
@@ -2230,19 +2330,19 @@ function _contractorSelectHtml(selectedId, opts) {
   var _a, _b;
   if (opts == null ? void 0 : opts.locked) {
     const id = String(opts.lockedId || "").trim();
-    const label = id || "не привязан";
+    const label = id || _t$8("construction.v2.acc.contractor_unlinked", "не привязан");
     return `
       <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик</label>
+        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$7(_t$8("construction.form.contractor", "Подрядчик"))}</label>
         <input type="hidden" id="c2-acc-contractor" value="${_escape$7(id)}">
         <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape$7(
       label
-    )} <span class="text-[9px] font-bold uppercase text-slate-400">(ваш)</span></div>
+    )} <span class="text-[9px] font-bold uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.contractor_yours", "(ваш)"))}</span></div>
       </div>`;
   }
   const svc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
   const rows = typeof (svc == null ? void 0 : svc.list) === "function" ? svc.list() : [];
-  const optsHtml = `<option value="">— выберите подрядчика —</option>` + (rows || []).filter((r) => r && r.id).map((r) => {
+  const optsHtml = `<option value="">${_escape$7(_t$8("construction.v2.acc.contractor_select", "— выберите подрядчика —"))}</option>` + (rows || []).filter((r) => r && r.id).map((r) => {
     const id = String(r.id);
     const label = String(r.display_name || r.displayName || id);
     const sel = "";
@@ -2250,7 +2350,7 @@ function _contractorSelectHtml(selectedId, opts) {
   }).join("");
   return `
     <div>
-      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик *</label>
+      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$7(_t$8("construction.form.contractor", "Подрядчик"))} *</label>
       <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
     </div>`;
 }
@@ -2299,31 +2399,31 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
   var _a, _b, _c, _d;
   const { role } = _roleInfo();
   if (role === "guest") {
-    (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Гости не могут предъявлять работы");
+    (_a = window.showToast) == null ? void 0 : _a.call(window, _t$8("construction.v2.acc.guest_blocked", "⚠️ Гости не могут предъявлять работы"));
     onCancel == null ? void 0 : onCancel();
     return;
   }
   const isContractor = role === "contractor" || isContractorRole();
   const myContractorId = isContractor ? resolveMyContractorId() : null;
   if (isContractor && !myContractorId) {
-    (_b = window.showToast) == null ? void 0 : _b.call(window, "⚠️ Подрядчик не привязан к профилю — заявку создать нельзя");
+    (_b = window.showToast) == null ? void 0 : _b.call(window, _t$8("construction.v2.acc.contractor_unbound", "⚠️ Подрядчик не привязан к профилю — заявку создать нельзя"));
     onCancel == null ? void 0 : onCancel();
     return;
   }
   const isApartment = ctx.mode === "apartment" || _locationNodeType(ctx.locationId) === "apartment";
   const path = _floorLabel(ctx.locationId);
-  const zoneBadge = isApartment ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">Квартира</span>` : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">✅ Зона выделена</span>`;
+  const zoneBadge = isApartment ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">${_escape$7(_t$8("construction.v2.acc.badge_apartment", "Квартира"))}</span>` : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">${_escape$7(_t$8("construction.v2.acc.badge_zone", "✅ Зона выделена"))}</span>`;
   const roomVolHtml = isApartment ? `<div>
-         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
-         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$7(_t$8("construction.v2.acc.volume", "Объем"))}</label>
+         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape$7(_t$8("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
        </div>` : `<div class="grid grid-cols-2 gap-2">
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Оси / Захватка</label>
-           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape$7(ctx.zone.room || "")}">
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$7(_t$8("construction.v2.acc.axes", "Оси / Захватка"))}</label>
+           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="${_escape$7(_t$8("construction.v2.acc.axes_ph", "Напр: Оси А-Б"))}" value="${_escape$7(ctx.zone.room || "")}">
          </div>
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
-           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$7(_t$8("construction.v2.acc.volume", "Объем"))}</label>
+           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape$7(_t$8("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
          </div>
        </div>`;
   const contractorHtml = _contractorSelectHtml(null, {
@@ -2334,19 +2434,19 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 bg-indigo-600 border-b border-indigo-700 flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? "📝 Приёмка квартиры (v2)" : "📝 Заявка на приемку (v2)"}</h3>
+          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? _escape$7(_t$8("construction.v2.acc.title_apartment", "📝 Приёмка квартиры (v2)")) : _escape$7(_t$8("construction.v2.acc.title_request", "📝 Заявка на приемку (v2)"))}</h3>
           <button type="button" data-c2-acc-close class="text-indigo-200 hover:text-white font-black text-lg leading-none">✕</button>
         </div>
         <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <div class="text-[10px] font-black text-indigo-500 uppercase mb-1 flex justify-between">
-              <span>Локация</span>
+              <span>${_escape$7(_t$8("construction.v2.acc.location", "Локация"))}</span>
               ${zoneBadge}
             </div>
             <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$7(path)}</div>
           </div>
           <div>
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Вид работ *</label>
+            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$7(_t$8("construction.v2.acc.work_type", "Вид работ *"))}</label>
             <select id="c2-acc-work" class="input-base text-[12px] font-bold mb-2 border-indigo-300 w-full">
               ${_tmplOptions()}
             </select>
@@ -2354,7 +2454,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
           </div>
           ${contractorHtml}
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">Когда готовы сдать?</label>
+            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">${_escape$7(_t$8("construction.v2.acc.when_ready", "Когда готовы сдать?"))}</label>
             <div class="grid grid-cols-2 gap-2">
               <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today$2()}">
               <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
@@ -2364,8 +2464,8 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
           </div>
         </div>
         <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/50 flex gap-2">
-          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">Отмена</button>
-          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">Отправить</button>
+          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">${_escape$7(_t$8("construction.form.cancel", "Отмена"))}</button>
+          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">${_escape$7(_t$8("construction.v2.acc.submit", "Отправить"))}</button>
         </div>
       </div>
     </div>`;
@@ -2390,11 +2490,11 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
     const timeStr = ((_g = document.getElementById("c2-acc-time")) == null ? void 0 : _g.value) || "";
     let contractorId = isContractor ? myContractorId : ((_i = (_h = document.getElementById("c2-acc-contractor")) == null ? void 0 : _h.value) == null ? void 0 : _i.trim()) || null;
     if (!workKey || !dateStr) {
-      (_j = window.showToast) == null ? void 0 : _j.call(window, "⚠️ Заполните вид работ и дату");
+      (_j = window.showToast) == null ? void 0 : _j.call(window, _t$8("construction.v2.acc.toast_fill_work_date", "⚠️ Заполните вид работ и дату"));
       return;
     }
     if (!isContractor && !contractorId) {
-      (_k = window.showToast) == null ? void 0 : _k.call(window, "⚠️ Выберите подрядчика");
+      (_k = window.showToast) == null ? void 0 : _k.call(window, _t$8("construction.v2.acc.toast_select_contractor", "⚠️ Выберите подрядчика"));
       return;
     }
     const accListSvc = (_m = (_l = window.RBI) == null ? void 0 : _l.services) == null ? void 0 : _m.constructionAcceptance;
@@ -2405,7 +2505,7 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
       locationId: ctx.locationId
     })) {
       const ok = window.confirm(
-        "На это время уже есть активная заявка по этой локации. Всё равно отправить?"
+        _t$8("construction.v2.acc.slot_conflict", "На это время уже есть активная заявка по этой локации. Всё равно отправить?")
       );
       if (!ok) return;
     }
@@ -2438,48 +2538,48 @@ function openAcceptanceDetails(item, handlers) {
     if (isEngineer) {
       actions = `
         <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-[var(--card-border)]">
-          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">🗺️ Показать на плане</button>
+          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape$7(_t$8("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
           <div class="flex gap-2">
-            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">✅ Принять</button>
-            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">❌ Отклонить</button>
+            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape$7(_t$8("construction.form.action_accept", "✅ Принять"))}</button>
+            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape$7(_t$8("construction.form.action_reject", "❌ Отклонить"))}</button>
           </div>
         </div>`;
     } else if (role !== "guest") {
       actions = `
         <div class="mt-4 pt-4 border-t border-[var(--card-border)] text-center">
-          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">⏳ Инженер проверяет заявку...</div>
-          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">Отозвать заявку</button>
+          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape$7(_t$8("construction.v2.acc.engineer_reviewing", "⏳ Инженер проверяет заявку..."))}</div>
+          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">${_escape$7(_t$8("construction.v2.acc.revoke", "Отозвать заявку"))}</button>
         </div>`;
     }
   } else if (isEngineer) {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">🗺️ Показать на плане</button>
-        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">Вернуть в pending</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">${_escape$7(_t$8("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
+        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">${_escape$7(_t$8("construction.v2.acc.return_pending", "Вернуть в pending"))}</button>
       </div>`;
   } else {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">🗺️ Показать на плане</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape$7(_t$8("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
       </div>`;
   }
   const html = `
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape$7(status)}</h3>
+          <h3 class="font-black text-[13px] uppercase">${_escape$7(_t$8("construction.v2.acc.details_title", "Заявка · {status}", { status }))}</h3>
           <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
         </div>
         <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape$7(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape$7(item.work_type || "—")}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.location", "Локация"))}</span><div class="font-bold">${_escape$7(path)}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.work_type_view", "Вид работ"))}</span><div class="font-bold">${_escape$7(item.work_type || "—")}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape$7(item.volume || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape$7(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.volume", "Объем"))}</span><div class="font-bold">${_escape$7(item.volume || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.axes_view", "Оси"))}</span><div class="font-bold">${_escape$7(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape$7(item.requested_date || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape$7(item.requested_time || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.date", "Дата"))}</span><div class="font-bold">${_escape$7(item.requested_date || "—")}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$7(_t$8("construction.v2.acc.time", "Время"))}</span><div class="font-bold">${_escape$7(item.requested_time || "—")}</div></div>
           </div>
           ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}
@@ -2496,7 +2596,7 @@ function openAcceptanceDetails(item, handlers) {
     var _a2;
     const dSvc = _defects$1();
     if (!dSvc) {
-      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "service.constructionDefects не загружен");
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$8("construction.v2.svc_defects_missing", "service.constructionDefects не загружен"));
       return;
     }
     const center = _zoneCenter(current.zone);
@@ -2519,7 +2619,7 @@ function openAcceptanceDetails(item, handlers) {
           photos: input.photos,
           status: "issued"
         });
-        (_a3 = window.showToast) == null ? void 0 : _a3.call(window, "Замечание создано");
+        (_a3 = window.showToast) == null ? void 0 : _a3.call(window, _t$8("construction.v2.acc.defect_created", "Замечание создано"));
         refreshChecklistUi(((_b2 = _acc$3()) == null ? void 0 : _b2.get(current.id)) || current);
       },
       void 0,
@@ -2536,17 +2636,17 @@ function openAcceptanceDetails(item, handlers) {
     var _a2, _b2, _c2, _d2, _e2, _f;
     const dSvc = _defects$1();
     if (!dSvc) {
-      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "service.constructionDefects не загружен");
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$8("construction.v2.svc_defects_missing", "service.constructionDefects не загружен"));
       return;
     }
     const latest = ((_b2 = _acc$3()) == null ? void 0 : _b2.get(current.id)) || current;
     const candidates = listFailBatchCandidates(latest, _listDefectsForLocation(latest.locationId));
     if (!candidates.length) {
-      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, "Нет FAIL без активного замечания");
+      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, _t$8("construction.v2.acc.no_fail_without_defect", "Нет FAIL без активного замечания"));
       refreshChecklistUi(latest);
       return;
     }
-    if (!window.confirm(`Создать ${candidates.length} замечани(й) по FAIL без формы?`)) return;
+    if (!window.confirm(_t$8("construction.v2.acc.batch_fail_confirm", "Создать {count} замечани(й) по FAIL без формы?", { count: candidates.length }))) return;
     const center = _zoneCenter(latest.zone);
     let created = 0;
     for (const c of candidates) {
@@ -2571,7 +2671,7 @@ function openAcceptanceDetails(item, handlers) {
         console.warn("[acceptance-form] batch fail create", e);
       }
     }
-    (_d2 = window.showToast) == null ? void 0 : _d2.call(window, created ? `Создано замечаний: ${created}` : "Не удалось создать замечания");
+    (_d2 = window.showToast) == null ? void 0 : _d2.call(window, created ? _t$8("construction.v2.acc.batch_created", "Создано замечаний: {count}", { count: created }) : _t$8("construction.v2.acc.batch_failed", "Не удалось создать замечания"));
     refreshChecklistUi(((_e2 = _acc$3()) == null ? void 0 : _e2.get(current.id)) || latest);
     await ((_f = handlers.onChecklistChanged) == null ? void 0 : _f.call(handlers, current.id));
   };
@@ -2590,20 +2690,20 @@ function openAcceptanceDetails(item, handlers) {
     var _a2, _b2, _c2, _d2;
     const runner = _checklistRunner();
     if (!runner) {
-      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "ChecklistRunner не загружен");
+      (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$8("construction.v2.acc.checklist_runner_missing", "ChecklistRunner не загружен"));
       return;
     }
     const tmplKey = String(current.template_key || ((_b2 = current.checklist_results) == null ? void 0 : _b2.template_key) || "");
     if (!tmplKey) {
-      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, "Вид работ не выбран");
+      (_c2 = window.showToast) == null ? void 0 : _c2.call(window, _t$8("construction.v2.acc.work_not_selected", "Вид работ не выбран"));
       return;
     }
     const groups = resolveTemplateGroups(tmplKey);
     if (!groups.length) {
-      (_d2 = window.showToast) == null ? void 0 : _d2.call(window, "Чек-лист шаблона пуст или не найден");
+      (_d2 = window.showToast) == null ? void 0 : _d2.call(window, _t$8("construction.v2.acc.checklist_empty", "Чек-лист шаблона пуст или не найден"));
       return;
     }
-    const title = _workTitle(tmplKey) || current.work_type || "Чек-лист";
+    const title = _workTitle(tmplKey) || current.work_type || _t$8("construction.v2.acc.checklist_title", "Чек-лист");
     const rowOf = (id) => {
       var _a3, _b3;
       const latest = ((_a3 = _acc$3()) == null ? void 0 : _a3.get(current.id)) || current;
@@ -2612,7 +2712,7 @@ function openAcceptanceDetails(item, handlers) {
     const persistItem = async (id, itemMeta, patch) => {
       var _a3;
       const acc = _acc$3();
-      if (!acc) throw new Error("service.constructionAcceptance не загружен");
+      if (!acc) throw new Error(_t$8("construction.v2.svc_acc_missing", "service.constructionAcceptance не загружен"));
       const updated = await acc.setChecklistItem(current.id, {
         id,
         name: itemMeta.name || id,
@@ -2629,7 +2729,7 @@ function openAcceptanceDetails(item, handlers) {
     const clearItem = async (id) => {
       var _a3;
       const acc = _acc$3();
-      if (!acc) throw new Error("service.constructionAcceptance не загружен");
+      if (!acc) throw new Error(_t$8("construction.v2.svc_acc_missing", "service.constructionAcceptance не загружен"));
       const latest = acc.get(current.id) || current;
       const prev = latest.checklist_results;
       if (!prev) return;
@@ -2679,7 +2779,7 @@ function openAcceptanceDetails(item, handlers) {
         }
         const st = status2;
         if (st !== "ok" && st !== "fail" && st !== "na" && st !== "fail_escalated") {
-          throw new Error("Некорректный статус пункта");
+          throw new Error(_t$8("construction.v2.acc.invalid_item_status", "Некорректный статус пункта"));
         }
         const clearExtras = st === "ok" || st === "na";
         await persistItem(id, itemMeta, {
@@ -2694,7 +2794,7 @@ function openAcceptanceDetails(item, handlers) {
         const row = rowOf(id);
         const st = row == null ? void 0 : row.status;
         if (st !== "fail" && st !== "fail_escalated") {
-          throw new Error("Комментарий только для FAIL");
+          throw new Error(_t$8("construction.v2.acc.comment_fail_only", "Комментарий только для FAIL"));
         }
         await persistItem(id, itemMeta, {
           status: st,
@@ -2705,7 +2805,7 @@ function openAcceptanceDetails(item, handlers) {
         const row = rowOf(id);
         const st = row == null ? void 0 : row.status;
         if (st !== "ok" && st !== "fail" && st !== "fail_escalated") {
-          throw new Error("Сначала отметьте пункт OK или FAIL");
+          throw new Error(_t$8("construction.v2.acc.mark_item_first", "Сначала отметьте пункт OK или FAIL"));
         }
         const added = await _pickAndSaveChecklistPhotos();
         if (!added.length) return;
@@ -2715,7 +2815,7 @@ function openAcceptanceDetails(item, handlers) {
       removeItemPhoto: async (id, index2, itemMeta) => {
         const row = rowOf(id);
         const st = row == null ? void 0 : row.status;
-        if (!st) throw new Error("Пункт без статуса");
+        if (!st) throw new Error(_t$8("construction.v2.acc.item_no_status", "Пункт без статуса"));
         const photos = Array.isArray(row == null ? void 0 : row.photos) ? row.photos.slice() : [];
         if (index2 < 0 || index2 >= photos.length) return;
         photos.splice(index2, 1);
@@ -2736,7 +2836,7 @@ function openAcceptanceDetails(item, handlers) {
           svc.openItemHelp(id, event);
           return;
         }
-        (_c3 = window.showToast) == null ? void 0 : _c3.call(window, "База знаний недоступна");
+        (_c3 = window.showToast) == null ? void 0 : _c3.call(window, _t$8("construction.v2.acc.knowledge_unavailable", "База знаний недоступна"));
       },
       onEscalate: async (id, itemMeta) => {
         const row = rowOf(id);
@@ -2801,6 +2901,22 @@ function openAcceptanceDetails(item, handlers) {
     void Promise.resolve((_a2 = handlers.onSoftDelete) == null ? void 0 : _a2.call(handlers, item.id)).then(() => close());
   });
 }
+function _t$7(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$6(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -2831,19 +2947,19 @@ function _cardHtml(r, loc) {
   const path = loc.getPath(r.locationId).map((n) => n.displayName).join(" · ");
   const overdue = r.status === "pending" && r.requested_date && new Date(r.requested_date).setHours(0, 0, 0, 0) < (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0);
   const progress = computeChecklistProgress(r.template_key, r.checklist_results);
-  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$6(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">Чек-лист 0/${progress.total}</div>` : "";
+  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$6(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">${_escape$6(_t$7("construction.v2.kanban.checklist_progress", "Чек-лист 0/{total}", { total: progress.total }))}</div>` : "";
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
          data-c2-acc-card="${_escape$6(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$6(r.work_type || "Без вида работ")}</div>
-        ${overdue ? '<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">просрочено</span>' : ""}
+        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$6(r.work_type || _t$7("construction.v2.kanban.no_work_type", "Без вида работ"))}</div>
+        ${overdue ? `<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">${_escape$6(_t$7("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </div>
       <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$6(path || r.locationId)}</div>
       <div class="flex justify-between items-center text-[10px]">
         <span class="font-bold text-slate-600">${_escape$6(r.requested_date || "—")} ${_escape$6(r.requested_time || "")}</span>
         <button type="button" data-c2-acc-plan="${_escape$6(r.id)}"
-          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">План</button>
+          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">${_escape$6(_t$7("construction.v2.kanban.plan_btn", "План"))}</button>
       </div>
       ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$6(r.volume)}</div>` : ""}
       ${progressHtml}
@@ -2857,7 +2973,7 @@ function _column(title, color, items, loc) {
         <span class="bg-white dark:bg-slate-800 text-slate-600 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 text-[10px] font-bold">${items.length}</span>
       </div>
       <div class="max-h-[55vh] overflow-y-auto">
-        ${items.length ? items.map((r) => _cardHtml(r, loc)).join("") : '<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">Заявок нет</div>'}
+        ${items.length ? items.map((r) => _cardHtml(r, loc)).join("") : `<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">${_escape$6(_t$7("construction.v2.kanban.no_requests", "Заявок нет"))}</div>`}
       </div>
     </div>`;
 }
@@ -2865,13 +2981,13 @@ async function renderAcceptanceKanban(root) {
   const acc = _acc$2();
   const loc = _loc$2();
   if (!acc || !loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">constructionAcceptance / locations не загружены</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$6(_t$7("construction.v2.kanban.svc_missing", "constructionAcceptance / locations не загружены"))}</div>`;
     return;
   }
   await loc.init();
   await acc.init();
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
-  const objOpts = `<option value="">Все объекты</option>` + objects.map(
+  const objOpts = `<option value="">${_escape$6(_t$7("construction.v2.kanban.all_objects", "Все объекты"))}</option>` + objects.map(
     (o) => `<option value="${_escape$6(o.id)}" ${_filterObjectId === o.id ? "selected" : ""}>${_escape$6(o.displayName)}</option>`
   ).join("");
   let all = filterAcceptancesForRole(acc.list());
@@ -2886,20 +3002,20 @@ async function renderAcceptanceKanban(root) {
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Канбан приёмки (v2)</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$6(_t$7("construction.v2.kanban.title", "Канбан приёмки (v2)"))}</div>
         <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">Слоты дня</label>
+        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">${_escape$6(_t$7("construction.v2.kanban.slots_day", "Слоты дня"))}</label>
         <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape$6(
     slotsDate
   )}">
       </div>
-      ${slotBoardHtml(occupancy, { title: `Занятость ${slotsDate}` })}
+      ${slotBoardHtml(occupancy, { title: _t$7("construction.v2.slots.occupancy", "Занятость {date}", { date: slotsDate }) })}
       <div class="flex flex-col lg:flex-row gap-3">
-        ${_column("Ожидают", "text-blue-600", pending, loc)}
-        ${_column("Отклонены", "text-red-600", rejected, loc)}
-        ${_column("Приняты", "text-green-600", accepted, loc)}
+        ${_column(_t$7("construction.v2.kanban.col_pending", "Ожидают"), "text-blue-600", pending, loc)}
+        ${_column(_t$7("construction.v2.kanban.col_rejected", "Отклонены"), "text-red-600", rejected, loc)}
+        ${_column(_t$7("construction.v2.kanban.col_accepted", "Приняты"), "text-green-600", accepted, loc)}
       </div>
     </div>`;
   _bindOnce$2();
@@ -2950,14 +3066,14 @@ function _bindOnce$2() {
           onChangeStatus: async (rid, status) => {
             var _a2;
             await acc.changeStatus(rid, status);
-            (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "✅ Статус обновлён");
+            (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$7("construction.v2.status_updated", "✅ Статус обновлён"));
             const root = document.getElementById("construction-v2-root");
             if (root) await renderAcceptanceKanban(root);
           },
           onSoftDelete: async (rid) => {
             var _a2;
             await acc.softDelete(rid);
-            (_a2 = window.showToast) == null ? void 0 : _a2.call(window, "Заявка отозвана");
+            (_a2 = window.showToast) == null ? void 0 : _a2.call(window, _t$7("construction.v2.acc_revoked", "Заявка отозвана"));
             const root = document.getElementById("construction-v2-root");
             if (root) await renderAcceptanceKanban(root);
           },
@@ -2976,7 +3092,7 @@ function focusAcceptanceOnPlan(id) {
   const acc = _acc$2();
   const item = acc == null ? void 0 : acc.get(id);
   if (!(item == null ? void 0 : item.locationId) || !item.zone) {
-    (_a = window.showToast) == null ? void 0 : _a.call(window, "⚠️ Для этой заявки не была выделена зона на плане");
+    (_a = window.showToast) == null ? void 0 : _a.call(window, _t$7("construction.v2.kanban.no_zone", "⚠️ Для этой заявки не была выделена зона на плане"));
     return;
   }
   (_d = (_c = (_b = window.RBI) == null ? void 0 : _b.events) == null ? void 0 : _c.emit) == null ? void 0 : _d.call(_c, "construction-acceptance:focus", {
@@ -3003,6 +3119,26 @@ const UNIT_STATUS_LABELS_RU = {
   transferred: "Передана",
   shareholder_defects: "Замечания дольщика"
 };
+function _t$6(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+function _unitStatusLabel$1(st) {
+  const key = `construction.v2.unit_status.${st}`;
+  return _t$6(key, UNIT_STATUS_LABELS_RU[st]);
+}
 function _escape$5(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -3030,7 +3166,7 @@ function openUnitCard(unit, deps) {
   const status = String(unit.status || "not_inspected");
   const hasPdf = !!(unit.pdf_url && String(unit.pdf_url).startsWith("http"));
   const statusOpts = UNIT_STATUSES_V2.map(
-    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$5(UNIT_STATUS_LABELS_RU[st])}</option>`
+    (st) => `<option value="${st}" ${status === st ? "selected" : ""}>${_escape$5(_unitStatusLabel$1(st))}</option>`
   ).join("");
   const wrap = document.createElement("div");
   wrap.id = "c2-unit-card";
@@ -3040,17 +3176,17 @@ function openUnitCard(unit, deps) {
     <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Квартира</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$5(_t$6("construction.v2.unit.apartment", "Квартира"))}</div>
           <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$5(unit.type || "КВ")} ${_escape$5(
     unit.name
   )}</div>
           <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$5(path)}</div>
         </div>
-        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="Закрыть">×</button>
+        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="${_escape$5(_t$6("construction.form.close", "Закрыть"))}">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
-          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Статус передачи</span>
+          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape$5(_t$6("construction.v2.unit.transfer_status", "Статус передачи"))}</span>
           <select id="c2-unit-card-status" data-c2-unit-id="${_escape$5(unit.id)}"
             class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
             ${guest ? "disabled" : ""}>
@@ -3058,25 +3194,25 @@ function openUnitCard(unit, deps) {
           </select>
         </label>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">План квартиры (PDF)</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape$5(_t$6("construction.v2.unit.plan_pdf", "План квартиры (PDF)"))}</div>
           ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$5(
     unit.pdf_name || "plan.pdf"
   )}${unit.pdf_size ? ` · ${_escape$5(String(unit.pdf_size))} B` : ""}</div>
                  <div class="flex flex-wrap gap-2">
                    <a href="${_escape$5(String(unit.pdf_url))}" target="_blank" rel="noopener"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">Открыть</a>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">${_escape$5(_t$6("construction.v2.unit.open", "Открыть"))}</a>
                    <button type="button" data-c2-unit-apt-plan="${_escape$5(unit.id)}"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">Замечания на плане</button>
-                 </div>` : `<div class="text-[11px] text-slate-400 font-bold">План не загружен</div>
-                 <div class="text-[10px] text-slate-400 font-bold">Загрузка PDF — в Настройках → справочник локаций</div>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">${_escape$5(_t$6("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>
+                 </div>` : `<div class="text-[11px] text-slate-400 font-bold">${_escape$5(_t$6("construction.v2.unit.plan_missing", "План не загружен"))}</div>
+                 <div class="text-[10px] text-slate-400 font-bold">${_escape$5(_t$6("construction.v2.unit.plan_upload_hint", "Загрузка PDF — в Настройках → справочник локаций"))}</div>
                  <button type="button" disabled
-                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">Замечания на плане</button>`}
+                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">${_escape$5(_t$6("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>`}
         </div>
         <button type="button" data-c2-unit-acceptance="${_escape$5(unit.id)}"
           class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? "opacity-50 cursor-not-allowed" : ""}"
-          ${guest ? "disabled" : ""}>Приёмка</button>
+          ${guest ? "disabled" : ""}>${_escape$5(_t$6("construction.v2.unit.acceptance", "Приёмка"))}</button>
         ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$5(unit.id)}"
-                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">Удалить помещение</button>` : ""}
+                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">${_escape$5(_t$6("construction.v2.unit.delete_room", "Удалить помещение"))}</button>` : ""}
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -3096,12 +3232,12 @@ function openUnitCard(unit, deps) {
     void (async () => {
       try {
         await deps.units.changeStatus(id, st);
-        deps.cb.toast("Статус обновлён");
+        deps.cb.toast(_t$6("construction.v2.unit.status_updated", "Статус обновлён"));
         await deps.cb.onChanged();
         const fresh = deps.units.get(id);
         if (fresh) openUnitCard(fresh, deps);
       } catch (e) {
-        deps.cb.toast(`Ошибка: ${(e == null ? void 0 : e.message) || e}`);
+        deps.cb.toast(_t$6("construction.v2.error_prefix", "Ошибка: {msg}", { msg: (e == null ? void 0 : e.message) || String(e) }));
       }
     })();
   });
@@ -3111,7 +3247,7 @@ function openUnitCard(unit, deps) {
     if (!id) return;
     const fresh = deps.units.get(id) || unit;
     if (!deps.cb.onOpenApartmentPlan) {
-      deps.cb.toast("Открытие плана недоступно");
+      deps.cb.toast(_t$6("construction.v2.unit.plan_open_unavailable", "Открытие плана недоступно"));
       return;
     }
     void deps.cb.onOpenApartmentPlan(fresh);
@@ -3123,7 +3259,7 @@ function openUnitCard(unit, deps) {
     if (!id) return;
     const fresh = deps.units.get(id) || unit;
     if (!deps.cb.onOpenAcceptance) {
-      deps.cb.toast("Приёмка недоступна");
+      deps.cb.toast(_t$6("construction.v2.unit.acceptance_unavailable", "Приёмка недоступна"));
       return;
     }
     void deps.cb.onOpenAcceptance(fresh);
@@ -3132,15 +3268,15 @@ function openUnitCard(unit, deps) {
     ev.preventDefault();
     if (guest) return;
     const id = ev.currentTarget.getAttribute("data-c2-unit-delete");
-    if (!id || !confirm("Удалить помещение?")) return;
+    if (!id || !confirm(_t$6("construction.v2.unit.confirm_delete", "Удалить помещение?"))) return;
     void (async () => {
       try {
         await deps.units.softDelete(id);
         closeUnitCard();
-        deps.cb.toast("Удалено");
+        deps.cb.toast(_t$6("construction.v2.unit.deleted", "Удалено"));
         await deps.cb.onChanged();
       } catch (e) {
-        deps.cb.toast(`Ошибка: ${(e == null ? void 0 : e.message) || e}`);
+        deps.cb.toast(_t$6("construction.v2.error_prefix", "Ошибка: {msg}", { msg: (e == null ? void 0 : e.message) || String(e) }));
       }
     })();
   });
@@ -3196,6 +3332,26 @@ function _bForUnit(unit) {
 function _permissions() {
   var _a, _b;
   return (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
+}
+function _t$5(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+function _unitStatusLabel(st) {
+  const key = `construction.v2.unit_status.${st}`;
+  return _t$5(key, UNIT_STATUS_LABELS_RU[st]);
 }
 function _escape$4(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -3258,18 +3414,18 @@ function _renderLegend() {
     <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
       ${items.map(
     (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$4(
-      UNIT_STATUS_LABELS_RU[it.st]
+      _unitStatusLabel(it.st)
     )}</span></div>`
   ).join("")}
     </div>`;
 }
 function _renderGrid(uSvc, loc) {
   if (!_buildingId) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">Выберите корпус для просмотра шахматки</div>`;
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$4(_t$5("construction.v2.transfer.select_building", "Выберите корпус для просмотра шахматки"))}</div>`;
   }
   const floors = _floorsForBuilding(_buildingId, loc);
   if (!floors.length) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">В этом корпусе ещё не созданы этажи</div>`;
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$4(_t$5("construction.v2.transfer.no_floors", "В этом корпусе ещё не созданы этажи"))}</div>`;
   }
   const bldUnits = uSvc.listForBuilding(_buildingId);
   let html = _renderLegend();
@@ -3284,7 +3440,7 @@ function _renderGrid(uSvc, loc) {
     )}</div>
         <div class="flex gap-1.5 flex-1">`;
     if (!floorUnits.length) {
-      html += `<div class="text-[9px] text-slate-300 italic py-3">Помещений нет</div>`;
+      html += `<div class="text-[9px] text-slate-300 italic py-3">${_escape$4(_t$5("construction.v2.transfer.no_rooms", "Помещений нет"))}</div>`;
     } else {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || "not_inspected"));
@@ -3314,20 +3470,20 @@ function _renderGrid(uSvc, loc) {
     html += `
       <button type="button" data-c2-generate-grid
         class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
-        Сгенерировать сетку квартир (8 на этаж)
+        ${_escape$4(_t$5("construction.v2.transfer.generate_grid", "Сгенерировать сетку квартир (8 на этаж)"))}
       </button>`;
   }
   return html;
 }
 function _selectorsHtml(loc) {
   const objects = loc.listNodes({ nodeType: "object", parentId: null });
-  let objOpts = `<option value="">— объект —</option>`;
+  let objOpts = `<option value="">${_escape$4(_t$5("construction.v2.transfer.object_select", "— объект —"))}</option>`;
   for (const o of objects) {
     objOpts += `<option value="${_escape$4(o.id)}" ${_objectId$1 === o.id ? "selected" : ""}>${_escape$4(
       o.displayName
     )}</option>`;
   }
-  let bldOpts = `<option value="">— корпус —</option>`;
+  let bldOpts = `<option value="">${_escape$4(_t$5("construction.v2.transfer.building_select", "— корпус —"))}</option>`;
   if (_objectId$1) {
     const buildings = loc.getChildren(_objectId$1).filter((b) => !b.nodeType || b.nodeType === "building");
     for (const b of buildings) {
@@ -3354,11 +3510,11 @@ async function renderTransferBoard(root) {
   const loc = _loc$1();
   const uSvc = _units();
   if (!loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.locations не загружен</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$4(_t$5("construction.v2.svc_locations_missing", "service.locations не загружен"))}</div>`;
     return;
   }
   if (!uSvc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.constructionUnits не загружен</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$4(_t$5("construction.v2.svc_units_missing", "service.constructionUnits не загружен"))}</div>`;
     return;
   }
   await loc.init();
@@ -3381,8 +3537,8 @@ async function renderTransferBoard(root) {
   root.innerHTML = `
     <div class="max-w-5xl mx-auto">
       <div class="mb-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Передача · шахматка v2</div>
-        <p class="text-[11px] text-slate-400 font-bold mt-0.5">Клик по клетке — карточка квартиры${_isGuest() ? " (только просмотр)" : ""}</p>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$4(_t$5("construction.v2.transfer.title", "Передача · шахматка v2"))}</div>
+        <p class="text-[11px] text-slate-400 font-bold mt-0.5">${_escape$4(_t$5("construction.v2.transfer.hint", "Клик по клетке — карточка квартиры{guest}", { guest: _isGuest() ? _t$5("construction.v2.transfer.guest_view", " (только просмотр)") : "" }))}</p>
       </div>
       ${_selectorsHtml(loc)}
       <div id="c2-transfer-grid">${_renderGrid(uSvc, loc)}</div>
@@ -3459,13 +3615,13 @@ function _bindOnce$1() {
 }
 async function _openUnitAcceptance(unit) {
   if (_isGuest()) {
-    _toast("Гости не могут открывать приёмку");
+    _toast(_t$5("construction.v2.transfer.guest_acceptance", "Гости не могут открывать приёмку"));
     return;
   }
   const aSvc = _acc$1();
   const uSvc = _units();
   if (!aSvc) {
-    _toast("service.constructionAcceptance не загружен");
+    _toast(_t$5("construction.v2.svc_acc_missing", "service.constructionAcceptance не загружен"));
     return;
   }
   let fresh = unit;
@@ -3478,7 +3634,7 @@ async function _openUnitAcceptance(unit) {
   }
   const locationId = String(fresh.locationId || "").trim();
   if (!locationId) {
-    _toast("У квартиры нет locationId");
+    _toast(_t$5("construction.v2.transfer.no_location", "У квартиры нет locationId"));
     return;
   }
   const list = _listAccForLocation(locationId).filter((a) => String(a.status) !== "rejected").slice().sort(
@@ -3491,12 +3647,12 @@ async function _openUnitAcceptance(unit) {
     openAcceptanceDetails(item, {
       onChangeStatus: async (rid, status) => {
         await aSvc.changeStatus(rid, status);
-        _toast("✅ Статус обновлён");
+        _toast(_t$5("construction.v2.status_updated", "✅ Статус обновлён"));
         await _refreshBoard();
       },
       onSoftDelete: async (rid) => {
         await aSvc.softDelete(rid);
-        _toast("Заявка отозвана");
+        _toast(_t$5("construction.v2.acc_revoked", "Заявка отозвана"));
         await _refreshBoard();
       },
       onChecklistChanged: async () => {
@@ -3513,7 +3669,7 @@ async function _openUnitAcceptance(unit) {
     { locationId, zone: { ...APARTMENT_FULL_ZONE }, mode: "apartment" },
     async (input) => {
       const created = await aSvc.create(input);
-      _toast("✅ Приёмка создана");
+      _toast(_t$5("construction.v2.acc_created", "✅ Приёмка создана"));
       await _refreshBoard();
       openDetails(created);
     }
@@ -3521,20 +3677,36 @@ async function _openUnitAcceptance(unit) {
 }
 async function _onGenerate() {
   if (!_buildingId || !_canManage()) return;
-  if (!confirm("Сгенерировать по 8 квартир на каждом этаже? (статус — не осматривалась)")) return;
+  if (!confirm(_t$5("construction.v2.transfer.generate_confirm", "Сгенерировать по 8 квартир на каждом этаже? (статус — не осматривалась)"))) return;
   const uSvc = _units();
   if (!uSvc) return;
   try {
-    _toast("⏳ Генерируем помещения…");
+    _toast(_t$5("construction.v2.transfer.generating", "⏳ Генерируем помещения…"));
     const created = await uSvc.generateGrid(_buildingId, 8);
-    _toast(`✅ Создано: ${created.length}`);
+    _toast(_t$5("construction.v2.transfer.generated", "✅ Создано: {count}", { count: created.length }));
     await _refreshBoard();
   } catch (e) {
     console.warn("[transfer-board] generateGrid", e);
-    _toast(`Ошибка: ${(e == null ? void 0 : e.message) || e}`);
+    _toast(_t$5("construction.v2.error_prefix", "Ошибка: {msg}", { msg: (e == null ? void 0 : e.message) || String(e) }));
   }
 }
 const MS_DAY = 24 * 60 * 60 * 1e3;
+const NO_DESCRIPTION_FALLBACK = "Без описания";
+function _t$4(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  return fallback;
+}
+function _noDescription() {
+  return _t$4("construction.v2.no_description", NO_DESCRIPTION_FALLBACK);
+}
 function _asDate(v) {
   if (v == null || v === "") return null;
   if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
@@ -3725,7 +3897,7 @@ function computeDefectSlaMetrics(defects, opts = {}) {
         const daysOd = _ceilDays(end, now);
         overdueList.push({
           id: d.id,
-          description: String(d.description || d.item_name || d.text || "Без описания").slice(0, 120),
+          description: String(d.description || d.item_name || d.text || _noDescription()).slice(0, 120),
           status: st,
           category: String(cat),
           contractorId: d.contractorId || null,
@@ -3768,20 +3940,37 @@ function computeDefectSlaMetrics(defects, opts = {}) {
   };
 }
 let _overdueOnly = false;
+function _t$3(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$3(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function _statusLabel$1(s) {
   const map = {
-    issued: "Выдано",
-    in_progress: "В работе",
-    fixed: "Устранено",
-    closed: "Закрыто",
-    rejected: "Отклонено",
-    open: "Выдано",
-    cancelled: "Отклонено"
+    issued: ["construction.status.issued", "Выдано"],
+    in_progress: ["construction.status.in_progress", "В работе"],
+    fixed: ["construction.form.status_fixed", "Устранено"],
+    closed: ["construction.status.closed", "Закрыто"],
+    rejected: ["construction.status.rejected", "Отклонено"],
+    open: ["construction.status.issued", "Выдано"],
+    cancelled: ["construction.status.rejected", "Отклонено"]
   };
-  return map[s] || s || "—";
+  const entry = map[s];
+  return entry ? _t$3(entry[0], entry[1]) : s || "—";
 }
 function _categoryLabel(c) {
   const v = String(c || "").toUpperCase();
@@ -3797,7 +3986,7 @@ function _categoryBar(c) {
   return "bg-orange-500";
 }
 function _deadlineMeta(d) {
-  if (d.deadline == null || d.deadline === "") return { label: "без срока", overdue: false };
+  if (d.deadline == null || d.deadline === "") return { label: _t$3("construction.v2.registry.no_deadline", "без срока"), overdue: false };
   const m = String(d.deadline).trim().match(/^(\d{4}-\d{2}-\d{2})/);
   if (!m) return { label: String(d.deadline), overdue: false };
   const [y, mo, day] = m[1].split("-");
@@ -3835,7 +4024,7 @@ function renderDefectsRegistry(host, opts) {
   const filters = opts.filters || pinFiltersState;
   if (!floorId) {
     host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
-      Выберите этаж слева, чтобы увидеть реестр замечаний
+      ${_escape$3(_t$3("construction.v2.registry.select_floor", "Выберите этаж слева, чтобы увидеть реестр замечаний"))}
     </div>`;
     return;
   }
@@ -3846,13 +4035,13 @@ function renderDefectsRegistry(host, opts) {
   filtered = _sortRegistry(filtered);
   const overdueChipCls = _overdueOnly ? "bg-red-600 text-white border-red-600" : "bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30";
   const rows = filtered.length === 0 ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
-          Нет замечаний по выбранному фильтру
+          ${_escape$3(_t$3("construction.v2.registry.empty_filter", "Нет замечаний по выбранному фильтру"))}
         </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered.map((d, i) => {
-    const desc = String(d.description || d.item_name || d.text || "Без описания").slice(0, 140);
+    const desc = String(d.description || d.item_name || d.text || _t$3("construction.v2.no_description", "Без описания")).slice(0, 140);
     const dl = _deadlineMeta(d);
     const openDays = daysOpen(d);
-    const daysBadge = openDays != null ? `<span class="text-[10px] font-bold ${dl.overdue ? "text-red-600 dark:text-red-400" : "text-slate-400"}">${openDays} дн.</span>` : "";
+    const daysBadge = openDays != null ? `<span class="text-[10px] font-bold ${dl.overdue ? "text-red-600 dark:text-red-400" : "text-slate-400"}">${openDays} ${_escape$3(_t$3("construction.v2.registry.days_short", "дн."))}</span>` : "";
     const dlCls = dl.overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-400";
     const bar = _categoryBar(String(d.category));
     const rowBg = dl.overdue ? "bg-red-50/40 dark:bg-red-950/15" : "";
@@ -3868,14 +4057,14 @@ function renderDefectsRegistry(host, opts) {
                         <span class="text-[10px] font-bold text-slate-500">${_escape$3(_categoryLabel(String(d.category)))}</span>
                         ${_statusChip(String(d.status))}
                         ${daysBadge}
-                        <span class="text-[10px] ${dlCls}">${_escape$3(dl.label)}${dl.overdue ? " · просрочено" : ""}</span>
+                        <span class="text-[10px] ${dlCls}">${_escape$3(dl.label)}${dl.overdue ? ` · ${_escape$3(_t$3("construction.v2.registry.overdue", "просрочено"))}` : ""}</span>
                       </span>
                       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$3(desc)}</span>
                     </span>
                   </button>
                   <button type="button" data-c2-def-on-plan="${_escape$3(d.id)}" data-c2-def-loc="${_escape$3(d.locationId)}"
                     class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
-                    title="Показать на плане">На плане</button>
+                    title="${_escape$3(_t$3("construction.v2.registry.show_on_plan", "Показать на плане"))}">${_escape$3(_t$3("construction.v2.registry.on_plan", "На плане"))}</button>
                 </div>
               </li>`;
   }).join("")}
@@ -3885,15 +4074,15 @@ function renderDefectsRegistry(host, opts) {
       <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
-            ${_escape$3(floorLabel || "Этаж")}
+            ${_escape$3(floorLabel || _t$3("construction.v2.registry.floor", "Этаж"))}
           </div>
-          <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
+          <div class="text-[10px] text-slate-400 shrink-0">${_escape$3(_t$3("construction.v2.registry.shown_count", "Показано {shown} из {total}", { shown: filtered.length, total: defects.length }))}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
           <button type="button" data-c2-reg-overdue
             class="shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border ${overdueChipCls}"
-            title="Только просроченные (issued / в работе / на проверке)">Просроч.</button>
+            title="${_escape$3(_t$3("construction.v2.registry.overdue_only_title", "Только просроченные (issued / в работе / на проверке)"))}">${_escape$3(_t$3("construction.v2.registry.overdue_chip", "Просроч."))}</button>
         </div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>
@@ -3926,6 +4115,22 @@ function renderDefectsRegistry(host, opts) {
 }
 let _period = "all";
 let _objectId = null;
+function _t$2(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$2(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -3997,7 +4202,7 @@ function renderMetricsView(host, opts) {
   });
   const agingMax = Math.max(1, ...Object.values(m.aging));
   const objectOptions = [
-    `<option value="">Все объекты</option>`,
+    `<option value="">${_escape$2(_t$2("construction.v2.metrics.all_objects", "Все объекты"))}</option>`,
     ...objects.map(
       (o) => `<option value="${_escape$2(o.id)}"${_objectId === o.id ? " selected" : ""}>${_escape$2(
         o.displayName
@@ -4012,7 +4217,7 @@ function renderMetricsView(host, opts) {
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">Нет данных</td></tr>` : m.byContractor.map(
+  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">${_escape$2(_t$2("construction.v2.metrics.no_data", "Нет данных"))}</td></tr>` : m.byContractor.map(
     (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-medium truncate max-w-[10rem]" title="${_escape$2(r.contractorId)}">${_escape$2(
       _contractorLabel(r.contractorId)
@@ -4022,15 +4227,15 @@ function renderMetricsView(host, opts) {
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const overdueRows = m.overdueList.length === 0 ? `<div class="p-4 text-center text-slate-400 text-[12px]">Нет просроченных</div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
+  const overdueRows = m.overdueList.length === 0 ? `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape$2(_t$2("construction.v2.metrics.no_overdue", "Нет просроченных"))}</div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${m.overdueList.map(
     (r) => `<li>
             <button type="button" data-c2-metrics-def="${_escape$2(r.id)}"
               class="w-full text-left px-3 py-2.5 hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
               <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
                 <span class="text-[10px] font-bold text-slate-500">${_escape$2(r.category)}</span>
-                <span class="text-[9px] font-bold uppercase text-red-600">+${r.daysOverdue} дн. проср.</span>
-                <span class="text-[10px] text-slate-400">${r.daysOpen} дн. открыто</span>
+                <span class="text-[9px] font-bold uppercase text-red-600">${_escape$2(_t$2("construction.v2.metrics.overdue_days", "+{days} дн. проср.", { days: r.daysOverdue }))}</span>
+                <span class="text-[10px] text-slate-400">${_escape$2(_t$2("construction.v2.metrics.open_days", "{days} дн. открыто", { days: r.daysOpen }))}</span>
               </span>
               <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$2(
       r.description
@@ -4043,11 +4248,11 @@ function renderMetricsView(host, opts) {
     <div class="flex flex-col gap-3 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Сроки замечаний</h3>
-          <p class="text-[10px] text-slate-400 mt-0.5">Локальный расчёт по defects_v2 · без новой схемы БД</p>
+          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">${_escape$2(_t$2("construction.v2.metrics.title", "Сроки замечаний"))}</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">${_escape$2(_t$2("construction.v2.metrics.subtitle", "Локальный расчёт по defects_v2 · без новой схемы БД"))}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <div class="flex gap-1">${_periodBtn("30", "30 дн.")}${_periodBtn("90", "90 дн.")}${_periodBtn("all", "Все")}</div>
+          <div class="flex gap-1">${_periodBtn("30", _t$2("construction.v2.metrics.period_30", "30 дн."))}${_periodBtn("90", _t$2("construction.v2.metrics.period_90", "90 дн."))}${_periodBtn("all", _t$2("construction.v2.metrics.period_all", "Все"))}</div>
           <select data-c2-metrics-object
             class="text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
             ${objectOptions}
@@ -4056,43 +4261,43 @@ function renderMetricsView(host, opts) {
       </div>
 
       <div class="flex flex-wrap gap-2">
-        ${_kpiCard("Открытые", String(m.open))}
-        ${_kpiCard("Просроченные", String(m.overdueNow), m.overdueNow ? "danger" : "")}
-        ${_kpiCard("Ср. устранение", _fmt(m.avgEliminateDays, " дн."))}
-        ${_kpiCard("Ср. проверка СК", _fmt(m.avgReviewDays, " дн."))}
-        ${_kpiCard("% вовремя", m.onTimePct == null ? "—" : `${m.onTimePct}%`, m.onTimePct != null && m.onTimePct >= 80 ? "ok" : "")}
+        ${_kpiCard(_t$2("construction.v2.metrics.kpi_open", "Открытые"), String(m.open))}
+        ${_kpiCard(_t$2("construction.v2.metrics.kpi_overdue", "Просроченные"), String(m.overdueNow), m.overdueNow ? "danger" : "")}
+        ${_kpiCard(_t$2("construction.v2.metrics.kpi_avg_fix", "Ср. устранение"), _fmt(m.avgEliminateDays, _t$2("construction.v2.metrics.days_suffix", " дн.")))}
+        ${_kpiCard(_t$2("construction.v2.metrics.kpi_avg_review", "Ср. проверка СК"), _fmt(m.avgReviewDays, _t$2("construction.v2.metrics.days_suffix", " дн.")))}
+        ${_kpiCard(_t$2("construction.v2.metrics.kpi_on_time", "% вовремя"), m.onTimePct == null ? "—" : `${m.onTimePct}%`, m.onTimePct != null && m.onTimePct >= 80 ? "ok" : "")}
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По категории</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$2(_t$2("construction.v2.metrics.by_category", "По категории"))}</div>
           <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
             <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
-              <th class="text-left font-bold pb-1">Cat</th>
-              <th class="text-right font-bold pb-1">Откр.</th>
-              <th class="text-right font-bold pb-1">Проср.</th>
-              <th class="text-right font-bold pb-1">Ср. дн.</th>
+              <th class="text-left font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_cat", "Cat"))}</th>
+              <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_open", "Откр."))}</th>
+              <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_overdue", "Проср."))}</th>
+              <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_avg_days", "Ср. дн."))}</th>
             </tr></thead>
             <tbody>${catRows}</tbody>
           </table>
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Aging открытых</div>
-          ${_barRow("0–3", m.aging["0-3"], agingMax, "bg-emerald-500")}
-          ${_barRow("4–7", m.aging["4-7"], agingMax, "bg-amber-400")}
-          ${_barRow("8–14", m.aging["8-14"], agingMax, "bg-orange-500")}
-          ${_barRow("15+", m.aging["15+"], agingMax, "bg-red-600")}
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$2(_t$2("construction.v2.metrics.aging_open", "Aging открытых"))}</div>
+          ${_barRow(_t$2("construction.v2.metrics.aging_0_3", "0–3"), m.aging["0-3"], agingMax, "bg-emerald-500")}
+          ${_barRow(_t$2("construction.v2.metrics.aging_4_7", "4–7"), m.aging["4-7"], agingMax, "bg-amber-400")}
+          ${_barRow(_t$2("construction.v2.metrics.aging_8_14", "8–14"), m.aging["8-14"], agingMax, "bg-orange-500")}
+          ${_barRow(_t$2("construction.v2.metrics.aging_15_plus", "15+"), m.aging["15+"], agingMax, "bg-red-600")}
         </div>
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">По подрядчику (топ-10 по просрочке)</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$2(_t$2("construction.v2.metrics.by_contractor", "По подрядчику (топ-10 по просрочке)"))}</div>
         <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
           <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
-            <th class="text-left font-bold pb-1">Подрядчик</th>
-            <th class="text-right font-bold pb-1">Откр.</th>
-            <th class="text-right font-bold pb-1">Проср.</th>
-            <th class="text-right font-bold pb-1">Ср. дн.</th>
+            <th class="text-left font-bold pb-1">${_escape$2(_t$2("construction.form.contractor", "Подрядчик"))}</th>
+            <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_open", "Откр."))}</th>
+            <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_overdue", "Проср."))}</th>
+            <th class="text-right font-bold pb-1">${_escape$2(_t$2("construction.v2.metrics.th_avg_days", "Ср. дн."))}</th>
           </tr></thead>
           <tbody>${contrRows}</tbody>
         </table>
@@ -4100,7 +4305,7 @@ function renderMetricsView(host, opts) {
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
         <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
-          Просроченные сейчас · до 20
+          ${_escape$2(_t$2("construction.v2.metrics.overdue_now", "Просроченные сейчас · до 20"))}
         </div>
         ${overdueRows}
       </div>
@@ -4127,6 +4332,22 @@ function renderMetricsView(host, opts) {
     });
   });
 }
+function _t$1(key, fallback, vars) {
+  var _a, _b;
+  try {
+    const i18n = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.i18n;
+    if (i18n && typeof i18n.t === "function") {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(
+    /\{(\w+)\}/g,
+    (_, k) => vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
 function _escape$1(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -4146,15 +4367,16 @@ function _pathLabel(locationId) {
 }
 function _statusLabel(s) {
   const map = {
-    issued: "Выдано",
-    in_progress: "В работе",
-    fixed: "На проверке",
-    closed: "Закрыто",
-    rejected: "Отклонено",
-    pending: "Ожидает",
-    accepted: "Принята"
+    issued: ["construction.status.issued", "Выдано"],
+    in_progress: ["construction.status.in_progress", "В работе"],
+    fixed: ["construction.status.fixed", "На проверке"],
+    closed: ["construction.status.closed", "Закрыто"],
+    rejected: ["construction.status.rejected", "Отклонено"],
+    pending: ["construction.v2.cabinet.status_pending", "Ожидает"],
+    accepted: ["construction.v2.cabinet.status_accepted", "Принята"]
   };
-  return map[s] || s || "—";
+  const entry = map[String(s || "").toLowerCase()];
+  return entry ? _t$1(entry[0], entry[1]) : s || "—";
 }
 function _kpi(label, value, tone = "") {
   const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
@@ -4164,7 +4386,7 @@ function _kpi(label, value, tone = "") {
   </div>`;
 }
 function _defectRow(d) {
-  const desc = String(d.description || d.item_name || d.text || "Без описания").slice(0, 120);
+  const desc = String(d.description || d.item_name || d.text || _t$1("construction.v2.no_description", "Без описания")).slice(0, 120);
   const overdue = isOverdueNow(d);
   return `<li>
     <button type="button" data-c2-cab-def="${_escape$1(d.id)}"
@@ -4172,7 +4394,7 @@ function _defectRow(d) {
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
         <span class="text-[10px] font-bold text-slate-500">${_escape$1(String(d.category || ""))}</span>
         <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$1(_statusLabel(String(d.status)))}</span>
-        ${overdue ? '<span class="text-[9px] font-bold uppercase text-red-600">просрочено</span>' : ""}
+        ${overdue ? `<span class="text-[9px] font-bold uppercase text-red-600">${_escape$1(_t$1("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </span>
       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$1(desc)}</span>
       <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(d.locationId))}</span>
@@ -4190,7 +4412,7 @@ function _accRow(a) {
   )}</span>
       </span>
       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape$1(
-    a.work_type || "Без вида работ"
+    a.work_type || _t$1("construction.v2.kanban.no_work_type", "Без вида работ")
   )}</span>
       <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(a.locationId))}</span>
     </button>
@@ -4213,8 +4435,7 @@ function renderContractorCabinet(host, opts) {
     host.innerHTML = `
       <div class="p-6 max-w-lg mx-auto">
         <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
-          Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика —
-          иначе кабинет, реестр и пины будут пустыми.
+          ${_escape$1(_t$1("construction.v2.cabinet.unbound", "Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика — иначе кабинет, реестр и пины будут пустыми."))}
         </div>
       </div>`;
     return;
@@ -4237,22 +4458,20 @@ function renderContractorCabinet(host, opts) {
   host.innerHTML = `
     <div class="space-y-3 p-1 sm:p-2">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Кабинет подрядчика</div>
-        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape$1(myId)}">мой id · ${_escape$1(
-    myId.length > 10 ? `${myId.slice(0, 8)}…` : myId
-  )}</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$1(_t$1("construction.v2.cabinet.title", "Кабинет подрядчика"))}</div>
+        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape$1(myId)}">${_escape$1(_t$1("construction.v2.cabinet.my_id", "мой id · {id}", { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
       </div>
       <div class="flex flex-wrap gap-2">
-        ${_kpi("Открытые", open.length)}
-        ${_kpi("На проверке", onReview.length, "warn")}
-        ${_kpi("Просроченные", overdue.length, "danger")}
-        ${_kpi("Слоты (скоро)", upcoming.length)}
+        ${_kpi(_t$1("construction.v2.cabinet.kpi_open", "Открытые"), open.length)}
+        ${_kpi(_t$1("construction.v2.cabinet.kpi_review", "На проверке"), onReview.length, "warn")}
+        ${_kpi(_t$1("construction.v2.cabinet.kpi_overdue", "Просроченные"), overdue.length, "danger")}
+        ${_kpi(_t$1("construction.v2.cabinet.kpi_slots", "Слоты (скоро)"), upcoming.length)}
       </div>
-      ${slotBoardHtml(occupancy, { title: `Слоты сегодня (${_today()})` })}
-      ${_section("Открытые замечания", open.map(_defectRow).join(""), "Нет открытых замечаний")}
-      ${_section("На проверке", onReview.map(_defectRow).join(""), "Нет замечаний на проверке")}
-      ${_section("Просроченные", overdue.map(_defectRow).join(""), "Нет просроченных")}
-      ${_section("Ближайшие слоты приёмки", upcoming.map(_accRow).join(""), "Нет заявок на приёмку")}
+      ${slotBoardHtml(occupancy, { title: _t$1("construction.v2.cabinet.slots_today", "Слоты сегодня ({date})", { date: _today() }) })}
+      ${_section(_t$1("construction.v2.cabinet.sec_open", "Открытые замечания"), open.map(_defectRow).join(""), _t$1("construction.v2.cabinet.empty_open", "Нет открытых замечаний"))}
+      ${_section(_t$1("construction.v2.cabinet.sec_review", "На проверке"), onReview.map(_defectRow).join(""), _t$1("construction.v2.cabinet.empty_review", "Нет замечаний на проверке"))}
+      ${_section(_t$1("construction.v2.cabinet.sec_overdue", "Просроченные"), overdue.map(_defectRow).join(""), _t$1("construction.v2.cabinet.empty_overdue", "Нет просроченных"))}
+      ${_section(_t$1("construction.v2.cabinet.sec_upcoming", "Ближайшие слоты приёмки"), upcoming.map(_accRow).join(""), _t$1("construction.v2.cabinet.empty_upcoming", "Нет заявок на приёмку"))}
     </div>`;
   host.querySelectorAll("[data-c2-cab-def]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {

@@ -19,6 +19,24 @@ export type CabinetCallbacks = {
 
 type LocNode = { id: string; displayName: string };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -48,16 +66,17 @@ function _pathLabel(locationId: string): string {
 }
 
 function _statusLabel(s: string): string {
-  const map: Record<string, string> = {
-    issued: 'Выдано',
-    in_progress: 'В работе',
-    fixed: 'На проверке',
-    closed: 'Закрыто',
-    rejected: 'Отклонено',
-    pending: 'Ожидает',
-    accepted: 'Принята'
+  const map: Record<string, [string, string]> = {
+    issued: ['construction.status.issued', 'Выдано'],
+    in_progress: ['construction.status.in_progress', 'В работе'],
+    fixed: ['construction.status.fixed', 'На проверке'],
+    closed: ['construction.status.closed', 'Закрыто'],
+    rejected: ['construction.status.rejected', 'Отклонено'],
+    pending: ['construction.v2.cabinet.status_pending', 'Ожидает'],
+    accepted: ['construction.v2.cabinet.status_accepted', 'Принята']
   };
-  return map[s] || s || '—';
+  const entry = map[String(s || '').toLowerCase()];
+  return entry ? _t(entry[0], entry[1]) : s || '—';
 }
 
 function _kpi(label: string, value: number, tone = ''): string {
@@ -74,7 +93,7 @@ function _kpi(label: string, value: number, tone = ''): string {
 }
 
 function _defectRow(d: ConstructionDefectV2): string {
-  const desc = String(d.description || d.item_name || d.text || 'Без описания').slice(0, 120);
+  const desc = String(d.description || d.item_name || d.text || _t('construction.v2.no_description', 'Без описания')).slice(0, 120);
   const overdue = isOverdueNow(d);
   return `<li>
     <button type="button" data-c2-cab-def="${_escape(d.id)}"
@@ -84,7 +103,7 @@ function _defectRow(d: ConstructionDefectV2): string {
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
         <span class="text-[10px] font-bold text-slate-500">${_escape(String(d.category || ''))}</span>
         <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape(_statusLabel(String(d.status)))}</span>
-        ${overdue ? '<span class="text-[9px] font-bold uppercase text-red-600">просрочено</span>' : ''}
+        ${overdue ? `<span class="text-[9px] font-bold uppercase text-red-600">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
       </span>
       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape(desc)}</span>
       <span class="block text-[10px] text-slate-400 mt-0.5">${_escape(_pathLabel(d.locationId))}</span>
@@ -103,7 +122,7 @@ function _accRow(a: ConstructionAcceptanceV2): string {
         )}</span>
       </span>
       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape(
-        a.work_type || 'Без вида работ'
+        a.work_type || _t('construction.v2.kanban.no_work_type', 'Без вида работ')
       )}</span>
       <span class="block text-[10px] text-slate-400 mt-0.5">${_escape(_pathLabel(a.locationId))}</span>
     </button>
@@ -140,8 +159,7 @@ export function renderContractorCabinet(
     host.innerHTML = `
       <div class="p-6 max-w-lg mx-auto">
         <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
-          Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика —
-          иначе кабинет, реестр и пины будут пустыми.
+          ${_escape(_t('construction.v2.cabinet.unbound', 'Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика — иначе кабинет, реестр и пины будут пустыми.'))}
         </div>
       </div>`;
     return;
@@ -171,22 +189,20 @@ export function renderContractorCabinet(
   host.innerHTML = `
     <div class="space-y-3 p-1 sm:p-2">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Кабинет подрядчика</div>
-        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape(myId)}">мой id · ${_escape(
-          myId.length > 10 ? `${myId.slice(0, 8)}…` : myId
-        )}</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.cabinet.title', 'Кабинет подрядчика'))}</div>
+        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape(myId)}">${_escape(_t('construction.v2.cabinet.my_id', 'мой id · {id}', { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
       </div>
       <div class="flex flex-wrap gap-2">
-        ${_kpi('Открытые', open.length)}
-        ${_kpi('На проверке', onReview.length, 'warn')}
-        ${_kpi('Просроченные', overdue.length, 'danger')}
-        ${_kpi('Слоты (скоро)', upcoming.length)}
+        ${_kpi(_t('construction.v2.cabinet.kpi_open', 'Открытые'), open.length)}
+        ${_kpi(_t('construction.v2.cabinet.kpi_review', 'На проверке'), onReview.length, 'warn')}
+        ${_kpi(_t('construction.v2.cabinet.kpi_overdue', 'Просроченные'), overdue.length, 'danger')}
+        ${_kpi(_t('construction.v2.cabinet.kpi_slots', 'Слоты (скоро)'), upcoming.length)}
       </div>
-      ${slotBoardHtml(occupancy, { title: `Слоты сегодня (${_today()})` })}
-      ${_section('Открытые замечания', open.map(_defectRow).join(''), 'Нет открытых замечаний')}
-      ${_section('На проверке', onReview.map(_defectRow).join(''), 'Нет замечаний на проверке')}
-      ${_section('Просроченные', overdue.map(_defectRow).join(''), 'Нет просроченных')}
-      ${_section('Ближайшие слоты приёмки', upcoming.map(_accRow).join(''), 'Нет заявок на приёмку')}
+      ${slotBoardHtml(occupancy, { title: _t('construction.v2.cabinet.slots_today', 'Слоты сегодня ({date})', { date: _today() }) })}
+      ${_section(_t('construction.v2.cabinet.sec_open', 'Открытые замечания'), open.map(_defectRow).join(''), _t('construction.v2.cabinet.empty_open', 'Нет открытых замечаний'))}
+      ${_section(_t('construction.v2.cabinet.sec_review', 'На проверке'), onReview.map(_defectRow).join(''), _t('construction.v2.cabinet.empty_review', 'Нет замечаний на проверке'))}
+      ${_section(_t('construction.v2.cabinet.sec_overdue', 'Просроченные'), overdue.map(_defectRow).join(''), _t('construction.v2.cabinet.empty_overdue', 'Нет просроченных'))}
+      ${_section(_t('construction.v2.cabinet.sec_upcoming', 'Ближайшие слоты приёмки'), upcoming.map(_accRow).join(''), _t('construction.v2.cabinet.empty_upcoming', 'Нет заявок на приёмку'))}
     </div>`;
 
   host.querySelectorAll('[data-c2-cab-def]').forEach((btn) => {

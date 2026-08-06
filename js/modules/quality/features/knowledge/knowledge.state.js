@@ -28,7 +28,11 @@ export const KnowledgeState = {
     /* ── Сеттеры ─────────────────────────────────────────────────────── */
 
     setTwiCards(arr) {
-        this.twiCards = arr || [];
+        // File Asset Standard: memory slim (no nested data / no extractedText blob)
+        var slim = typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+            ? (arr || []).map(window.rbi_slimKnowledgeRecordForMemory)
+            : (arr || []);
+        this.twiCards = slim;
         // Обратная совместимость
         window.customTwiCards = this.twiCards;
         if (window.twiOwnerFilter === undefined) {
@@ -42,7 +46,12 @@ export const KnowledgeState = {
     },
 
     setDocs(arr) {
-        this.customDocs = arr || [];
+        // File Asset Standard: accept slim memory shape (hasExtractedText / extractedTextChars OK;
+        // full extractedText belongs in IDB via getCustomDocs(), not in window.customDocs)
+        var slim = typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+            ? (arr || []).map(window.rbi_slimKnowledgeRecordForMemory)
+            : (arr || []);
+        this.customDocs = slim;
         window.customDocs = this.customDocs;
         if (window.docOwnerFilter === undefined) {
             window.docOwnerFilter = this.filters.docOwner;

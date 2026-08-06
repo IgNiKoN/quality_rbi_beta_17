@@ -198,7 +198,24 @@
     // АВТОСОХРАНЕНИЕ ЧЕРНОВИКА (debounce)
     // Перенесено из audit.legacy.js (было в app.js, строка 437).
     // =====================================================================
+    _sessionIsEmpty: function () {
+      if (AuditState.currentTemplateKey) return false;
+      var st = AuditState.state;
+      if (st && typeof st === 'object' && Object.keys(st).length > 0) return false;
+      var photos = AuditActions.getSessionPhotosForSync();
+      if (photos && Object.keys(photos).length > 0) return false;
+      function _field(id) {
+        var el = document.getElementById(id);
+        return el && String(el.value || '').trim();
+      }
+      if (_field('inp-project') || _field('inp-inspector') || _field('inp-contractor') || _field('inp-location')) {
+        return false;
+      }
+      return true;
+    },
+
     scheduleSessionSave: function () {
+      if (AuditActions._sessionIsEmpty()) return;
       localStorage.setItem('rbi_cloud_dirty', '1');
       clearTimeout(window.__saveSessionTimer);
       window.__saveSessionTimer = setTimeout(function () {
@@ -212,6 +229,7 @@
     // =====================================================================
     saveSession: async function () {
       if (_isDemoMode()) return;
+      if (AuditActions._sessionIsEmpty()) return;
       try {
         var secEl = document.getElementById('inp-section');
         var floorEl = document.getElementById('inp-floor');
@@ -236,8 +254,20 @@
         });
         emit('audit:session:saved');
       } catch (e) {
+        var soft = (e && (e.name === 'AbortError' || e.name === 'InvalidStateError'))
+          || document.visibilityState === 'hidden';
+        if (soft) {
+          console.warn('Ошибка сохранения в IndexedDB (soft):', e);
+          return;
+        }
         console.error('Ошибка сохранения в IndexedDB:', e);
-        showToast('⚠️ Ошибка автосохранения!');
+        if (document.visibilityState === 'visible') {
+          var now = Date.now();
+          if (!window.__rbiLastAutosaveToastAt || (now - window.__rbiLastAutosaveToastAt) >= 30000) {
+            window.__rbiLastAutosaveToastAt = now;
+            showToast('⚠️ Ошибка автосохранения!');
+          }
+        }
       }
     },
 

@@ -111,6 +111,29 @@ function _permissions() {
     | undefined;
 }
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
+function _unitStatusLabel(st: UnitStatusV2): string {
+  const key = `construction.v2.unit_status.${st}`;
+  return _t(key, UNIT_STATUS_LABELS_RU[st]);
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -182,7 +205,7 @@ function _renderLegend(): string {
         .map(
           (it) =>
             `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape(
-              UNIT_STATUS_LABELS_RU[it.st]
+              _unitStatusLabel(it.st)
             )}</span></div>`
         )
         .join('')}
@@ -191,11 +214,11 @@ function _renderLegend(): string {
 
 function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
   if (!_buildingId) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">Выберите корпус для просмотра шахматки</div>`;
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape(_t('construction.v2.transfer.select_building', 'Выберите корпус для просмотра шахматки'))}</div>`;
   }
   const floors = _floorsForBuilding(_buildingId, loc);
   if (!floors.length) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">В этом корпусе ещё не созданы этажи</div>`;
+    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape(_t('construction.v2.transfer.no_floors', 'В этом корпусе ещё не созданы этажи'))}</div>`;
   }
   const bldUnits = uSvc.listForBuilding(_buildingId);
   let html = _renderLegend();
@@ -213,7 +236,7 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
         )}</div>
         <div class="flex gap-1.5 flex-1">`;
     if (!floorUnits.length) {
-      html += `<div class="text-[9px] text-slate-300 italic py-3">Помещений нет</div>`;
+      html += `<div class="text-[9px] text-slate-300 italic py-3">${_escape(_t('construction.v2.transfer.no_rooms', 'Помещений нет'))}</div>`;
     } else {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || 'not_inspected'));
@@ -255,7 +278,7 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
     html += `
       <button type="button" data-c2-generate-grid
         class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
-        Сгенерировать сетку квартир (8 на этаж)
+        ${_escape(_t('construction.v2.transfer.generate_grid', 'Сгенерировать сетку квартир (8 на этаж)'))}
       </button>`;
   }
   return html;
@@ -263,13 +286,13 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
 
 function _selectorsHtml(loc: LocSvc): string {
   const objects = loc.listNodes({ nodeType: 'object', parentId: null });
-  let objOpts = `<option value="">— объект —</option>`;
+  let objOpts = `<option value="">${_escape(_t('construction.v2.transfer.object_select', '— объект —'))}</option>`;
   for (const o of objects) {
     objOpts += `<option value="${_escape(o.id)}" ${_objectId === o.id ? 'selected' : ''}>${_escape(
       o.displayName
     )}</option>`;
   }
-  let bldOpts = `<option value="">— корпус —</option>`;
+  let bldOpts = `<option value="">${_escape(_t('construction.v2.transfer.building_select', '— корпус —'))}</option>`;
   if (_objectId) {
     const buildings = loc.getChildren(_objectId).filter((b) => !b.nodeType || b.nodeType === 'building');
     for (const b of buildings) {
@@ -298,11 +321,11 @@ export async function renderTransferBoard(root: HTMLElement): Promise<void> {
   const loc = _loc();
   const uSvc = _units();
   if (!loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.locations не загружен</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.svc_locations_missing', 'service.locations не загружен'))}</div>`;
     return;
   }
   if (!uSvc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.constructionUnits не загружен</div>`;
+    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.svc_units_missing', 'service.constructionUnits не загружен'))}</div>`;
     return;
   }
   await loc.init();
@@ -327,8 +350,8 @@ export async function renderTransferBoard(root: HTMLElement): Promise<void> {
   root.innerHTML = `
     <div class="max-w-5xl mx-auto">
       <div class="mb-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Передача · шахматка v2</div>
-        <p class="text-[11px] text-slate-400 font-bold mt-0.5">Клик по клетке — карточка квартиры${_isGuest() ? ' (только просмотр)' : ''}</p>
+        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.transfer.title', 'Передача · шахматка v2'))}</div>
+        <p class="text-[11px] text-slate-400 font-bold mt-0.5">${_escape(_t('construction.v2.transfer.hint', 'Клик по клетке — карточка квартиры{guest}', { guest: _isGuest() ? _t('construction.v2.transfer.guest_view', ' (только просмотр)') : '' }))}</p>
       </div>
       ${_selectorsHtml(loc)}
       <div id="c2-transfer-grid">${_renderGrid(uSvc, loc)}</div>
@@ -411,13 +434,13 @@ function _bindOnce() {
 
 async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
   if (_isGuest()) {
-    _toast('Гости не могут открывать приёмку');
+    _toast(_t('construction.v2.transfer.guest_acceptance', 'Гости не могут открывать приёмку'));
     return;
   }
   const aSvc = _acc();
   const uSvc = _units();
   if (!aSvc) {
-    _toast('service.constructionAcceptance не загружен');
+    _toast(_t('construction.v2.svc_acc_missing', 'service.constructionAcceptance не загружен'));
     return;
   }
   let fresh = unit;
@@ -430,7 +453,7 @@ async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
   }
   const locationId = String(fresh.locationId || '').trim();
   if (!locationId) {
-    _toast('У квартиры нет locationId');
+    _toast(_t('construction.v2.transfer.no_location', 'У квартиры нет locationId'));
     return;
   }
 
@@ -448,12 +471,12 @@ async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
     openAcceptanceDetails(item, {
       onChangeStatus: async (rid, status) => {
         await aSvc.changeStatus(rid, status);
-        _toast('✅ Статус обновлён');
+        _toast(_t('construction.v2.status_updated', '✅ Статус обновлён'));
         await _refreshBoard();
       },
       onSoftDelete: async (rid) => {
         await aSvc.softDelete(rid);
-        _toast('Заявка отозвана');
+        _toast(_t('construction.v2.acc_revoked', 'Заявка отозвана'));
         await _refreshBoard();
       },
       onChecklistChanged: async () => {
@@ -472,7 +495,7 @@ async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
     { locationId, zone: { ...APARTMENT_FULL_ZONE }, mode: 'apartment' },
     async (input) => {
       const created = await aSvc.create(input);
-      _toast('✅ Приёмка создана');
+      _toast(_t('construction.v2.acc_created', '✅ Приёмка создана'));
       await _refreshBoard();
       openDetails(created);
     }
@@ -481,16 +504,16 @@ async function _openUnitAcceptance(unit: ConstructionUnitV2): Promise<void> {
 
 async function _onGenerate() {
   if (!_buildingId || !_canManage()) return;
-  if (!confirm('Сгенерировать по 8 квартир на каждом этаже? (статус — не осматривалась)')) return;
+  if (!confirm(_t('construction.v2.transfer.generate_confirm', 'Сгенерировать по 8 квартир на каждом этаже? (статус — не осматривалась)'))) return;
   const uSvc = _units();
   if (!uSvc) return;
   try {
-    _toast('⏳ Генерируем помещения…');
+    _toast(_t('construction.v2.transfer.generating', '⏳ Генерируем помещения…'));
     const created = await uSvc.generateGrid(_buildingId, 8);
-    _toast(`✅ Создано: ${created.length}`);
+    _toast(_t('construction.v2.transfer.generated', '✅ Создано: {count}', { count: created.length }));
     await _refreshBoard();
   } catch (e) {
     console.warn('[transfer-board] generateGrid', e);
-    _toast(`Ошибка: ${(e as Error)?.message || e}`);
+    _toast(_t('construction.v2.error_prefix', 'Ошибка: {msg}', { msg: (e as Error)?.message || String(e) }));
   }
 }

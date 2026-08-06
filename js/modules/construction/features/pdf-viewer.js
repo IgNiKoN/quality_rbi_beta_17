@@ -11,6 +11,46 @@ var _ctx = null;
 function bindCtx(ctx) {
     _ctx = ctx;
     bindPdfViewerActionDelegation();
+    bindPdfViewerI18n();
+}
+
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
+var _pdfViewerI18nBound = false;
+function bindPdfViewerI18n() {
+    if (_pdfViewerI18nBound) return;
+    _pdfViewerI18nBound = true;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    window.RBI.events.on('i18n:localeChanged', function () {
+        try {
+            var modal = document.getElementById('universal-pdf-modal');
+            if (!modal || modal.style.display !== 'flex') return;
+            var viewer = window.UniversalPdfViewer;
+            if (!viewer) return;
+            if (viewer.isZoneMode) viewer.setZoneMode(true);
+            else if (viewer.isCopyMode) viewer.setCopyMode(true, viewer.copyTemplateDefect);
+            else viewer.setAddMode(viewer.isAddMode);
+            var loader = document.getElementById('universal-pdf-loader');
+            if (loader && !loader.classList.contains('hidden')) {
+                var loaderText = loader.querySelector('div');
+                if (loaderText) loaderText.textContent = _t('construction.pdf.loading', 'Загрузка чертежа...');
+            }
+        } catch (_e) { /* ignore */ }
+    });
 }
 
 // Паттерн делегирования событий для инициативы «Разбор inline onclick/onchange»
@@ -80,27 +120,24 @@ function renderUniversalPdfModalMarkup() {
         class="fixed inset-0 bg-slate-900/95 z-[9999] hidden flex-col transition-opacity duration-300 opacity-0">
         <!-- Шапка -->
         <div class="bg-indigo-600 text-white p-4 flex justify-between items-center shadow-md z-20 shrink-0">
-            <div class="font-black text-sm uppercase tracking-widest truncate pr-4" id="universal-pdf-title">План этажа
+            <div class="font-black text-sm uppercase tracking-widest truncate pr-4" id="universal-pdf-title">${_t('construction.pdf.floor_plan', 'План этажа')}
             </div>
             <button data-pdf-viewer-action="close"
                 class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center active:scale-90 shrink-0 border border-indigo-400 font-bold">✕</button>
         </div>
 
-        <!-- Панель инструментов (Тут в будущем будет кнопка "Поставить дефект") -->
         <!-- Панель инструментов (Тулбар) -->
         <div id="universal-pdf-toolbar"
             class="bg-[var(--card-bg)] border-b border-[var(--card-border)] p-3 flex justify-between items-center z-20 shrink-0 shadow-sm hidden">
             <div id="pdf-add-hint"
-                class="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden animate-pulse">Кликните на
-                чертеж ➔</div>
-            <div id="pdf-normal-hint" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Режим
-                просмотра</div>
+                class="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden animate-pulse">${_t('construction.pdf.hint_click_drawing', 'Кликните на чертеж ➔')}</div>
+            <div id="pdf-normal-hint" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${_t('construction.pdf.view_mode', 'Режим просмотра')}</div>
 
             <button id="pdf-btn-add-defect" data-pdf-viewer-action="toggleAddMode"
                 class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                </svg> Добавить дефект
+                </svg> ${_t('construction.pdf.add_defect', 'Добавить дефект')}
             </button>
         </div>
 
@@ -124,7 +161,7 @@ function renderUniversalPdfModalMarkup() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                 </path>
             </svg>
-            <div class="font-bold text-xs uppercase tracking-widest animate-pulse">Загрузка чертежа...</div>
+            <div class="font-bold text-xs uppercase tracking-widest animate-pulse">${_t('construction.pdf.loading', 'Загрузка чертежа...')}</div>
         </div>
     </div>
 `;
@@ -166,7 +203,7 @@ window.UniversalPdfViewer = {
 
         if (!modal || !canvas) return;
 
-        titleEl.innerText = title || 'Просмотр документа';
+        titleEl.innerText = title || _t('construction.pdf.view_document', 'Просмотр документа');
 
         // Если передан floorId, значит мы открыли план этажа -> показываем тулбар
         if (floorId) {
@@ -177,7 +214,7 @@ window.UniversalPdfViewer = {
                 const btnContainer = toolbar.querySelector('button').parentElement;
                 btnContainer.insertAdjacentHTML('afterbegin', `
                     <button id="pdf-btn-add-zone" onclick="window.UniversalPdfViewer.toggleZoneMode()" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5 mr-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Выделить зону
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> ${_t('construction.pdf.select_zone', 'Выделить зону')}
                     </button>
                 `);
             }
@@ -322,7 +359,7 @@ window.UniversalPdfViewer = {
 
         } catch (e) {
             console.error('[UniversalPdfViewer] Ошибка:', e);
-            if (typeof showToast === 'function') showToast('❌ Ошибка: ' + e.message);
+            if (typeof showToast === 'function') showToast(_t('construction.pdf.error_load', '❌ Ошибка: {message}', { message: e.message }));
         } finally {
             loader.classList.add('hidden');
         }
@@ -354,17 +391,18 @@ window.UniversalPdfViewer = {
 
         if (isActive) {
             btn.className = 'bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5';
-            btn.innerHTML = 'Отмена';
+            btn.innerHTML = _t('construction.pdf.btn_cancel', 'Отмена');
             hintNorm.classList.add('hidden');
             hintAdd.classList.remove('hidden');
-            hintAdd.innerText = 'Кликните на чертеж ➔';
+            hintAdd.innerText = _t('construction.pdf.hint_click_drawing', 'Кликните на чертеж ➔');
             hintAdd.className = 'text-[10px] font-bold text-red-500 uppercase tracking-widest animate-pulse';
             if (container) container.style.cursor = 'crosshair';
         } else {
             btn.className = 'bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5';
-            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Добавить дефект';
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ' + _t('construction.pdf.add_defect', 'Добавить дефект');
             hintNorm.classList.remove('hidden');
             hintAdd.classList.add('hidden');
+            if (hintNorm) hintNorm.innerText = _t('construction.pdf.view_mode', 'Режим просмотра');
             if (container) container.style.cursor = 'grab';
         }
     },
@@ -385,10 +423,10 @@ window.UniversalPdfViewer = {
         if (isActive) {
             btn.setAttribute('data-pdf-viewer-action', 'endCopyMode');
             btn.className = 'bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5';
-            btn.innerHTML = 'Завершить штамп';
+            btn.innerHTML = _t('construction.pdf.end_stamp', 'Завершить штамп');
             hintNorm.classList.add('hidden');
             hintAdd.classList.remove('hidden');
-            hintAdd.innerText = 'Кликайте для вставки копий ➔';
+            hintAdd.innerText = _t('construction.pdf.hint_stamp', 'Кликайте для вставки копий ➔');
             hintAdd.className = 'text-[10px] font-bold text-blue-500 uppercase tracking-widest animate-pulse';
             if (container) container.style.cursor = 'crosshair';
         } else {
@@ -424,19 +462,18 @@ window.UniversalPdfViewer = {
         if (isActive) {
             if (btnZone) {
                 btnZone.className = 'bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5 mr-2';
-                btnZone.innerHTML = 'Отмена';
+                btnZone.innerHTML = _t('construction.pdf.btn_cancel', 'Отмена');
             }
             if (btnAdd) btnAdd.classList.add('hidden'); 
             
-            // Показываем красивый баннер
-            helperBanner.innerHTML = '👆 Клик 1: Левый верхний угол зоны';
+            helperBanner.innerHTML = _t('construction.pdf.zone_click_1', '👆 Клик 1: Левый верхний угол зоны');
             helperBanner.classList.remove('opacity-0', 'translate-y-[-20px]');
             
             if (container) container.style.cursor = 'crosshair';
         } else {
             if (btnZone) {
                 btnZone.className = 'bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-colors flex items-center gap-1.5 mr-2';
-                btnZone.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Выделить зону';
+                btnZone.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> ' + _t('construction.pdf.select_zone', 'Выделить зону');
             }
             if (btnAdd) btnAdd.classList.remove('hidden');
             
@@ -459,12 +496,12 @@ window.UniversalPdfViewer = {
             const helperBanner = document.getElementById('pdf-zone-helper');
             
             if (this.zoneClicks.length === 1) {
-                if (helperBanner) helperBanner.innerHTML = '👇 Клик 2: Правый нижний угол зоны';
+                if (helperBanner) helperBanner.innerHTML = _t('construction.pdf.zone_click_2', '👇 Клик 2: Правый нижний угол зоны');
                 const pinsContainer = document.getElementById('universal-pdf-pins');
                 pinsContainer.insertAdjacentHTML('beforeend', `<div id="temp-zone-marker" class="absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_10px_rgba(59,130,246,0.8)] transform -translate-x-1/2 -translate-y-1/2 animate-pulse" style="left: ${xPercent}%; top: ${yPercent}%;"></div>`);
             } 
             else if (this.zoneClicks.length === 2) {
-                if (helperBanner) helperBanner.innerHTML = '✅ Зона зафиксирована!';
+                if (helperBanner) helperBanner.innerHTML = _t('construction.pdf.zone_fixed', '✅ Зона зафиксирована!');
                 
                 const p1 = this.zoneClicks[0];
                 const p2 = this.zoneClicks[1];

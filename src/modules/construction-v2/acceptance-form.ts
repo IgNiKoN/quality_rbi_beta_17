@@ -128,6 +128,24 @@ type DefSvc = {
   }>;
 };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -165,7 +183,7 @@ async function _fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ''));
-    r.onerror = () => reject(new Error('Не удалось прочитать файл'));
+    r.onerror = () => reject(new Error(_t('construction.form.file_read_error', 'Не удалось прочитать файл')));
     r.readAsDataURL(file);
   });
 }
@@ -231,7 +249,7 @@ async function _pickAndSaveChecklistPhotos(): Promise<string[]> {
 }
 
 function _tmplOptions(selected?: string | null): string {
-  let html = '<option value="">-- Выберите вид работ --</option>';
+  let html = `<option value="">${_escape(_t('construction.v2.acc.work_type_select', '-- Выберите вид работ --'))}</option>`;
   const st = _sysTemplates();
   Object.keys(st)
     .sort()
@@ -265,14 +283,14 @@ function _workTitle(key: string): string {
 function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boolean; lockedId?: string | null }): string {
   if (opts?.locked) {
     const id = String(opts.lockedId || '').trim();
-    const label = id || 'не привязан';
+    const label = id || _t('construction.v2.acc.contractor_unlinked', 'не привязан');
     return `
       <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик</label>
+        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
         <input type="hidden" id="c2-acc-contractor" value="${_escape(id)}">
         <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape(
           label
-        )} <span class="text-[9px] font-bold uppercase text-slate-400">(ваш)</span></div>
+        )} <span class="text-[9px] font-bold uppercase text-slate-400">${_escape(_t('construction.v2.acc.contractor_yours', '(ваш)'))}</span></div>
       </div>`;
   }
   const svc = window.RBI?.services?.contractors as
@@ -280,7 +298,7 @@ function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boo
     | undefined;
   const rows = typeof svc?.list === 'function' ? svc.list() : [];
   const optsHtml =
-    `<option value="">— выберите подрядчика —</option>` +
+    `<option value="">${_escape(_t('construction.v2.acc.contractor_select', '— выберите подрядчика —'))}</option>` +
     (rows || [])
       .filter((r) => r && r.id)
       .map((r) => {
@@ -292,7 +310,7 @@ function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boo
       .join('');
   return `
     <div>
-      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Подрядчик *</label>
+      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))} *</label>
       <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
     </div>`;
 }
@@ -355,7 +373,7 @@ export function openCreateAcceptanceForm(
 ): void {
   const { role } = _roleInfo();
   if (role === 'guest') {
-    window.showToast?.('⚠️ Гости не могут предъявлять работы');
+    window.showToast?.(_t('construction.v2.acc.guest_blocked', '⚠️ Гости не могут предъявлять работы'));
     onCancel?.();
     return;
   }
@@ -363,7 +381,7 @@ export function openCreateAcceptanceForm(
   const isContractor = role === 'contractor' || isContractorRole();
   const myContractorId = isContractor ? resolveMyContractorId() : null;
   if (isContractor && !myContractorId) {
-    window.showToast?.('⚠️ Подрядчик не привязан к профилю — заявку создать нельзя');
+    window.showToast?.(_t('construction.v2.acc.contractor_unbound', '⚠️ Подрядчик не привязан к профилю — заявку создать нельзя'));
     onCancel?.();
     return;
   }
@@ -372,21 +390,21 @@ export function openCreateAcceptanceForm(
     ctx.mode === 'apartment' || _locationNodeType(ctx.locationId) === 'apartment';
   const path = _floorLabel(ctx.locationId);
   const zoneBadge = isApartment
-    ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">Квартира</span>`
-    : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">✅ Зона выделена</span>`;
+    ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">${_escape(_t('construction.v2.acc.badge_apartment', 'Квартира'))}</span>`
+    : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">${_escape(_t('construction.v2.acc.badge_zone', '✅ Зона выделена'))}</span>`;
   const roomVolHtml = isApartment
     ? `<div>
-         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
-         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
+         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
        </div>`
     : `<div class="grid grid-cols-2 gap-2">
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Оси / Захватка</label>
-           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="Напр: Оси А-Б" value="${_escape(ctx.zone.room || '')}">
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.axes', 'Оси / Захватка'))}</label>
+           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.axes_ph', 'Напр: Оси А-Б'))}" value="${_escape(ctx.zone.room || '')}">
          </div>
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объем</label>
-           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="Напр: 45 м2">
+           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
+           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
          </div>
        </div>`;
 
@@ -399,19 +417,19 @@ export function openCreateAcceptanceForm(
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 bg-indigo-600 border-b border-indigo-700 flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? '📝 Приёмка квартиры (v2)' : '📝 Заявка на приемку (v2)'}</h3>
+          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? _escape(_t('construction.v2.acc.title_apartment', '📝 Приёмка квартиры (v2)')) : _escape(_t('construction.v2.acc.title_request', '📝 Заявка на приемку (v2)'))}</h3>
           <button type="button" data-c2-acc-close class="text-indigo-200 hover:text-white font-black text-lg leading-none">✕</button>
         </div>
         <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <div class="text-[10px] font-black text-indigo-500 uppercase mb-1 flex justify-between">
-              <span>Локация</span>
+              <span>${_escape(_t('construction.v2.acc.location', 'Локация'))}</span>
               ${zoneBadge}
             </div>
             <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape(path)}</div>
           </div>
           <div>
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">Вид работ *</label>
+            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.v2.acc.work_type', 'Вид работ *'))}</label>
             <select id="c2-acc-work" class="input-base text-[12px] font-bold mb-2 border-indigo-300 w-full">
               ${_tmplOptions()}
             </select>
@@ -419,7 +437,7 @@ export function openCreateAcceptanceForm(
           </div>
           ${contractorHtml}
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">Когда готовы сдать?</label>
+            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">${_escape(_t('construction.v2.acc.when_ready', 'Когда готовы сдать?'))}</label>
             <div class="grid grid-cols-2 gap-2">
               <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today()}">
               <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
@@ -429,8 +447,8 @@ export function openCreateAcceptanceForm(
           </div>
         </div>
         <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/50 flex gap-2">
-          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">Отмена</button>
-          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">Отправить</button>
+          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
+          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">${_escape(_t('construction.v2.acc.submit', 'Отправить'))}</button>
         </div>
       </div>
     </div>`;
@@ -462,11 +480,11 @@ export function openCreateAcceptanceForm(
       : (document.getElementById('c2-acc-contractor') as HTMLSelectElement | HTMLInputElement | null)?.value?.trim() ||
         null;
     if (!workKey || !dateStr) {
-      window.showToast?.('⚠️ Заполните вид работ и дату');
+      window.showToast?.(_t('construction.v2.acc.toast_fill_work_date', '⚠️ Заполните вид работ и дату'));
       return;
     }
     if (!isContractor && !contractorId) {
-      window.showToast?.('⚠️ Выберите подрядчика');
+      window.showToast?.(_t('construction.v2.acc.toast_select_contractor', '⚠️ Выберите подрядчика'));
       return;
     }
     const accListSvc = window.RBI?.services?.constructionAcceptance as
@@ -481,7 +499,7 @@ export function openCreateAcceptanceForm(
       })
     ) {
       const ok = window.confirm(
-        'На это время уже есть активная заявка по этой локации. Всё равно отправить?'
+        _t('construction.v2.acc.slot_conflict', 'На это время уже есть активная заявка по этой локации. Всё равно отправить?')
       );
       if (!ok) return;
     }
@@ -523,29 +541,29 @@ export function openAcceptanceDetails(
     if (isEngineer) {
       actions = `
         <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-[var(--card-border)]">
-          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">🗺️ Показать на плане</button>
+          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
           <div class="flex gap-2">
-            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">✅ Принять</button>
-            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">❌ Отклонить</button>
+            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>
+            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
           </div>
         </div>`;
     } else if (role !== 'guest') {
       actions = `
         <div class="mt-4 pt-4 border-t border-[var(--card-border)] text-center">
-          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">⏳ Инженер проверяет заявку...</div>
-          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">Отозвать заявку</button>
+          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape(_t('construction.v2.acc.engineer_reviewing', '⏳ Инженер проверяет заявку...'))}</div>
+          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">${_escape(_t('construction.v2.acc.revoke', 'Отозвать заявку'))}</button>
         </div>`;
     }
   } else if (isEngineer) {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">🗺️ Показать на плане</button>
-        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">Вернуть в pending</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
+        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">${_escape(_t('construction.v2.acc.return_pending', 'Вернуть в pending'))}</button>
       </div>`;
   } else {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">🗺️ Показать на плане</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
       </div>`;
   }
 
@@ -553,19 +571,19 @@ export function openAcceptanceDetails(
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">Заявка · ${_escape(status)}</h3>
+          <h3 class="font-black text-[13px] uppercase">${_escape(_t('construction.v2.acc.details_title', 'Заявка · {status}', { status }))}</h3>
           <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
         </div>
         <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Локация</span><div class="font-bold">${_escape(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">Вид работ</span><div class="font-bold">${_escape(item.work_type || '—')}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.location', 'Локация'))}</span><div class="font-bold">${_escape(path)}</div></div>
+          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.work_type_view', 'Вид работ'))}</span><div class="font-bold">${_escape(item.work_type || '—')}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Объем</span><div class="font-bold">${_escape(item.volume || '—')}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Оси</span><div class="font-bold">${_escape(item.zone?.room || '—')}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</span><div class="font-bold">${_escape(item.volume || '—')}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.axes_view', 'Оси'))}</span><div class="font-bold">${_escape(item.zone?.room || '—')}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Дата</span><div class="font-bold">${_escape(item.requested_date || '—')}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">Время</span><div class="font-bold">${_escape(item.requested_time || '—')}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.date', 'Дата'))}</span><div class="font-bold">${_escape(item.requested_date || '—')}</div></div>
+            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.time', 'Время'))}</span><div class="font-bold">${_escape(item.requested_time || '—')}</div></div>
           </div>
           ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}
@@ -591,7 +609,7 @@ export function openAcceptanceDetails(
   }) => {
     const dSvc = _defects();
     if (!dSvc) {
-      window.showToast?.('service.constructionDefects не загружен');
+      window.showToast?.(_t('construction.v2.svc_defects_missing', 'service.constructionDefects не загружен'));
       return;
     }
     const center = _zoneCenter(current.zone);
@@ -613,7 +631,7 @@ export function openAcceptanceDetails(
           photos: input.photos,
           status: 'issued'
         });
-        window.showToast?.('Замечание создано');
+        window.showToast?.(_t('construction.v2.acc.defect_created', 'Замечание создано'));
         refreshChecklistUi(_acc()?.get(current.id) || current);
       },
       undefined,
@@ -630,17 +648,17 @@ export function openAcceptanceDetails(
   const createBatchFailDefects = async () => {
     const dSvc = _defects();
     if (!dSvc) {
-      window.showToast?.('service.constructionDefects не загружен');
+      window.showToast?.(_t('construction.v2.svc_defects_missing', 'service.constructionDefects не загружен'));
       return;
     }
     const latest = _acc()?.get(current.id) || current;
     const candidates = listFailBatchCandidates(latest, _listDefectsForLocation(latest.locationId));
     if (!candidates.length) {
-      window.showToast?.('Нет FAIL без активного замечания');
+      window.showToast?.(_t('construction.v2.acc.no_fail_without_defect', 'Нет FAIL без активного замечания'));
       refreshChecklistUi(latest);
       return;
     }
-    if (!window.confirm(`Создать ${candidates.length} замечани(й) по FAIL без формы?`)) return;
+    if (!window.confirm(_t('construction.v2.acc.batch_fail_confirm', 'Создать {count} замечани(й) по FAIL без формы?', { count: candidates.length }))) return;
     const center = _zoneCenter(latest.zone);
     let created = 0;
     for (const c of candidates) {
@@ -665,7 +683,7 @@ export function openAcceptanceDetails(
         console.warn('[acceptance-form] batch fail create', e);
       }
     }
-    window.showToast?.(created ? `Создано замечаний: ${created}` : 'Не удалось создать замечания');
+    window.showToast?.(created ? _t('construction.v2.acc.batch_created', 'Создано замечаний: {count}', { count: created }) : _t('construction.v2.acc.batch_failed', 'Не удалось создать замечания'));
     refreshChecklistUi(_acc()?.get(current.id) || latest);
     await handlers.onChecklistChanged?.(current.id);
   };
@@ -685,20 +703,20 @@ export function openAcceptanceDetails(
   const openChecklistRunner = () => {
     const runner = _checklistRunner();
     if (!runner) {
-      window.showToast?.('ChecklistRunner не загружен');
+      window.showToast?.(_t('construction.v2.acc.checklist_runner_missing', 'ChecklistRunner не загружен'));
       return;
     }
     const tmplKey = String(current.template_key || current.checklist_results?.template_key || '');
     if (!tmplKey) {
-      window.showToast?.('Вид работ не выбран');
+      window.showToast?.(_t('construction.v2.acc.work_not_selected', 'Вид работ не выбран'));
       return;
     }
     const groups = resolveTemplateGroups(tmplKey);
     if (!groups.length) {
-      window.showToast?.('Чек-лист шаблона пуст или не найден');
+      window.showToast?.(_t('construction.v2.acc.checklist_empty', 'Чек-лист шаблона пуст или не найден'));
       return;
     }
-    const title = _workTitle(tmplKey) || current.work_type || 'Чек-лист';
+    const title = _workTitle(tmplKey) || current.work_type || _t('construction.v2.acc.checklist_title', 'Чек-лист');
 
     const rowOf = (id: string) => {
       const latest = _acc()?.get(current.id) || current;
@@ -716,7 +734,7 @@ export function openAcceptanceDetails(
       }
     ) => {
       const acc = _acc();
-      if (!acc) throw new Error('service.constructionAcceptance не загружен');
+      if (!acc) throw new Error(_t('construction.v2.svc_acc_missing', 'service.constructionAcceptance не загружен'));
       const updated = await acc.setChecklistItem(current.id, {
         id,
         name: itemMeta.name || id,
@@ -733,7 +751,7 @@ export function openAcceptanceDetails(
 
     const clearItem = async (id: string) => {
       const acc = _acc();
-      if (!acc) throw new Error('service.constructionAcceptance не загружен');
+      if (!acc) throw new Error(_t('construction.v2.svc_acc_missing', 'service.constructionAcceptance не загружен'));
       const latest = acc.get(current.id) || current;
       const prev = latest.checklist_results;
       if (!prev) return;
@@ -783,7 +801,7 @@ export function openAcceptanceDetails(
         }
         const st = status as ChecklistItemStatusV2;
         if (st !== 'ok' && st !== 'fail' && st !== 'na' && st !== 'fail_escalated') {
-          throw new Error('Некорректный статус пункта');
+          throw new Error(_t('construction.v2.acc.invalid_item_status', 'Некорректный статус пункта'));
         }
         const clearExtras = st === 'ok' || st === 'na';
         await persistItem(id, itemMeta, {
@@ -798,7 +816,7 @@ export function openAcceptanceDetails(
         const row = rowOf(id);
         const st = row?.status;
         if (st !== 'fail' && st !== 'fail_escalated') {
-          throw new Error('Комментарий только для FAIL');
+          throw new Error(_t('construction.v2.acc.comment_fail_only', 'Комментарий только для FAIL'));
         }
         await persistItem(id, itemMeta, {
           status: st,
@@ -809,7 +827,7 @@ export function openAcceptanceDetails(
         const row = rowOf(id);
         const st = row?.status;
         if (st !== 'ok' && st !== 'fail' && st !== 'fail_escalated') {
-          throw new Error('Сначала отметьте пункт OK или FAIL');
+          throw new Error(_t('construction.v2.acc.mark_item_first', 'Сначала отметьте пункт OK или FAIL'));
         }
         const added = await _pickAndSaveChecklistPhotos();
         if (!added.length) return;
@@ -819,7 +837,7 @@ export function openAcceptanceDetails(
       removeItemPhoto: async (id, index, itemMeta) => {
         const row = rowOf(id);
         const st = row?.status;
-        if (!st) throw new Error('Пункт без статуса');
+        if (!st) throw new Error(_t('construction.v2.acc.item_no_status', 'Пункт без статуса'));
         const photos = Array.isArray(row?.photos) ? row!.photos!.slice() : [];
         if (index < 0 || index >= photos.length) return;
         photos.splice(index, 1);
@@ -849,7 +867,7 @@ export function openAcceptanceDetails(
           svc.openItemHelp(id, event);
           return;
         }
-        window.showToast?.('База знаний недоступна');
+        window.showToast?.(_t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна'));
         void itemMeta;
       },
       onEscalate: async (id, itemMeta) => {

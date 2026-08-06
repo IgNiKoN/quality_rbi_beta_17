@@ -27,6 +27,24 @@ export type SlotAcceptanceLite = {
   work_type?: string | null;
 };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -115,13 +133,15 @@ export function slotBoardHtml(
   occupancy: SlotOccupancy[],
   opts?: { title?: string }
 ): string {
-  const title = opts?.title || 'Слоты дня';
+  const title = opts?.title || _t('construction.v2.slots.day_title', 'Слоты дня');
   const cells = occupancy
     .map((o) => {
       const cls = o.taken
         ? 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
         : 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-300';
-      const label = o.taken ? `занято${o.count > 1 ? ` ×${o.count}` : ''}` : 'свободно';
+      const label = o.taken
+        ? _t('construction.v2.slots.taken', 'занято{suffix}', { suffix: o.count > 1 ? ` ×${o.count}` : '' })
+        : _t('construction.v2.slots.free', 'свободно');
       const tip = o.items
         .map((i) => String(i.work_type || i.id || '').slice(0, 40))
         .filter(Boolean)

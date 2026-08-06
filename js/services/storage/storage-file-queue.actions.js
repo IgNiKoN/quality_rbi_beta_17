@@ -55,6 +55,16 @@ async function rbiUpsertFileCacheQueueItem(url, status = 'pending', extra = {}) 
     }
 }
 
+function rbiIsPermanentCloudMissError(err) {
+    const s = String(err && err.message != null ? err.message : err || '').toLowerCase();
+    return s.includes('недоступен')
+        || s.includes('not_found')
+        || s.includes('object not found')
+        || s.includes('404')
+        || s.includes('statuscode":"404"')
+        || s.includes('statuscode":404');
+}
+
 async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
     if (!url || !String(url).startsWith('http')) {
         return { status: 'skipped', bytes: 0, fetched: false };
@@ -70,12 +80,28 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
         : null;
     const item = index ? index.get(url) : null;
 
+    const prevStatus = item?.cache_status || item?.cacheStatus || '';
+    const prevErr = item?.last_cache_error || item?.lastCacheError || '';
+    // Битый Storage-объект: не долбим сеть каждые N минут / при полном кэше.
+    if (prevStatus === 'failed' && rbiIsPermanentCloudMissError(prevErr)) {
+        const retryAtPerm = item?.next_cache_retry_at || item?.nextCacheRetryAt;
+        if (!retryAtPerm || new Date(retryAtPerm).getTime() > nowMs) {
+            return { status: 'postponed', bytes: 0, fetched: false };
+        }
+        // Окно истекло — один probe ниже (maxAttempts принудительно 1).
+        maxAttempts = 1;
+    }
+
     const retryAt = item?.next_cache_retry_at || item?.nextCacheRetryAt;
     if (retryAt && new Date(retryAt).getTime() > nowMs) {
         return { status: 'postponed', bytes: 0, fetched: false };
     }
 
     let attempts = item?.cache_attempts || item?.cacheAttempts || 0;
+    if (prevStatus === 'failed' && attempts >= maxAttempts && !rbiIsPermanentCloudMissError(prevErr)) {
+        // Исчерпаны обычные ретраи, ждём next_cache_retry_at (уже проверен выше).
+        return { status: 'failed', bytes: 0, fetched: false };
+    }
 
     for (let i = attempts; i < maxAttempts; i++) {
         try {
@@ -128,6 +154,17 @@ async function rbiDownloadFileWithRetry(url, maxAttempts = 3) {
             throw new Error('Файл не сохранился в IndexedDB');
 
         } catch (e) {
+            // 404 / Object not found — сразу failed + длинный backoff (7 суток).
+            if (rbiIsPermanentCloudMissError(e)) {
+                const nextRetry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                await rbiUpsertFileCacheQueueItem(url, 'failed', {
+                    cache_attempts: maxAttempts,
+                    last_cache_error: e.message || String(e),
+                    next_cache_retry_at: nextRetry
+                });
+                return { status: 'failed', bytes: 0, fetched: false };
+            }
+
             const delayMin = i === 0 ? 2 : i === 1 ? 10 : 60;
             const nextRetry = new Date(Date.now() + delayMin * 60 * 1000).toISOString();
 

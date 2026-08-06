@@ -33,6 +33,11 @@ function bindConstructionCoreI18n() {
                 window.ConstManager.renderAdminPanel();
             }
         } catch (_e2) { /* ignore */ }
+        try {
+            if (window.ConstManager && window.ConstManager.currentView === 'list' && typeof window.ConstManager.renderDefectsList === 'function') {
+                window.ConstManager.renderDefectsList();
+            }
+        } catch (_e3) { /* ignore */ }
     });
 }
 
@@ -873,12 +878,25 @@ window.ConstManager = {
             return dateB - dateA;
         });
 
-        const statusNames = { 'issued': 'Выдано', 'fixed': 'Устранено', 'closed': 'Закрыто' };
+        const statusNames = {
+            'issued': _t('construction.status.issued', 'Выдано'),
+            'in_progress': _t('construction.status.in_progress', 'В работе'),
+            'fixed': _t('construction.form.status_fixed', 'Устранено'),
+            'closed': _t('construction.status.closed', 'Закрыто'),
+            'rejected': _t('construction.status.rejected', 'Отклонено')
+        };
         const statusColors = {
             'issued': 'text-red-600 bg-red-50 border-red-200',
+            'in_progress': 'text-blue-600 bg-blue-50 border-blue-200',
             'fixed': 'text-yellow-600 bg-yellow-50 border-yellow-200',
-            'closed': 'text-green-600 bg-green-50 border-green-200'
+            'closed': 'text-green-600 bg-green-50 border-green-200',
+            'rejected': 'text-slate-600 bg-slate-50 border-slate-200'
         };
+        const noPhotoLabel = _t('construction.registry.no_photo', 'Нет<br>фото');
+        const showOnPlanLabel = _t('construction.registry.show_on_plan', 'Показать на плане');
+        const deadlinePrefix = _t('construction.registry.deadline_prefix', 'До:');
+        const deadlineUnset = _t('construction.registry.deadline_unset', 'Не указан');
+        const contractorUnset = _t('construction.registry.contractor_unset', 'Подрядчик не указан');
 
         container.innerHTML = filtered.map(d => {
             const photoRef = d.photo || '';
@@ -886,13 +904,13 @@ window.ConstManager = {
                 ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function')
                     ? window.rbiBuildPhotoImgAttrs(photoRef, { preferThumb: true })
                     : ('src="' + (typeof window.getPhotoSrc === 'function' ? window.getPhotoSrc(photoRef) : photoRef) + '"')} loading="lazy" class="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer shadow-sm shrink-0" onclick="event.stopPropagation(); window.ConstDefectForm.openDefectPhoto('${d.id}')">`
-                : `<div class="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[8px] text-slate-400 font-bold uppercase shrink-0 text-center leading-tight">Нет<br>фото</div>`;
+                : `<div class="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[8px] text-slate-400 font-bold uppercase shrink-0 text-center leading-tight">${noPhotoLabel}</div>`;
 
             let catColor = 'bg-blue-500';
             if (d.category === 'B2') catColor = 'bg-orange-500';
             if (d.category === 'B3') catColor = 'bg-red-600';
 
-            const deadlineText = d.deadline ? new Date(d.deadline).toLocaleDateString('ru-RU') : 'Не указан';
+            const deadlineText = d.deadline ? new Date(d.deadline).toLocaleDateString('ru-RU') : deadlineUnset;
 
             return `
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm flex flex-col cursor-pointer hover:border-indigo-400 transition-colors" onclick="window.ConstDefectForm && window.ConstDefectForm.openExisting && window.ConstDefectForm.openExisting('${d.id}')">
@@ -907,10 +925,10 @@ window.ConstManager = {
                                 </div>
                                 <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border ${statusColors[d.status]} shrink-0">${statusNames[d.status] || d.status}</span>
                             </div>
-                            <div class="text-[10px] text-slate-500 truncate font-medium">${d.contractor || 'Подрядчик не указан'}</div>
+                            <div class="text-[10px] text-slate-500 truncate font-medium">${d.contractor || contractorUnset}</div>
                         </div>
                         <div class="mt-1 flex justify-between items-center">
-                            <div class="text-[9px] font-bold text-slate-400 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> До: ${deadlineText}</div>
+                            <div class="text-[9px] font-bold text-slate-400 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${deadlinePrefix} ${deadlineText}</div>
                             <div class="text-[9px] font-bold text-slate-400">${new Date(d.created_at).toLocaleDateString('ru-RU')}</div>
                         </div>
                     </div>
@@ -920,7 +938,7 @@ window.ConstManager = {
                 <div class="flex justify-end mt-1">
                     <button onclick="event.stopPropagation(); window.ConstManager.focusOnPin('${d.id}')" class="bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 transition-transform shadow-sm flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        Показать на плане
+                        ${showOnPlanLabel}
                     </button>
                 </div>
             </div>`;

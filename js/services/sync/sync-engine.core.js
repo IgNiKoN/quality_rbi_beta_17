@@ -2,6 +2,21 @@
 // ============================================================================
 // ГЛАВНЫЙ БЛОК СИНХРОНИЗАЦИИ (ИСПРАВЛЕНО СОХРАНЕНИЕ ОБЪЕКТОВ)
 // ==========================================
+
+/** assigned UUID/key → canonical_key[] для `.in('project_canonical_key', …)`. */
+function _syncAssignedCanonicalKeys(assignedProjects) {
+    const list = Array.isArray(assignedProjects) ? assignedProjects : [];
+    if (typeof ObjectDirectory !== 'undefined'
+        && typeof ObjectDirectory.canonicalKeysForAssignedProjects === 'function') {
+        return ObjectDirectory.canonicalKeysForAssignedProjects(list);
+    }
+    if (window.RBI && window.RBI.services && window.RBI.services.objects
+        && typeof window.RBI.services.objects.canonicalKeysForAssignedProjects === 'function') {
+        return window.RBI.services.objects.canonicalKeysForAssignedProjects(list);
+    }
+    return list;
+}
+
 window.triggerSync = async function (mode = 'silent') {
     // ЖЕСТКАЯ ЗАЩИТА: Запрещаем синхронизацию в демо-режиме
     if (typeof isDemoMode !== 'undefined' && isDemoMode) {
@@ -267,12 +282,16 @@ window.triggerSync = async function (mode = 'silent') {
                             }
                             needUiUpdate = true;
 
-                            // 1. Команды для синхронизатора (качаем заново)
+                            // 1. Команды для синхронизатора (качаем заново данные + файлы)
                             localStorage.setItem('rbi_force_full_pull', '1');
                             localStorage.setItem('rbi_cloud_dirty', '1');
                             localStorage.removeItem('rbi_sync_last_pull_at');
+                            // Задумано: новый набор объектов → полный офлайн-пакет заново
+                            // (чужие записи чистит purge; недостающие/новые URL докачает очередь).
+                            // Permanent 404 в queue — fail-fast, без тройных ретраев.
                             localStorage.removeItem('rbi_first_full_offline_cache_done');
                             localStorage.removeItem('rbi_first_full_offline_cache_started_at');
+                            localStorage.setItem('rbi_need_full_offline_cache', '1');
                             // 2. Запускаем физическую чистку телефона от чужих объектов
                             if (typeof window.purgeDataOutsideAssignedProjects === 'function') {
                                 window.purgeDataOutsideAssignedProjects(fetchedProjects);
@@ -303,13 +322,17 @@ window.triggerSync = async function (mode = 'silent') {
                     }
                 }
 
-                // СБРОС КЭША ВРЕМЕНИ: Если права расширились, заставляем приложение скачать всю историю заново
+                // СБРОС КЭША: права расширились → полный pull данных + полный офлайн-пакет.
+                // (Задумано пользователем: смена роли/режима = перекачка под новый scope.)
+                // Ложный цикл «Роль изменилась» на каждом reload был из-за cloudSettingsBuf
+                // (роль не сохранялась в IDB) — тот баг уже починен; 404 в очереди — fail-fast.
                 if (roleOrModeChanged) {
                     localStorage.setItem('rbi_force_full_pull', '1');
                     localStorage.removeItem('rbi_sync_last_pull_at');
                     localStorage.removeItem('rbi_first_full_offline_cache_done');
                     localStorage.removeItem('rbi_first_full_offline_cache_started_at');
-                    console.log('[Sync] Роль изменилась. Запрошен полный PULL базы.');
+                    localStorage.setItem('rbi_need_full_offline_cache', '1');
+                    console.log('[Sync] Роль изменилась. Запрошен полный PULL базы + офлайн-кэш.');
                 }
 
                 // АВТОМАТИЧЕСКИ Включаем ИИ для штатных сотрудников
@@ -343,9 +366,9 @@ window.triggerSync = async function (mode = 'silent') {
                             engineerName: 1,
                             key: 1
                         };
-                        Object.keys(cloudSettingsBuf).forEach((k) => {
+                        Object.keys(cloudSettingsBag).forEach((k) => {
                             if (AUTH_PREF_KEYS[k]) return;
-                            appSettings[k] = cloudSettingsBuf[k];
+                            appSettings[k] = cloudSettingsBag[k];
                         });
                         appSettings.settingsUpdatedAt = cloudPrefsTs;
                         // Зеркало темы в localStorage — иначе reload перетирает облачную тему
@@ -556,31 +579,26 @@ window.triggerSync = async function (mode = 'silent') {
         const storageDir = storageSlashIndex >= 0 ? storagePath.slice(0, storageSlashIndex) : '';
         const storageFileName = storageSlashIndex >= 0 ? storagePath.slice(storageSlashIndex + 1) : storagePath;
 
-        const { data: existingFiles } = await window.supabaseClient.storage
-            .from(bucketName)
-            .list(storageDir, { search: storageFileName });
-
-        if (existingFiles && existingFiles.some(f => f.name === storageFileName)) {
-            console.log('[Sync] Дедупликация сработала (файл уже есть):', publicUrl);
-            // ВРЕМЕННО ОТКЛЮЧЕНО, чтобы не было дублей в file_registry.
-            // Сначала регистрируем только фото проверок как inspection_photo.
-            /*
-            if (window.RbiStorageManager) {
-                await window.RbiStorageManager.registerUploadedFile({
-                    project_code: window.syncConfig?.projectCode || 'LOCAL',
-                    entity_type: 'uploaded_asset',
-                    entity_id: '',
-                    field_path: '',
-                    bucket: bucketName,
-                    storage_path: storagePath,
-                    public_url: publicUrl,
-                    mime_type: blobData.mime,
-                    size_bytes: fileSizeBytes,
-                    uploaded_by: window.syncConfig?.engineerName || '',
-                    cache_status: 'cached_cloud'
-                });
+        const objectExistsInBucket = async function () {
+            // После upload Storage иногда отвечает с лагом — 2–3 попытки list.
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const { data: listed, error: listErr } = await window.supabaseClient.storage
+                        .from(bucketName)
+                        .list(storageDir, { search: storageFileName });
+                    if (!listErr && Array.isArray(listed) && listed.some((f) => f && f.name === storageFileName)) {
+                        return true;
+                    }
+                } catch (_e) { /* retry */ }
+                if (attempt < 2) {
+                    await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+                }
             }
-            */
+            return false;
+        };
+
+        if (await objectExistsInBucket()) {
+            console.log('[Sync] Дедупликация сработала (файл уже есть):', publicUrl);
             return publicUrl;
         }
 
@@ -597,25 +615,14 @@ window.triggerSync = async function (mode = 'silent') {
             console.error('[Sync] Ошибка загрузки файла:', error);
             throw error;
         }
-        if (window.RbiStorageManager) {
-            /*
-if (window.RbiStorageManager) {
-    await window.RbiStorageManager.registerUploadedFile({
-        project_code: window.syncConfig?.projectCode || 'LOCAL',
-        entity_type: 'uploaded_asset',
-        entity_id: '',
-        field_path: '',
-        bucket: bucketName,
-        storage_path: storagePath,
-        public_url: publicUrl,
-        mime_type: blobData.mime,
-        size_bytes: fileSizeBytes,
-        uploaded_by: window.syncConfig?.engineerName || '',
-        cache_status: 'cached_cloud'
-    });
-}
-*/
+
+        // 6. Не возвращаем publicUrl, пока объект реально не виден в бакете
+        // (иначе в записи остаётся сирота → offline-cache 404).
+        if (!(await objectExistsInBucket())) {
+            console.error('[Sync] Upload OK, но объект не найден в Storage:', bucketName, storagePath);
+            throw new Error(`[Sync] Файл не подтверждён в Storage после upload: ${bucketName}/${storagePath}`);
         }
+
         return publicUrl;
     };
 
@@ -857,20 +864,22 @@ if (window.RbiStorageManager) {
             }
             else if (dataScope === 'ownProject') {
                 const assignedProjects = window.RBI.services.permissions ? window.RBI.services.permissions.getAssignedProjects() : [];
+                const assignedKeys = _syncAssignedCanonicalKeys(assignedProjects);
 
-                if (assignedProjects && assignedProjects.length > 0) {
-                    q = q.in('project_canonical_key', assignedProjects);
+                if (assignedKeys && assignedKeys.length > 0) {
+                    q = q.in('project_canonical_key', assignedKeys);
                 } else {
                     q = q.eq('id', 'impossible_id');
                 }
             }
             else if (dataScope === 'ownProjectOrOwnRecords') {
                 const assignedProjects = window.RBI.services.permissions ? window.RBI.services.permissions.getAssignedProjects() : [];
+                const assignedKeys = _syncAssignedCanonicalKeys(assignedProjects);
 
                 q = q.eq('engineer_name', iName);
 
-                if (assignedProjects && assignedProjects.length > 0) {
-                    q = q.in('project_canonical_key', assignedProjects);
+                if (assignedKeys && assignedKeys.length > 0) {
+                    q = q.in('project_canonical_key', assignedKeys);
                 }
             }
             else if (window.syncConfig.syncMode === 'personal') {
@@ -1144,20 +1153,22 @@ if (window.RbiStorageManager) {
             }
             else if (taskDataScope === 'ownProject') {
                 const assignedProjects = window.RBI.services.permissions ? window.RBI.services.permissions.getAssignedProjects() : [];
+                const assignedKeys = _syncAssignedCanonicalKeys(assignedProjects);
 
-                if (assignedProjects && assignedProjects.length > 0) {
-                    taskQuery = taskQuery.in('project_canonical_key', assignedProjects);
+                if (assignedKeys && assignedKeys.length > 0) {
+                    taskQuery = taskQuery.in('project_canonical_key', assignedKeys);
                 } else {
                     taskQuery = taskQuery.eq('id', 'impossible_id');
                 }
             }
             else if (taskDataScope === 'ownProjectOrOwnRecords') {
                 const assignedProjects = window.RBI.services.permissions ? window.RBI.services.permissions.getAssignedProjects() : [];
+                const assignedKeys = _syncAssignedCanonicalKeys(assignedProjects);
 
                 taskQuery = taskQuery.eq('engineer_name', iName);
 
-                if (assignedProjects && assignedProjects.length > 0) {
-                    taskQuery = taskQuery.in('project_canonical_key', assignedProjects);
+                if (assignedKeys && assignedKeys.length > 0) {
+                    taskQuery = taskQuery.in('project_canonical_key', assignedKeys);
                 }
             }
             else if (window.syncConfig.syncMode === 'personal') {

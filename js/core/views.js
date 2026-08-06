@@ -1,5 +1,16 @@
 /* Файл: js/core/views.js */
 
+function _t(key, fallback) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    return fallback;
+}
+
 // Мягкое переключение экранов (через CSS класс)
 // Мягкое переключение экранов (через CSS класс)
 function switchViewNode(tabId, showHeader) {
@@ -458,7 +469,7 @@ window.AppViews = {
             window.ConstructionV2Module.showTab();
             return;
         }
-        showModePlaceholder('construction-v2', 'Модуль «Стройконтроль в2 (тест)» загружается… Обновите страницу, если экран не сменится.');
+        showModePlaceholder('construction-v2', _t('construction.shell.v2_loading', 'Модуль «Стройконтроль в2 (тест)» загружается… Обновите страницу, если экран не сменится.'));
     },
 
     renderNotFound() { showModePlaceholder('404'); }

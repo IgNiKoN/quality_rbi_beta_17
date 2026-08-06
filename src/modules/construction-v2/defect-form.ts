@@ -48,6 +48,24 @@ type ContractorOpt = { id: string; label: string };
 type TmplItem = { id: string; n: string; t?: string; w?: number };
 type TmplGroup = { items?: TmplItem[] };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -118,22 +136,23 @@ function _resolveTemplateGroups(tmplKey: string): TmplGroup[] {
 }
 
 function _catLabel(c: string): string {
-  if (c === 'B1' || c === 'minor') return 'B1 (Мелкий)';
-  if (c === 'B3' || c === 'critical') return 'B3 (Критика)';
-  return 'B2 (Значимый)';
+  if (c === 'B1' || c === 'minor') return _t('construction.form.cat_b1', 'B1 (Мелкий)');
+  if (c === 'B3' || c === 'critical') return _t('construction.form.cat_b3', 'B3 (Критика)');
+  return _t('construction.form.cat_b2', 'B2 (Значимый)');
 }
 
 function _statusLabel(s: string): string {
-  const map: Record<string, string> = {
-    issued: 'Выдано',
-    in_progress: 'В работе',
-    fixed: 'Устранено',
-    closed: 'Закрыто',
-    rejected: 'Отклонено',
-    open: 'Выдано',
-    cancelled: 'Отклонено'
+  const map: Record<string, [string, string]> = {
+    issued: ['construction.status.issued', 'Выдано'],
+    in_progress: ['construction.status.in_progress', 'В работе'],
+    fixed: ['construction.form.status_fixed', 'Устранено'],
+    closed: ['construction.status.closed', 'Закрыто'],
+    rejected: ['construction.status.rejected', 'Отклонено'],
+    open: ['construction.status.issued', 'Выдано'],
+    cancelled: ['construction.status.rejected', 'Отклонено']
   };
-  return map[s] || s;
+  const entry = map[s];
+  return entry ? _t(entry[0], entry[1]) : s;
 }
 
 function _deadlineInputValue(v: unknown): string {
@@ -177,7 +196,7 @@ async function _fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ''));
-    r.onerror = () => reject(new Error('Не удалось прочитать файл'));
+    r.onerror = () => reject(new Error(_t('construction.form.file_read_error', 'Не удалось прочитать файл')));
     r.readAsDataURL(file);
   });
 }
@@ -225,7 +244,7 @@ export function closeDefectForm() {
 }
 
 function _templateOptionsHtml(selected?: string | null): string {
-  let html = '<option value="">— вид работ —</option>';
+  let html = `<option value="">${_escape(_t('construction.form.work_type_select', '— вид работ —'))}</option>`;
   const st = _sysTemplates();
   Object.keys(st)
     .sort()
@@ -246,7 +265,7 @@ function _templateOptionsHtml(selected?: string | null): string {
 function _contractorOptionsHtml(selected?: string | null): string {
   const opts = _contractors();
   return (
-    `<option value="">— без подрядчика —</option>` +
+    `<option value="">${_escape(_t('construction.form.no_contractor', '— без подрядчика —'))}</option>` +
     opts
       .map((o) => {
         const sel = selected === o.id ? ' selected' : '';
@@ -258,7 +277,7 @@ function _contractorOptionsHtml(selected?: string | null): string {
 
 function _renderGallery(photos: string[]): string {
   if (!photos.length) {
-    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>Нет фото</div>`;
+    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>${_escape(_t('construction.form.no_photos', 'Нет фото'))}</div>`;
   }
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos
@@ -346,7 +365,7 @@ function _bindItemSearch(panel: HTMLElement) {
     const tmplKey = tmpl?.value || '';
     if (!tmplKey) {
       dd.innerHTML =
-        '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Сначала выберите вид работ</div>';
+        `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape(_t('construction.form.select_work_first', 'Сначала выберите вид работ'))}</div>`;
       dd.classList.remove('hidden');
       return;
     }
@@ -357,7 +376,7 @@ function _bindItemSearch(panel: HTMLElement) {
     );
     if (!matched.length) {
       dd.innerHTML =
-        '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Ничего не найдено</div>';
+        `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape(_t('construction.form.search_empty', 'Ничего не найдено'))}</div>`;
       dd.classList.remove('hidden');
       return;
     }
@@ -391,8 +410,8 @@ function _bindItemSearch(panel: HTMLElement) {
           normBlock?.classList.add('hidden');
         }
         if (desc) {
-          let auto = `Нарушение: ${name}.`;
-          if (norm && norm !== 'Без норматива') auto += ` Требования: ${norm}`;
+          let auto = _t('construction.form.violation_prefix', 'Нарушение: {name}.', { name });
+          if (norm && norm !== 'Без норматива') auto += _t('construction.form.requirements_prefix', ' Требования: {norm}', { norm });
           desc.value = auto;
         }
         if (cat) {
@@ -495,17 +514,17 @@ export function openCreateDefectForm(
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">Новое замечание</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
+      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape(_t('construction.form.new_defect', 'Новое замечание'))}</h3>
+      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-3">Координаты: ${coords.x.toFixed(1)}% × ${coords.y.toFixed(1)}%</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ (чек-лист) *</label>
+    <p class="text-[10px] text-slate-400 mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.work_type_label', 'Вид работ (чек-лист) *'))}</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
       ${_templateOptionsHtml(prefill?.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение *</label>
-      <input type="text" data-c2-item-search autocomplete="off" placeholder="Начните вводить нарушение..."
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.violation_label', 'Нарушение *'))}</label>
+      <input type="text" data-c2-item-search autocomplete="off" placeholder="${_escape(_t('construction.form.violation_placeholder', 'Начните вводить нарушение...'))}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
         value="${_escape(prefill?.item_name || '')}" />
       <input type="hidden" data-c2-item-id value="${_escape(prefill?.item_id || '')}" />
@@ -513,39 +532,39 @@ export function openCreateDefectForm(
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${prefill?.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
       <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(prefill?.norm_text || '')}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
         <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]">
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
         <input type="date" data-c2-defect-deadline
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
     <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
       ${_contractorOptionsHtml()}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape(prefill?.description || prefill?.item_name || '')}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
       class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
-      + Добавить фото
+      + ${_escape(_t('construction.form.add_photo', '+ Добавить фото'))}
     </button>
     <div class="flex gap-2 justify-end">
-      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Отмена</button>
-      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">Сохранить</button>
+      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
+      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">${_escape(_t('construction.form.save', 'Сохранить'))}</button>
     </div>`;
 
   root.classList.remove('hidden');
@@ -570,16 +589,16 @@ export function openCreateDefectForm(
   panel.querySelector('[data-c2-defect-save]')?.addEventListener('click', async () => {
     const fields = _readCommonFields(panel);
     if (!fields.template_key) {
-      window.showToast?.('Выберите вид работ (чек-лист)');
+      window.showToast?.(_t('construction.form.toast_select_work', 'Выберите вид работ (чек-лист)'));
       return;
     }
     if (!fields.item_id && !fields.item_name) {
-      window.showToast?.('Выберите нарушение из списка');
+      window.showToast?.(_t('construction.form.toast_select_violation', 'Выберите нарушение из списка'));
       return;
     }
     const description = fields.description || fields.item_name || '';
     if (!description) {
-      window.showToast?.('Укажите описание замечания');
+      window.showToast?.(_t('construction.form.toast_desc_required', 'Укажите описание замечания'));
       return;
     }
     try {
@@ -610,35 +629,35 @@ function _actionButtonsHtml(defect: ConstructionDefectV2): string {
   const st = String(defect.status || 'issued');
   if (st === 'issued') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">В работу</button>
-        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Фото)</button>`;
+      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape(_t('construction.form.action_in_progress', 'В работу'))}</button>
+        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_fixed_photo', 'Устранено (Фото)'))}</button>`;
     }
     if (isEngineer) {
       return `<button type="button" data-c2-defect-delete class="bg-red-50 text-red-600 py-2.5 px-3 rounded-xl text-[11px] font-bold uppercase border border-red-200">🗑️</button>
-        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
     }
   } else if (st === 'in_progress') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Устранено (Приложить фото)</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_fixed_attach', 'Устранено (Приложить фото)'))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">Подрядчик взял в работу</div>`;
+    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">${_escape(_t('construction.form.contractor_working', 'Подрядчик взял в работу'))}</div>`;
   } else if (st === 'fixed') {
     if (isEngineer) {
-      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">❌ Отклонить</button>
-        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">✅ Принять</button>`;
+      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
+        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">Ожидает проверки инженером</div>`;
+    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">${_escape(_t('construction.form.awaiting_review', 'Ожидает проверки инженером'))}</div>`;
   } else if (st === 'closed') {
-    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">Дефект закрыт</div>`;
+    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">${_escape(_t('construction.form.defect_closed', 'Дефект закрыт'))}</div>`;
   } else if (st === 'rejected') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">Повторно предъявить (Фото)</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.resubmit_photo', 'Повторно предъявить (Фото)'))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">💾 Обновить</button>`;
+      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
     }
   }
-  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">Закрыть</button>`;
+  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape(_t('construction.form.close', 'Закрыть'))}</button>`;
 }
 
 export function openViewDefectForm(
@@ -650,7 +669,7 @@ export function openViewDefectForm(
   if (isContractorRole()) {
     const myId = resolveMyContractorId();
     if (!myId || String(defect.contractorId || '').trim() !== myId) {
-      window.showToast?.('⚠️ Нет доступа к чужому замечанию');
+      window.showToast?.(_t('construction.form.no_access', '⚠️ Нет доступа к чужому замечанию'));
       return;
     }
   }
@@ -674,17 +693,17 @@ export function openViewDefectForm(
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">Замечание</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">Закрыть</button>
+      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape(_t('construction.form.defect_title', 'Замечание'))}</h3>
+      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">Статус: <b>${_escape(_statusLabel(String(defect.status)))}</b></p>
-    <p class="text-[10px] text-slate-400 mb-3">Координаты: ${Number(defect.x).toFixed(1)}% × ${Number(defect.y).toFixed(1)}%</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Вид работ</label>
+    <p class="text-[10px] text-slate-400 mb-1">${_escape(_t('construction.form.status_line', 'Статус: {status}', { status: _statusLabel(String(defect.status)) }))}</p>
+    <p class="text-[10px] text-slate-400 mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.work_type_view', 'Вид работ'))}</label>
     <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
       ${_templateOptionsHtml(defect.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Нарушение</label>
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.violation_view', 'Нарушение'))}</label>
       <input type="text" data-c2-item-search autocomplete="off" value="${_escape(defect.item_name || '')}"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       <input type="hidden" data-c2-item-id value="${_escape(defect.item_id || '')}" />
@@ -692,37 +711,37 @@ export function openViewDefectForm(
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
     <div data-c2-norm-block class="${defect.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
       <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(defect.norm_text || '')}</div>
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Категория</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
         <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled}>
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Срок</label>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape(deadlineVal)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Подрядчик</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
     <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
       ${_contractorOptionsHtml(defect.contractorId)}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Описание</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape(defect.description)}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Фото</label>
+    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${
       canEditFields
         ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
       class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
-      + Добавить фото
+      + ${_escape(_t('construction.form.add_photo', '+ Добавить фото'))}
     </button>`
         : `<div class="mb-3"></div>`
     }
@@ -771,7 +790,7 @@ export function openViewDefectForm(
     const fields = _readCommonFields(panel);
     const description = fields.description || fields.item_name || defect.description;
     if (!description) {
-      window.showToast?.('Укажите описание замечания');
+      window.showToast?.(_t('construction.form.toast_desc_required', 'Укажите описание замечания'));
       return;
     }
     try {
@@ -794,7 +813,7 @@ export function openViewDefectForm(
   });
 
   panel.querySelector('[data-c2-defect-delete]')?.addEventListener('click', async () => {
-    if (!confirm('Удалить замечание?')) return;
+    if (!confirm(_t('construction.form.confirm_delete', 'Удалить замечание?'))) return;
     try {
       await onDelete(defect.id);
       closeDefectForm();
@@ -811,14 +830,14 @@ export function openViewDefectForm(
       let comment: string | null = null;
       let fixPhotos: string[] = [];
       if (status === 'rejected') {
-        comment = prompt('Укажите причину отклонения:') || '';
+        comment = prompt(_t('construction.form.prompt_reject', 'Укажите причину отклонения:')) || '';
         if (!comment) {
-          window.showToast?.('⚠️ Для отклонения нужен комментарий');
+          window.showToast?.(_t('construction.form.toast_reject_comment', '⚠️ Для отклонения нужен комментарий'));
           return;
         }
       }
       if (status === 'fixed') {
-        comment = prompt('Краткий комментарий об устранении:');
+        comment = prompt(_t('construction.form.prompt_fixed', 'Краткий комментарий об устранении:'));
         if (comment === null) return;
         const picker = document.createElement('input');
         picker.type = 'file';
@@ -830,7 +849,7 @@ export function openViewDefectForm(
           picker.click();
         });
         if (!picked || !picked.length) {
-          window.showToast?.('⚠️ Для статуса «Устранено» нужно фото');
+          window.showToast?.(_t('construction.form.toast_fixed_photo', '⚠️ Для статуса «Устранено» нужно фото'));
           return;
         }
         try {
@@ -841,7 +860,7 @@ export function openViewDefectForm(
           return;
         }
         if (!fixPhotos.length) {
-          window.showToast?.('⚠️ Не удалось сохранить фото');
+          window.showToast?.(_t('construction.form.toast_photo_save_fail', '⚠️ Не удалось сохранить фото'));
           return;
         }
       }

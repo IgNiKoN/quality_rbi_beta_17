@@ -101,6 +101,24 @@ function _zoneColors(status: string): { box: string; label: string } {
   return { box: 'bg-blue-500/20 border-blue-500', label: 'bg-blue-600' };
 }
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escapeAttr(s: string): string {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -265,7 +283,7 @@ export class PlanViewer {
         </div>
       </div>
       <div data-c2-plan-loader class="absolute inset-0 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-        Загрузка плана…
+        ${_t('construction.v2.plan_loading', 'Загрузка плана…')}
       </div>`;
 
     this.wrap = this.host.querySelector('[data-c2-plan-wrap]');
@@ -376,7 +394,7 @@ export class PlanViewer {
                    border border-white shadow z-25 flex items-center justify-center
                    pointer-events-auto panzoom-exclude"
             style="left:${item.x}%;top:${item.y}%;transform:translate(-50%,-50%);transition:transform 150ms ease"
-            title="Свернуть">×</button>`);
+            title="${_escapeAttr(_t('construction.v2.collapse_cluster', 'Свернуть'))}">×</button>`);
         } else {
           parts.push(this._clusterBubbleHtml(item.x, item.y, item.defects, key));
         }
@@ -451,7 +469,7 @@ export class PlanViewer {
     return `<button type="button" data-c2-cluster="${_escapeAttr(key)}" data-c2-cluster-ids="${_escapeAttr(ids)}"
       class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center
              z-30 pointer-events-auto panzoom-exclude"
-      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="Замечаний: ${total}">
+      style="left:${x}%;top:${y}%;background:${grad};padding:3px;transform:translate(-50%,-50%);cursor:pointer;transition:transform 150ms ease" title="${_escapeAttr(_t('construction.v2.defects_count', 'Замечаний: {count}', { count: total }))}">
       <span class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
                    text-[11px] font-black border border-slate-200">${total}</span>
     </button>`;
@@ -475,14 +493,14 @@ export class PlanViewer {
         const h = Number(z.h);
         if (![x, y, w, h].every(Number.isFinite)) return '';
         const colors = _zoneColors(String(a.status));
-        const title = _escapeAttr(String(a.work_type || 'Приёмка').slice(0, 60));
+        const title = _escapeAttr(String(a.work_type || _t('construction.v2.acceptance_default', 'Приёмка')).slice(0, 60));
         const focus = this.focusZoneId === a.id ? 'ring-4 ring-indigo-400' : '';
         const zIndex = this.focusZoneId === a.id ? 25 : 10;
         return `<button type="button" data-c2-zone="${_escapeAttr(a.id)}"
           class="absolute border-2 ${colors.box} ${focus} shadow-inner flex items-center justify-center
                  cursor-pointer hover:bg-black/10 transition-colors pointer-events-auto panzoom-exclude"
           style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;z-index:${zIndex}" title="${title}">
-          <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">зона</span>
+          <span class="${colors.label} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase">${_t('construction.v2.zone_label', 'зона')}</span>
         </button>`;
       })
       .join('');

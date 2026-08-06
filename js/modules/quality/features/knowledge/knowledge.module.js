@@ -311,7 +311,214 @@ window.rbi_reloadReferenceMemory = async function () {
                 }
             });
         }
+
+        // 5. File Asset Standard — PDF off-RAM + nested JSONB slim для docs + TWI
+        await window.rbi_migrateKnowledgePdfOffRam();
+        // 6. Memory projection: без nested data / без extractedText (текст остаётся в IDB)
+        if (typeof window.rbi_slimKnowledgeMemoryArrays === 'function') {
+            window.rbi_slimKnowledgeMemoryArrays();
+        }
     } catch (e) { console.error("Ошибка обновления памяти Справочников", e); }
+};
+
+function _kbPdfNeedsOffRamMigrate(pdfData) {
+    if (!pdfData) return false;
+    return String(pdfData).startsWith('data:');
+}
+
+function _kbIsFileDataUrl(value) {
+    if (!value || typeof value !== 'string') return false;
+    if (!value.startsWith('data:')) return false;
+    if (/^data:text\//i.test(value)) return false;
+    // file-like payloads only (PDF/images); plain extractedText stays as text
+    return /^data:(application\/|image\/|audio\/|video\/)/i.test(value);
+}
+
+/** Promote nested JSONB mirror → flat; ensure nested/top-level data: file refs. Returns { record, changed }. */
+async function _kbSlimPersistRecord(record, filePrefix, ensureFn) {
+    if (!record || typeof record !== 'object') return { record: record, changed: false };
+    let changed = false;
+    const nested = record.data;
+
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+        if (ensureFn) {
+            const keys = Object.keys(nested);
+            for (let ki = 0; ki < keys.length; ki++) {
+                const k = keys[ki];
+                const v = nested[k];
+                if (!_kbIsFileDataUrl(v)) continue;
+                try {
+                    const ref = await ensureFn(v, filePrefix, {
+                        kind: 'pdf',
+                        source: 'migrate_nested_' + filePrefix,
+                        entityId: record.id,
+                        field: k
+                    });
+                    if (ref && ref !== v) {
+                        nested[k] = ref;
+                        changed = true;
+                    }
+                } catch (e) {
+                    console.warn('[KB RAM slim] nested ensure failed', record && record.id, k, e);
+                }
+            }
+        }
+        Object.keys(nested).forEach(function (k) {
+            if (k === 'data' || k === 'template_data') return;
+            const cur = record[k];
+            const empty = cur == null || cur === '';
+            if (empty && nested[k] != null && nested[k] !== '') {
+                record[k] = nested[k];
+                changed = true;
+            }
+        });
+        delete record.data;
+        changed = true;
+    }
+
+    if (record.template_data != null) {
+        delete record.template_data;
+        changed = true;
+    }
+
+    if (ensureFn && _kbPdfNeedsOffRamMigrate(record.pdfData)) {
+        try {
+            const ref = await ensureFn(record.pdfData, filePrefix, {
+                kind: 'pdf',
+                source: 'migrate_' + filePrefix,
+                entityId: record.id
+            });
+            if (ref && ref !== record.pdfData) {
+                record.pdfData = ref;
+                changed = true;
+            }
+        } catch (e) {
+            console.warn('[KB RAM slim] top pdf ensure failed', record && record.id, e);
+        }
+    }
+
+    return { record: record, changed: changed };
+}
+
+/** Shallow copy for window/UI: drop nested mirror + full extractedText (keep flags). */
+window.rbi_slimKnowledgeRecordForMemory = function (rec) {
+    if (!rec || typeof rec !== 'object') return rec;
+    var out = Object.assign({}, rec);
+    delete out.data;
+    delete out.template_data;
+    if (out.extractedText != null) {
+        var t = String(out.extractedText);
+        out.hasExtractedText = t.trim().length > 0;
+        out.extractedTextChars = t.length;
+        delete out.extractedText;
+    }
+    return out;
+};
+
+/** Slim in-memory customDocs / customTwiCards (IDB rows stay full). */
+window.rbi_slimKnowledgeMemoryArrays = function () {
+    if (Array.isArray(window.customDocs)) {
+        customDocs = window.customDocs.map(window.rbi_slimKnowledgeRecordForMemory);
+        window.customDocs = customDocs;
+    }
+    if (Array.isArray(window.customTwiCards)) {
+        customTwiCards = window.customTwiCards.map(window.rbi_slimKnowledgeRecordForMemory);
+        window.customTwiCards = customTwiCards;
+    }
+    return {
+        docs: Array.isArray(window.customDocs) ? window.customDocs.length : 0,
+        twi: Array.isArray(window.customTwiCards) ? window.customTwiCards.length : 0
+    };
+};
+
+/**
+ * Идемпотентная миграция: inline PDF → ref, promote nested JSONB → flat, strip mirror.
+ * Полный ряд (с extractedText) пишется в IDB; memory slim — отдельно (rbi_slimKnowledgeMemoryArrays).
+ * Батчи по 2, yield между ними.
+ */
+window.rbi_migrateKnowledgePdfOffRam = async function () {
+    const ensure = typeof window.ensureLocalFileRef === 'function' ? window.ensureLocalFileRef : null;
+    const st = _storage();
+    const stores = st.stores ? st.stores() : {};
+    let docsMigrated = 0;
+    let twiMigrated = 0;
+    let anyDirty = false;
+    let sinceYield = 0;
+
+    async function maybeYield() {
+        sinceYield += 1;
+        if (sinceYield >= 2) {
+            sinceYield = 0;
+            await new Promise(function (r) { setTimeout(r, 0); });
+        }
+    }
+
+    function markDirtyMeta(rec) {
+        const nowIso = new Date().toISOString();
+        rec.updatedAt = nowIso;
+        rec.updated_at = nowIso;
+        rec.source = 'local';
+        rec.syncStatus = 'not_synced';
+        rec.sync_status = 'not_synced';
+    }
+
+    const docs = Array.isArray(customDocs) ? customDocs.slice() : [];
+    for (let i = 0; i < docs.length; i++) {
+        let doc = docs[i];
+        if (!doc) continue;
+        try {
+            const result = await _kbSlimPersistRecord(doc, 'doc', ensure);
+            doc = result.record;
+            if (result.changed) {
+                markDirtyMeta(doc);
+                await st.put(stores.CUSTOM_DOCS, doc);
+                const idx = customDocs.findIndex(function (d) { return d.id === doc.id; });
+                if (idx !== -1) customDocs[idx] = doc;
+                window.customDocs = customDocs;
+                docsMigrated += 1;
+                anyDirty = true;
+            }
+        } catch (e) {
+            console.warn('[KB PDF migrate] doc failed', doc && doc.id, e);
+        }
+        await maybeYield();
+    }
+
+    const twi = Array.isArray(customTwiCards) ? customTwiCards.slice() : [];
+    for (let j = 0; j < twi.length; j++) {
+        let card = twi[j];
+        if (!card) continue;
+        try {
+            const result = await _kbSlimPersistRecord(card, 'twi_pdf', ensure);
+            card = result.record;
+            if (result.changed) {
+                markDirtyMeta(card);
+                await st.put(stores.TWI_CARDS, card);
+                const idx = customTwiCards.findIndex(function (c) { return c.id === card.id; });
+                if (idx !== -1) customTwiCards[idx] = card;
+                window.customTwiCards = customTwiCards;
+                twiMigrated += 1;
+                anyDirty = true;
+            }
+        } catch (e) {
+            console.warn('[KB PDF migrate] twi failed', card && card.id, e);
+        }
+        await maybeYield();
+    }
+
+    if (typeof window.rbi_slimKnowledgeMemoryArrays === 'function') {
+        window.rbi_slimKnowledgeMemoryArrays();
+    }
+
+    if (anyDirty) {
+        try { localStorage.setItem('rbi_cloud_dirty', '1'); } catch (_) { /* ignore */ }
+        if (typeof window.KnowledgeState !== 'undefined' && window.KnowledgeState) {
+            if (typeof window.KnowledgeState.setDocs === 'function') window.KnowledgeState.setDocs(customDocs);
+            if (typeof window.KnowledgeState.setTwiCards === 'function') window.KnowledgeState.setTwiCards(customTwiCards);
+        }
+        console.info('[KB PDF migrate] done', { docs: docsMigrated, twi: twiMigrated });
+    }
+    return { docs: docsMigrated, twi: twiMigrated };
 };
 
 // Загрузка при старте приложения
@@ -924,15 +1131,20 @@ function handleTwiPdfUpload(event) {
     showToast("⚙️ Сохранение PDF в локальную базу...");
     const reader = new FileReader();
     reader.onload = async function (e) {
-        const localUrl = await PhotoManager.saveLocal(e.target.result, 'twi');
+        const ensure = typeof window.ensureLocalFileRef === 'function'
+            ? window.ensureLocalFileRef
+            : null;
+        const localUrl = ensure
+            ? await ensure(e.target.result, 'twi_pdf', { kind: 'pdf', name: file.name })
+            : await PhotoManager.saveLocal(e.target.result, 'twi_pdf');
         renderPdfFile(file.name, (file.size / 1024 / 1024).toFixed(1) + ' MB', localUrl);
         event.target.value = '';
     }
     reader.readAsDataURL(file);
 }
-function renderPdfFile(name, size, base64) {
+function renderPdfFile(name, size, pdfRef) {
     const cont = document.getElementById('twi-pdf-container');
-    cont.dataset.pdf = base64;
+    cont.dataset.pdf = pdfRef || '';
     document.getElementById('twi-pdf-name').innerText = name;
     document.getElementById('twi-pdf-size').innerText = size;
     cont.classList.remove('hidden');
@@ -3051,9 +3263,19 @@ window.saveTwiCard = async function () {
     } else if (window.currentTwiType === 'PDF') {
         var pdfData = document.getElementById('twi-pdf-container').dataset.pdf;
         if (!pdfData) return showToast('⚠️ Загрузите PDF-файл!');
+        if (typeof window.ensureLocalFileRef === 'function') {
+            pdfData = await window.ensureLocalFileRef(pdfData, 'twi_pdf', {
+                kind: 'pdf',
+                source: 'twi_card',
+                entityId: cardData.id
+            });
+        }
         cardData.pdfData = pdfData;
         cardData.pdfName = document.getElementById('twi-pdf-name').innerText;
         cardData.pdfSize = document.getElementById('twi-pdf-size').innerText;
+        if (document.getElementById('twi-pdf-container')) {
+            document.getElementById('twi-pdf-container').dataset.pdf = pdfData || '';
+        }
     }
 
     if (!cardData.owner) {
@@ -3492,8 +3714,12 @@ window.handleDocPdfUpload = function (event) {
     showToast("⚙️ Сохранение PDF в локальную базу...");
     const reader = new FileReader();
     reader.onload = async function (e) {
-        // Пропускаем через менеджер кэша
-        const localUrl = await PhotoManager.saveLocal(e.target.result, 'doc');
+        const ensure = typeof window.ensureLocalFileRef === 'function'
+            ? window.ensureLocalFileRef
+            : null;
+        const localUrl = ensure
+            ? await ensure(e.target.result, 'doc', { kind: 'pdf', name: file.name })
+            : await PhotoManager.saveLocal(e.target.result, 'doc');
 
         const cont = document.getElementById('doc-pdf-preview');
         cont.dataset.pdf = localUrl;
@@ -3536,6 +3762,25 @@ function _applyPdfExtractToDoc(doc, extracted) {
     return meta;
 }
 
+/** Полный ряд документа из IDB (с extractedText); fallback — memory slim. */
+async function _kbGetFullCustomDoc(id) {
+    try {
+        const st = _storage();
+        const stores = st.stores ? st.stores() : {};
+        const full = await st.get(stores.CUSTOM_DOCS, id);
+        if (full) return full;
+    } catch (_) { /* ignore */ }
+    return (Array.isArray(customDocs) ? customDocs.find(function (d) { return d.id === id; }) : null) || null;
+}
+
+function _kbRefreshDocsMemoryFromFull(fullRows) {
+    const list = (fullRows || []).filter(function (d) { return d && !d._deleted; });
+    customDocs = typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+        ? list.map(window.rbi_slimKnowledgeRecordForMemory)
+        : list;
+    window.customDocs = customDocs;
+}
+
 function _toastPdfIndexResult(meta) {
     if (!meta) return showToast('⚠️ Текст из PDF извлечь не удалось.');
     const kb = Math.round((meta.charCount || 0) / 1000);
@@ -3572,8 +3817,7 @@ function _scheduleDocPdfIndex(docId, pdfData) {
             freshDocs[idx].syncStatus = 'not_synced';
             freshDocs[idx].sync_status = 'not_synced';
             await _storage().put(_storage().stores().CUSTOM_DOCS, freshDocs[idx]);
-            customDocs = freshDocs.filter(d => !d._deleted);
-            window.customDocs = customDocs;
+            _kbRefreshDocsMemoryFromFull(freshDocs);
         }
         _toastPdfIndexResult(meta);
         localStorage.setItem('rbi_cloud_dirty', '1');
@@ -3587,19 +3831,31 @@ async function saveCustomDoc() {
     const type = document.getElementById('new-doc-type').value;
     const code = document.getElementById('new-doc-code').value.trim();
     const title = document.getElementById('new-doc-title').value.trim();
-    const pdfData = document.getElementById('doc-pdf-preview').dataset.pdf || '';
+    let pdfData = document.getElementById('doc-pdf-preview').dataset.pdf || '';
 
     if (!code || !title) return showToast('⚠️ Заполните шифр и название документа');
+
+    if (pdfData && typeof window.ensureLocalFileRef === 'function') {
+        pdfData = await window.ensureLocalFileRef(pdfData, 'doc', {
+            kind: 'pdf',
+            source: 'custom_doc',
+            entityId: window._editingDocId || null
+        });
+        const preview = document.getElementById('doc-pdf-preview');
+        if (preview) preview.dataset.pdf = pdfData || '';
+    }
 
     const editingId = window._editingDocId || null;
     const nowIso = new Date().toISOString();
 
     if (editingId) {
-        const existing = customDocs.find(d => d.id === editingId);
-        if (!existing) return showToast('Документ не найден');
-        if (!rbi_canDeleteKnowledgeItem(existing.owner)) {
+        const memExisting = customDocs.find(d => d.id === editingId);
+        if (!memExisting) return showToast('Документ не найден');
+        if (!rbi_canDeleteKnowledgeItem(memExisting.owner)) {
             return showToast('⚠️ Можно редактировать только свой документ.');
         }
+        // Полный ряд из IDB — иначе slim memory сотрёт extractedText при put
+        const existing = (await _kbGetFullCustomDoc(editingId)) || memExisting;
 
         const originalPdf = window._editingDocOriginalPdf || '';
         const pdfChanged = pdfData !== originalPdf;
@@ -3618,6 +3874,9 @@ async function saveCustomDoc() {
             syncBlockReason: '',
             sync_block_reason: '',
         };
+        // slim-флаги не пишем в IDB
+        delete updated.hasExtractedText;
+        delete updated.extractedTextChars;
 
         if (hasPdf) {
             updated.pdfData = pdfData;
@@ -3634,10 +3893,14 @@ async function saveCustomDoc() {
         }
 
         try {
-            const idx = customDocs.findIndex(d => d.id === editingId);
-            if (idx !== -1) customDocs[idx] = updated;
-            window.customDocs = customDocs;
             await _storage().put(_storage().stores().CUSTOM_DOCS, updated);
+            const idx = customDocs.findIndex(d => d.id === editingId);
+            if (idx !== -1) {
+                customDocs[idx] = typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+                    ? window.rbi_slimKnowledgeRecordForMemory(updated)
+                    : updated;
+            }
+            window.customDocs = customDocs;
             showToast('✅ Норматив обновлён!');
             closeAddDocModal();
             window.renderDocsList();
@@ -3680,7 +3943,9 @@ async function saveCustomDoc() {
         _scheduleDocPdfIndex(newDoc.id, pdfData);
     }
 
-    customDocs.unshift(newDoc);
+    customDocs.unshift(typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+        ? window.rbi_slimKnowledgeRecordForMemory(newDoc)
+        : newDoc);
     window.customDocs = customDocs;
 
     try {
@@ -3706,12 +3971,13 @@ async function saveCustomDoc() {
 
 // Удаление
 window.deleteCustomDoc = async function (id) {
-    const doc = customDocs.find(d => d.id === id);
-    if (!rbi_canDeleteKnowledgeItem(doc?.owner)) {
+    const memDoc = customDocs.find(d => d.id === id);
+    if (!rbi_canDeleteKnowledgeItem(memDoc?.owner)) {
         return showToast("⚠️ Инженер может удалить только свой документ.");
     }
     if (!confirm('Удалить этот документ из базы?')) return;
 
+    const doc = (await _kbGetFullCustomDoc(id)) || memDoc;
     if (doc) {
         const nowIso = new Date().toISOString();
         doc._deleted = true;
@@ -3722,12 +3988,14 @@ window.deleteCustomDoc = async function (id) {
         doc.source = 'local';
         doc.syncStatus = 'not_synced';
         doc.sync_status = 'not_synced';
+        delete doc.hasExtractedText;
+        delete doc.extractedTextChars;
 
         await _storage().put(_storage().stores().CUSTOM_DOCS, doc);
     }
 
     showToast('🗑️ Документ удален');
-    customDocs = customDocs.filter(d => !d._deleted);
+    customDocs = customDocs.filter(d => !d._deleted && d.id !== id);
     window.customDocs = customDocs;
     window.renderDocsList();
 
@@ -3765,8 +4033,7 @@ window.rbi_reindexCustomDoc = async function (docId) {
         freshDocs[idx].sync_status = 'not_synced';
 
         await _storage().put(_storage().stores().CUSTOM_DOCS, freshDocs[idx]);
-        customDocs = freshDocs.filter(d => !d._deleted);
-        window.customDocs = customDocs;
+        _kbRefreshDocsMemoryFromFull(freshDocs);
 
         if (meta) _toastPdfIndexResult(meta);
         else showToast('⚠️ Текст извлечь не удалось, но переотправляем документ');
@@ -3797,20 +4064,30 @@ window.openDocViewer = async function (docId) {
         doc.pdfSize || ''
     );
 
-    if (!doc.extractedText && doc.pdfData && _getSetting('aiEnabled')) {
+    if (!doc.extractedText && !doc.hasExtractedText && doc.pdfData && _getSetting('aiEnabled')) {
         setTimeout(async () => {
             try {
                 const realUrl = await PhotoManager.getAsyncUrl(doc.pdfData) || doc.pdfData;
                 const extracted = await _extractTextFromPdf(realUrl);
-                const meta = _applyPdfExtractToDoc(doc, extracted);
+                const full = (await _kbGetFullCustomDoc(doc.id)) || Object.assign({}, doc);
+                const meta = _applyPdfExtractToDoc(full, extracted);
                 if (meta) {
-                    doc.updatedAt = new Date().toISOString();
-                    doc.updated_at = doc.updatedAt;
-                    doc.source = 'local';
-                    doc.syncStatus = 'not_synced';
-                    doc.sync_status = 'not_synced';
+                    full.updatedAt = new Date().toISOString();
+                    full.updated_at = full.updatedAt;
+                    full.source = 'local';
+                    full.syncStatus = 'not_synced';
+                    full.sync_status = 'not_synced';
+                    delete full.hasExtractedText;
+                    delete full.extractedTextChars;
 
-                    await _storage().put(_storage().stores().CUSTOM_DOCS, doc);
+                    await _storage().put(_storage().stores().CUSTOM_DOCS, full);
+                    const idx = customDocs.findIndex(function (d) { return d.id === full.id; });
+                    if (idx !== -1) {
+                        customDocs[idx] = typeof window.rbi_slimKnowledgeRecordForMemory === 'function'
+                            ? window.rbi_slimKnowledgeRecordForMemory(full)
+                            : full;
+                        window.customDocs = customDocs;
+                    }
 
                     localStorage.setItem('rbi_cloud_dirty', '1');
                     _sync('silent');

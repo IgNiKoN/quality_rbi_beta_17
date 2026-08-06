@@ -29,6 +29,24 @@ export type DefectsRegistryCallbacks = {
 /** Chip «Просроч.» — отдельно от pinFiltersState статусов. */
 let _overdueOnly = false;
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -38,16 +56,17 @@ function _escape(s: string) {
 }
 
 function _statusLabel(s: string): string {
-  const map: Record<string, string> = {
-    issued: 'Выдано',
-    in_progress: 'В работе',
-    fixed: 'Устранено',
-    closed: 'Закрыто',
-    rejected: 'Отклонено',
-    open: 'Выдано',
-    cancelled: 'Отклонено'
+  const map: Record<string, [string, string]> = {
+    issued: ['construction.status.issued', 'Выдано'],
+    in_progress: ['construction.status.in_progress', 'В работе'],
+    fixed: ['construction.form.status_fixed', 'Устранено'],
+    closed: ['construction.status.closed', 'Закрыто'],
+    rejected: ['construction.status.rejected', 'Отклонено'],
+    open: ['construction.status.issued', 'Выдано'],
+    cancelled: ['construction.status.rejected', 'Отклонено']
   };
-  return map[s] || s || '—';
+  const entry = map[s];
+  return entry ? _t(entry[0], entry[1]) : s || '—';
 }
 
 function _categoryLabel(c: string): string {
@@ -67,7 +86,7 @@ function _categoryBar(c: string): string {
 
 /** Канон реестра: overdue = issued|in_progress|fixed с прошедшим deadline. */
 function _deadlineMeta(d: ConstructionDefectV2): { label: string; overdue: boolean } {
-  if (d.deadline == null || d.deadline === '') return { label: 'без срока', overdue: false };
+  if (d.deadline == null || d.deadline === '') return { label: _t('construction.v2.registry.no_deadline', 'без срока'), overdue: false };
   const m = String(d.deadline).trim().match(/^(\d{4}-\d{2}-\d{2})/);
   if (!m) return { label: String(d.deadline), overdue: false };
   const [y, mo, day] = m[1].split('-');
@@ -127,7 +146,7 @@ export function renderDefectsRegistry(
 
   if (!floorId) {
     host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
-      Выберите этаж слева, чтобы увидеть реестр замечаний
+      ${_escape(_t('construction.v2.registry.select_floor', 'Выберите этаж слева, чтобы увидеть реестр замечаний'))}
     </div>`;
     return;
   }
@@ -145,19 +164,19 @@ export function renderDefectsRegistry(
   const rows =
     filtered.length === 0
       ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
-          Нет замечаний по выбранному фильтру
+          ${_escape(_t('construction.v2.registry.empty_filter', 'Нет замечаний по выбранному фильтру'))}
         </div>`
       : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered
             .map((d, i) => {
-              const desc = String(d.description || d.item_name || d.text || 'Без описания').slice(0, 140);
+              const desc = String(d.description || d.item_name || d.text || _t('construction.v2.no_description', 'Без описания')).slice(0, 140);
               const dl = _deadlineMeta(d);
               const openDays = daysOpen(d);
               const daysBadge =
                 openDays != null
                   ? `<span class="text-[10px] font-bold ${
                       dl.overdue ? 'text-red-600 dark:text-red-400' : 'text-slate-400'
-                    }">${openDays} дн.</span>`
+                    }">${openDays} ${_escape(_t('construction.v2.registry.days_short', 'дн.'))}</span>`
                   : '';
               const dlCls = dl.overdue
                 ? 'text-red-600 dark:text-red-400 font-semibold'
@@ -176,14 +195,14 @@ export function renderDefectsRegistry(
                         <span class="text-[10px] font-bold text-slate-500">${_escape(_categoryLabel(String(d.category)))}</span>
                         ${_statusChip(String(d.status))}
                         ${daysBadge}
-                        <span class="text-[10px] ${dlCls}">${_escape(dl.label)}${dl.overdue ? ' · просрочено' : ''}</span>
+                        <span class="text-[10px] ${dlCls}">${_escape(dl.label)}${dl.overdue ? ` · ${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}` : ''}</span>
                       </span>
                       <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape(desc)}</span>
                     </span>
                   </button>
                   <button type="button" data-c2-def-on-plan="${_escape(d.id)}" data-c2-def-loc="${_escape(d.locationId)}"
                     class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
-                    title="Показать на плане">На плане</button>
+                    title="${_escape(_t('construction.v2.registry.show_on_plan', 'Показать на плане'))}">${_escape(_t('construction.v2.registry.on_plan', 'На плане'))}</button>
                 </div>
               </li>`;
             })
@@ -195,15 +214,15 @@ export function renderDefectsRegistry(
       <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
-            ${_escape(floorLabel || 'Этаж')}
+            ${_escape(floorLabel || _t('construction.v2.registry.floor', 'Этаж'))}
           </div>
-          <div class="text-[10px] text-slate-400 shrink-0">Показано ${filtered.length} из ${defects.length}</div>
+          <div class="text-[10px] text-slate-400 shrink-0">${_escape(_t('construction.v2.registry.shown_count', 'Показано {shown} из {total}', { shown: filtered.length, total: defects.length }))}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
           <button type="button" data-c2-reg-overdue
             class="shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border ${overdueChipCls}"
-            title="Только просроченные (issued / в работе / на проверке)">Просроч.</button>
+            title="${_escape(_t('construction.v2.registry.overdue_only_title', 'Только просроченные (issued / в работе / на проверке)'))}">${_escape(_t('construction.v2.registry.overdue_chip', 'Просроч.'))}</button>
         </div>
       </div>
       <div class="flex-1 overflow-y-auto">${rows}</div>

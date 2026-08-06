@@ -182,12 +182,31 @@ window.initSync = async function () {
             }
         }, 60000);
 
-        // НОВОЕ: Проверка обновлений (например, одобрение от Админа) при возврате в приложение
+        // Resume: silent sync только если dirty / force pull / remote poll due (+ debounce)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && window.syncConfig.enabled && navigator.onLine) {
-                console.log('[Sync] Приложение активно. Проверяем обновления в облаке...');
-                window.triggerSync('silent');
+            if (document.visibilityState !== 'visible' || !window.syncConfig.enabled || !navigator.onLine) {
+                return;
             }
+            clearTimeout(window.__rbiResumeSyncTimer);
+            window.__rbiResumeSyncTimer = setTimeout(() => {
+                const needPush = localStorage.getItem('rbi_cloud_dirty') === '1';
+                const needFullPull = localStorage.getItem('rbi_force_full_pull') === '1';
+                const needRemotePoll =
+                    localStorage.getItem('rbi_force_remote_poll') === '1' ||
+                    (typeof window.rbiIsRemotePollDue === 'function' && window.rbiIsRemotePollDue());
+                if (
+                    (window.rbiBgCacheProcessing || window.rbiFullOfflineCacheProcessing) &&
+                    !needPush &&
+                    !needFullPull
+                ) {
+                    console.log('[Sync] Пропуск resume-sync: идёт фоновый кэш файлов');
+                    return;
+                }
+                if (needPush || needFullPull || needRemotePoll) {
+                    console.log('[Sync] Приложение активно. Проверяем обновления в облаке...');
+                    window.triggerSync('silent');
+                }
+            }, 1500);
         });
     }
 };

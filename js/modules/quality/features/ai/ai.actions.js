@@ -187,6 +187,16 @@ function _getCustomDocs() {
     return ((AIActions._ctx && AIActions._ctx.knowledge) || window.RBI.services.knowledge).getCustomDocsSync();
 }
 
+/** Full CUSTOM_DOCS from IDB (includes extractedText). Local var only — do not cache on module. */
+async function _getCustomDocsAsync() {
+    var svc = (AIActions._ctx && AIActions._ctx.knowledge) || (window.RBI && window.RBI.services && window.RBI.services.knowledge);
+    if (svc && typeof svc.getCustomDocs === 'function') {
+        var rows = await svc.getCustomDocs();
+        return Array.isArray(rows) ? rows.filter(function (d) { return d && !d._deleted; }) : [];
+    }
+    return _getCustomDocs();
+}
+
 function _getGameActionLogs() {
     return ((AIActions._ctx && AIActions._ctx.game) || window.RBI.services.game).getGameActionLogsSync();
 }
@@ -1601,15 +1611,17 @@ function _scoreNormQuoteWindow(chunk, keywords, mmHints, tableNums, appendixRefs
     return score;
 }
 
-function _allNormDocs() {
+async function _allNormDocs() {
+    const custom = await _getCustomDocsAsync();
     return [
         ...(typeof window.SYSTEM_DOCS !== 'undefined' ? window.SYSTEM_DOCS : []),
-        ..._getCustomDocs()
+        ...custom
     ].filter(d => d && !d._deleted);
 }
 
-function _findDocsForNormCode(code) {
-    return _allNormDocs().filter(doc => {
+async function _findDocsForNormCode(code) {
+    const all = await _allNormDocs();
+    return all.filter(doc => {
         if (!doc.extractedText || String(doc.extractedText).trim().length < 80) return false;
         return _normCodesMatch(doc.code, code) || _normCodesMatch(doc.title, code);
     });
@@ -1813,7 +1825,7 @@ function _finalizeAiDocSources(enriched) {
 }
 
 /** После выбора CL — подтянуть цитаты из PDF по шифрам пунктов. */
-function _enrichPickedWithNormQuotes(picked, keywords) {
+async function _enrichPickedWithNormQuotes(picked, keywords) {
     if (!picked || !picked.length) return picked || [];
     const quotes = [];
     const seenDoc = new Set();
@@ -1829,7 +1841,7 @@ function _enrichPickedWithNormQuotes(picked, keywords) {
         const normBlob = cl.normText || cl.snippet || '';
         for (let bi = 0; bi < codeList.length && quotes.length < MAX_QUOTES; bi++) {
             const code = codeList[bi];
-            const docs = _findDocsForNormCode(code);
+            const docs = await _findDocsForNormCode(code);
             for (let di = 0; di < docs.length && quotes.length < MAX_QUOTES; di++) {
                 const doc = docs[di];
                 const dk = String(doc.id);
@@ -2029,13 +2041,23 @@ function _buildAiDocCatalogAnswer() {
         || String(a.title || '').localeCompare(String(b.title || ''), 'ru')
     );
 
+    const _docIndexMeta = (d) => {
+        if (d.extractedText && String(d.extractedText).trim().length > 80) {
+            const chars = String(d.extractedText).replace(/\s+/g, ' ').trim().length;
+            return { indexed: true, chars: chars };
+        }
+        // slim memory projection: hasExtractedText / extractedTextChars
+        const chars = Number(d.extractedTextChars) || 0;
+        const indexed = !!(d.hasExtractedText && chars > 80) || (!!d.hasExtractedText && !d.extractedTextChars);
+        return { indexed: indexed, chars: chars };
+    };
+
     const lines = sorted.map((d, i) => {
         const code = d.code || '—';
         const title = d.title || 'Без названия';
-        const indexed = d.extractedText && String(d.extractedText).trim().length > 80;
-        const chars = indexed ? String(d.extractedText).replace(/\s+/g, ' ').trim().length : 0;
-        const idxLabel = indexed
-            ? `индекс ~${Math.round(chars / 1000)}k симв.`
+        const meta = _docIndexMeta(d);
+        const idxLabel = meta.indexed
+            ? (meta.chars ? `индекс ~${Math.round(meta.chars / 1000)}k симв.` : 'текст проиндексирован')
             : 'текст для ИИ не проиндексирован';
         return `${i + 1}. ${code} — ${title} (${idxLabel})`;
     });
@@ -2044,10 +2066,11 @@ function _buildAiDocCatalogAnswer() {
         + '\n\nЧтобы ответить по содержанию — укажите шифр или тему (например: допуски монолитных стен по СП 70).';
 
     const htmlItems = sorted.map(d => {
-        const indexed = d.extractedText && String(d.extractedText).trim().length > 80;
-        const chars = indexed ? String(d.extractedText).replace(/\s+/g, ' ').trim().length : 0;
-        const badge = indexed
-            ? `<span class="text-green-700 dark:text-green-400">~${Math.round(chars / 1000)}k</span>`
+        const meta = _docIndexMeta(d);
+        const badge = meta.indexed
+            ? (meta.chars
+                ? `<span class="text-green-700 dark:text-green-400">~${Math.round(meta.chars / 1000)}k</span>`
+                : `<span class="text-green-700 dark:text-green-400">индекс</span>`)
             : `<span class="text-amber-600 dark:text-amber-400">нет индекса</span>`;
         return `<li class="mb-1"><b>${_escAiDoc(d.code || '—')}</b> — ${_escAiDoc(d.title || 'Без названия')} · ${badge}</li>`;
     }).join('');
@@ -2140,7 +2163,7 @@ function copyAiDocAnswer(btn) {
 }
 
 /** Локальный keyword-RAG v1.5: коды норм, синонимы, дедуп по документу, фильтр docId. */
-function _retrieveNormContext(question, opts) {
+async function _retrieveNormContext(question, opts) {
     const options = opts || {};
     const filterDocId = options.docId ? String(options.docId) : '';
     const filterTemplateRaw = options.templateKey ? String(options.templateKey) : '';
@@ -2201,9 +2224,10 @@ function _retrieveNormContext(question, opts) {
     const workLocked = !!(workHits.length && workHits[0].score >= 40);
     const lockedKeySet = workLocked ? new Set(workHits.map(h => h.key)) : null;
 
+    const customDocsFull = await _getCustomDocsAsync();
     const allDocs = [
         ...(typeof window.SYSTEM_DOCS !== 'undefined' ? window.SYSTEM_DOCS : []),
-        ..._getCustomDocs()
+        ...customDocsFull
     ].filter(doc => {
         if (!doc) return false;
         if (filterDocId && String(doc.id) !== filterDocId) return false;
@@ -2486,7 +2510,7 @@ function _retrieveNormContext(question, opts) {
         picked.push(c);
     }
 
-    const enriched = _finalizeAiDocSources(_enrichPickedWithNormQuotes(picked, keywords));
+    const enriched = _finalizeAiDocSources(await _enrichPickedWithNormQuotes(picked, keywords));
     const quoteN = enriched.filter(c => c.isNormQuote || c.type === 'Цитата СП/ГОСТ').length;
 
     const sources = enriched.map(c => ({
@@ -2680,7 +2704,7 @@ async function askAiDocQuestion() {
 
     let retrieved;
     try {
-        retrieved = _retrieveNormContext(expanded.searchText, {
+        retrieved = await _retrieveNormContext(expanded.searchText, {
             docId,
             templateKey,
             extraKeywords: expanded.expandedKeywords,
@@ -2709,7 +2733,7 @@ async function askAiDocQuestion() {
                 usedRewrite = true;
                 const expanded2 = _expandAiDocQuery(rewritten);
                 _setAiDocStatus('Ищу по нормам…');
-                const second = _retrieveNormContext(expanded2.searchText, {
+                const second = await _retrieveNormContext(expanded2.searchText, {
                     docId,
                     templateKey,
                     extraKeywords: [

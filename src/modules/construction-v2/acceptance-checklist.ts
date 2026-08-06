@@ -59,6 +59,24 @@ type DefectLike = {
   _deleted?: boolean;
 };
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -276,13 +294,13 @@ export function acceptGateWarning(item: ConstructionAcceptanceV2): string | null
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   if (!tmplKey) return null;
   if (!item.checklist_results || progress.done === 0) {
-    return 'Чек-лист ещё не начат. Принять заявку anyway?';
+    return _t('construction.v2.acc.gate_not_started', 'Чек-лист ещё не начат. Принять заявку anyway?');
   }
   if (progress.fail > 0) {
-    return `Есть ${progress.fail} пункт(ов) FAIL. Принять заявку anyway?`;
+    return _t('construction.v2.acc.gate_fail', 'Есть {count} пункт(ов) FAIL. Принять заявку anyway?', { count: progress.fail });
   }
   if (progress.unset > 0) {
-    return `Не пройдено ${progress.unset} пункт(ов) чек-листа. Принять anyway?`;
+    return _t('construction.v2.acc.gate_unset', 'Не пройдено {count} пункт(ов) чек-листа. Принять anyway?', { count: progress.unset });
   }
   return null;
 }
@@ -297,7 +315,7 @@ function _bBadgeHtml(b: AcceptanceQualityB | null): string {
         : 'bg-green-50 text-green-700 border-green-200';
   return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
       <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-black uppercase">УрК B</span>
+        <span class="text-[10px] font-black uppercase">${_escape(_t('construction.v2.acc.quality_b', 'УрК B'))}</span>
         <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape(String(b.final))}%</span>
       </div>
       <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape(b.statusTxt || '')}</div>
@@ -315,11 +333,11 @@ export function renderChecklistSectionHtml(
   const editable = opts?.editable !== false;
   const tmplKey = String(item.template_key || item.checklist_results?.template_key || '');
   if (!tmplKey) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">Чек-лист: вид работ не выбран</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">${_escape(_t('construction.v2.acc.checklist_no_work', 'Чек-лист: вид работ не выбран'))}</div>`;
   }
   const templateItems = listTemplateChecklistItems(tmplKey);
   if (!templateItems.length) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">Чек-лист шаблона пуст или не найден</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">${_escape(_t('construction.v2.acc.checklist_empty', 'Чек-лист шаблона пуст или не найден'))}</div>`;
   }
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   const b = computeAcceptanceQualityB(tmplKey, item.checklist_results);
@@ -330,26 +348,29 @@ export function renderChecklistSectionHtml(
   const openBtn = editable
     ? `<button type="button" data-c2-cl-open
          class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase shadow-md">
-         Пройти чек-лист</button>`
+         ${_escape(_t('construction.v2.acc.run_checklist', 'Пройти чек-лист'))}</button>`
     : '';
   const batchBtn =
     editable && batchN > 0
       ? `<button type="button" data-c2-cl-batch-fail
            class="w-full mt-2 bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-[11px] font-black uppercase">
-           Создать замечания по FAIL (${batchN})</button>`
+           ${_escape(_t('construction.v2.acc.batch_fail_btn', 'Создать замечания по FAIL ({count})', { count: batchN }))}</button>`
       : '';
 
   return `
     <div class="mt-3 pt-3 border-t border-[var(--card-border)]" data-c2-cl-section>
       <div class="flex items-center justify-between gap-2 mb-1">
-        <div class="text-[10px] font-black uppercase text-indigo-600">Чек-лист</div>
+        <div class="text-[10px] font-black uppercase text-indigo-600">${_escape(_t('construction.v2.acc.checklist', 'Чек-лист'))}</div>
         <div class="text-[10px] font-bold text-slate-500" data-c2-cl-progress>
           ${progress.done}/${progress.total}
           · OK ${progress.ok} · FAIL ${progress.fail} · N/A ${progress.na}
         </div>
       </div>
       <div class="text-[10px] text-slate-400 font-bold">
-        ${_escape(String(templateItems.length))} пункт(ов) · ${_escape(String(new Set(templateItems.map((t) => t.group)).size))} групп
+        ${_escape(_t('construction.v2.acc.checklist_summary', '{items} пункт(ов) · {groups} групп', {
+          items: String(templateItems.length),
+          groups: String(new Set(templateItems.map((t) => t.group)).size)
+        }))}
       </div>
       ${_bBadgeHtml(b)}
       ${openBtn}

@@ -48,6 +48,7 @@ import { mountLocationDirectoryUI, LocationDirectoryUI } from './features/locati
 import { mountContractorIdBackfillUI, ContractorIdBackfillUI } from './features/contractor-id-backfill-ui.js';
 import { mountProjectIdBackfillUI, ProjectIdBackfillUI } from './features/project-id-backfill-ui.js';
 import { mountCloudDeletedPurgeUI, CloudDeletedPurgeUI } from './features/cloud-deleted-purge-ui.js';
+import { mountCloudOrphanUrlsUI, CloudOrphanUrlsUI } from './features/cloud-orphan-urls-ui.js';
 import { mountRoleMatrixUI, RoleMatrixUI } from './features/role-matrix-ui.js';
 
 // Публикация имён 3 features-файлов на window.* — единственная точка модуля settings,
@@ -172,6 +173,7 @@ export const SettingsModule = {
     ContractorIdBackfillUI,
     ProjectIdBackfillUI,
     CloudDeletedPurgeUI,
+    CloudOrphanUrlsUI,
     RoleMatrixUI,
 
     /**

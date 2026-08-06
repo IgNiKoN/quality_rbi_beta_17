@@ -31,6 +31,29 @@ export type UnitCardCallbacks = {
 
 let _openUnitId: string | null = null;
 
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
+function _unitStatusLabel(st: UnitStatusV2): string {
+  const key = `construction.v2.unit_status.${st}`;
+  return _t(key, UNIT_STATUS_LABELS_RU[st]);
+}
+
 function _escape(s: string) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -73,7 +96,7 @@ export function openUnitCard(
 
   const statusOpts = UNIT_STATUSES_V2.map(
     (st) =>
-      `<option value="${st}" ${status === st ? 'selected' : ''}>${_escape(UNIT_STATUS_LABELS_RU[st])}</option>`
+      `<option value="${st}" ${status === st ? 'selected' : ''}>${_escape(_unitStatusLabel(st))}</option>`
   ).join('');
 
   const wrap = document.createElement('div');
@@ -85,17 +108,17 @@ export function openUnitCard(
     <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">Квартира</div>
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.unit.apartment', 'Квартира'))}</div>
           <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape(unit.type || 'КВ')} ${_escape(
             unit.name
           )}</div>
           <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape(path)}</div>
         </div>
-        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="Закрыть">×</button>
+        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="${_escape(_t('construction.form.close', 'Закрыть'))}">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
-          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Статус передачи</span>
+          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape(_t('construction.v2.unit.transfer_status', 'Статус передачи'))}</span>
           <select id="c2-unit-card-status" data-c2-unit-id="${_escape(unit.id)}"
             class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
             ${guest ? 'disabled' : ''}>
@@ -103,7 +126,7 @@ export function openUnitCard(
           </select>
         </label>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">План квартиры (PDF)</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape(_t('construction.v2.unit.plan_pdf', 'План квартиры (PDF)'))}</div>
           ${
             hasPdf
               ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape(
@@ -111,23 +134,23 @@ export function openUnitCard(
                 )}${unit.pdf_size ? ` · ${_escape(String(unit.pdf_size))} B` : ''}</div>
                  <div class="flex flex-wrap gap-2">
                    <a href="${_escape(String(unit.pdf_url))}" target="_blank" rel="noopener"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">Открыть</a>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">${_escape(_t('construction.v2.unit.open', 'Открыть'))}</a>
                    <button type="button" data-c2-unit-apt-plan="${_escape(unit.id)}"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">Замечания на плане</button>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>
                  </div>`
-              : `<div class="text-[11px] text-slate-400 font-bold">План не загружен</div>
-                 <div class="text-[10px] text-slate-400 font-bold">Загрузка PDF — в Настройках → справочник локаций</div>
+              : `<div class="text-[11px] text-slate-400 font-bold">${_escape(_t('construction.v2.unit.plan_missing', 'План не загружен'))}</div>
+                 <div class="text-[10px] text-slate-400 font-bold">${_escape(_t('construction.v2.unit.plan_upload_hint', 'Загрузка PDF — в Настройках → справочник локаций'))}</div>
                  <button type="button" disabled
-                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">Замечания на плане</button>`
+                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>`
           }
         </div>
         <button type="button" data-c2-unit-acceptance="${_escape(unit.id)}"
           class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? 'opacity-50 cursor-not-allowed' : ''}"
-          ${guest ? 'disabled' : ''}>Приёмка</button>
+          ${guest ? 'disabled' : ''}>${_escape(_t('construction.v2.unit.acceptance', 'Приёмка'))}</button>
         ${
           canDel
             ? `<button type="button" data-c2-unit-delete="${_escape(unit.id)}"
-                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">Удалить помещение</button>`
+                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">${_escape(_t('construction.v2.unit.delete_room', 'Удалить помещение'))}</button>`
             : ''
         }
       </div>
@@ -151,12 +174,12 @@ export function openUnitCard(
     void (async () => {
       try {
         await deps.units.changeStatus(id, st);
-        deps.cb.toast('Статус обновлён');
+        deps.cb.toast(_t('construction.v2.unit.status_updated', 'Статус обновлён'));
         await deps.cb.onChanged();
         const fresh = deps.units.get(id);
         if (fresh) openUnitCard(fresh, deps);
       } catch (e) {
-        deps.cb.toast(`Ошибка: ${(e as Error)?.message || e}`);
+        deps.cb.toast(_t('construction.v2.error_prefix', 'Ошибка: {msg}', { msg: (e as Error)?.message || String(e) }));
       }
     })();
   });
@@ -167,7 +190,7 @@ export function openUnitCard(
     if (!id) return;
     const fresh = deps.units.get(id) || unit;
     if (!deps.cb.onOpenApartmentPlan) {
-      deps.cb.toast('Открытие плана недоступно');
+      deps.cb.toast(_t('construction.v2.unit.plan_open_unavailable', 'Открытие плана недоступно'));
       return;
     }
     void deps.cb.onOpenApartmentPlan(fresh);
@@ -180,7 +203,7 @@ export function openUnitCard(
     if (!id) return;
     const fresh = deps.units.get(id) || unit;
     if (!deps.cb.onOpenAcceptance) {
-      deps.cb.toast('Приёмка недоступна');
+      deps.cb.toast(_t('construction.v2.unit.acceptance_unavailable', 'Приёмка недоступна'));
       return;
     }
     void deps.cb.onOpenAcceptance(fresh);
@@ -190,15 +213,15 @@ export function openUnitCard(
     ev.preventDefault();
     if (guest) return;
     const id = (ev.currentTarget as HTMLElement).getAttribute('data-c2-unit-delete');
-    if (!id || !confirm('Удалить помещение?')) return;
+    if (!id || !confirm(_t('construction.v2.unit.confirm_delete', 'Удалить помещение?'))) return;
     void (async () => {
       try {
         await deps.units.softDelete(id);
         closeUnitCard();
-        deps.cb.toast('Удалено');
+        deps.cb.toast(_t('construction.v2.unit.deleted', 'Удалено'));
         await deps.cb.onChanged();
       } catch (e) {
-        deps.cb.toast(`Ошибка: ${(e as Error)?.message || e}`);
+        deps.cb.toast(_t('construction.v2.error_prefix', 'Ошибка: {msg}', { msg: (e as Error)?.message || String(e) }));
       }
     })();
   });

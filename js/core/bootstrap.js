@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         // -------------------------------------------------------------------
         
-        // Мгновенное сохранение черновика + purge открытого PDF (не держать preview в RAM в фоне)
+        // Мгновенное сохранение черновика + purge PDF / blob-кэша фото в фоне
         function rbiPurgeOpenPdfOnBackground() {
             var sheetOpen = typeof window.rbiIsPdfDocumentSheetOpen === 'function'
                 ? window.rbiIsPdfDocumentSheetOpen()
@@ -109,13 +109,37 @@ document.addEventListener("DOMContentLoaded", async () => {
                 Promise.resolve(window._rbiDestroyActivePdfDoc()).catch(function () { /* ignore */ });
             }
         }
+        function rbiReleaseHeavyUiOnBackground() {
+            rbiPurgeOpenPdfOnBackground();
+            var ph = window.rbiPhotoPlaceholder
+                || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="100%" height="100%" fill="%23f1f5f9"/></svg>';
+            var imgs = document.querySelectorAll('img[data-photo-ref]');
+            for (var i = 0; i < imgs.length; i++) {
+                var img = imgs[i];
+                var ref = img.getAttribute('data-photo-ref');
+                if (!ref) continue;
+                img.src = ph;
+                img.setAttribute('data-local-src', ref);
+            }
+            if (typeof PhotoManager !== 'undefined' && typeof PhotoManager.clearMemory === 'function') {
+                PhotoManager.clearMemory();
+            }
+        }
+        window.rbiReleaseHeavyUiOnBackground = rbiReleaseHeavyUiOnBackground;
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 if (typeof saveSessionData === 'function') window.saveSessionData();
-                rbiPurgeOpenPdfOnBackground();
+                rbiReleaseHeavyUiOnBackground();
+            } else if (document.visibilityState === 'visible') {
+                // Re-queue imgs restored with data-local-src after background release
+                if (typeof window.rbiObserveLocalSrcImgs === 'function') {
+                    window.rbiObserveLocalSrcImgs();
+                } else if (typeof window.rbiHydrateLocalImages === 'function') {
+                    window.rbiHydrateLocalImages();
+                }
             }
         });
-        window.addEventListener('pagehide', rbiPurgeOpenPdfOnBackground);
+        window.addEventListener('pagehide', rbiReleaseHeavyUiOnBackground);
 
         // -------------------------------------------------------------------
         // Запускаем облако до загрузки остальных настроек
@@ -271,6 +295,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 localImgObserver.observe(pending[i]);
             }
         };
+        window.rbiObserveLocalSrcImgs = observeLocalSrcImgs;
         const domObserver = new MutationObserver((mutations) => {
             let hasNewNodes = false;
             for (let i = 0; i < mutations.length; i++) {

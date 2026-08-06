@@ -11,6 +11,99 @@ var _ctx = null;
 function bindCtx(ctx) {
     _ctx = ctx;
     bindDefectFormActionDelegation();
+    bindDefectFormI18n();
+}
+
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
+function _defectStatusLabel(status) {
+    var map = {
+        issued: _t('construction.status.issued', 'Выдано'),
+        in_progress: _t('construction.status.in_progress', 'В работе'),
+        fixed: _t('construction.form.status_fixed', 'Устранено'),
+        closed: _t('construction.status.closed', 'Закрыто'),
+        rejected: _t('construction.status.rejected', 'Отклонено')
+    };
+    return map[status] || status;
+}
+
+function refreshDefectModalStaticLabels() {
+    var modal = document.getElementById('const-defect-modal');
+    if (!modal) return;
+    var titleEl = document.getElementById('const-defect-modal-title');
+    if (titleEl && !document.getElementById('const-defect-id').value) {
+        titleEl.textContent = _t('construction.form.title_new', 'Новое замечание');
+    }
+    var setLabel = function (sel, key, fb) {
+        var el = modal.querySelector(sel);
+        if (el) el.textContent = _t(key, fb);
+    };
+    setLabel('label[for="const-defect-template"], div:has(#const-defect-template) > label', 'construction.form.label_work_type', 'Вид работ (Чек-лист) *');
+    var labels = modal.querySelectorAll('label');
+    labels.forEach(function (lbl) {
+        var t = lbl.textContent.trim();
+        if (t.indexOf('Вид работ') === 0 || t.indexOf('Work type') === 0) lbl.textContent = _t('construction.form.label_work_type', 'Вид работ (Чек-лист) *');
+        else if (t.indexOf('Нарушение') === 0) lbl.textContent = _t('construction.form.label_violation', 'Нарушение *');
+        else if (t === 'Категория' || t.indexOf('Category') === 0) lbl.textContent = _t('construction.form.label_category', 'Категория');
+        else if (t.indexOf('Срок') === 0) lbl.textContent = _t('construction.form.label_deadline', 'Срок устранения');
+        else if (t.indexOf('Ответственный') === 0) lbl.textContent = _t('construction.form.label_contractor', 'Ответственный подрядчик *');
+        else if (t.indexOf('Уточняющее') === 0) lbl.textContent = _t('construction.form.label_description', 'Уточняющее описание');
+        else if (t.indexOf('Фотофиксация') === 0) lbl.textContent = _t('construction.form.label_photo', 'Фотофиксация');
+    });
+    var searchInp = document.getElementById('const-defect-item-search');
+    if (searchInp) searchInp.placeholder = _t('construction.form.placeholder_violation_search', 'Начните вводить нарушение...');
+    var descInp = document.getElementById('const-defect-desc');
+    if (descInp) descInp.placeholder = _t('construction.form.placeholder_description', 'Оси, размеры, детали...');
+    var photoBtn = document.getElementById('const-defect-photo-btn');
+    if (photoBtn && photoBtn.classList.contains('flex')) {
+        var svg = photoBtn.querySelector('svg');
+        photoBtn.innerHTML = (svg ? svg.outerHTML : '') + _t('construction.form.attach_photo', 'Прикрепить фото');
+    }
+    var normHdr = document.getElementById('const-defect-norm-block');
+    if (normHdr) {
+        var normTitle = normHdr.querySelector('.text-\\[9px\\]');
+        if (normTitle) normTitle.textContent = _t('construction.form.norm_reference', 'Справочно (Норматив)');
+    }
+}
+
+var _defectFormI18nBound = false;
+function bindDefectFormI18n() {
+    if (_defectFormI18nBound) return;
+    _defectFormI18nBound = true;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    window.RBI.events.on('i18n:localeChanged', function () {
+        try {
+            refreshDefectModalStaticLabels();
+            var modal = document.getElementById('const-defect-modal');
+            if (modal && modal.style.display === 'flex') {
+                var id = document.getElementById('const-defect-id').value;
+                var defect = id && window.ConstManager && window.ConstManager.defects.find(function (d) { return d.id === id; });
+                if (defect && typeof window.ConstDefectForm.openExisting === 'function') {
+                    window.ConstDefectForm.openExisting(id);
+                }
+            }
+            if (window.ConstManager && window.ConstManager.currentFlrId && window.ConstDefectForm && typeof window.ConstDefectForm.renderAllPins === 'function') {
+                window.ConstDefectForm.renderAllPins(
+                    window.ConstManager.currentFlrId,
+                    window.ConstManager.getPinFilters ? window.ConstManager.getPinFilters() : {}
+                );
+            }
+        } catch (_e) { /* ignore */ }
+    });
 }
 
 // Паттерн делегирования событий для инициативы «Разбор inline onclick/onchange»
@@ -144,7 +237,7 @@ function _permissions() {
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                         </path>
                     </svg>
-                    Новое замечание
+                    ${_t('construction.form.title_new', 'Новое замечание')}
                 </h3>
                 <button data-defect-form-action="close"
                     class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm border border-slate-200 dark:border-slate-700 active:scale-90 font-black">✕</button>
@@ -157,8 +250,7 @@ function _permissions() {
                 <input type="hidden" id="const-defect-item-name">
 
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Вид работ
-                        (Чек-лист) *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_work_type', 'Вид работ (Чек-лист) *')}</label>
                     <select id="const-defect-template" class="input-base text-[12px] font-bold"
                         data-defect-form-action="onTemplateChange" data-defect-form-action-val-type="value" data-action-event="change">
                         <!-- Список чек-листов загрузится из JS -->
@@ -166,11 +258,10 @@ function _permissions() {
                 </div>
 
                 <div class="relative">
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Нарушение
-                        *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_violation', 'Нарушение *')}</label>
                     <!-- Видимое поле для поиска -->
                     <input type="text" id="const-defect-item-search" class="input-base text-[12px] leading-snug"
-                        placeholder="Начните вводить нарушение..." autocomplete="off"
+                        placeholder="${_t('construction.form.placeholder_violation_search', 'Начните вводить нарушение...')}" autocomplete="off"
                         oninput="window.ConstDefectForm.handleItemSearch(this.value)"
                         onfocus="window.ConstDefectForm.handleItemSearch(this.value)">
                     <!-- Скрытое поле для ID (чтобы не сломать логику сохранения) -->
@@ -184,7 +275,7 @@ function _permissions() {
 
                 <div id="const-defect-norm-block"
                     class="hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl shadow-inner">
-                    <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">Справочно (Норматив)</div>
+                    <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_t('construction.form.norm_reference', 'Справочно (Норматив)')}</div>
                     <div id="const-defect-norm-text" class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
                     </div>
                 </div>
@@ -192,36 +283,33 @@ function _permissions() {
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label
-                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Категория</label>
+                            class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_category', 'Категория')}</label>
                         <select id="const-defect-category" class="input-base text-[11px] font-bold">
-                            <option value="B1">B1 (Мелкий)</option>
-                            <option value="B2" selected>B2 (Значимый)</option>
-                            <option value="B3">B3 (Критика)</option>
+                            <option value="B1">${_t('construction.form.category_b1', 'B1 (Мелкий)')}</option>
+                            <option value="B2" selected>${_t('construction.form.category_b2', 'B2 (Значимый)')}</option>
+                            <option value="B3">${_t('construction.form.category_b3', 'B3 (Критика)')}</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Срок
-                            устранения</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_deadline', 'Срок устранения')}</label>
                         <input type="date" id="const-defect-deadline" class="input-base !py-2 text-[11px]">
                     </div>
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Ответственный
-                        подрядчик *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_contractor', 'Ответственный подрядчик *')}</label>
                     <select id="const-defect-contractor" class="input-base text-[12px] font-bold"></select>
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Уточняющее
-                        описание</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('construction.form.label_description', 'Уточняющее описание')}</label>
                     <textarea id="const-defect-desc" class="input-base h-16 resize-none text-[12px]"
-                        placeholder="Оси, размеры, детали..."></textarea>
+                        placeholder="${_t('construction.form.placeholder_description', 'Оси, размеры, детали...')}"></textarea>
                 </div>
                 <!-- НОВОЕ: Блок фото -->
                 <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <label
-                        class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2 block">Фотофиксация</label>
+                        class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2 block">${_t('construction.form.label_photo', 'Фотофиксация')}</label>
                     <button id="const-defect-photo-btn"
                         onclick="document.getElementById('const-defect-photo-input').click()"
                         class="w-full bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-4 rounded-xl text-[10px] font-bold uppercase active:scale-95 transition-colors flex flex-col items-center justify-center gap-2">
@@ -230,7 +318,7 @@ function _permissions() {
                                 d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
                             </path>
                         </svg>
-                        Прикрепить фото
+                        ${_t('construction.form.attach_photo', 'Прикрепить фото')}
                     </button>
                     <!-- Скрытый инпут для выбора файла -->
                     <input type="file" id="const-defect-photo-input" accept="image/*" class="hidden"
@@ -271,7 +359,7 @@ window.ConstDefectForm = {
     populateDropdowns() {
         // 1. Чек-листы
         const tmplSelect = document.getElementById('const-defect-template');
-        let tmplHtml = '<option value="">-- Выберите вид работ --</option>';
+        let tmplHtml = '<option value="">' + _t('construction.form.select_work_type', '-- Выберите вид работ --') + '</option>';
         const _st = _templates().getSystemTemplates();
         Object.keys(_st).sort().forEach(k => {
             tmplHtml += `<option value="sys_${k}">[СИС] ${_st[k].title}</option>`;
@@ -284,7 +372,7 @@ window.ConstDefectForm = {
 
         // 2. Подрядчики (из справочника или истории)
         const contrSelect = document.getElementById('const-defect-contractor');
-        let contrHtml = '<option value="">-- Выберите подрядчика --</option>';
+        let contrHtml = '<option value="">' + _t('construction.form.select_contractor', '-- Выберите подрядчика --') + '</option>';
         let uniqueContrs = [];
         if (typeof ContractorDirectory !== 'undefined' && ContractorDirectory.contractors.length > 0) {
             uniqueContrs = ContractorDirectory.contractors.map(c => c.display_name);
@@ -315,7 +403,7 @@ window.ConstDefectForm = {
         const dropdown = document.getElementById('dd-const-defect-item');
 
         if (!tmplKey) {
-            dropdown.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Сначала выберите вид работ выше</div>';
+            dropdown.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">' + _t('construction.form.search_select_work_first', 'Сначала выберите вид работ выше') + '</div>';
             dropdown.classList.remove('hidden');
             return;
         }
@@ -333,7 +421,7 @@ window.ConstDefectForm = {
         const matched = flatItems.filter(i => i.n.toLowerCase().includes(q) || (i.t && i.t.toLowerCase().includes(q)));
 
         if (matched.length === 0) {
-            dropdown.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">Ничего не найдено</div>';
+            dropdown.innerHTML = '<div class="p-3 text-[10px] text-slate-500 font-bold text-center">' + _t('construction.form.search_nothing_found', 'Ничего не найдено') + '</div>';
             dropdown.classList.remove('hidden');
             return;
         }
@@ -374,9 +462,10 @@ window.ConstDefectForm = {
         }
 
         // Авто-формирование текста замечания (Нарушение + Норматив)
-        let autoText = `Нарушение: ${name}.`;
-        if (cleanNorm && cleanNorm !== 'Без норматива') {
-            autoText += ` Требования: ${cleanNorm}`;
+        let autoText = _t('construction.form.violation_prefix', 'Нарушение: {name}.', { name: name });
+        const noNorm = _t('construction.form.no_norm', 'Без норматива');
+        if (cleanNorm && cleanNorm !== noNorm) {
+            autoText += _t('construction.form.requirements_prefix', ' Требования: {norm}', { norm: cleanNorm });
         }
         document.getElementById('const-defect-desc').value = autoText;
 
@@ -401,7 +490,7 @@ window.ConstDefectForm = {
         document.getElementById('const-defect-x').value = xPercent;
         document.getElementById('const-defect-y').value = yPercent;
         document.getElementById('const-defect-template').value = '';
-        document.getElementById('const-defect-item').innerHTML = '<option value="">Сначала выберите вид работ...</option>';
+        document.getElementById('const-defect-item').innerHTML = '<option value="">' + _t('construction.form.select_work_first', 'Сначала выберите вид работ') + '</option>';
         document.getElementById('const-defect-item-name').value = '';
         document.getElementById('const-defect-norm-block').classList.add('hidden');
         document.getElementById('const-defect-category').value = 'B2';
@@ -415,10 +504,10 @@ window.ConstDefectForm = {
         // Очищаем превью фото
         this.removePhoto();
 
-        document.getElementById('const-defect-modal-title').innerText = 'Новое замечание';
+        document.getElementById('const-defect-modal-title').innerText = _t('construction.form.title_new', 'Новое замечание');
         document.getElementById('const-defect-actions').innerHTML = `
-            <button onclick="window.ConstDefectForm.close()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-slate-200">Отмена</button>
-            <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">💾 Сохранить</button>
+            <button onclick="window.ConstDefectForm.close()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-slate-200">${_t('construction.form.btn_cancel', 'Отмена')}</button>
+            <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_save', '💾 Сохранить')}</button>
         `;
 
         document.getElementById('const-defect-modal').style.display = 'flex';
@@ -467,11 +556,13 @@ window.ConstDefectForm = {
         } else {
             this.removePhoto(); // если фото нет – очищаем превью
         }
-        document.getElementById('const-defect-modal-title').innerText = 'Редактирование замечания';
+        document.getElementById('const-defect-modal-title').innerText = _t('construction.form.title_edit', 'Редактирование замечания');
         // --- НОВАЯ ЛОГИКА СТАТУСОВ И КНОПОК ПО РОЛЯМ ---
         const role = _permissions() ? _permissions().getCurrentRole() : 'guest';
         const isEngineer = _permissions() ? _permissions().isEngineerOrAdmin() : ['engineer', 'manager', 'deputy_manager'].includes(role);
         const isContractor = role === 'contractor';
+        const btnDeleteTitle = _t('construction.form.btn_delete_title', 'Удалить');
+        const btnCopyTitle = _t('construction.form.btn_copy_title', 'Копировать');
 
         // Гарантируем, что статус есть
         if (!defect.status) defect.status = 'issued';
@@ -481,39 +572,39 @@ window.ConstDefectForm = {
         if (defect.status === 'issued') {
             if (isContractor) {
                 actionBtns = `
-                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'in_progress')" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95">В работу</button>
-                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="flex-[1.5] bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">Устранено (Фото)</button>
+                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'in_progress')" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95">${_t('construction.form.btn_in_progress', 'В работу')}</button>
+                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="flex-[1.5] bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_fixed', 'Устранено (Фото)')}</button>
                 `;
             } else if (isEngineer) {
                 actionBtns = `
-                    <button onclick="window.ConstDefectForm.delete('${defect.id}')" class="bg-red-50 text-red-600 py-3 px-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-red-200" title="Удалить">🗑️</button>
-                    <button onclick="window.ConstDefectForm.duplicate('${defect.id}')" class="bg-blue-50 text-blue-600 py-3 px-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-blue-200" title="Копировать">📋</button>
-                    <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">💾 Обновить</button>
+                    <button onclick="window.ConstDefectForm.delete('${defect.id}')" class="bg-red-50 text-red-600 py-3 px-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-red-200" title="${btnDeleteTitle}">🗑️</button>
+                    <button onclick="window.ConstDefectForm.duplicate('${defect.id}')" class="bg-blue-50 text-blue-600 py-3 px-3 rounded-xl text-[11px] font-bold uppercase active:scale-95 border border-blue-200" title="${btnCopyTitle}">📋</button>
+                    <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_update', '💾 Обновить')}</button>
                 `;
             }
         } else if (defect.status === 'in_progress') {
             if (isContractor) {
-                actionBtns = `<button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="w-full bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">Устранено (Приложить фото)</button>`;
+                actionBtns = `<button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="w-full bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_fixed_attach', 'Устранено (Приложить фото)')}</button>`;
             } else {
-                actionBtns = `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-3">Подрядчик взял в работу</div>`;
+                actionBtns = `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-3">${_t('construction.form.msg_contractor_in_progress', 'Подрядчик взял в работу')}</div>`;
             }
         } else if (defect.status === 'fixed') {
             if (isEngineer) {
                 actionBtns = `
-                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'rejected')" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95">❌ Отклонить</button>
-                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'closed')" class="flex-1 bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">✅ Принять (Закрыть)</button>
+                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'rejected')" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl text-[11px] font-bold uppercase active:scale-95">${_t('construction.form.btn_reject', '❌ Отклонить')}</button>
+                    <button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'closed')" class="flex-1 bg-green-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_accept_close', '✅ Принять (Закрыть)')}</button>
                  `;
             } else {
-                actionBtns = `<div class="text-center w-full text-[11px] font-bold text-green-500 py-3">Ожидает проверки Инженером СК</div>`;
+                actionBtns = `<div class="text-center w-full text-[11px] font-bold text-green-500 py-3">${_t('construction.form.msg_awaiting_engineer', 'Ожидает проверки Инженером СК')}</div>`;
             }
         } else if (defect.status === 'closed') {
-            actionBtns = `<div class="text-center w-full text-[11px] font-black text-green-600 py-3">Дефект закрыт</div>`;
+            actionBtns = `<div class="text-center w-full text-[11px] font-black text-green-600 py-3">${_t('construction.form.msg_defect_closed', 'Дефект закрыт')}</div>`;
         } else if (defect.status === 'rejected') {
             if (isContractor) {
-                actionBtns = `<button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="w-full bg-orange-500 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">Повторно предъявить (Фото)</button>`;
+                actionBtns = `<button onclick="window.ConstDefectForm.changeStatus('${defect.id}', 'fixed')" class="w-full bg-orange-500 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_resubmit', 'Повторно предъявить (Фото)')}</button>`;
             } else if (isEngineer) {
                 actionBtns = `
-                    <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">💾 Обновить</button>
+                    <button onclick="window.ConstDefectForm.save()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md active:scale-95">${_t('construction.form.btn_update', '💾 Обновить')}</button>
                  `;
             }
         }
@@ -523,8 +614,7 @@ window.ConstDefectForm = {
         if (defect.history && defect.history.length > 0) {
             historyHtml = `<div class="w-full mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar">`;
             [...defect.history].reverse().forEach(h => {
-                const statusNames = { 'issued': 'Выдано', 'in_progress': 'В работе', 'fixed': 'Устранено', 'closed': 'Закрыто', 'rejected': 'Отклонено' };
-                const stName = statusNames[h.status] || h.status;
+                const stName = _defectStatusLabel(h.status);
                 const dDate = new Date(h.date).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
                 let histPhoto = '';
@@ -577,13 +667,13 @@ window.ConstDefectForm = {
 
         // Инженер отклоняет
         if (newStatus === 'rejected') {
-            comment = prompt('Укажите причину отклонения:');
-            if (!comment) return showToast('⚠️ Для отклонения нужен комментарий!');
+            comment = prompt(_t('construction.form.prompt_reject_reason', 'Укажите причину отклонения:'));
+            if (!comment) return showToast(_t('construction.form.toast_reject_need_comment', '⚠️ Для отклонения нужен комментарий!'));
         }
 
         // Подрядчик устраняет (Требуется фото!)
         if (newStatus === 'fixed') {
-            comment = prompt('Краткий комментарий об устранении:');
+            comment = prompt(_t('construction.form.prompt_fix_comment', 'Краткий комментарий об устранении:'));
             if (comment === null) return;
 
             // Настраиваем фоторедактор специально для "устранения"
@@ -619,7 +709,7 @@ window.ConstDefectForm = {
         localStorage.setItem('rbi_cloud_dirty', '1');
         _triggerSync('silent');
 
-        showToast('✅ Статус обновлен!');
+        showToast(_t('construction.form.toast_status_updated', '✅ Статус обновлен!'));
         this.openExisting(defect.id); // Перерисовываем модалку, чтобы показать новые кнопки
 
         // Обновляем булавки на плане (чтобы сменить цвет)
@@ -678,7 +768,7 @@ window.ConstDefectForm = {
         }
 
         if (hasError) {
-            return showToast('⚠️ Заполните все поля, выделенные красным!');
+            return showToast(_t('construction.form.toast_fill_required', '⚠️ Заполните все поля, выделенные красным!'));
         }
 
         // Получаем фото из глобального хранилища
@@ -750,7 +840,7 @@ window.ConstDefectForm = {
                 await _storage().put(_storage().stores().CONST_DEFECTS, defectData);
             } catch (e) {
                 console.warn('Ошибка сохранения дефекта', e);
-                showToast('⚠️ Замечание не сохранено в память устройства');
+                showToast(_t('construction.form.toast_not_saved', '⚠️ Замечание не сохранено в память устройства'));
                 return;
             }
         }
@@ -759,7 +849,7 @@ window.ConstDefectForm = {
             window.SyncQueueManager.enqueue('SAVE_CONST_DEFECT', defectData);
         }
         this.close();
-        showToast('✅ Замечание сохранено на плане!');
+        showToast(_t('construction.form.toast_saved', '✅ Замечание сохранено на плане!'));
         
         // Безопасно получаем текущий масштаб, если открыт интерактивный план
         let currentScale = 1;
@@ -782,14 +872,14 @@ window.ConstDefectForm = {
 
     // --- Удалить дефект ---
     delete(id) {
-        if (!confirm('Удалить это замечание с плана?')) return;
+        if (!confirm(_t('construction.form.confirm_delete_from_plan', 'Удалить это замечание с плана?'))) return;
         window.ConstManager.defects = window.ConstManager.defects.filter(d => d.id !== id);
         if (_storage().stores().CONST_DEFECTS) {
             _storage().delete(_storage().stores().CONST_DEFECTS, id).catch(e => console.warn('Ошибка удаления дефекта', e));
         }
         this.close();
         this.renderAllPins(window.ConstManager.currentFlrId);
-        showToast('🗑️ Замечание удалено');
+        showToast(_t('construction.form.toast_deleted', '🗑️ Замечание удалено'));
     },
     // --- Копировать (дублировать) дефект ---
     // --- Массовое копирование (Штамп) ---
@@ -798,7 +888,7 @@ window.ConstDefectForm = {
         if (!orig) return;
 
         this.close(); // Закрываем модалку дефекта
-        showToast('📋 Режим штампа. Кликайте по чертежу, чтобы расставить копии.');
+        showToast(_t('construction.form.toast_stamp_mode', '📋 Режим штампа. Кликайте по чертежу, чтобы расставить копии.'));
 
         // Передаем данные оригинала в просмотрщик PDF и включаем режим копирования
         window.UniversalPdfViewer.setCopyMode(true, orig);
@@ -962,12 +1052,14 @@ window.ConstDefectForm = {
 
                 const grad = `conic-gradient(from 0deg, #ef4444 0deg ${cRed}deg, #f97316 ${cRed}deg ${cOrange}deg, #3b82f6 ${cOrange}deg ${cBlue}deg, #22c55e ${cBlue}deg 360deg)`;
 
+                const clusterToast = _t('construction.form.toast_zoom_cluster', 'Приблизьте чертеж, чтобы увидеть {total} дефектов', { total: total });
+                const clusterTitle = _t('construction.form.title_hidden_defects', 'Скрыто дефектов: {total}', { total: total });
                 return `
                 <div class="absolute w-8 h-8 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center z-30 pointer-events-auto"
                      style="left: ${avgX}%; top: ${avgY}%; background: ${grad}; padding: 3px; transform: translate(-50%, -50%); cursor: pointer; transition: transform 150ms ease;"
                      onpointerenter="this.style.transform='translate(-50%,-50%) scale(1.15)'"
                      onpointerleave="this.style.transform='translate(-50%,-50%)'"
-                     onclick="showToast('Приблизьте чертеж, чтобы увидеть ${total} дефектов')" title="Скрыто дефектов: ${total}">
+                     onclick="showToast(${JSON.stringify(clusterToast)})" title="${clusterTitle.replace(/"/g, '&quot;')}">
                     <div class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center text-[12px] font-black border border-slate-200">
                         ${total}
                     </div>
@@ -1003,7 +1095,7 @@ window.ConstDefectForm = {
                 <div class="zone-marker-layer absolute border-2 ${zoneColor} shadow-inner z-10 flex items-center justify-center cursor-pointer hover:bg-black/10 transition-colors" 
                      style="left: ${z.x}%; top: ${z.y}%; width: ${z.w}%; height: ${z.h}%;"
                      onclick="window.ConstAcceptance.openRequestDetails('${req.id}')"
-                     title="Заявка: ${req.contractor} (${req.workType})">
+                     title="${_t('construction.form.acceptance_request_title', 'Заявка: {contractor} ({workType})', { contractor: req.contractor, workType: req.workType }).replace(/"/g, '&quot;')}">
                      <span class="${labelColor} text-white text-[8px] font-black px-1.5 py-0.5 rounded opacity-80 uppercase tracking-widest text-center leading-tight shadow-md">${req.workType}</span>
                 </div>`;
             }).join('');
@@ -1051,7 +1143,7 @@ window.ConstDefectForm = {
         const imgEl = document.getElementById('const-defect-img');
         if (imgEl) imgEl.src = '';
         const btn = document.getElementById('const-defect-photo-btn');
-        if (btn) btn.innerHTML = '📷 Прикрепить фото';
+        if (btn) btn.innerHTML = _t('construction.form.attach_photo_emoji', '📷 Прикрепить фото');
         const fileInput = document.getElementById('const-defect-photo-input');
         if (fileInput) fileInput.value = '';
         if (typeof syncPhotoTargetId === 'function') {

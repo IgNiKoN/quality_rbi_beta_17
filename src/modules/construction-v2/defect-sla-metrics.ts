@@ -7,6 +7,30 @@ import type { ConstructionDefectV2, DefectHistoryEntryV2 } from '../../services/
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
+const NO_DESCRIPTION_FALLBACK = 'Без описания';
+
+function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  try {
+    const i18n = window.RBI?.services?.i18n as
+      | { t?: (k: string, v?: Record<string, string | number>) => string }
+      | undefined;
+    if (i18n && typeof i18n.t === 'function') {
+      const s = i18n.t(key, vars);
+      if (s && s !== key) return s;
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  if (!vars) return fallback;
+  return String(fallback).replace(/\{(\w+)\}/g, (_, k: string) =>
+    vars[k] != null ? String(vars[k]) : `{${k}}`
+  );
+}
+
+function _noDescription(): string {
+  return _t('construction.v2.no_description', NO_DESCRIPTION_FALLBACK);
+}
+
 export type PeriodPreset = 'all' | '30' | '90';
 
 export type AgingBucket = '0-3' | '4-7' | '8-14' | '15+';
@@ -308,7 +332,7 @@ export function computeDefectSlaMetrics(
         const daysOd = _ceilDays(end, now);
         overdueList.push({
           id: d.id,
-          description: String(d.description || d.item_name || d.text || 'Без описания').slice(0, 120),
+          description: String(d.description || d.item_name || d.text || _noDescription()).slice(0, 120),
           status: st,
           category: String(cat),
           contractorId: d.contractorId || null,

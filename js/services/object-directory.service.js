@@ -500,6 +500,26 @@
             return String(ref || '');
         },
 
+        /**
+         * assignedProjects (UUID / key / name) → canonical_key[] для Supabase
+         * `.in('project_canonical_key', …)`. Нерезолвленные строки оставляем как есть.
+         */
+        canonicalKeysForAssignedProjects(list) {
+            const arr = Array.isArray(list) ? list : [];
+            const out = [];
+            const seen = {};
+            arr.forEach((item) => {
+                const raw = String(item || '').trim();
+                if (!raw) return;
+                const obj = this.resolveObjectRef(raw);
+                const key = obj && obj.canonical_key ? String(obj.canonical_key) : raw;
+                if (!key || seen[key]) return;
+                seen[key] = true;
+                out.push(key);
+            });
+            return out;
+        },
+
         _recordProjectTokens(rec) {
             if (!rec || typeof rec !== 'object') {
                 return { projectId: '', canonical: '', display: '', names: [] };
@@ -1637,6 +1657,10 @@
 
         getDisplayForAssignedRef: function (ref) {
             return objectDirectory.getDisplayForAssignedRef(ref);
+        },
+
+        canonicalKeysForAssignedProjects: function (list) {
+            return objectDirectory.canonicalKeysForAssignedProjects(list);
         },
 
         mergeRawNameIntoObject: function (rawName, targetObjectIdOrKey) {

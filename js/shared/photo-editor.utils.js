@@ -44,13 +44,14 @@ window.rbiBuildPhotoImgAttrs = function (ref, opts) {
     const preferThumb = !!(opts && opts.preferThumb);
     const esc = window.rbiEscapeAttr(ref);
     const ph = window.rbiPhotoPlaceholder || '';
+    const refAttr = ' data-photo-ref="' + esc + '"';
     const needsHydrate = ref.startsWith('local://')
         || ref.startsWith('cloud://')
         || /^https?:\/\//i.test(ref);
 
     if (!needsHydrate) {
         const sync = (typeof window.getPhotoSrc === 'function' ? window.getPhotoSrc(ref) : ref) || ref;
-        return 'src="' + window.rbiEscapeAttr(sync) + '"';
+        return 'src="' + window.rbiEscapeAttr(sync) + '"' + refAttr;
     }
 
     let ram = '';
@@ -63,12 +64,13 @@ window.rbiBuildPhotoImgAttrs = function (ref, opts) {
         }
     } catch (e) { /* ignore */ }
 
+    const thumbAttr = preferThumb ? ' data-prefer-thumb="1"' : '';
+
     if (ram && String(ram).startsWith('blob:')) {
-        return 'src="' + window.rbiEscapeAttr(ram) + '"';
+        return 'src="' + window.rbiEscapeAttr(ram) + '"' + refAttr + thumbAttr;
     }
 
-    const thumbAttr = preferThumb ? ' data-prefer-thumb="1"' : '';
-    return 'src="' + ph + '" data-local-src="' + esc + '"' + thumbAttr;
+    return 'src="' + ph + '" data-local-src="' + esc + '"' + refAttr + thumbAttr;
 };
 
 /**
@@ -279,6 +281,17 @@ window.ensureLocalPhotoRef = async function (photoRef, prefix = 'img', meta = {}
         return await PhotoManager.saveLocal(photoRef, prefix, meta);
     }
     return photoRef;
+};
+
+/** File Asset Standard: entity fields keep only refs; bytes live in PhotoManager. */
+window.ensureLocalFileRef = async function (fileRef, prefix = 'file', meta = {}) {
+    if (!fileRef) return fileRef;
+    const value = String(fileRef);
+    if (value.startsWith('local://') || value.startsWith('cloud://') || value.startsWith('http')) return fileRef;
+    if (value.startsWith('data:') && typeof PhotoManager !== 'undefined' && typeof PhotoManager.saveLocal === 'function') {
+        return await PhotoManager.saveLocal(fileRef, prefix, meta);
+    }
+    return fileRef;
 };
 
 async function updateConstDefectPhotoPreview(photoId) {

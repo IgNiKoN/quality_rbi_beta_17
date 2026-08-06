@@ -486,6 +486,11 @@ window.pullCloudObjects = async function (objectType, lastPullTimeStr = '', mode
 
         obj = { ...obj, ...row };
 
+        // JSONB/template уже развёрнуты в flat — не держать nested mirror в IDB/memory
+        // (иначе customDocs раздувается дублем payload после каждого pull).
+        if (obj.data && typeof obj.data === 'object') delete obj.data;
+        if (obj.template_data != null) delete obj.template_data;
+
         // Нормализуем системные ключи
         obj.id = row.id;
         obj.updatedAt = row.updated_at;
@@ -504,15 +509,24 @@ window.pullCloudObjects = async function (objectType, lastPullTimeStr = '', mode
             if (rowDataScope === 'none') continue;
             if (rowDataScope === 'ownContractor') {
                 if (!myContrName || (itemContr && itemContr !== myContrName)) continue;
-                if (myProjects.length > 0 && itemProject && itemProject !== 'Все' && !myProjects.includes(itemProject)) continue;
+                if (myProjects.length > 0 && itemProject && itemProject !== 'Все'
+                    && !(window.RBI.services.permissions && typeof window.RBI.services.permissions.isRecordInAssignedProjects === 'function'
+                        ? window.RBI.services.permissions.isRecordInAssignedProjects(obj, myProjects)
+                        : myProjects.includes(itemProject))) continue;
             } else if (rowDataScope === 'ownProjectOrOwnRecords') {
                 // Если включен режим "Только мои" - отсекаем чужое
                 if (window.syncConfig.syncMode === 'personal' && itemEngineer && itemEngineer !== iName) continue;
                 const isGlobal = !itemProject || itemProject.toLowerCase().includes('все ') || itemProject === 'all';
-                if (myProjects.length > 0 && !isGlobal && !myProjects.includes(itemProject)) continue;
+                if (myProjects.length > 0 && !isGlobal
+                    && !(window.RBI.services.permissions && typeof window.RBI.services.permissions.isRecordInAssignedProjects === 'function'
+                        ? window.RBI.services.permissions.isRecordInAssignedProjects(obj, myProjects)
+                        : myProjects.includes(itemProject))) continue;
             } else if (rowDataScope === 'ownProject') {
                 if (myProjects.length === 0) continue;
-                if (itemProject && itemProject !== 'Все' && !myProjects.includes(itemProject)) continue;
+                if (itemProject && itemProject !== 'Все'
+                    && !(window.RBI.services.permissions && typeof window.RBI.services.permissions.isRecordInAssignedProjects === 'function'
+                        ? window.RBI.services.permissions.isRecordInAssignedProjects(obj, myProjects)
+                        : myProjects.includes(itemProject))) continue;
             }
         }
 

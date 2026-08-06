@@ -49,6 +49,40 @@ function _t(key, fallback) {
     return fallback;
 }
 
+function _modeLabelText(modeId) {
+    var map = {
+        quality: ['nav.quality', 'Качество'],
+        construction: ['nav.construction', 'Стройконтроль'],
+        'construction-v2': ['nav.construction_v2', 'Стройконтроль в2 (тест)'],
+        safety: ['nav.safety', 'Безопасность'],
+        warranty: ['nav.warranty', 'Гарантия'],
+        uk: ['nav.uk', 'УК (Упр. компания)']
+    };
+    var pair = map[modeId];
+    if (pair) return _t(pair[0], pair[1]);
+    return modeId || '';
+}
+
+function _setCurrentModeLabel(modeId) {
+    var label = document.getElementById('current-mode-label');
+    if (!label) return;
+    label.textContent = _modeLabelText(modeId) + ' ▾';
+}
+
+var _appModeI18nBound = false;
+function bindAppModeI18n() {
+    if (_appModeI18nBound) return;
+    _appModeI18nBound = true;
+    if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+    window.RBI.events.on('i18n:localeChanged', function () {
+        try {
+            if (window.AppModeManager && window.AppModeManager.currentMode) {
+                _setCurrentModeLabel(window.AppModeManager.currentMode);
+            }
+        } catch (_e) { /* ignore */ }
+    });
+}
+
 function _session() {
     if (_ctx && _ctx.session) return _ctx.session;
     if (window.RBI?.services?.session) return window.RBI.services.session;
@@ -415,10 +449,9 @@ const AppModeManager = {
         const label = document.getElementById('current-mode-label');
         if (selector && label) {
             selector.value = this.currentMode;
-            if (selector.selectedIndex !== -1) {
-                label.innerHTML = `${selector.options[selector.selectedIndex].text.split(' ')[0]} ▾`;
-            }
+            _setCurrentModeLabel(this.currentMode);
         }
+        bindAppModeI18n();
 
         if (shell && typeof shell.renderCompanyBlock === 'function') {
             shell.renderCompanyBlock();
@@ -491,11 +524,7 @@ const AppModeManager = {
             if ([...selector.options].some((o) => o.value === newMode)) {
                 selector.value = newMode;
             }
-            if (selector.selectedIndex !== -1) {
-                label.innerHTML = `${selector.options[selector.selectedIndex].text.split(' ')[0]} ▾`;
-            } else if (isConstructionV2TestMode(newMode)) {
-                label.innerHTML = 'Стройконтроль ▾';
-            }
+            _setCurrentModeLabel(newMode);
         }
 
         this.renderBottomNav();
