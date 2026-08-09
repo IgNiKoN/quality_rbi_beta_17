@@ -15,6 +15,65 @@
 import { PI_GRADES, COMPETENCIES, gameCalculateAllProfiles, getSmartQuest, gameCalculateManagerMetrics } from './game.state.js';
 import { checkAutoExpireAbsence, calculateImpactScore, gameLoadRoles, gameLoadContractorDirectory, gameLoadContractorRequests, gameLoadAiKb, GameActions } from './game.actions.js';
 
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+function _tSkill(group) {
+  var map = {
+    'Партнёрство': 'partnership',
+    'Оформление': 'documentation',
+    'Обучение': 'training',
+    'Объективность': 'objectivity',
+    'Охват': 'coverage',
+    'Редкие': 'rare'
+  };
+  var k = map[group];
+  return k ? _t('quality.game.skill.' + k, group) : group;
+}
+
+function _tTrend(trend) {
+  var map = {
+    'Сбор базы (нужно 10)': 'quality.game.trend.collecting',
+    'Ошибка расчета': 'quality.game.trend.error',
+    'Стабильно': 'quality.game.trend.stable',
+    'Улучшение': 'quality.game.trend.improve',
+    'Ухудшение': 'quality.game.trend.worsen',
+    'Недостаточно данных': 'quality.game.trend.insufficient'
+  };
+  var k = map[trend];
+  return k ? _t(k, trend) : trend;
+}
+
+function _tCompName(c) {
+  if (!c) return '';
+  return _t('quality.game.comp.' + c.id + '.name', c.name);
+}
+
+function _tCompDesc(c) {
+  if (!c) return '';
+  return _t('quality.game.comp.' + c.id + '.desc', c.desc);
+}
+
+function _tLevelName(grade) {
+  if (!grade) return '';
+  return _t('quality.game.level.' + grade.level, grade.name);
+}
+
+
 let currentProfileData = null;
 let allProfilesData = null;
 let piRadarChartInstance = null;
@@ -179,35 +238,35 @@ let gameChartInstance = null;
             <div class="font-black text-[14px] uppercase tracking-tight mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 flex items-center justify-between text-slate-800 dark:text-white">
                 <div class="flex items-center gap-2">
                     <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"></path></svg>
-                    Статус инженера
+                    ${_t('quality.game.absence.title', 'Статус инженера')}
                 </div>
             </div>
             
             <div class="space-y-4 mb-6">
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Причина отсутствия</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.absence.reason', 'Причина отсутствия')}</label>
                     <select id="abs-reason" class="input-base">
-                        <option value="Отпуск">Отпуск</option>
-                        <option value="Больничный">Больничный</option>
-                        <option value="Командировка">Командировка</option>
-                        <option value="Отгул">Отгул / Иное</option>
+                        <option value="Отпуск">${_t('quality.game.absence.opt.vacation', 'Отпуск')}</option>
+                        <option value="Больничный">${_t('quality.game.absence.opt.sick', 'Больничный')}</option>
+                        <option value="Командировка">${_t('quality.game.absence.opt.trip', 'Командировка')}</option>
+                        <option value="Отгул">${_t('quality.game.absence.opt.dayoff', 'Отгул / Иное')}</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Начало</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.absence.start', 'Начало')}</label>
                         <input type="date" id="abs-start" class="input-base text-[12px] !py-2">
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Окончание</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.absence.end', 'Окончание')}</label>
                         <input type="date" id="abs-end" class="input-base text-[12px] !py-2">
                     </div>
                 </div>
             </div>
             
             <div class="flex gap-2">
-                <button onclick="document.getElementById('absence-modal-overlay').style.display='none'" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest active:scale-95 border border-slate-200 dark:border-slate-700 transition-colors">Отмена</button>
-                <button onclick="saveAbsencePeriod()" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">Применить</button>
+                <button onclick="document.getElementById('absence-modal-overlay').style.display='none'" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest active:scale-95 border border-slate-200 dark:border-slate-700 transition-colors">${_t('quality.game.absence.cancel', 'Отмена')}</button>
+                <button onclick="saveAbsencePeriod()" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">${_t('quality.game.absence.apply', 'Применить')}</button>
             </div>
         </div>
     </div>`;
@@ -237,7 +296,7 @@ let gameChartInstance = null;
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br ${grade.color} text-white font-black flex items-center justify-center text-xs shadow-sm">${grade.level}</div>
                 <div>
-                    <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight">${grade.name}</div>
+                    <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase tracking-tight">${_tLevelName(grade)}</div>
                     <div class="text-[10px] font-bold text-slate-400">${grade.xpMin} — ${grade.xpMax === 999999 ? '∞' : grade.xpMax} XP</div>
                 </div>
             </div>
@@ -247,7 +306,7 @@ let gameChartInstance = null;
     html += `</div>`;
 
     document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg></div>`;
-    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Карьерная лестница</div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.levels.title', 'Карьерная лестница')}</div>`;
     document.getElementById('modal-body').innerHTML = html;
 
     const modal = document.getElementById('modal-overlay');
@@ -312,10 +371,10 @@ let gameChartInstance = null;
     });
     const avgImpact = impactCount > 0 ? (totalImpact / impactCount) : 0;
 
-    let globalImpactText = "Нейтральное"; let globalImpactColor = "text-slate-600 dark:text-slate-400"; let globalImpactBg = "bg-[var(--hover-bg)]";
+    let globalImpactText = _t('quality.game.impact.neutral', 'Нейтральное'); let globalImpactColor = "text-slate-600 dark:text-slate-400"; let globalImpactBg = "bg-[var(--hover-bg)]";
     let globalImpactIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h16"></path></svg>`;
-    if (avgImpact > 0.2) { globalImpactText = "Позитивное"; globalImpactColor = "text-green-600 dark:text-green-500"; globalImpactBg = "bg-green-50 dark:bg-green-900/20"; globalImpactIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>`; }
-    else if (avgImpact < -0.2) { globalImpactText = "Отрицательное"; globalImpactColor = "text-red-600 dark:text-red-500"; globalImpactBg = "bg-red-50 dark:bg-red-900/20"; globalImpactIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"></path></svg>`; }
+    if (avgImpact > 0.2) { globalImpactText = _t('quality.game.impact.positive', 'Позитивное'); globalImpactColor = "text-green-600 dark:text-green-500"; globalImpactBg = "bg-green-50 dark:bg-green-900/20"; globalImpactIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>`; }
+    else if (avgImpact < -0.2) { globalImpactText = _t('quality.game.impact.negative', 'Отрицательное'); globalImpactColor = "text-red-600 dark:text-red-500"; globalImpactBg = "bg-red-50 dark:bg-red-900/20"; globalImpactIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"></path></svg>`; }
 
     let myRank = 1; let totalEng = 1;
     if (window.serverGlobalRating && Array.isArray(window.serverGlobalRating)) {
@@ -344,12 +403,12 @@ let gameChartInstance = null;
                     <div class="flex-1 min-w-0">
                         <!-- ИМЯ: Перенос максимум на 2 строки -->
                         <div class="text-[13px] sm:text-[15px] font-black text-slate-800 dark:text-white leading-tight break-words whitespace-normal line-clamp-2 cursor-pointer" 
-                             onmousedown="profileNameLockStart(event)" ontouchstart="profileNameLockStart(event)" onmouseup="profileNameLockCancel()" onmouseleave="profileNameLockCancel()" ontouchend="profileNameLockCancel()" title="Удерживайте, чтобы изменить имя">
-                            ${myProfile.name === 'Неизвестный инспектор' ? 'Имя не задано' : myProfile.name}
+                             onmousedown="profileNameLockStart(event)" ontouchstart="profileNameLockStart(event)" onmouseup="profileNameLockCancel()" onmouseleave="profileNameLockCancel()" ontouchend="profileNameLockCancel()" title="${_t('quality.game.dash.hold_to_rename', 'Удерживайте, чтобы изменить имя')}">
+                            ${myProfile.name === 'Неизвестный инспектор' ? _t('quality.game.dash.name_unset', 'Имя не задано') : myProfile.name}
                         </div>
                         <!-- УРОВЕНЬ: Компактный перенос -->
                         <div class="text-[9px] sm:text-[10px] font-bold bg-clip-text text-transparent bg-gradient-to-r ${myProfile.levelObj.color} uppercase tracking-widest mt-1 break-words whitespace-normal leading-tight">
-                            ${myProfile.levelObj.name} <span class="text-slate-400 whitespace-nowrap">Ур. ${myProfile.levelObj.level}</span>
+                            ${_tLevelName(myProfile.levelObj)} <span class="text-slate-400 whitespace-nowrap">${_t('quality.game.dash.lvl_abbr', 'Ур. {n}', { n: myProfile.levelObj.level })}</span>
                         </div>
                     </div>
                 </div>
@@ -364,7 +423,7 @@ let gameChartInstance = null;
                         <div class="text-right">
                             <span class="text-indigo-500 font-black flex items-center gap-1">
     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z"></path></svg>
-    ${myProfile.currentStreak} нед.
+    ${_t('quality.game.dash.weeks', '{n} нед.', { n: myProfile.currentStreak })}
 </span>
                         </div>
                     </div>
@@ -378,13 +437,13 @@ let gameChartInstance = null;
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 shadow-sm flex flex-col justify-between w-full">
                 <div>
                     <div class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2 flex justify-between items-center">
-                        <span>Награды</span>
-                        <button onclick="document.getElementById('badges-section').scrollIntoView({behavior: 'smooth'})" class="text-indigo-500 hover:text-indigo-600 active:scale-95 transition-colors">Все ➔</button>
+                        <span>${_t('quality.game.dash.awards', 'Награды')}</span>
+                        <button onclick="document.getElementById('badges-section').scrollIntoView({behavior: 'smooth'})" class="text-indigo-500 hover:text-indigo-600 active:scale-95 transition-colors">${_t('quality.game.dash.all', 'Все ➔')}</button>
                     </div>
                     <div class="flex items-center justify-start gap-3 overflow-x-auto no-scrollbar pb-2">
                         ${topBadges.length > 0
-        ? topBadges.map(b => `<div class="flex flex-col items-center cursor-pointer active:scale-95 transition-transform w-16 shrink-0" onclick="gameShowBadgeInfo('${b.id}', ${b.progress})" title="${b.name}">${getBadgeSvg(b.id, b.tier, "w-10 h-10")}<span class="text-[8px] font-bold text-slate-600 dark:text-slate-400 uppercase mt-1 text-center truncate w-full">${b.name}</span></div>`).join('')
-        : `<div class="text-[9px] font-bold text-slate-400 uppercase">Пока пусто.</div>`
+        ? topBadges.map(b => `<div class="flex flex-col items-center cursor-pointer active:scale-95 transition-transform w-16 shrink-0" onclick="gameShowBadgeInfo('${b.id}', ${b.progress})" title="${_tCompName(b)}">${getBadgeSvg(b.id, b.tier, "w-10 h-10")}<span class="text-[8px] font-bold text-slate-600 dark:text-slate-400 uppercase mt-1 text-center truncate w-full">${_tCompName(b)}</span></div>`).join('')
+        : `<div class="text-[9px] font-bold text-slate-400 uppercase">${_t('quality.game.dash.empty_awards', 'Пока пусто.')}</div>`
       }
                     </div>
                 </div>
@@ -398,25 +457,25 @@ let gameChartInstance = null;
             <summary class="p-3 cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)]">
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z"></path></svg>
-                    Профиль навыков и Влияние
+                    ${_t('quality.game.dash.skills_impact', 'Профиль навыков и Влияние')}
                 </span>
                 <span class="text-slate-400 shrink-0 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
             <div class="p-2 sm:p-3 grid grid-cols-2 gap-2 sm:gap-3 bg-[var(--hover-bg)]">
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm p-4 flex flex-col justify-center relative min-h-[220px]">
                     <div style="height: 160px; width: 100%; position: relative;"><canvas id="pi-radar-chart"></canvas></div>
-                    <button onclick="window.RBI.services.ai.generateAiTutorAdvice()" class="mt-3 w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[9px] font-black uppercase py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 active:scale-95 transition-transform shadow-sm flex items-center justify-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI-Наставник</button>
+                    <button onclick="window.RBI.services.ai.generateAiTutorAdvice()" class="mt-3 w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[9px] font-black uppercase py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 active:scale-95 transition-transform shadow-sm flex items-center justify-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.game.dash.ai_tutor', 'AI-Наставник')}</button>
                     <div id="ai-tutor-container" class="hidden mt-2 text-[10px] leading-snug text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-700 pt-2"></div>
                 </div>
                 <button onclick="gameOpenImpactModal()" class="w-full text-left p-5 rounded-xl border border-[var(--card-border)] shadow-sm active:scale-95 transition-transform flex flex-col justify-between min-h-[220px] ${globalImpactBg}">
                     <div class="flex justify-between items-start w-full mb-4">
-                        <div class="text-[10px] sm:text-[12px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-tight">Ваше влияние на<br>качество</div>
+                        <div class="text-[10px] sm:text-[12px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-tight">${_t('quality.game.dash.your_impact', 'Ваше влияние на<br>качество')}</div>
                         <div class="${globalImpactColor}">${globalImpactIcon}</div>
                     </div>
                     <div>
                         <div class="text-[42px] font-black ${globalImpactColor} leading-none mb-2">${avgImpact > 0 ? '+' : ''}${avgImpact.toFixed(2)}</div>
-                        <div class="text-[12px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Статус: ${globalImpactText}</div>
-                        <div class="text-[10px] text-slate-500 mt-3 font-medium">Impact Score оценивает качество "до" и "после" ваших инспекций.</div>
+                        <div class="text-[12px] font-bold text-[var(--text-muted)] uppercase tracking-wider">${_t('quality.game.dash.status', 'Статус: {status}', { status: globalImpactText })}</div>
+                        <div class="text-[10px] text-slate-500 mt-3 font-medium">${_t('quality.game.dash.impact_hint', 'Impact Score оценивает качество "до" и "после" ваших инспекций.')}</div>
                     </div>
                 </button>
             </div>
@@ -426,18 +485,18 @@ let gameChartInstance = null;
             <summary class="p-3 cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 transition-colors select-none group-open:border-b border-[var(--card-border)]">
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                    Активность и Рейтинг
+                    ${_t('quality.game.dash.activity_rating', 'Активность и Рейтинг')}
                 </span>
                 <span class="text-slate-400 shrink-0 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
             <div class="p-2 sm:p-3 grid grid-cols-2 gap-2 sm:gap-3 bg-[var(--hover-bg)]">
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm p-4 flex flex-col justify-center relative min-h-[220px]">
-                    <div class="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 absolute top-4 left-4 z-10">Активность (XP по месяцам)</div>
+                    <div class="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 absolute top-4 left-4 z-10">${_t('quality.game.dash.activity_months', 'Активность (XP по месяцам)')}</div>
                     <div style="height: 160px; width: 100%; position: relative; margin-top:20px;"><canvas id="game-progress-chart"></canvas></div>
                 </div>
                 <button onclick="gameOpenTopModal()" class="w-full text-left p-5 rounded-xl border border-[var(--card-border)] shadow-sm active:scale-95 transition-transform flex flex-col justify-between min-h-[220px] bg-[var(--card-bg)]">
                     <div class="flex justify-between items-start w-full mb-4">
-                        <div class="text-[10px] sm:text-[12px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-tight">Рейтинг<br>Инженеров</div>
+                        <div class="text-[10px] sm:text-[12px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-tight">${_t('quality.game.dash.eng_rating', 'Рейтинг<br>Инженеров')}</div>
                         <div class="text-indigo-500 shrink-0">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M6 9H4.5a2.5 2.5 0 010-5H6"></path>
@@ -450,8 +509,8 @@ let gameChartInstance = null;
                         </div>
                     </div>
                     <div>
-                        <div class="text-[42px] font-black text-slate-800 dark:text-white leading-none mb-2">#${myRank} <span class="text-[16px] text-[var(--text-muted)]">из ${totalEng}</span></div>
-                        <div class="text-[12px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Ваша позиция в топе</div>
+                        <div class="text-[42px] font-black text-slate-800 dark:text-white leading-none mb-2">#${myRank} <span class="text-[16px] text-[var(--text-muted)]">${_t('quality.game.dash.of_total', 'из {n}', { n: totalEng })}</span></div>
+                        <div class="text-[12px] font-bold text-[var(--text-muted)] uppercase tracking-wider">${_t('quality.game.dash.your_position', 'Ваша позиция в топе')}</div>
                     </div>
                 </button>
             </div>
@@ -462,7 +521,7 @@ let gameChartInstance = null;
                 <!-- ИСПРАВЛЕНИЕ: Счетчик наград (используем activeBadges.length вместо earnedBadges.length) -->
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"></path></svg>
-                    Коллекция наград <span class="bg-white dark:bg-slate-800 border border-[var(--card-border)] px-1.5 py-0.5 rounded text-[9px] ml-1">${activeBadges.length}/${COMPETENCIES.length}</span>
+                    ${_t('quality.game.dash.collection', 'Коллекция наград')} <span class="bg-white dark:bg-slate-800 border border-[var(--card-border)] px-1.5 py-0.5 rounded text-[9px] ml-1">${activeBadges.length}/${COMPETENCIES.length}</span>
                 </span>
                 <span class="text-slate-400 shrink-0 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
@@ -470,7 +529,7 @@ let gameChartInstance = null;
                 ${COMPETENCIES.map(badge => {
         const progress = myProfile.badgesData[badge.id] || 0;
         const tier = getBadgeTier(badge, progress);
-        return `<div class="flex flex-col items-center cursor-pointer active:scale-95 transition-transform" onclick="gameShowBadgeInfo('${badge.id}', ${progress})" title="${badge.desc}">${getBadgeSvg(badge.id, tier, "w-12 h-12")}<div class="font-bold text-[8px] uppercase text-center leading-tight mt-2 h-6 flex items-center ${tier > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-400'}">${badge.name}</div></div>`;
+        return `<div class="flex flex-col items-center cursor-pointer active:scale-95 transition-transform" onclick="gameShowBadgeInfo('${badge.id}', ${progress})" title="${_tCompDesc(badge)}">${getBadgeSvg(badge.id, tier, "w-12 h-12")}<div class="font-bold text-[8px] uppercase text-center leading-tight mt-2 h-6 flex items-center ${tier > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-400'}">${_tCompName(badge)}</div></div>`;
       }).join('')}
             </div>
         </details>
@@ -488,7 +547,7 @@ let gameChartInstance = null;
     if (e) e.preventDefault();
 
     if (window.syncConfig && window.syncConfig.enabled && _getSetting('cloudStatus') === 'approved') {
-      if (typeof showToast === 'function') showToast("Имя заблокировано администратором (Облако активно)");
+      if (typeof showToast === 'function') showToast(_t('quality.game.toast.name_locked', 'Имя заблокировано администратором (Облако активно)'));
       return;
     }
 
@@ -511,7 +570,7 @@ let gameChartInstance = null;
     setTimeout(() => {
       const ctxRadar = document.getElementById('pi-radar-chart');
       if (ctxRadar && currentProfileData && currentProfileData.radarData) {
-        const labels = Object.keys(currentProfileData.radarData);
+        const labels = Object.keys(currentProfileData.radarData).map(_tSkill);
         const data = Object.values(currentProfileData.radarData);
         if (Math.max(...data) === 0) data[0] = 1;
 
@@ -550,38 +609,38 @@ let gameChartInstance = null;
     const tier = getBadgeTier(badge, progress);
 
     let target = badge.tiers[0];
-    let levelName = "Заблокировано";
+    let levelName = _t('quality.game.tier.locked', 'Заблокировано');
     let color = "text-slate-400";
     let bg = "bg-slate-300";
 
     if (tier === 1) {
       target = badge.tiers[0];
-      levelName = "Обычная";
+      levelName = _t('quality.game.tier.common', 'Обычная');
       color = "text-slate-500";
       bg = "bg-slate-400";
     }
     else if (tier === 2) {
       target = badge.tiers[1];
-      levelName = "Редкая";
+      levelName = _t('quality.game.tier.rare', 'Редкая');
       color = "text-amber-600";
       bg = "bg-amber-500";
     }
     else if (tier === 3) {
       target = badge.tiers[2];
-      levelName = "Эпическая";
+      levelName = _t('quality.game.tier.epic', 'Эпическая');
       color = "text-indigo-500";
       bg = "bg-indigo-500";
     }
     else if (tier === 4) {
       // следующий шаг после legendary — мифический max (или промежуточный tiers[3], если ещё не добран)
       target = (badge.tiers[3] != null && progress < badge.tiers[3]) ? badge.tiers[3] : badge.maxProgress;
-      levelName = "Легендарная";
+      levelName = _t('quality.game.tier.legendary', 'Легендарная');
       color = "text-yellow-600";
       bg = "bg-yellow-500";
     }
     else if (tier >= 5) {
       target = badge.maxProgress;
-      levelName = "Мифическая";
+      levelName = _t('quality.game.tier.mythic', 'Мифическая');
       color = "text-pink-600";
       bg = "bg-pink-500";
       progress = target;
@@ -596,17 +655,17 @@ let gameChartInstance = null;
     `;
 
     document.getElementById('modal-title').innerHTML = `
-        <div class="text-center text-[18px] uppercase tracking-tight text-slate-800 dark:text-white font-black">${badge.name}</div>
+        <div class="text-center text-[18px] uppercase tracking-tight text-slate-800 dark:text-white font-black">${_tCompName(badge)}</div>
         <div class="text-center text-[10px] ${color} font-bold uppercase tracking-widest mt-1.5 flex justify-center items-center gap-1.5">
             <span class="w-2 h-2 rounded-full ${bg}"></span> ${levelName}
         </div>
     `;
 
     document.getElementById('modal-body').innerHTML = `
-        <div class="text-center text-[13px] text-slate-600 dark:text-slate-300 mb-6 leading-relaxed px-4">${badge.desc}</div>
+        <div class="text-center text-[13px] text-slate-600 dark:text-slate-300 mb-6 leading-relaxed px-4">${_tCompDesc(badge)}</div>
         <div class="bg-[var(--hover-bg)] p-4 rounded-2xl border border-[var(--card-border)] shadow-inner">
             <div class="flex justify-between text-[10px] font-black uppercase tracking-widest mb-3 ${tier > 0 ? color : 'text-slate-500'}">
-                <span>Прогресс уровня</span>
+                <span>${_t('quality.game.badge.progress', 'Прогресс уровня')}</span>
                 <span>${progress} / ${target}</span>
             </div>
             <div class="w-full h-2 bg-[var(--card-border)] rounded-full overflow-hidden">
@@ -643,11 +702,11 @@ let gameChartInstance = null;
                 <div class="w-12 h-12 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-indigo-100 dark:border-indigo-800">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 </div>
-                <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white">Доступ руководителя</h3>
-                <p id="manager-auth-hint" class="text-[10px] text-slate-500 mt-1">Введите ПИН-код для доступа</p>
+                <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white">${_t('quality.game.manager.auth_title', 'Доступ руководителя')}</h3>
+                <p id="manager-auth-hint" class="text-[10px] text-slate-500 mt-1">${_t('quality.game.manager.auth_hint', 'Введите ПИН-код для доступа')}</p>
             </div>
             <input type="password" id="manager-pin-input" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center text-xl font-black tracking-widest outline-none mb-4 text-slate-800 dark:text-white focus:border-indigo-500 transition-colors" placeholder="••••••" maxlength="6">
-            <button onclick="gameVerifyManagerPin()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">Войти</button>
+            <button onclick="gameVerifyManagerPin()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">${_t('quality.game.manager.login', 'Войти')}</button>
         </div>
     </div>
 
@@ -656,9 +715,9 @@ let gameChartInstance = null;
             <!-- Шапка -->
             <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm sticky top-0 z-40 flex justify-between items-center shrink-0">
                 <button type="button" onclick="closeManagerPanel()" class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> Назад
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> ${_t('quality.game.manager.back', 'Назад')}
                 </button>
-                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest truncate px-2">Панель Руководителя</div>
+                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest truncate px-2">${_t('quality.game.manager.title', 'Панель Руководителя')}</div>
                 <span class="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-800 shrink-0">Admin</span>
             </div>
             
@@ -667,19 +726,19 @@ let gameChartInstance = null;
                 <div class="flex gap-1 p-1 bg-[var(--card-border)]/80 backdrop-blur-md rounded-xl overflow-x-auto no-scrollbar whitespace-nowrap text-center shadow-sm">
                     <button onclick="switchManagerTab('hr')" id="btn-man-hr" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400 flex flex-col items-center gap-1 transition-all active">
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        <span class="tab-text inline sm:inline">HR Аналитика</span>
+                        <span class="tab-text inline sm:inline">${_t('quality.game.manager.tab.hr', 'HR Аналитика')}</span>
                     </button>
                     <button onclick="switchManagerTab('audit')" id="btn-man-audit" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1 transition-all">
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                        <span class="tab-text hidden sm:inline">Аудиты</span>
+                        <span class="tab-text hidden sm:inline">${_t('quality.game.manager.tab.audits', 'Аудиты')}</span>
                     </button>
                     <button onclick="switchManagerTab('dev')" id="btn-man-dev" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1 transition-all">
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
-                        <span class="tab-text hidden sm:inline">Бэклог</span>
+                        <span class="tab-text hidden sm:inline">${_t('quality.game.manager.tab.backlog', 'Бэклог')}</span>
                     </button>
                     <button onclick="switchManagerTab('ai')" id="btn-man-ai" class="manager-tab-btn flex-1 min-w-[40px] sm:min-w-[70px] py-2 text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1 transition-all">
                         <svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        <span class="tab-text hidden sm:inline">База ИИ</span>
+                        <span class="tab-text hidden sm:inline">${_t('quality.game.manager.tab.ai', 'База ИИ')}</span>
                     </button>
                 </div>
             </div>
@@ -687,10 +746,10 @@ let gameChartInstance = null;
             <div class="flex-1 overflow-y-auto p-3 sm:p-4 custom-scrollbar bg-[var(--bg-main)] relative">
                 <div class="mb-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                        <div class="text-[10px] font-black uppercase text-teal-800 dark:text-teal-300">Команда и справочники</div>
-                        <p class="text-[9px] text-teal-700/80 dark:text-teal-400 font-bold leading-snug mt-0.5">Перенесены в Настройки → Администрирование (под замком).</p>
+                        <div class="text-[10px] font-black uppercase text-teal-800 dark:text-teal-300">${_t('quality.game.manager.team_moved', 'Команда и справочники')}</div>
+                        <p class="text-[9px] text-teal-700/80 dark:text-teal-400 font-bold leading-snug mt-0.5">${_t('quality.game.manager.team_moved_desc', 'Перенесены в Настройки → Администрирование (под замком).')}</p>
                     </div>
-                    <button type="button" onclick="closeManagerPanel(); if (typeof window.openSettingsAdminTab === 'function') window.openSettingsAdminTab();" class="shrink-0 bg-teal-600 text-white px-3 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">Открыть администрирование</button>
+                    <button type="button" onclick="closeManagerPanel(); if (typeof window.openSettingsAdminTab === 'function') window.openSettingsAdminTab();" class="shrink-0 bg-teal-600 text-white px-3 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm">${_t('quality.game.manager.open_admin_full', 'Открыть администрирование')}</button>
                 </div>
                 <!-- Вкладка 1: HR -->
                 <div id="manager-tab-hr" class="block">
@@ -701,23 +760,23 @@ let gameChartInstance = null;
                 <div id="manager-tab-audit" class="hidden">
                     <div class="flex justify-between items-center mb-4 bg-[var(--card-bg)] p-4 rounded-xl border border-[var(--card-border)] shadow-sm">
                         <div>
-                            <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white mb-1">Маршрут Перекрестных Проверок</h2>
-                            <p class="text-[10px] text-[var(--text-muted)] font-bold leading-snug">Алгоритм отбирает аномальные проверки.</p>
+                            <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white mb-1">${_t('quality.game.manager.audit_title', 'Маршрут Перекрестных Проверок')}</h2>
+                            <p class="text-[10px] text-[var(--text-muted)] font-bold leading-snug">${_t('quality.game.manager.audit_desc', 'Алгоритм отбирает аномальные проверки.')}</p>
                         </div>
-                        <button onclick="gameGenerateAuditPlan()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 shrink-0 whitespace-nowrap transition-transform">Сформировать</button>
+                        <button onclick="gameGenerateAuditPlan()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 shrink-0 whitespace-nowrap transition-transform">${_t('quality.game.manager.generate_btn', 'Сформировать')}</button>
                     </div>
                     <div id="manager-audit-list">
-                        <div class="text-center py-10 text-[var(--text-muted)] font-bold text-xs uppercase tracking-widest">Нажмите "Сформировать"</div>
+                        <div class="text-center py-10 text-[var(--text-muted)] font-bold text-xs uppercase tracking-widest">${_t('quality.game.manager.press_generate', 'Нажмите "Сформировать"')}</div>
                     </div>
                 </div>
 
                 <!-- Вкладка: БЭКЛОГ И ПЛАНЫ -->
                 <div id="manager-tab-dev" class="hidden">                    <!-- ПЛАНЫ РАЗРАБОТЧИКА -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl shadow-sm mb-4">
-                        <h2 class="text-[12px] font-black uppercase text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Опубликовать планы (Roadmap)</h2>
+                        <h2 class="text-[12px] font-black uppercase text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.game.manager.roadmap_title', 'Опубликовать планы (Roadmap)')}</h2>
                         <div class="flex gap-2">
-                            <input type="text" id="dev-roadmap-input" class="input-base text-[11px] !py-3 flex-1" placeholder="Напр: Добавить темную тему в PDF отчеты...">
-                            <button onclick="rbi_addRoadmapItem()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform">Опубликовать</button>
+                            <input type="text" id="dev-roadmap-input" class="input-base text-[11px] !py-3 flex-1" placeholder="${_t('quality.game.manager.dev_ph', 'Напр: Добавить темную тему в PDF отчеты...')}">
+                            <button onclick="rbi_addRoadmapItem()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform">${_t('quality.game.manager.publish', 'Опубликовать')}</button>
                         </div>
                     </div>
                     <div id="manager-roadmap-list" class="space-y-2 mb-6"></div>
@@ -737,7 +796,7 @@ let gameChartInstance = null;
                     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] p-4 rounded-xl shadow-sm">
                         <div class="flex justify-between items-center mb-3">
                             <div>
-                                <h2 class="text-[13px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-1">База знаний AI-Помощника</h2>
+                                <h2 class="text-[13px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-1">${_t('quality.game.manager.aikb_title', 'База знаний AI-Помощника')}</h2>
                                 <p class="text-[10px] text-[var(--text-muted)] font-bold leading-snug">Загружайте сюда инструкции и правила работы.</p>
                             </div>
                             <button onclick="gameOpenAiKbModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-md active:scale-95 shrink-0 transition-transform">Добавить</button>
@@ -893,13 +952,13 @@ let gameChartInstance = null;
                             <th class="p-3 sticky left-0 bg-slate-100 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Инженер</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Влияние на качество подрядчиков">Impact Score</th>
                             <th class="p-3 text-center border-l border-slate-200" title="Подрядчиков: Улучшил / Ухудшил">Динамика</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Оценочные долги по задачам">Заброшенные П-ки</th>
-                            <th class="p-3 text-center border-l border-slate-200 text-indigo-600" title="Задачи за неделю: закрыто / открыто (в т.ч. просрочено)">Задачи нед. (✅/🕒)</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Профессиональный Индекс (XP)">PI (Опыт)</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Количество инспекций">Объем</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Фото+Причина при дефекте">Доказательность</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Отклонение от среднего УрК. (+) - строгий">Строгость</th>
-                            <th class="p-3 text-center border-l border-slate-200" title="Процент заполненных пунктов">Полнота</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_abandoned', 'Оценочные долги по задачам')}">${_t('quality.game.hr.th.abandoned', 'Заброшенные П-ки')}</th>
+                            <th class="p-3 text-center border-l border-slate-200 text-indigo-600" title="${_t('quality.game.hr.title_tasks', 'Задачи за неделю: закрыто / открыто (в т.ч. просрочено)')}">${_t('quality.game.hr.th.tasks_week', 'Задачи нед. (✅/🕒)')}</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_pi', 'Профессиональный Индекс (XP)')}">${_t('quality.game.hr.th.pi', 'PI (Опыт)')}</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_checks', 'Количество инспекций')}">${_t('quality.game.hr.th.volume', 'Объем')}</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_photo', 'Фото+Причина при дефекте')}">${_t('quality.game.hr.th.evidence', 'Доказательность')}</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_strict', 'Отклонение от среднего УрК. (+) - строгий')}">${_t('quality.game.hr.th.strictness', 'Строгость')}</th>
+                            <th class="p-3 text-center border-l border-slate-200" title="${_t('quality.game.hr.title_complete', 'Процент заполненных пунктов')}">${_t('quality.game.hr.th.completeness', 'Полнота')}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -926,19 +985,19 @@ let gameChartInstance = null;
       const impactIcon = s.avgImpact > 0.2 ? '📈' : (s.avgImpact < -0.2 ? '📉' : '➖');
 
       const debtClass = s.oldDebtWarning ? 'bg-red-50 text-red-700 border-red-300 font-black animate-pulse' : (s.totalDebt > 5 ? 'bg-orange-50 text-orange-700' : 'text-green-600');
-      const vacationBadge = s.isVacation ? `<span class="bg-amber-100 text-amber-700 px-1 py-0.5 rounded text-[8px] ml-1">ОТПУСК</span>` : '';
+      const vacationBadge = s.isVacation ? `<span class="bg-amber-100 text-amber-700 px-1 py-0.5 rounded text-[8px] ml-1">${_t('quality.game.hr.vacation', 'ОТПУСК')}</span>` : '';
 
       html += `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="p-3 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                     <div class="font-black text-[12px] text-slate-800 truncate">${s.name} ${vacationBadge}</div>
-                    <div class="text-[8px] font-bold text-slate-400 uppercase">Грейд ${s.level} | B3: ${s.b3Found} шт.</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase">${_t('quality.game.hr.grade', 'Грейд {n} | B3: {b3} шт.', { n: s.level, b3: s.b3Found })}</div>
                 </td>
                 <td class="p-3 text-center border-l border-slate-100 font-black ${impactClass}">
                     <div class="flex items-center justify-center gap-1">${impactIcon} ${s.avgImpact.toFixed(2)}</div>
                 </td>
                 <td class="p-3 text-center border-l border-slate-100 font-bold text-[11px]">
-                    <span class="text-green-600" title="Улучшил подрядчиков">${s.improved}</span> / <span class="text-red-500" title="Ухудшил подрядчиков">${s.degraded}</span>
+                    <span class="text-green-600" title="${_t('quality.game.hr.improved', 'Улучшил подрядчиков')}">${s.improved}</span> / <span class="text-red-500" title="${_t('quality.game.hr.degraded', 'Ухудшил подрядчиков')}">${s.degraded}</span>
                 </td>
                 <td class="p-3 text-center border-l border-slate-100 font-bold ${debtClass}">
                     ${s.totalDebt}
@@ -979,22 +1038,22 @@ let gameChartInstance = null;
 
     let logicTitle = ""; let logicDesc = ""; let logicColor = "";
     if (task.priorityLvl === 4) {
-      logicTitle = "Критический риск (Авария)"; logicColor = "text-red-600 bg-red-50 border-red-200";
-      logicDesc = "Подрядчик находится в красной зоне (УрК < 70%) или недавно допустил критический дефект B3. Система назначила максимальное количество проверок для жесткого контроля.";
+      logicTitle = _t('quality.game.zone.critical', 'Критический риск (Авария)'); logicColor = "text-red-600 bg-red-50 border-red-200";
+      logicDesc = _t('quality.game.zone.critical_desc', 'Подрядчик находится в красной зоне (УрК < 70%) или недавно допустил критический дефект B3. Система назначила максимальное количество проверок для жесткого контроля.');
     } else if (task.priorityLvl === 3) {
-      logicTitle = "Новый подрядчик (Сбор данных)"; logicColor = "text-blue-600 bg-blue-50 border-blue-200";
-      logicDesc = "Менее 7 проверок в базе. Система требует провести минимум 7 инспекций, чтобы рассчитать достоверный рейтинг надежности.";
+      logicTitle = _t('quality.game.zone.new', 'Новый подрядчик (Сбор данных)'); logicColor = "text-blue-600 bg-blue-50 border-blue-200";
+      logicDesc = _t('quality.game.zone.new_desc', 'Менее 7 проверок в базе. Система требует провести минимум 7 инспекций, чтобы рассчитать достоверный рейтинг надежности.');
     } else if (task.priorityLvl === 2) {
-      logicTitle = "Желтая зона (Нестабильно)"; logicColor = "text-orange-600 bg-orange-50 border-orange-200";
-      logicDesc = "УрК от 70% до 84%. Подрядчик допускает системный брак (повторение дефектов B2). Требуется умеренный контроль.";
+      logicTitle = _t('quality.game.zone.yellow', 'Желтая зона (Нестабильно)'); logicColor = "text-orange-600 bg-orange-50 border-orange-200";
+      logicDesc = _t('quality.game.zone.yellow_desc', 'УрК от 70% до 84%. Подрядчик допускает системный брак (повторение дефектов B2). Требуется умеренный контроль.');
     } else {
-      logicTitle = "Зеленая зона (Стабильно)"; logicColor = "text-green-600 bg-green-50 border-green-200";
-      logicDesc = "Высокое качество и стабильность. Достаточно 1 профилактической проверки в неделю.";
+      logicTitle = _t('quality.game.zone.green', 'Зеленая зона (Стабильно)'); logicColor = "text-green-600 bg-green-50 border-green-200";
+      logicDesc = _t('quality.game.zone.green_desc', 'Высокое качество и стабильность. Достаточно 1 профилактической проверки в неделю.');
     }
 
     let pauseInfo = "";
     if (st.status === 'active') {
-      pauseInfo = `<div class="text-[10px] text-slate-500 italic mb-4 text-center">Вы можете приостановить задачу, если подрядчик временно не работает на объекте.</div>`;
+      pauseInfo = `<div class="text-[10px] text-slate-500 italic mb-4 text-center">${_t('quality.game.task.pause_hint', 'Вы можете приостановить задачу, если подрядчик временно не работает на объекте.')}</div>`;
     }
 
     let actionsHtml = '';
@@ -1002,26 +1061,26 @@ let gameChartInstance = null;
       actionsHtml += `
             <div id="ai-task-risk-${task.id}" class="mb-3">
                 <button onclick="window.RBI.services.ai.generateTaskRiskAi('${safeContractor}', '${task.templateKey}', 'ai-task-risk-${task.id}')" class="w-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-transform flex justify-center items-center gap-2 shadow-sm">
-                    🔮 Оценить риски (ИИ)
+                    ${_t('quality.game.task.ai_risks', '🔮 Оценить риски (ИИ)')}
                 </button>
             </div>
             <button onclick="document.getElementById('task-details-modal').style.display='none'; gameStartTask('${safeContractor}', '${task.templateKey}')" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-[0_4px_14px_rgba(79,70,229,0.3)] active:scale-95 transition-transform flex justify-center items-center gap-2 mb-3">
-                ▶ Приступить к проверке
+                ${_t('quality.game.task.start_check', '▶ Приступить к проверке')}
             </button>
             <div class="flex gap-2">
                 <button onclick="gameChangeTaskStatus('${safeStatusKeyForHtml}', 'paused')" class="flex-1 flex justify-center items-center gap-2 p-3 rounded-xl bg-orange-50 text-orange-600 font-bold text-[10px] uppercase active:scale-95 border border-orange-200">
-                    ⏸ Пауза
+                    ${_t('quality.game.task.pause', '⏸ Пауза')}
                 </button>
                 <button onclick="gameChangeTaskStatus('${safeStatusKeyForHtml}', 'completed')" class="flex-1 flex justify-center items-center gap-2 p-3 rounded-xl bg-green-50 text-green-600 font-bold text-[10px] uppercase active:scale-95 border border-green-200">
-                    ✅ Завершить
+                    ${_t('quality.game.task.finish', '✅ Завершить')}
                 </button>
             </div>
         `;
     } else {
       actionsHtml += `
-            <div class="text-[10px] text-slate-500 italic mb-4 text-center">Задача находится в архиве (на паузе или завершена вручную).</div>
+            <div class="text-[10px] text-slate-500 italic mb-4 text-center">${_t('quality.game.task.archived', 'Задача находится в архиве (на паузе или завершена вручную).')}</div>
             <button onclick="gameChangeTaskStatus('${safeStatusKeyForHtml}', 'active')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-transform border border-slate-300">
-                🔄 Возобновить задачу
+                ${_t('quality.game.task.resume', '🔄 Возобновить задачу')}
             </button>
         `;
     }
@@ -1034,17 +1093,17 @@ let gameChartInstance = null;
 
         <div class="bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-4 flex justify-between items-center">
             <div>
-                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Прогресс выполнения</div>
-                <div class="text-[14px] font-black text-slate-700 dark:text-slate-300"><span class="${task.done >= task.target ? 'text-green-500' : 'text-indigo-600'}">${task.done}</span> из ${task.target}</div>
+                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">${_t('quality.game.task.progress', 'Прогресс выполнения')}</div>
+                <div class="text-[14px] font-black text-slate-700 dark:text-slate-300">${_t('quality.game.task.of', '{done} из {target}', { done: '<span class="' + (task.done >= task.target ? 'text-green-500' : 'text-indigo-600') + '">' + task.done + '</span>', target: task.target })}</div>
             </div>
             <div class="text-right">
-                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Долги</div>
+                <div class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">${_t('quality.game.task.debts', 'Долги')}</div>
                 <div class="text-[14px] font-black ${task.carryOverCount > 0 ? 'text-red-500' : 'text-green-500'}">${task.carryOverCount}</div>
             </div>
         </div>
 
         <div class="border border-[var(--card-border)] rounded-xl p-3 mb-4">
-            <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Обоснование системы</div>
+            <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${_t('quality.game.task.rationale', 'Обоснование системы')}</div>
             <div class="text-[10px] font-black px-2 py-1 rounded border uppercase w-fit mb-2 ${logicColor}">${logicTitle}</div>
             <div class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">${logicDesc}</div>
         </div>
@@ -1054,7 +1113,7 @@ let gameChartInstance = null;
     `;
 
     document.getElementById('modal-icon').innerHTML = '';
-    document.getElementById('modal-title').innerHTML = `<div class="flex justify-between items-center"><span>📋 Детали задачи</span><button onclick="document.getElementById('task-details-modal').style.display='none'" class="text-slate-400 hover:text-red-500 px-2 active:scale-90">✕</button></div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="flex justify-between items-center"><span>${_t('quality.game.task.details_title', '📋 Детали задачи')}</span><button onclick="document.getElementById('task-details-modal').style.display='none'" class="text-slate-400 hover:text-red-500 px-2 active:scale-90">✕</button></div>`;
     document.getElementById('task-details-body').innerHTML = html;
 
     document.getElementById('task-details-modal').style.display = 'flex';
@@ -1072,12 +1131,12 @@ let gameChartInstance = null;
       sortedProfiles = Object.values(allProfilesData).sort((a, b) => b.pi - a.pi);
     }
 
-    if (sortedProfiles.length === 0) return showToast('Нет данных для рейтинга');
+    if (sortedProfiles.length === 0) return showToast(_t('quality.game.toast.no_ranking', 'Нет данных для рейтинга'));
 
     let html = `<div class="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">`;
 
     if (window.serverGlobalRating) {
-      html += `<div class="text-[10px] text-center text-slate-500 font-bold mb-3 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 py-1 rounded">Глобальный рейтинг сервера</div>`;
+      html += `<div class="text-[10px] text-center text-slate-500 font-bold mb-3 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 py-1 rounded">${_t('quality.game.rank.global', 'Глобальный рейтинг сервера')}</div>`;
     }
 
     sortedProfiles.forEach((p, idx) => {
@@ -1100,7 +1159,7 @@ let gameChartInstance = null;
           if (tier > 0) activeBadges.push({ id: b.id, tier });
         });
         activeBadges.sort((a, b) => b.tier - a.tier);
-        badgesHtml = activeBadges.slice(0, 3).map(b => `<div class="w-5 h-5" title="Тир ${b.tier}">${getBadgeSvg(b.id, b.tier, "w-5 h-5")}</div>`).join('');
+        badgesHtml = activeBadges.slice(0, 3).map(b => `<div class="w-5 h-5" title="${_t('quality.game.rank.tier', 'Тир {n}', { n: b.tier })}">${getBadgeSvg(b.id, b.tier, "w-5 h-5")}</div>`).join('');
       }
 
       html += `
@@ -1108,7 +1167,7 @@ let gameChartInstance = null;
             <div class="flex items-center gap-3 min-w-0 pr-2">
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 border ${rankClass}">${idx + 1}</div>
                 <div class="min-w-0">
-                    <div class="font-black text-[12px] text-slate-800 dark:text-white truncate ${isMe ? 'text-indigo-700 dark:text-indigo-400' : ''}">${p.name} ${isMe ? '(Вы)' : ''}</div>
+                    <div class="font-black text-[12px] text-slate-800 dark:text-white truncate ${isMe ? 'text-indigo-700 dark:text-indigo-400' : ''}">${p.name} ${isMe ? _t('quality.game.rank.you', '(Вы)') : ''}</div>
                     <div class="flex items-center gap-1.5 mt-0.5">
                         <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">${p.levelObj.name}</div>
                         <div class="flex gap-0.5 ml-2 border-l border-slate-300 dark:border-slate-600 pl-2">${badgesHtml}</div>
@@ -1124,7 +1183,7 @@ let gameChartInstance = null;
     html += `</div>`;
 
     document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-2xl">🏆</div>`;
-    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Таблица лидеров</div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.rank.title', 'Таблица лидеров')}</div>`;
     document.getElementById('modal-body').innerHTML = html;
 
     const modal = document.getElementById('modal-overlay');
@@ -1149,7 +1208,7 @@ let gameChartInstance = null;
       const templatesCount = {};
       cChecks.forEach(c => templatesCount[c.templateKey] = (templatesCount[c.templateKey] || 0) + 1);
       const topTemplate = Object.keys(templatesCount).sort((a, b) => templatesCount[b] - templatesCount[a])[0];
-      const templateTitle = cChecks.find(c => c.templateKey === topTemplate)?.templateTitle || 'Вид работ';
+      const templateTitle = cChecks.find(c => c.templateKey === topTemplate)?.templateTitle || _t('quality.game.impact.work_type', 'Вид работ');
 
       const impact = calculateImpactScore(myProfile.name, cName, topTemplate);
       if (impact.score !== 0 || impact.trend !== 'Недостаточно данных') {
@@ -1164,11 +1223,11 @@ let gameChartInstance = null;
                     <div class="min-w-0 flex-1 pr-2">
                         <div class="text-[12px] font-black text-slate-800 dark:text-white truncate">${cName}</div>
                         <div class="text-[9px] text-slate-500 font-bold uppercase truncate">${templateTitle}</div>
-                        <div class="text-[10px] text-slate-600 dark:text-slate-400 mt-1">Базовый УрК: <b>${impact.baseUrk}%</b> ➔ Стал: <b>${impact.currUrk}%</b></div>
+                        <div class="text-[10px] text-slate-600 dark:text-slate-400 mt-1">${_t('quality.game.impact.base_became', 'Базовый УрК: <b>{base}%</b> ➔ Стал: <b>{curr}%</b>', { base: impact.baseUrk, curr: impact.currUrk })}</div>
                     </div>
                     <div class="shrink-0 text-right">
                         <div class="text-[14px] font-black ${impact.color}">${impact.score > 0 ? '+' : ''}${impact.score.toFixed(2)}</div>
-                        <div class="text-[9px] font-bold px-1.5 py-0.5 rounded border mt-1 ${badge}">${icon} ${impact.trend}</div>
+                        <div class="text-[9px] font-bold px-1.5 py-0.5 rounded border mt-1 ${badge}">${icon} ${_tTrend(impact.trend)}</div>
                     </div>
                 </div>
             `);
@@ -1183,18 +1242,18 @@ let gameChartInstance = null;
         </div>
         
         <div class="flex justify-between items-center bg-[var(--hover-bg)] p-3 rounded-xl border border-[var(--card-border)] mb-4">
-            <div class="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest">Средний показатель:</div>
+            <div class="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest">${_t('quality.game.impact.avg', 'Средний показатель:')}</div>
             <div class="text-[18px] font-black ${avgImpact > 0 ? 'text-green-600' : (avgImpact < 0 ? 'text-red-600' : 'text-slate-600')}">${avgImpact > 0 ? '+' : ''}${avgImpact.toFixed(2)}</div>
         </div>
 
-        <div class="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-2 pl-1 border-b border-[var(--card-border)] pb-2">Детализация по подрядчикам</div>
+        <div class="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-2 pl-1 border-b border-[var(--card-border)] pb-2">${_t('quality.game.impact.by_contr', 'Детализация по подрядчикам')}</div>
         <div class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
-            ${detailsHtml.length > 0 ? detailsHtml.join('') : '<div class="text-center text-slate-400 font-bold text-[10px] uppercase py-4">Слишком мало данных. Нужно проверить одного подрядчика минимум 6 раз.</div>'}
+            ${detailsHtml.length > 0 ? detailsHtml.join('') : `<div class="text-center text-slate-400 font-bold text-[10px] uppercase py-4">${_t('quality.game.impact.need_more', 'Слишком мало данных. Нужно проверить одного подрядчика минимум 6 раз.')}</div>`}
         </div>
     `;
 
     document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-2xl">🎯</div>`;
-    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Ваше влияние (Impact)</div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.impact.title', 'Ваше влияние (Impact)')}</div>`;
     document.getElementById('modal-body').innerHTML = html;
 
     const modal = document.getElementById('modal-overlay');
@@ -1207,29 +1266,29 @@ let gameChartInstance = null;
   function rbi_openQualityDaySettings(taskId) {
     const modal = document.getElementById('modal-overlay');
     document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200">📅</div>`;
-    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Настройки Отчета</div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.qd.settings_title', 'Настройки Отчета')}</div>`;
 
     document.getElementById('modal-body').innerHTML = `
         <div class="text-center text-[12px] text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
-            Выберите период для формирования Мега-Отчета. Система агрегирует метрики всех подрядчиков, выберет лучшие практики и запросит ИИ-резюме.
+            ${_t('quality.game.qd.settings_desc', 'Выберите период для формирования Мега-Отчета. Система агрегирует метрики всех подрядчиков, выберет лучшие практики и запросит ИИ-резюме.')}
         </div>
         
         <div class="mb-6">
-            <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Отчетный период</label>
+            <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block">${_t('quality.game.qd.period_label', 'Отчетный период')}</label>
             <select id="qday-period-select" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none">
-                <option value="current_month">За текущий месяц</option>
-                <option value="last_month">За прошлый месяц</option>
-                <option value="quarter">За последние 3 месяца (Квартал)</option>
-                <option value="all_time">За всё время</option>
+                <option value="current_month">${_t('quality.game.qd.opt.current_month', 'За текущий месяц')}</option>
+                <option value="last_month">${_t('quality.game.qd.opt.last_month', 'За прошлый месяц')}</option>
+                <option value="quarter">${_t('quality.game.qd.opt.quarter', 'За последние 3 месяца (Квартал)')}</option>
+                <option value="all_time">${_t('quality.game.qd.opt.all_time', 'За всё время')}</option>
             </select>
         </div>
 
         <div class="flex gap-2">
             <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm">
-                Отмена
+                ${_t('quality.game.qd.cancel', 'Отмена')}
             </button>
             <button onclick="closeModal(); rbi_executeQualityDayReport('${taskId}')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">
-                🚀 Сгенерировать
+                ${_t('quality.game.qd.generate', '🚀 Сгенерировать')}
             </button>
         </div>
     `;
@@ -1253,12 +1312,12 @@ let gameChartInstance = null;
             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 border-b border-[var(--card-border)] pb-2">
                 <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5 min-w-0">
                     <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <span class="truncate">Архив FMEA</span>
+                    <span class="truncate">${_t('quality.game.fmea.archive', 'Архив FMEA')}</span>
                 </h2>
                 <div class="flex flex-wrap items-center gap-2">
                     <div id="fmea-view-mode-toggle">${toggleHtml}</div>
                     <button onclick="rbi_createEmptyFmea()" class="bg-white text-purple-600 border border-purple-200 px-3 py-1.5 rounded-lg shadow-sm active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Пустой бланк
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.game.fmea.empty_blank', 'Пустой бланк')}
                     </button>
                 </div>
             </div>
@@ -1266,13 +1325,13 @@ let gameChartInstance = null;
             <div class="flex flex-wrap gap-2 items-center">
                 <div class="flex-1 min-w-[160px]">
                     <select id="fmea-period-select" class="input-base !py-2 text-[10px] font-bold w-full">
-                        <option value="WEEK">Дефекты за 7 дней (Неделя)</option>
-                        <option value="MONTH">Дефекты за 30 дней (Месяц)</option>
-                        <option value="QUARTER">Дефекты за 90 дней (Квартал)</option>
+                        <option value="WEEK">${_t('quality.game.fmea.opt.week', 'Дефекты за 7 дней (Неделя)')}</option>
+                        <option value="MONTH">${_t('quality.game.fmea.opt.month', 'Дефекты за 30 дней (Месяц)')}</option>
+                        <option value="QUARTER">${_t('quality.game.fmea.opt.quarter', 'Дефекты за 90 дней (Квартал)')}</option>
                     </select>
                 </div>
                 <button onclick="rbi_generateFmeaTable()" class="bg-purple-600 text-white px-3 py-2 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-transform flex items-center gap-1.5 shrink-0">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Сформировать
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> ${_t('quality.game.fmea.generate_btn', 'Сформировать')}
                 </button>
             </div>
         </div>
@@ -1296,7 +1355,7 @@ let gameChartInstance = null;
     }
 
     if (!_getFmea() || _getFmea().length === 0) {
-      listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)]">Архив пуст</div>`;
+      listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)]">${_t('quality.game.fmea.archive_empty', 'Архив пуст')}</div>`;
       return;
     }
 
@@ -1306,7 +1365,7 @@ let gameChartInstance = null;
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     if (!sorted.length) {
-      listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)]">Архив пуст</div>`;
+      listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)]">${_t('quality.game.fmea.archive_empty', 'Архив пуст')}</div>`;
       return;
     }
 
@@ -1351,6 +1410,14 @@ let gameChartInstance = null;
           `${defectN} деф.`,
           authorShort
         ].filter(Boolean).join(' · ');
+        const defectPreview = (f.defects || [])
+          .map(function (d) {
+            return String((d && (d.defectName || d.name || d.n || d.title)) || '').trim();
+          })
+          .filter(Boolean)
+          .slice(0, 3)
+          .join(' · ');
+        const previewText = defectPreview || 'Без описания дефектов';
         const photos = (f.defects || []).map(d => d.photo).filter(Boolean);
         const thumb = photos.length > 0
           ? `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(photos[0], { preferThumb: true }) : ('src="' + window.getPhotoSrc(photos[0]) + '"')} class="w-full h-full object-cover">`
@@ -1381,13 +1448,13 @@ let gameChartInstance = null;
                 <button onclick="event.stopPropagation(); openUniversalActionSheet('${f.id}', 'fmea', '${safeTitle}', ${isOwner})" class="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white active:scale-90 transition-transform shadow-md border border-white/20">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
                 </button>
-                <div class="absolute bottom-2 left-2 bg-purple-600 text-white text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shadow-md">${f.periodName || 'FMEA'}</div>
             </div>
             <div class="p-3 flex flex-col flex-1 min-w-0">
-                <div class="text-[12px] font-bold text-slate-800 dark:text-white leading-tight line-clamp-2 mb-1">${f.title}</div>
-                <div class="text-[9px] text-slate-500 font-bold mb-2">Разобрано дефектов: ${defectN} шт.</div>
+                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 leading-snug">${f.title}</div>
+                <div class="text-[9px] font-bold text-[var(--text-muted)] mb-2 leading-snug">${metaLine}</div>
+                <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 mb-2 flex-1">${previewText}</div>
                 <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center gap-2">
-                    <div class="text-[9px] font-bold text-[var(--text-muted)] truncate min-w-0">
+                    <div class="text-[9px] font-bold text-[var(--text-muted)] min-w-0 leading-snug">
                         <svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         ${authorShort}
                     </div>
@@ -1487,7 +1554,7 @@ let gameChartInstance = null;
   // Перенесено из js/game.js (строка 2551).
   async function rbi_viewFmea(fmeaId) {
     const record = _getFmea().find(f => f.id === fmeaId);
-    if (!record) return showToast("Запись не найдена");
+    if (!record) return showToast(_t('quality.game.fmea.not_found', 'Запись не найдена'));
 
     const sortedDefects = [...record.defects].sort((a, b) => (parseInt(b.rpn) || 0) - (parseInt(a.rpn) || 0));
 
@@ -1497,7 +1564,7 @@ let gameChartInstance = null;
       if (d.rpn >= 300) rpnColor = 'text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700';
       if (d.rpn >= 600) rpnColor = 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700';
 
-      let photoHtml = `<div class="text-[9px] text-slate-400 italic border border-dashed border-slate-300 dark:border-slate-600 p-2 rounded text-center">Нет фото</div>`;
+      let photoHtml = `<div class="text-[9px] text-slate-400 italic border border-dashed border-slate-300 dark:border-slate-600 p-2 rounded text-center">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>`;
       if (d.photo) {
         const realSrc = await PhotoManager.getAsyncUrl(d.photo) || window.getPhotoSrc(d.photo);
         photoHtml = `<img src="${realSrc}" class="w-14 h-14 object-cover rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer" onclick="openPhotoViewer('${d.photo}')">`;
@@ -1746,15 +1813,15 @@ let gameChartInstance = null;
 
   function rbi_openFmeaBindModal(fmeaId) {
     const rec = _getFmea().find(f => String(f.id) === String(fmeaId));
-    if (!rec) return showToast('⚠️ FMEA не найден');
+    if (!rec) return showToast(_t('quality.game.fmea.toast.not_found', '⚠️ FMEA не найден'));
     if (!_fmeaCanBindRecord(rec)) {
-      return showToast('⚠️ Нет прав менять привязку чужого FMEA');
+      return showToast(_t('quality.game.fmea.toast.no_rights', '⚠️ Нет прав менять привязку чужого FMEA'));
     }
 
     const isAdmin = _fmeaIsAdmin();
     const options = _fmeaSelectableProjectNames();
     if (!isAdmin && !options.length) {
-      return showToast('⚠️ Нет закреплённых объектов — обратитесь к администратору');
+      return showToast(_t('quality.game.fmea.toast.no_assigned', '⚠️ Нет закреплённых объектов — обратитесь к администратору'));
     }
 
     const current = _fmeaCurrentBindSelection(rec);
@@ -1778,7 +1845,7 @@ let gameChartInstance = null;
     const allBlock = isAdmin ? `
         <label class="flex items-center gap-3 p-3 mb-2 bg-orange-50 dark:bg-orange-950/30 rounded-xl cursor-pointer border border-orange-200 dark:border-orange-800">
             <input type="checkbox" id="fmea-bind-proj-all" class="w-5 h-5 accent-orange-600 rounded cursor-pointer" ${defaultAll ? 'checked' : ''} onchange="rbi_onFmeaBindProjectAllChange()">
-            <span class="text-[13px] font-black text-orange-700 dark:text-orange-300">Все объекты</span>
+            <span class="text-[13px] font-black text-orange-700 dark:text-orange-300">${_t('quality.game.fmea.all_projects', 'Все объекты')}</span>
         </label>` : '';
 
     const curLabel = String(rec.project_display_name || rec.projectName || '').trim() || 'Без объекта';
@@ -1787,7 +1854,7 @@ let gameChartInstance = null;
     document.getElementById('modal-icon').innerHTML = '';
     document.getElementById('modal-title').innerHTML = `
         <div class="flex justify-between items-center w-full gap-2">
-            <span class="text-[14px] uppercase font-black text-slate-800 dark:text-white">🏗 Привязка FMEA к объекту</span>
+            <span class="text-[14px] uppercase font-black text-slate-800 dark:text-white">${_t('quality.game.fmea.bind_title', '🏗 Привязка FMEA к объекту')}</span>
             <button onclick="rbi_closeFmeaBindModal()" class="text-slate-400 hover:text-red-500 active:scale-90 px-2 text-lg shrink-0">✕</button>
         </div>`;
 
@@ -1795,20 +1862,20 @@ let gameChartInstance = null;
         <div class="max-h-[calc(94vh-140px)] overflow-y-auto custom-scrollbar pr-0.5">
             <div class="text-[11px] text-slate-500 mb-3 border-b border-slate-200 dark:border-slate-700 pb-3">
                 <div class="font-bold text-slate-700 dark:text-slate-200 mb-1">${String(rec.title || 'FMEA').replace(/</g, '&lt;')}</div>
-                <div>Сейчас: <b class="text-slate-800 dark:text-slate-100">${curLabel.replace(/</g, '&lt;')}</b>
-                    ${isAdmin ? '' : ' · доступны только ваши объекты'}
+                <div>${_t('quality.game.fmea.bind_now', 'Сейчас: <b class="text-slate-800 dark:text-slate-100">{label}</b>', { label: curLabel.replace(/</g, '&lt;') })}
+                    ${isAdmin ? '' : _t('quality.game.fmea.bind_only_yours', ' · доступны только ваши объекты')}
                 </div>
             </div>
             <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Объект <span class="text-orange-500">*</span></label>
             ${allBlock}
             <div class="space-y-2 mb-4">
-                ${projBoxes || `<div class="text-[11px] text-slate-400 font-bold py-6 text-center">Нет доступных объектов</div>`}
+                ${projBoxes || `<div class="text-[11px] text-slate-400 font-bold py-6 text-center">${_t('quality.game.fmea.no_projects', 'Нет доступных объектов')}</div>`}
             </div>
-            <p class="text-[10px] text-slate-400 font-bold mb-4">${isAdmin ? 'Можно выбрать все, один или несколько' : 'Выберите один или несколько своих объектов'}</p>
+            <p class="text-[10px] text-slate-400 font-bold mb-4">${isAdmin ? _t('quality.game.fmea.bind_hint_admin', 'Можно выбрать все, один или несколько') : _t('quality.game.fmea.bind_hint_user', 'Выберите один или несколько своих объектов')}</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2 sticky bottom-0 bg-[var(--card-bg)] pt-1">
-            <button onclick="rbi_closeFmeaBindModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase border border-slate-200 dark:border-slate-700">Отмена</button>
-            <button onclick="rbi_saveFmeaBind('${safeId}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95">Сохранить привязку</button>
+            <button onclick="rbi_closeFmeaBindModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.cancel', 'Отмена')}</button>
+            <button onclick="rbi_saveFmeaBind('${safeId}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95">${_t('quality.game.fmea.save_bind', 'Сохранить привязку')}</button>
         </div>`;
 
     _setFmeaViewModalLayout(true);
@@ -1842,11 +1909,11 @@ let gameChartInstance = null;
   }
 
   async function rbi_saveFmeaBind(fmeaId) {
-    if (_fmeaIsDemoMode()) return showToast('В демо-режиме сохранение отключено');
+    if (_fmeaIsDemoMode()) return showToast(_t('quality.game.fmea.toast.demo', 'В демо-режиме сохранение отключено'));
     const rec = _getFmea().find(f => String(f.id) === String(fmeaId));
-    if (!rec) return showToast('⚠️ FMEA не найден');
+    if (!rec) return showToast(_t('quality.game.fmea.toast.not_found', '⚠️ FMEA не найден'));
     if (!_fmeaCanBindRecord(rec)) {
-      return showToast('⚠️ Нет прав менять привязку чужого FMEA');
+      return showToast(_t('quality.game.fmea.toast.no_rights', '⚠️ Нет прав менять привязку чужого FMEA'));
     }
 
     const isAdmin = _fmeaIsAdmin();
@@ -1860,8 +1927,8 @@ let gameChartInstance = null;
 
     if (!isAll && selected.length === 0) {
       return showToast(isAdmin
-        ? '⚠️ Выберите объект: все, один или несколько'
-        : '⚠️ Выберите один или несколько своих объектов');
+        ? _t('quality.game.fmea.toast.pick_admin', '⚠️ Выберите объект: все, один или несколько')
+        : _t('quality.game.fmea.toast.pick_user', '⚠️ Выберите один или несколько своих объектов'));
     }
 
     _fmeaApplyProjectFields(rec, isAll, selected);
@@ -1888,7 +1955,7 @@ let gameChartInstance = null;
 
     rbi_closeFmeaBindModal();
     rbi_renderFmeaRegistry();
-    showToast('✅ Объект FMEA обновлён');
+    showToast(_t('quality.game.fmea.toast.updated', '✅ Объект FMEA обновлён'));
   }
 
   // === FMEA: ГЕНЕРАЦИЯ МЕГА-ТАБЛИЦЫ И РУЧНАЯ СТРОКА ===
@@ -1898,9 +1965,9 @@ let gameChartInstance = null;
     const workspace = document.getElementById('fmea-workspace');
     const periodVal = document.getElementById('fmea-period-select').value;
 
-    let days = 7; let periodName = "Неделя";
-    if (periodVal === 'MONTH') { days = 30; periodName = "Месяц"; }
-    if (periodVal === 'QUARTER') { days = 90; periodName = "Квартал"; }
+    let days = 7; let periodName = _t('quality.game.fmea.period.week', 'Неделя');
+    if (periodVal === 'MONTH') { days = 30; periodName = _t('quality.game.fmea.period.month', 'Месяц'); }
+    if (periodVal === 'QUARTER') { days = 90; periodName = _t('quality.game.fmea.period.quarter', 'Квартал'); }
 
     const d = new Date();
     const startDate = new Date(d); startDate.setDate(startDate.getDate() - days);
@@ -1975,11 +2042,11 @@ let gameChartInstance = null;
       } else {
         photoHtml = `
             <div class="mt-2 w-16">
-                <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">Нет фото</div>
+                <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
                 <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
             </div>`;
       }
-      const repeatedTag = def.isRepeated ? `<div class="text-[8px] bg-red-600 text-white px-1 py-0.5 rounded uppercase font-black w-fit mt-1 animate-pulse">Повторный</div>` : '';
+      const repeatedTag = def.isRepeated ? `<div class="text-[8px] bg-red-600 text-white px-1 py-0.5 rounded uppercase font-black w-fit mt-1 animate-pulse">${_t('quality.game.fmea.repeated', 'Повторный')}</div>` : '';
 
       return `
         <tr class="fmea-row bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors" data-idx="${idx}">
@@ -2000,23 +2067,23 @@ let gameChartInstance = null;
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[120px]">
                 <select class="f-stage input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50 dark:bg-slate-900 dark:text-slate-200">
-                    <option value="Ошибки СМР" ${def.stage === 'Ошибки СМР' ? 'selected' : ''}>Ошибки СМР</option>
-                    <option value="Проект" ${def.stage === 'Проект' ? 'selected' : ''}>Проектная ошибка</option>
-                    <option value="Материалы" ${def.stage === 'Материалы' ? 'selected' : ''}>Материалы / Завод</option>
-                    <option value="Условия" ${def.stage === 'Условия' ? 'selected' : ''}>Внешние условия</option>
+                    <option value="Ошибки СМР" ${def.stage === 'Ошибки СМР' ? 'selected' : ''}>${_t('quality.game.fmea.stage.smr', 'Ошибки СМР')}</option>
+                    <option value="Проект" ${def.stage === 'Проект' ? 'selected' : ''}>${_t('quality.game.fmea.stage.project', 'Проектная ошибка')}</option>
+                    <option value="Материалы" ${def.stage === 'Материалы' ? 'selected' : ''}>${_t('quality.game.fmea.stage.materials', 'Материалы / Завод')}</option>
+                    <option value="Условия" ${def.stage === 'Условия' ? 'selected' : ''}>${_t('quality.game.fmea.stage.conditions', 'Внешние условия')}</option>
                 </select>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="Коренная причина...">${def.cause || ''}</textarea>
+                <textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.cause', 'Коренная причина...')}">${def.cause || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="Последствия (Риски)...">${def.effect || ''}</textarea>
+                <textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.effect', 'Последствия (Риски)...')}">${def.effect || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="Как устранить сейчас...">${def.fix || ''}</textarea>
+                <textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="${_t('quality.game.fmea.ph.fix', 'Как устранить сейчас...')}">${def.fix || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="Системное предотвращение...">${def.prevent || ''}</textarea>
+                <textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="${_t('quality.game.fmea.ph.prevent', 'Системное предотвращение...')}">${def.prevent || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[80px]">
                 <div class="text-center">
@@ -2032,10 +2099,10 @@ let gameChartInstance = null;
         <div class="bg-white dark:bg-slate-800 border border-[var(--card-border)] rounded-2xl shadow-sm p-4 animate-fadeIn mb-4">
             <div class="flex justify-between items-center mb-3">
                 <div class="text-[11px] font-black text-purple-700 uppercase tracking-widest">
-                    Черновик FMEA (${periodName})
+                    ${_t('quality.game.fmea.draft', 'Черновик FMEA ({period})', { period: periodName })}
                 </div>
                 <button onclick="window.RBI.services.ai.rbi_fillFmeaWithAi()" id="btn-fmea-ai" class="bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Автозаполнение (ИИ)
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.game.fmea.autofill', 'Автозаполнение (ИИ)')}
             </button>
             </div>
             
@@ -2043,12 +2110,12 @@ let gameChartInstance = null;
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase text-[9px] font-bold tracking-wider">
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">1. Подрядчик / Проблема</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">2. Этап возникновения</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">3. Коренная причина</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">4. Последствия (Риски)</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600">5. Устранение (Fix)</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600">6. Предотвращение</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
                             <th class="p-2 border border-slate-200 dark:border-slate-700 text-purple-600 text-center">7. RPN</th>
                         </tr>
                     </thead>
@@ -2058,10 +2125,10 @@ let gameChartInstance = null;
                 </table>
             </div>
             <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 active:scale-95 transition-colors flex items-center justify-center gap-2">
-                ➕ Добавить строку вручную
+                ${_t('quality.game.fmea.add_row', '➕ Добавить строку вручную')}
             </button>
             <button onclick="rbi_saveFmea('${periodName}')" class="w-full mt-4 bg-purple-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
-                💾 Сохранить отчет в Систему
+                ${_t('quality.game.fmea.save_report', '💾 Сохранить отчет в Систему')}
             </button>
         </div>
     `;
@@ -2076,7 +2143,7 @@ let gameChartInstance = null;
     if (!tbody) return;
     const idx = tbody.children.length;
     const newRow = `
-        <tr class="fmea-row bg-white hover:bg-purple-50/30 transition-colors" data-idx="${idx}">
+        <tr class="fmea-row bg-white dark:bg-slate-800 hover:bg-purple-50/30 dark:hover:bg-purple-900/20 transition-colors" data-idx="${idx}">
             <input type="hidden" class="f-contr" value="Ручной ввод">
             <input type="hidden" class="f-work" value="Ручной ввод">
             <input type="hidden" class="f-defect" value="Ручной ввод">
@@ -2084,32 +2151,32 @@ let gameChartInstance = null;
             <input type="hidden" class="f-count" value="1">
             
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[150px]">
-                <input type="text" class="f-work-input input-base !py-1 !text-[10px] font-bold mb-1" placeholder="Вид работ" onchange="this.closest('tr').querySelector('.f-work').value = this.value">
-                <input type="text" class="f-contr-input input-base !py-1 !text-[10px] font-black mb-1" placeholder="Подрядчик" onchange="this.closest('tr').querySelector('.f-contr').value = this.value">
-                <input type="text" class="f-defect-input input-base !py-1 !text-[10px] font-bold text-red-600" placeholder="Опишите дефект" onchange="this.closest('tr').querySelector('.f-defect').value = this.value">
+                <input type="text" class="f-work-input input-base !py-1 !text-[10px] font-bold mb-1" placeholder="${_t('quality.game.fmea.ph.work', 'Вид работ')}" onchange="this.closest('tr').querySelector('.f-work').value = this.value">
+                <input type="text" class="f-contr-input input-base !py-1 !text-[10px] font-black mb-1" placeholder="${_t('quality.game.fmea.ph.contractor', 'Подрядчик')}" onchange="this.closest('tr').querySelector('.f-contr').value = this.value">
+                <input type="text" class="f-defect-input input-base !py-1 !text-[10px] font-bold text-red-600 dark:text-red-400" placeholder="${_t('quality.game.fmea.ph.defect', 'Опишите дефект')}" onchange="this.closest('tr').querySelector('.f-defect').value = this.value">
                 <div class="mt-2 w-16">
-                    <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">Нет фото</div>
-                    <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
+                    <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 dark:border-slate-600 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
+                    <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 py-1 rounded border border-slate-300 dark:border-slate-600 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
                 </div>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[120px]">
-                <select class="f-stage input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50">
-                    <option value="Ошибки СМР">Ошибки СМР</option>
-                    <option value="Проект">Проектная ошибка</option>
-                    <option value="Материалы">Материалы / Завод</option>
-                    <option value="Условия">Внешние условия</option>
+                <select class="f-stage input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50 dark:bg-slate-900 dark:text-slate-200">
+                    <option value="Ошибки СМР">${_t('quality.game.fmea.stage.smr', 'Ошибки СМР')}</option>
+                    <option value="Проект">${_t('quality.game.fmea.stage.project', 'Проектная ошибка')}</option>
+                    <option value="Материалы">${_t('quality.game.fmea.stage.materials', 'Материалы / Завод')}</option>
+                    <option value="Условия">${_t('quality.game.fmea.stage.conditions', 'Внешние условия')}</option>
                 </select>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed" placeholder="Коренная причина..."></textarea></td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed" placeholder="Последствия (Риски)..."></textarea></td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed bg-blue-50" placeholder="Как устранить сейчас..."></textarea></td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed bg-green-50" placeholder="Системное предотвращение..."></textarea></td>
+            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.cause', 'Коренная причина...')}"></textarea></td>
+            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.effect', 'Последствия (Риски)...')}"></textarea></td>
+            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="${_t('quality.game.fmea.ph.fix', 'Как устранить сейчас...')}"></textarea></td>
+            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]"><textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 leading-relaxed bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="${_t('quality.game.fmea.ph.prevent', 'Системное предотвращение...')}"></textarea></td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[80px]">
                 <div class="text-center">
                     <div class="text-[8px] font-bold text-slate-400 mb-1">RPN</div>
-                    <input type="number" class="f-rpn input-base text-center font-black text-lg text-purple-700 !py-2" placeholder="0" min="1" max="1000">
+                    <input type="number" class="f-rpn input-base text-center font-black text-lg text-purple-700 dark:text-purple-400 !py-2 dark:bg-slate-900" placeholder="0" min="1" max="1000">
                 </div>
-                <button onclick="this.closest('tr').remove()" class="mt-2 w-full text-red-500 bg-red-50 py-1 rounded text-[9px] font-bold uppercase border border-red-200">Удалить</button>
+                <button onclick="this.closest('tr').remove()" class="mt-2 w-full text-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-800 py-1 rounded text-[9px] font-bold uppercase border border-red-200">${_t('quality.game.fmea.delete_row', 'Удалить')}</button>
             </td>
         </tr>`;
     tbody.insertAdjacentHTML('beforeend', newRow);
@@ -2126,7 +2193,7 @@ let gameChartInstance = null;
     try { projectsArray = JSON.parse(input.value || '[]'); } catch (e) { projectsArray = []; }
 
     if (projectsArray.length === 0) {
-      box.innerHTML = '<span class="text-[8px] text-slate-400 font-bold">Объекты не назначены</span>';
+      box.innerHTML = '<span class="text-[8px] text-slate-400 font-bold">' + _t('quality.game.fmea.projects_unassigned', 'Объекты не назначены') + '</span>';
       return;
     }
 
@@ -2174,28 +2241,28 @@ let gameChartInstance = null;
     <div id="ai-kb-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
         <div class="bg-[var(--card-bg)] w-full max-w-md p-6 rounded-2xl shadow-2xl border border-[var(--card-border)] flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
             <div class="font-black text-[13px] uppercase tracking-tight mb-4 text-slate-800 dark:text-white flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3 shrink-0">
-                <span>${editId ? 'Редактировать статью' : 'Добавить материал для ИИ'}</span>
+                <span>${editId ? _t('quality.game.aikb.edit', 'Редактировать статью') : _t('quality.game.aikb.add', 'Добавить материал для ИИ')}</span>
                 <button onclick="document.getElementById('ai-kb-modal').remove()" class="text-slate-400 hover:text-red-500 px-2 text-lg">✕</button>
             </div>
             
             <div class="space-y-3 mb-4 overflow-y-auto custom-scrollbar pr-1 flex-1">
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Тема или частый вопрос</label>
-                    <input type="text" id="ai-kb-q" class="input-base text-[12px]" value="${q.replace(/"/g, '&quot;')}" placeholder="Напр: Инструкция по созданию TWI карты">
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.aikb.topic', 'Тема или частый вопрос')}</label>
+                    <input type="text" id="ai-kb-q" class="input-base text-[12px]" value="${q.replace(/"/g, '&quot;')}" placeholder="${_t('quality.game.aikb.topic_ph', 'Напр: Инструкция по созданию TWI карты')}">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Текст инструкции (Контекст)</label>
-                    <textarea id="ai-kb-a" class="input-base text-[12px] h-48 resize-none leading-relaxed" placeholder="Вставьте сюда часть документа (до 3-4 абзацев)...">${a}</textarea>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.aikb.text', 'Текст инструкции (Контекст)')}</label>
+                    <textarea id="ai-kb-a" class="input-base text-[12px] h-48 resize-none leading-relaxed" placeholder="${_t('quality.game.aikb.text_ph', 'Вставьте сюда часть документа (до 3-4 абзацев)...')}">${a}</textarea>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Ключевые слова (через запятую)</label>
-                    <input type="text" id="ai-kb-tags" class="input-base text-[11px]" value="${tags}" placeholder="Напр: twi, инструкция, обучение">
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_t('quality.game.aikb.tags', 'Ключевые слова (через запятую)')}</label>
+                    <input type="text" id="ai-kb-tags" class="input-base text-[11px]" value="${tags}" placeholder="${_t('quality.game.aikb.tags_ph', 'Напр: twi, инструкция, обучение')}">
                 </div>
             </div>
             
             <div class="flex gap-2 pt-2 shrink-0">
-                <button onclick="document.getElementById('ai-kb-modal').remove()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-bold text-[11px] uppercase border border-slate-200 dark:border-slate-700 active:scale-95 transition-colors">Отмена</button>
-                <button onclick="gameSaveAiKb('${editId || ''}')" class="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 transition-transform">💾 Сохранить</button>
+                <button onclick="document.getElementById('ai-kb-modal').remove()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-bold text-[11px] uppercase border border-slate-200 dark:border-slate-700 active:scale-95 transition-colors">${_t('quality.game.aikb.cancel', 'Отмена')}</button>
+                <button onclick="gameSaveAiKb('${editId || ''}')" class="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 transition-transform">${_t('quality.game.aikb.save', '💾 Сохранить')}</button>
             </div>
         </div>
     </div>`;

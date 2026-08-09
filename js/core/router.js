@@ -62,6 +62,40 @@ window.AppRouter = {
                 'ref-sub-practices': 'practices'
             }
         },
+        '#/knowledge': {
+            defaultSlug: 'checklists',
+            slugToId: {
+                checklists: 'ref-sub-checklists',
+                docs: 'ref-sub-docs',
+                nodes: 'ref-sub-nodes',
+                twi: 'ref-sub-twi',
+                practices: 'ref-sub-practices'
+            },
+            idToSlug: {
+                'ref-sub-checklists': 'checklists',
+                'ref-sub-docs': 'docs',
+                'ref-sub-nodes': 'nodes',
+                'ref-sub-twi': 'twi',
+                'ref-sub-practices': 'practices'
+            }
+        },
+        '#/construction/reference': {
+            defaultSlug: 'checklists',
+            slugToId: {
+                checklists: 'ref-sub-checklists',
+                docs: 'ref-sub-docs',
+                nodes: 'ref-sub-nodes',
+                twi: 'ref-sub-twi',
+                practices: 'ref-sub-practices'
+            },
+            idToSlug: {
+                'ref-sub-checklists': 'checklists',
+                'ref-sub-docs': 'docs',
+                'ref-sub-nodes': 'nodes',
+                'ref-sub-twi': 'twi',
+                'ref-sub-practices': 'practices'
+            }
+        },
         '#/settings': {
             defaultSlug: 'platform',
             slugToId: {
@@ -174,6 +208,25 @@ window.AppRouter = {
                 }
             }
         },
+        '#/knowledge': {
+            containerId: 'tab-reference',
+            teardown: function () {
+                try {
+                    if (window.__knowledgeDesktop && typeof window.__knowledgeDesktop.teardown === 'function') {
+                        window.__knowledgeDesktop.teardown();
+                    } else if (window.KnowledgeDesktopRender && typeof window.KnowledgeDesktopRender.teardown === 'function') {
+                        window.KnowledgeDesktopRender.teardown();
+                    }
+                } catch (_) { /* ignore */ }
+                if (typeof window.rbiTeardownTabView === 'function') {
+                    window.rbiTeardownTabView('tab-reference');
+                } else {
+                    var el = document.getElementById('tab-reference');
+                    if (el) el.innerHTML = '';
+                }
+            }
+        },
+
         '#/settings': {
             containerId: 'tab-settings',
             teardown: function () {
@@ -218,8 +271,18 @@ window.AppRouter = {
             // тот же #tab-reference
             containerId: 'tab-reference',
             teardown: function () {
+                try {
+                    if (window.__knowledgeDesktop && typeof window.__knowledgeDesktop.teardown === 'function') {
+                        window.__knowledgeDesktop.teardown();
+                    } else if (window.KnowledgeDesktopRender && typeof window.KnowledgeDesktopRender.teardown === 'function') {
+                        window.KnowledgeDesktopRender.teardown();
+                    }
+                } catch (_) { /* ignore */ }
                 if (typeof window.rbiTeardownTabView === 'function') {
                     window.rbiTeardownTabView('tab-reference');
+                } else {
+                    var el = document.getElementById('tab-reference');
+                    if (el) el.innerHTML = '';
                 }
             }
         }
@@ -249,6 +312,24 @@ window.AppRouter = {
             this._rememberModuleHash(startHash);
             this.renderRoute();
         }
+
+        // Модули (разметка вкладок) грузятся на window.load после AppRouter.init.
+        // Первый renderRoute часто не находит #tab-* — повторяем после platform:ready.
+        try {
+            var self = this;
+            function _rerenderAfterModules() {
+                queueMicrotask(function () {
+                    try { self.renderRoute(); } catch (_) { /* ignore */ }
+                });
+            }
+            if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+                window.RBI.events.on('platform:ready', _rerenderAfterModules);
+            }
+            window.addEventListener('load', function () {
+                setTimeout(_rerenderAfterModules, 0);
+                setTimeout(_rerenderAfterModules, 250);
+            });
+        } catch (_) { /* ignore */ }
     },
 
     _isSettingsPath(path) {

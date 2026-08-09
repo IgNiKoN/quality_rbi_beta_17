@@ -14,6 +14,22 @@ const PAGE_W = 11906;
 const MARGIN = 850;
 const CONTENT_W = PAGE_W - MARGIN * 2; // 10206
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = root.RBI && root.RBI.services && root.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
 function _toast(msg) {
     if (typeof root.showToast === 'function') root.showToast(msg);
     else console.warn('[docx-export]', msg);
@@ -73,6 +89,7 @@ function _projectLabel(meet) {
 function _normalizeRich(raw) {
     let s = String(raw == null ? '' : raw);
     s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    s = s.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
     s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
     s = s.replace(/<\/\s*p\s*>/gi, '\n');
     s = s.replace(/<\/\s*div\s*>/gi, '\n');
@@ -88,6 +105,11 @@ function _normalizeRich(raw) {
         .replace(/&gt;/gi, '>')
         .replace(/&quot;/gi, '"')
         .replace(/&#39;/gi, "'");
+    // После decode entities теги могут всплыть снова (&lt;b&gt; → <b>)
+    s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+    s = s.replace(/<\s*\/?\s*(b|strong)\s*>/gi, '**');
+    s = s.replace(/<\s*\/?\s*(i|em)\s*>/gi, '__');
+    s = s.replace(/<[^>]+>/g, '');
     s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
     return s;
 }
@@ -794,26 +816,26 @@ function _downloadBlob(blob, fileName) {
 export async function exportMeetingDocx(id) {
     const D = _lib();
     if (!D || typeof D.Document !== 'function' || !D.Packer || typeof D.Packer.toBlob !== 'function') {
-        _toast('Библиотека Word (docx) не загружена');
+        _toast(_t('quality.meetings.docx.toast.lib_missing', 'Библиотека Word (docx) не загружена'));
         return null;
     }
     const meet = _meetings().find(function (m) { return m && m.id === id; });
     if (!meet) {
-        _toast('Протокол не найден');
+        _toast(_t('quality.meetings.docx.toast.not_found', 'Протокол не найден'));
         return null;
     }
 
-    _toast('Формируем официальный Word-протокол...');
+    _toast(_t('quality.meetings.docx.toast.building', 'Формируем официальный Word-протокол...'));
     try {
         const doc = await _buildDocument(meet);
         const blob = await D.Packer.toBlob(doc);
         const fileName = 'Протокол_' + _fileDate(meet.date) + '.docx';
         _downloadBlob(blob, fileName);
-        _toast('Word сохранён: ' + fileName);
+        _toast(_t('quality.meetings.docx.toast.saved', 'Word сохранён: {name}', { name: fileName }));
         return { blob: blob, fileName: fileName };
     } catch (err) {
         console.error('[docx-export]', err);
-        _toast('Ошибка экспорта Word');
+        _toast(_t('quality.meetings.docx.toast.error', 'Ошибка экспорта Word'));
         return null;
     }
 }

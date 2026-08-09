@@ -26,6 +26,22 @@ import {
     sk_fillContractorSuggestion
 } from './sk.render.js';
 
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
 function _objects() {
     try {
         if (SKActions._ctx && SKActions._ctx.services && SKActions._ctx.services.objects) {
@@ -490,12 +506,12 @@ async function sk_clearData() {
     var permSvc = (SKActions._ctx && SKActions._ctx.permissions) || window.RBI.services.permissions;
     var role = permSvc ? permSvc.getCurrentRole() : 'guest';
     var canManage = permSvc ? permSvc.canManageSK() : false;
-    if (!canManage) return showToast('❌ У вашей роли нет прав для очистки базы ПК СК');
+    if (!canManage) return showToast(_t('quality.sk.toast.clear_denied', '❌ У вашей роли нет прав для очистки базы ПК СК'));
 
     var isManager = permSvc ? permSvc.isAdmin() : false;
     var confirmText = isManager
-        ? 'Удалить ВСЕ загруженные замечания Стройконтроля? (Справочник объемов сохранится)'
-        : 'Удалить ВСЕ ВАШИ загруженные замечания Стройконтроля? (Чужие записи останутся)';
+        ? _t('quality.sk.confirm.clear_all', 'Удалить ВСЕ загруженные замечания Стройконтроля? (Справочник объемов сохранится)')
+        : _t('quality.sk.confirm.clear_own', 'Удалить ВСЕ ВАШИ загруженные замечания Стройконтроля? (Чужие записи останутся)');
     if (!confirm(confirmText)) return;
 
     var deletedCount = 0;
@@ -518,10 +534,10 @@ async function sk_clearData() {
         window.skRecords = window.skRecords.filter(function (r) { return !r._deleted; });
         localStorage.setItem('rbi_cloud_dirty', '1');
         _sync('silent');
-        showToast('🔄 Удалено замечаний: ' + deletedCount);
+        showToast(_t('quality.sk.toast.deleted_count', '🔄 Удалено замечаний: {count}', { count: deletedCount }));
         sk_renderMainTab();
     } else {
-        showToast('Нет замечаний для удаления (или нет прав на удаление чужих).');
+        showToast(_t('quality.sk.toast.nothing_to_delete', 'Нет замечаний для удаления (или нет прав на удаление чужих).'));
     }
 }
 
@@ -559,13 +575,13 @@ async function sk_addVolume() {
     var name = nameInput.value.trim();
     var amount = parseFloat(amountInput.value.replace(/\s/g, ''));
     var unit = unitInput.value.trim();
-    if (!name) return showToast('⚠️ Укажите вид работ!');
-    if (isNaN(amount) || amount <= 0) return showToast('⚠️ Укажите корректное количество (число)!');
-    if (!unit) return showToast('⚠️ Укажите единицу измерения!');
+    if (!name) return showToast(_t('quality.sk.toast.volume_name_required', '⚠️ Укажите вид работ!'));
+    if (isNaN(amount) || amount <= 0) return showToast(_t('quality.sk.toast.volume_amount_invalid', '⚠️ Укажите корректное количество (число)!'));
+    if (!unit) return showToast(_t('quality.sk.toast.volume_unit_required', '⚠️ Укажите единицу измерения!'));
     window.skVolumes[name] = { amount: amount, unit: unit };
     await _storage().put(_storage().stores().SK_VOLUMES, { id: 'main', data: window.skVolumes });
     nameInput.value = ''; amountInput.value = ''; unitInput.value = '';
-    showToast('✅ Объем добавлен в справочник!');
+    showToast(_t('quality.sk.toast.volume_added', '✅ Объем добавлен в справочник!'));
     sk_renderVolumes();
     sk_renderDashboard();
 }
@@ -581,10 +597,10 @@ async function sk_handleExcelImport(event) {
     var file = event.target.files[0];
     if (!sk_canUploadRecords()) {
         event.target.value = '';
-        return showToast('❌ Загружать ПК СК могут только инженер, заместитель или администратор');
+        return showToast(_t('quality.sk.toast.upload_denied', '❌ Загружать ПК СК могут только инженер, заместитель или администратор'));
     }
     if (!file) return;
-    showToast('🔄 Читаем Excel файл...');
+    showToast(_t('quality.sk.toast.reading_excel', '🔄 Читаем Excel файл...'));
     var reader = new FileReader();
     reader.onload = async function (e) {
         try {
@@ -593,7 +609,7 @@ async function sk_handleExcelImport(event) {
             var firstSheetName = workbook.SheetNames[0];
             var worksheet = workbook.Sheets[firstSheetName];
             var rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            if (rows.length < 2) throw new Error('Файл пуст или не содержит данных');
+            if (rows.length < 2) throw new Error(_t('quality.sk.error.file_empty', 'Файл пуст или не содержит данных'));
             var headers = rows[0].map(function (h) { return h ? h.toString().trim() : ''; });
             var skSvc = (SKActions._ctx && SKActions._ctx.sk) || window.RBI.services.sk;
             skSvc.setTempRawHeadersSync(headers);
@@ -601,7 +617,7 @@ async function sk_handleExcelImport(event) {
             sk_showMappingModal(headers, rows[1] || []);
         } catch (err) {
             console.error(err);
-            alert('Ошибка чтения Excel: ' + err.message);
+            alert(_t('quality.sk.alert.excel_read_error', 'Ошибка чтения Excel: {message}', { message: err.message }));
         }
     };
     reader.readAsArrayBuffer(file);
@@ -623,7 +639,7 @@ async function sk_executeImport(autoMapping) {
     criticalFields.forEach(function (field) {
         if (currentMapping[field] === -1 || isNaN(currentMapping[field])) hasError = true;
     });
-    if (hasError) return showToast("❌ ОШИБКА: Колонки '№ замечания', 'Ответственная организация', 'Дата выдачи' и 'Отметка об устранении' ОБЯЗАТЕЛЬНЫ! Назначьте их.");
+    if (hasError) return showToast(_t('quality.sk.toast.mapping_required', "❌ ОШИБКА: Колонки '№ замечания', 'Ответственная организация', 'Дата выдачи' и 'Отметка об устранении' ОБЯЗАТЕЛЬНЫ! Назначьте их."));
 
     window.skMapping = currentMapping;
     await _storage().put(_storage().stores().SK_MAPPING, { id: 'main', data: currentMapping });
@@ -688,7 +704,7 @@ function sk_resolvePair(idx, isMatch) {
 }
 
 async function sk_finalizeImport() {
-    showToast('🔄 Формируем единый реестр ПК СК без дублей...');
+    showToast(_t('quality.sk.toast.import_building', '🔄 Формируем единый реестр ПК СК без дублей...'));
     await _storage().put(_storage().stores().SK_CONTRACTOR_MAP, { id: 'main', data: window.skContractorMap });
 
     var rows = window.skTempRawRows || [];
@@ -885,7 +901,9 @@ async function sk_finalizeImport() {
     }
 
     localStorage.setItem('rbi_cloud_dirty', '1');
-    showToast('✅ ПК СК: новых ' + newRecordsCount + ', обновлено ' + updatedRecordsCount + ', пропущено ' + skippedRecordsCount + ', для AI: ' + aiCandidateCount);
+    showToast(_t('quality.sk.toast.import_done', '✅ ПК СК: новых {created}, обновлено {updated}, пропущено {skipped}, для AI: {ai}', {
+        created: newRecordsCount, updated: updatedRecordsCount, skipped: skippedRecordsCount, ai: aiCandidateCount
+    }));
 
     setTimeout(function () { _sync('manual'); }, 500);
 
@@ -907,12 +925,12 @@ async function sk_finalizeImport() {
 async function sk_deleteRecord(recordId) {
     var record = window.skRecords.find(function (r) { return String(r.id) === String(recordId); });
     if (!record) return;
-    if (!sk_canDeleteRecord(record)) return showToast('⚠️ Инженер может удалить только свои записи ПК СК. Остальные роли не имеют права удаления.');
+    if (!sk_canDeleteRecord(record)) return showToast(_t('quality.sk.toast.delete_denied', '⚠️ Инженер может удалить только свои записи ПК СК. Остальные роли не имеют права удаления.'));
     var role = sk_getCurrentRole();
     var permSvc = (SKActions._ctx && SKActions._ctx.permissions) || window.RBI.services.permissions;
     var confirmText = (permSvc ? permSvc.isAdmin() : ['manager', 'deputy_manager'].includes(role))
-        ? 'Удалить это замечание ПК СК? У вас есть право удалить любую запись.'
-        : 'Удалить это замечание ПК СК? Вы можете удалять только свои загруженные записи.';
+        ? _t('quality.sk.confirm.delete_admin', 'Удалить это замечание ПК СК? У вас есть право удалить любую запись.')
+        : _t('quality.sk.confirm.delete_own', 'Удалить это замечание ПК СК? Вы можете удалять только свои загруженные записи.');
     if (!confirm(confirmText)) return;
     var nowIso = new Date().toISOString();
     record._deleted = true; record.is_deleted = true;
@@ -925,12 +943,12 @@ async function sk_deleteRecord(recordId) {
     sk_renderDashboard();
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
-    showToast('🔄 Замечание ПК СК удалено');
+    showToast(_t('quality.sk.toast.record_deleted', '🔄 Замечание ПК СК удалено'));
 }
 
 async function sk_saveCategoryLink(rawCategory) {
     var targetCategory = document.getElementById('sk-category-link-select').value;
-    if (!targetCategory) return showToast('⚠️ Выберите вид работ из списка!');
+    if (!targetCategory) return showToast(_t('quality.sk.toast.category_select_required', '⚠️ Выберите вид работ из списка!'));
     var key = sk_normalizeCategoryKey(rawCategory);
     window.skCategoryMap[key] = targetCategory;
     await _storage().put(_storage().stores().SK_CATEGORY_MAP, { id: 'main', data: window.skCategoryMap, source: 'local', syncStatus: 'not_synced', sync_status: 'not_synced', updatedAt: new Date().toISOString(), updated_at: new Date().toISOString() });
@@ -947,7 +965,7 @@ async function sk_saveCategoryLink(rawCategory) {
         }
     }
     closeModal();
-    showToast('✅ Связь установлена! Обновлено записей: ' + updatedCount);
+    showToast(_t('quality.sk.toast.category_linked', '✅ Связь установлена! Обновлено записей: {count}', { count: updatedCount }));
     localStorage.setItem('rbi_cloud_dirty', '1');
     _sync('silent');
     setTimeout(function () { sk_renderDashboard(); }, 300);
@@ -955,11 +973,11 @@ async function sk_saveCategoryLink(rawCategory) {
 
 async function sk_openContractorLinkModal() {
     var queue = await sk_getPendingContractorsQueue();
-    if (!queue.length) { showToast('✅ Неподтверждённых подрядчиков нет'); return; }
+    if (!queue.length) { showToast(_t('quality.sk.toast.no_pending_contractors', '✅ Неподтверждённых подрядчиков нет')); return; }
     var canApprove = sk_canApproveContractorLink();
-    var modalTitle = canApprove ? 'Связать подрядчика' : 'Отправить заявку на подрядчика';
-    var modalDescription = canApprove ? 'Выберите название из ПК СК и создайте для него единое имя подрядчика.' : 'Выберите подрядчика из ПК СК и предложите единое название. Заявка уйдёт администратору на подтверждение.';
-    var actionButtonText = canApprove ? 'Связать' : 'Отправить заявку';
+    var modalTitle = canApprove ? _t('quality.sk.contractor_link.title', 'Связать подрядчика') : _t('quality.sk.contractor_link.request_title', 'Отправить заявку на подрядчика');
+    var modalDescription = canApprove ? _t('quality.sk.contractor_link.description', 'Выберите название из ПК СК и создайте для него единое имя подрядчика.') : _t('quality.sk.contractor_link.request_description', 'Выберите подрядчика из ПК СК и предложите единое название. Заявка уйдёт администратору на подтверждение.');
+    var actionButtonText = canApprove ? _t('quality.sk.contractor_link.link', 'Связать') : _t('quality.sk.contractor_link.submit', 'Отправить заявку');
     var optionsHtml = queue.map(function (q, idx) { return '<option value="' + idx + '">' + String(q.raw_name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>'; }).join('');
     var modalHtml = `
         <div id="sk-contractor-link-modal" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -969,12 +987,12 @@ async function sk_openContractorLinkModal() {
                     <div class="text-[10px] font-bold text-slate-500 mt-1 leading-snug">${modalDescription}</div>
                 </div>
                 <div class="p-4 space-y-3">
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Подрядчик из ПК СК</label><select id="sk-link-raw-contractor" class="input-base w-full" onchange="sk_fillContractorSuggestion()">${optionsHtml}</select></div>
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Единое название подрядчика</label><input id="sk-link-display-name" class="input-base w-full" placeholder="Например: ООО &quot;СК Каменный город&quot;"></div>
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Технический ключ</label><input id="sk-link-canonical-key" class="input-base w-full" placeholder="Например: sk_kamenny_gorod"></div>
+                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.from_sk_label', 'Подрядчик из ПК СК')}</label><select id="sk-link-raw-contractor" class="input-base w-full" onchange="sk_fillContractorSuggestion()">${optionsHtml}</select></div>
+                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.display_name_label', 'Единое название подрядчика')}</label><input id="sk-link-display-name" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.display_name_placeholder', 'Например: ООО &quot;СК Каменный город&quot;')}"></div>
+                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.canonical_key_label', 'Технический ключ')}</label><input id="sk-link-canonical-key" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.canonical_key_placeholder', 'Например: sk_kamenny_gorod')}"></div>
                 </div>
                 <div class="p-4 border-t border-[var(--card-border)] flex justify-end gap-2">
-                    <button onclick="sk_closeContractorLinkModal()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Отмена</button>
+                    <button onclick="sk_closeContractorLinkModal()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${_t('quality.sk.contractor_link.cancel', 'Отмена')}</button>
                     <button onclick="sk_saveContractorLink()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-indigo-600 text-white shadow active:scale-95">${actionButtonText}</button>
                 </div>
             </div>
@@ -993,11 +1011,11 @@ async function sk_saveContractorLink() {
         if (!select || !displayInput || !keyInput) return;
         var queue = window.skContractorQueueForModal || [];
         var item = queue[Number(select.value)];
-        if (!item) { showToast('⚠️ Не выбран подрядчик'); return; }
+        if (!item) { showToast(_t('quality.sk.toast.contractor_not_selected', '⚠️ Не выбран подрядчик')); return; }
         var rawName = String(item.raw_name || '').trim();
         var displayName = String(displayInput.value || '').trim();
         var canonicalKey = String(keyInput.value || '').trim();
-        if (!rawName || !displayName || !canonicalKey) { showToast('⚠️ Заполните название и технический ключ'); return; }
+        if (!rawName || !displayName || !canonicalKey) { showToast(_t('quality.sk.toast.contractor_fields_required', '⚠️ Заполните название и технический ключ')); return; }
         var projectCode = _syncConfig().projectCode || 'LOCAL';
         var currentUser = sk_getCurrentUserName();
         var nowIso = new Date().toISOString();
@@ -1036,7 +1054,7 @@ async function sk_saveContractorLink() {
             }
             localStorage.setItem('rbi_cloud_dirty', '1');
             sk_closeContractorLinkModal();
-            showToast('🔄 Заявка на подрядчика отправлена администратору');
+            showToast(_t('quality.sk.toast.contractor_request_sent', '🔄 Заявка на подрядчика отправлена администратору'));
             setTimeout(function () { _sync('silent'); }, 500);
             await sk_renderContractorQueueBanner();
             return;
@@ -1044,7 +1062,7 @@ async function sk_saveContractorLink() {
 
         var directoryApi = _contractors();
         if (!directoryApi || typeof directoryApi.create !== 'function') {
-            showToast('❌ Сервис справочника подрядчиков недоступен');
+            showToast(_t('quality.sk.toast.contractor_service_unavailable', '❌ Сервис справочника подрядчиков недоступен'));
             return;
         }
         var existingCard = typeof directoryApi.getByCanonicalKey === 'function'
@@ -1102,14 +1120,14 @@ async function sk_saveContractorLink() {
         if (typeof window.applyContractorAliasToInspectionHistory === 'function') {
             historyUpdated = await window.applyContractorAliasToInspectionHistory(rawName, canonicalKey, displayName);
         }
-        showToast('✅ Подрядчик связан. ПК СК: ' + updated + ', история: ' + historyUpdated);
+        showToast(_t('quality.sk.toast.contractor_linked', '✅ Подрядчик связан. ПК СК: {sk}, история: {history}', { sk: updated, history: historyUpdated }));
         sk_closeContractorLinkModal();
         await sk_loadData();
         sk_renderMainTab();
         setTimeout(function () { _sync('silent'); }, 500);
     } catch (e) {
         console.error('[ПК СК] Ошибка связывания подрядчика:', e);
-        showToast('❌ Не удалось связать подрядчика');
+        showToast(_t('quality.sk.toast.contractor_link_failed', '❌ Не удалось связать подрядчика'));
     }
 }
 
@@ -1260,8 +1278,8 @@ async function sk_evaluateIsdXpRewards(options) {
         console.warn('[ПК СК] Не удалось сохранить снимок ИСД', e);
     }
 
-    if (redCount > 0) showToast('🔄 Найден красный ИСД: +' + (redCount * 15) + ' XP');
-    else if (improvedCount > 0) showToast('🔄 ИСД улучшился: +' + (improvedCount * 40) + ' XP');
+    if (redCount > 0) showToast(_t('quality.sk.toast.red_isd_xp', '🔄 Найден красный ИСД: +{xp} XP', { xp: redCount * 15 }));
+    else if (improvedCount > 0) showToast(_t('quality.sk.toast.isd_improved_xp', '🔄 ИСД улучшился: +{xp} XP', { xp: improvedCount * 40 }));
 
     return snapshot;
 }
@@ -1400,13 +1418,18 @@ if (window.RBI && window.RBI.registry) {
     console.warn('[sk] RBI.registry недоступен — модуль работает автономно');
 }
 
-// Фоновая предзагрузка при старте
+// Фоновая предзагрузка при старте (модуль может подключиться после DCL)
 if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', function () {
+    var _skPreload = function () {
         setTimeout(function () {
             if (typeof sk_loadData === 'function') sk_loadData().catch(function () {});
         }, 2500);
-    });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _skPreload);
+    } else {
+        _skPreload();
+    }
 }
 
 // ═══ Fallback-регистрация: legacy-заглушка до загрузки ES-модуля sk.module.js ═══

@@ -210,6 +210,22 @@ export const GameModule = {
       });
     }
 
+
+    if (!document.__gameLocaleChangedBound) {
+      document.__gameLocaleChangedBound = true;
+      ctx.events.on('i18n:localeChanged', function () {
+        try {
+          var abs = document.getElementById('absence-modal-overlay');
+          if (abs) abs.remove();
+          if (typeof window.injectAbsenceModal === 'function') window.injectAbsenceModal();
+          if (typeof window.gameRenderDashboard === 'function') {
+            var dash = document.getElementById('game-dashboard-container');
+            if (dash) window.gameRenderDashboard();
+          }
+        } catch (e) {}
+      });
+    }
+
     ctx.events.emit('game:initialized');
   },
 

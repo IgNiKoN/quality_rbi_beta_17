@@ -9,8 +9,26 @@
  */
 
 import { ReportsState } from './reports.state.js';
-import { buildMeetingProtocolHtml } from '../meetings/meetings.protocol.js';
+import { buildMeetingProtocolHtml, meetingRichToSafeHtml } from '../meetings/meetings.protocol.js';
 import { buildInspectionPlanSheetHtml } from '../shared/plan-pin-print.js';
+
+
+function _t(key, fallback, vars) {
+    try {
+        var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+        if (i18n && typeof i18n.t === 'function') {
+            var s = vars ? i18n.t(key, vars) : i18n.t(key);
+            if (s && s !== key) return s;
+        }
+    } catch (e) {}
+    if (vars && fallback) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+            return vars[k] != null ? String(vars[k]) : '';
+        });
+    }
+    return fallback;
+}
+
 
 function _objects() {
     try {
@@ -365,7 +383,7 @@ function getTenderData() {
             const selectEl = document.getElementById('tender-project-select');
             if (selectEl) selectEl.value = proj;
         } else {
-            showToast('Нет доступных объектов для выгрузки!');
+            showToast(_t('quality.reports.toast.no_objects_export', 'Нет доступных объектов для выгрузки!'));
             return null;
         }
     }
@@ -430,7 +448,7 @@ function getTenderData() {
 function exportTenderCSV() {
     const data = getTenderData();
     if (!data) return;
-    if (data.length === 0) return showToast("Недостаточно данных по подрядчикам на этом объекте.");
+    if (data.length === 0) return showToast(_t('quality.reports.toast.insufficient_contractor_data', 'Недостаточно данных по подрядчикам на этом объекте.'));
 
     let csvContent = "\uFEFF";
     const headers = ['Подрядчик', 'Интегр. УрК (физика)', 'УрК Докум.', 'Средний балл', 'Проверок', 'B3 (%)', 'Стабильность', 'Системность (Ks)', 'Рекомендация'];
@@ -443,7 +461,7 @@ function exportTenderCSV() {
     });
 
     downloadFile(csvContent, `Tender_Report_${data[0].proj.replace(/\W/g, '_')}.csv`, 'text/csv');
-    showToast("✅ CSV файл выгружен!");
+    showToast(_t('quality.reports.toast.csv_exported', '✅ CSV файл выгружен!'));
 }
 
 // internal: экспорт PDF-паспортов подрядчиков по тендеру (по одной странице
@@ -451,7 +469,7 @@ function exportTenderCSV() {
 function exportTenderPDF() {
     const data = getTenderData();
     if (!data) return;
-    if (data.length === 0) return showToast("Недостаточно данных по подрядчикам на этом объекте.");
+    if (data.length === 0) return showToast(_t('quality.reports.toast.insufficient_contractor_data', 'Недостаточно данных по подрядчикам на этом объекте.'));
 
     const projName = data[0].proj;
     let content = '';
@@ -590,7 +608,7 @@ async function handleFabExportAction(actionType, mode = 'script') {
     closeFabExportMenu();
 
     const data = getFilteredAnalyticsData();
-    if (data.length === 0) return showToast('Нет данных для выгрузки');
+    if (data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
 
     // PPTX: третья кнопка FAB — не PDF/print-пайплайн.
     if (mode === 'pptx') {
@@ -604,19 +622,19 @@ async function handleFabExportAction(actionType, mode = 'script') {
             defect_remediation: 1
         };
         if (!pptxActions[actionType]) {
-            return showToast('PPTX для этого отчёта пока не поддерживается');
+            return showToast(_t('quality.reports.toast.pptx_unsupported', 'PPTX для этого отчёта пока не поддерживается'));
         }
-        showToast('⏳ Формируем PowerPoint…');
+        showToast(_t('quality.reports.toast.pptx_forming', '⏳ Формируем PowerPoint…'));
         setTimeout(async () => {
             try {
                 if (typeof window.exportReportPptx === 'function') {
                     await window.exportReportPptx(actionType, data);
                 } else {
-                    showToast('Модуль PPTX ещё не загружен');
+                    showToast(_t('quality.reports.toast.pptx_not_loaded', 'Модуль PPTX ещё не загружен'));
                 }
             } catch (e) {
                 console.error('[pptx]', e);
-                showToast('Ошибка экспорта PPTX');
+                showToast(_t('quality.reports.toast.pptx_export_error', 'Ошибка экспорта PPTX'));
             }
         }, 200);
         return;
@@ -628,7 +646,7 @@ async function handleFabExportAction(actionType, mode = 'script') {
         if (typeof window.openReportPreview === 'function') {
             window.openReportPreview(data);
         } else {
-            showToast('Превью отчёта ещё не загружено');
+            showToast(_t('quality.reports.toast.preview_not_loaded', 'Превью отчёта ещё не загружено'));
         }
         return;
     }
@@ -646,7 +664,7 @@ async function handleFabExportAction(actionType, mode = 'script') {
             // В будущем здесь можно сделать модалку "Выбор шаблона", но для скорости пока берем активный
             const activeTemplate = matchingTemplates.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
 
-            showToast(mode === 'script' ? `⏳ Формируем по шаблону: ${activeTemplate.name}...` : '🖨️ Подготовка к системной печати...');
+            showToast(mode === 'script' ? _t('quality.reports.toast.forming_by_template', '⏳ Формируем по шаблону: {name}...', { name: activeTemplate.name }) : _t('quality.reports.toast.preparing_system_print', '🖨️ Подготовка к системной печати...'));
 
             setTimeout(async () => {
                 // Запускаем НОВУЮ функцию динамического рендера
@@ -658,7 +676,7 @@ async function handleFabExportAction(actionType, mode = 'script') {
 
     // Превью пар фото — без тоста «Формируем PDF»
     if (actionType === 'defect_remediation') {
-        showToast('Подбор повторяющихся дефектов…');
+        showToast(_t('quality.reports.toast.picking_recurring_defects', 'Подбор повторяющихся дефектов…'));
         setTimeout(async () => {
             await openDefectRemediationPreview(data, mode);
         }, 200);
@@ -674,7 +692,7 @@ async function handleFabExportAction(actionType, mode = 'script') {
     }
 
     // Если шаблонов нет или это старый тип отчета — запускаем классические (встроенные) функции
-    showToast(mode === 'script' ? '⏳ Формируем PDF файл...' : '🖨️ Подготовка к выгрузке...');
+    showToast(mode === 'script' ? _t('quality.reports.toast.forming_pdf', '⏳ Формируем PDF файл...') : _t('quality.reports.toast.preparing_export', '🖨️ Подготовка к выгрузке...'));
 
     setTimeout(async () => {
         if (actionType === 'current') {
@@ -788,22 +806,28 @@ export function renderPdfTemplatesList() {
     const listDiv = document.getElementById('pdf-templates-list');
 
     if (window.userReportTemplates.length === 0) {
-        listDiv.innerHTML = `<div class="text-center py-4 text-slate-400 text-[10px] font-bold">У вас нет сохраненных шаблонов. Используются системные настройки.</div>`;
+        listDiv.innerHTML = `<div class="text-center py-4 text-slate-400 text-[10px] font-bold">${_t('quality.reports.templates.empty', 'У вас нет сохраненных шаблонов. Используются системные настройки.')}</div>`;
         return;
     }
 
-    listDiv.innerHTML = window.userReportTemplates.map(t => `
+    listDiv.innerHTML = window.userReportTemplates.map(t => {
+        const typeLabel = t.report_type === 'global_onepager'
+            ? _t('quality.reports.templates.type_company', 'По компании')
+            : _t('quality.reports.templates.type_object', 'По объекту');
+        const meta = _t('quality.reports.templates.meta', 'Тип: {type} | Блоков: {count}', { type: typeLabel, count: t.active_blocks.length });
+        return `
         <div class="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
             <div>
                 <div class="text-[11px] font-black text-slate-800 dark:text-white uppercase">${t.name}</div>
-                <div class="text-[9px] text-slate-500 font-bold">Тип: ${t.report_type === 'global_onepager' ? 'По компании' : 'По объекту'} | Блоков: ${t.active_blocks.length}</div>
+                <div class="text-[9px] text-slate-500 font-bold">${meta}</div>
             </div>
             <div class="flex gap-1.5">
-                <button onclick="window.editPdfTemplate('${t.id}')" class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-[9px] font-bold active:scale-95 border border-indigo-200">Изменить</button>
-                <button onclick="window.deletePdfTemplate('${t.id}')" class="bg-red-50 text-red-500 px-2 py-1 rounded text-[9px] font-bold active:scale-95 border border-red-200">Удалить</button>
+                <button onclick="window.editPdfTemplate('${t.id}')" class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-[9px] font-bold active:scale-95 border border-indigo-200">${_t('quality.reports.templates.edit', 'Изменить')}</button>
+                <button onclick="window.deletePdfTemplate('${t.id}')" class="bg-red-50 text-red-500 px-2 py-1 rounded text-[9px] font-bold active:scale-95 border border-red-200">${_t('quality.reports.templates.delete', 'Удалить')}</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // Экспортируется — вызывается из reports.render.js:closeModal() через прямой
@@ -828,7 +852,7 @@ function initDragAndDrop(availableIds, activeIds) {
         if (!blockDef) return '';
         return `
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-2 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 shadow-sm cursor-move flex items-center gap-2" data-id="${id}">
-                <span>${blockDef.icon}</span> ${blockDef.name}
+                <span>${blockDef.icon}</span> ${_t('quality.reports.block.' + id, blockDef.name)}
             </div>
         `;
     };
@@ -1042,7 +1066,7 @@ function generatePosterData() {
 
 // Выгрузка сырой базы (Data). Перенесено из export.js:exportPdfData (группа G1).
 function exportPdfData(data, mode = 'script') {
-    if (data.length === 0) return showToast('Нет данных для выгрузки');
+    if (data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Динамические шрифты под режим (pt для принтера, px для PDF)
@@ -1258,7 +1282,7 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
         loader.style.display = 'flex';
         setTimeout(() => loader.classList.remove('opacity-0'), 10);
     } else if (isBackground) {
-        showToast('🤖 Запущена фоновая генерация отчета...');
+        showToast(_t('quality.reports.toast.background_generation_started', '🤖 Запущена фоновая генерация отчета...'));
     }
 
     let projName = document.getElementById('inp-project')?.value || 'Не указан';
@@ -1912,9 +1936,9 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
 
         cleanup();
         if (typeof showToast === 'function') {
-            if (isBackground) showToast("✅ Фоновый отчет успешно создан и сохранен!");
-            else if (exportMeta?.printBlobAfterSave) showToast("✅ Плакат готов — окно печати");
-            else showToast("✅ PDF успешно сохранён в Историю!");
+            if (isBackground) showToast(_t('quality.reports.toast.background_report_saved', '✅ Фоновый отчет успешно создан и сохранен!'));
+            else if (exportMeta?.printBlobAfterSave) showToast(_t('quality.reports.toast.poster_ready', '✅ Плакат готов — окно печати'));
+            else showToast(_t('quality.reports.toast.pdf_saved_history', '✅ PDF успешно сохранён в Историю!'));
         }
     } catch (err) {
         console.error('[PDF Error]', err);
@@ -1922,8 +1946,8 @@ async function printPdfShell(title, content, formatSize = 'A4', orientation = 'p
         const hint = (err && err.message) ? String(err.message).slice(0, 80) : '';
         if (typeof showToast === 'function') {
             showToast(hint
-                ? `❌ Ошибка генерации: ${hint}`
-                : '❌ Ошибка генерации. Попробуйте режим Печати.');
+                ? _t('quality.reports.toast.generation_error_hint', '❌ Ошибка генерации: {hint}', { hint: hint })
+                : _t('quality.reports.toast.generation_error_print', '❌ Ошибка генерации. Попробуйте режим Печати.'));
         }
     }
 }
@@ -2477,7 +2501,7 @@ async function saveReportToLocal(reportData, htmlContent) {
 
 // 6. Сводный отчет для руководителя (One-Pager - Формат А3 Альбомный)
 async function exportPdfOnePager(data, mode = 'script') {
-    if (data.length === 0) return showToast('Нет данных для выгрузки');
+    if (data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     const _allInspections = _getAllInspections();
 
     let projName = _resolveAnalyticsProjectLabel('');
@@ -3938,7 +3962,7 @@ async function buildOnePagerV2Html(data, opts = {}) {
  */
 async function exportPdfOnePagerV2(data, mode = 'script') {
     const built = await buildOnePagerV2Html(data);
-    if (!built) return showToast('Нет данных для выгрузки');
+    if (!built) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     printPdfShell(built.shellTitle, built.content, 'A3', 'landscape', mode, {
         headerOpts: built.headerOpts
     });
@@ -4006,7 +4030,7 @@ async function buildOnePagerV4Html(data, opts = {}) {
 
 async function exportPdfOnePagerV4(data, mode = 'script') {
     const built = await buildOnePagerV4Html(data);
-    if (!built) return showToast('Нет данных для выгрузки');
+    if (!built) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     printPdfShell(built.shellTitle, built.content, 'A3', 'landscape', mode, {
         headerOpts: built.headerOpts,
         allowFlowPages: false
@@ -4019,7 +4043,7 @@ async function exportPdfOnePagerV4(data, mode = 'script') {
  * opts.pageFormat === 'A1' — режим 3.0 (укрупнение ×2).
  */
 async function exportPdfGlobalOnePagerV2(data, mode = 'script', opts = {}) {
-    if (!data || data.length === 0) return showToast('Нет данных для выгрузки');
+    if (!data || data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     const pageFormat = opts.pageFormat === 'A1' ? 'A1' : 'A3';
     const pageScale = pageFormat === 'A1' ? 2 : 1;
 
@@ -4213,7 +4237,7 @@ async function exportPdfGlobalOnePagerV2(data, mode = 'script', opts = {}) {
     }).filter(p => p.n > 0)
         .sort((a, b) => parseFloat(b.IKO) - parseFloat(a.IKO) || a.name.localeCompare(b.name, 'ru'));
 
-    if (!projectsArray.length) return showToast('Нет объектов с проверками за период');
+    if (!projectsArray.length) return showToast(_t('quality.reports.toast.no_objects_with_checks', 'Нет объектов с проверками за период'));
 
     // Титул: только объекты с ≥10 проверками (мало данных не показываем)
     const projectsForTitle = projectsArray.filter(p => p.n >= TITLE_MIN_CHECKS);
@@ -4710,7 +4734,7 @@ async function exportPdfGlobalOnePagerV3(data, mode = 'script') {
 }
 
 async function exportPdfGlobalOnePager(data, mode = 'script') {
-    if (data.length === 0) return showToast('Нет данных для выгрузки');
+    if (data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
     const _allInspections = _getAllInspections();
 
     // ==========================================
@@ -5356,7 +5380,7 @@ async function exportPdfCurrentScreen(data, mode = 'script') {
     if (typeof currentDetailedContractor !== 'undefined' && currentDetailedContractor) {
         // --- РЕЖИМ 1: ДЕТАЛИЗАЦИЯ ОДНОГО ПОДРЯДЧИКА ---
         const cData = data.filter(c => `${c.contractorName} [${c.projectName || 'Без объекта'}]` === currentDetailedContractor);
-        if (cData.length === 0) return showToast('Нет данных по этому подрядчику');
+        if (cData.length === 0) return showToast(_t('quality.reports.toast.no_contractor_data', 'Нет данных по этому подрядчику'));
 
         const content = await buildContractorPassportHtml({
             checks: cData,
@@ -6615,14 +6639,14 @@ async function buildPersonalMeetingTitleSlide(cObj, mode) {
 // 6. Полный отчёт по объекту — колода для планерки (A3 landscape)
 // Титул = One-Pager 2.0 один-в-один; далее карточки подрядчиков + фото.
 async function exportPdfFullObjectReport(data, mode = 'script') {
-    if (!data || data.length === 0) return showToast('Нет данных для выгрузки');
+    if (!data || data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
 
-    showToast('⚙️ Собираем слайды планерки…');
+    showToast(_t('quality.reports.toast.building_meeting_slides', '⚙️ Собираем слайды планерки…'));
     const cList = _meetingGroupContractors(data);
-    if (cList.length === 0) return showToast('Нет подрядчиков в текущей выборке');
+    if (cList.length === 0) return showToast(_t('quality.reports.toast.no_contractors_in_selection', 'Нет подрядчиков в текущей выборке'));
 
     const op2 = await buildOnePagerV2Html(data, { mode: mode });
-    if (!op2 || !op2.content) return showToast('Нет данных для выгрузки');
+    if (!op2 || !op2.content) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
 
     let content = op2.content;
     for (let i = 0; i < cList.length; i++) {
@@ -6654,14 +6678,14 @@ async function buildContractorMeetingSlidesV2(cObj, mode, opts) {
  * full_report (v1) не трогаем.
  */
 async function exportPdfFullObjectReportV2(data, mode = 'script') {
-    if (!data || data.length === 0) return showToast('Нет данных для выгрузки');
+    if (!data || data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
 
-    showToast('⚙️ Собираем отчёт по объекту 2.0…');
+    showToast(_t('quality.reports.toast.building_object_report_v2', '⚙️ Собираем отчёт по объекту 2.0…'));
     const cList = _meetingGroupContractors(data);
-    if (cList.length === 0) return showToast('Нет подрядчиков в текущей выборке');
+    if (cList.length === 0) return showToast(_t('quality.reports.toast.no_contractors_in_selection', 'Нет подрядчиков в текущей выборке'));
 
     const op4 = await buildOnePagerV4Html(data, { mode: mode });
-    if (!op4 || !op4.content) return showToast('Нет данных для выгрузки');
+    if (!op4 || !op4.content) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
 
     let content = op4.content;
     for (let i = 0; i < cList.length; i++) {
@@ -6904,7 +6928,7 @@ function collectRecurringDefectCards(inspections, opts = {}) {
 
         let rightSrc = null;
         let rightSource = 'none';
-        let rightCaption = 'Нет эталона';
+        let rightCaption = _t('quality.reports.remediation.no_etalon', 'Нет эталона');
         const laterOk = g.okEvents.find((e) => {
             if (!e.photos || !e.photos.length) return false;
             if (!leftDate || !e.date) return true;
@@ -6914,14 +6938,14 @@ function collectRecurringDefectCards(inspections, opts = {}) {
             rightSrc = laterOk.photos[0];
             rightSource = 'ok';
             rightCaption = laterOk.date
-                ? `Устранение · ${laterOk.date.toLocaleDateString('ru-RU')}`
-                : 'Устранение (ok в проверке)';
+                ? _t('quality.reports.remediation.caption_fix_date', 'Устранение · {date}', { date: laterOk.date.toLocaleDateString('ru-RU') })
+                : _t('quality.reports.remediation.caption_fix_ok', 'Устранение (ok в проверке)');
         } else {
             const twi = _defectRemediationFindTwi(g.templateKey, g.itemId);
             if (twi && twi.photoGood) {
                 rightSrc = twi.photoGood;
                 rightSource = 'twi';
-                rightCaption = `Эталон TWI · ${twi.title || 'карта'}`;
+                rightCaption = _t('quality.reports.remediation.caption_twi', 'Эталон TWI · {title}', { title: twi.title || _t('quality.reports.remediation.card', 'карта') });
             }
         }
 
@@ -6963,8 +6987,8 @@ function collectRecurringDefectCards(inspections, opts = {}) {
             included: true,
             leftSrc,
             leftCaption: leftDate
-                ? `Брак · ${leftDate.toLocaleDateString('ru-RU')}`
-                : 'Брак',
+                ? _t('quality.reports.remediation.caption_defect_date', 'Брак · {date}', { date: leftDate.toLocaleDateString('ru-RU') })
+                : _t('quality.reports.remediation.side_defect', 'Брак'),
             leftCandidates: failPhotoSet,
             rightSrc,
             rightSource,
@@ -7003,17 +7027,18 @@ function _defectRemediationFilterSummary() {
         const contr = filters.contractor || [];
         const insp = filters.inspector || [];
         const tmpl = filters.template || [];
-        if (proj.length) parts.push(`объект: ${proj.slice(0, 2).join(', ')}${proj.length > 2 ? '…' : ''}`);
-        if (contr.length) parts.push(`подрядчик: ${contr.slice(0, 2).join(', ')}${contr.length > 2 ? '…' : ''}`);
-        if (insp.length) parts.push(`инспектор: ${insp.slice(0, 2).join(', ')}${insp.length > 2 ? '…' : ''}`);
-        if (tmpl.length) parts.push(`категория: ${tmpl.slice(0, 2).join(', ')}${tmpl.length > 2 ? '…' : ''}`);
+        if (proj.length) parts.push(_t('quality.reports.filter.object', 'объект: {v}', { v: proj.slice(0, 2).join(', ') + (proj.length > 2 ? '…' : '') }));
+        if (contr.length) parts.push(_t('quality.reports.filter.contractor', 'подрядчик: {v}', { v: contr.slice(0, 2).join(', ') + (contr.length > 2 ? '…' : '') }));
+        if (insp.length) parts.push(_t('quality.reports.filter.inspector', 'инспектор: {v}', { v: insp.slice(0, 2).join(', ') + (insp.length > 2 ? '…' : '') }));
+        if (tmpl.length) parts.push(_t('quality.reports.filter.category', 'категория: {v}', { v: tmpl.slice(0, 2).join(', ') + (tmpl.length > 2 ? '…' : '') }));
     } catch (_) { /* ignore */ }
     return parts.join(' · ');
 }
 
 function _ensureDefectRemediationModal() {
     let overlay = document.getElementById('defect-remediation-modal');
-    if (overlay) return overlay;
+    // Remount so chrome labels pick up the current locale.
+    if (overlay) overlay.remove();
     const root = window.RBI && window.RBI.services && window.RBI.services.shell
         ? window.RBI.services.shell.getModalsRoot()
         : document.getElementById('app-modals');
@@ -7023,21 +7048,21 @@ function _ensureDefectRemediationModal() {
         <div class="bg-[var(--card-bg)] w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[92vh]" onclick="event.stopPropagation()">
             <div class="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-2 shrink-0">
                 <div class="min-w-0">
-                    <div class="font-black text-[12px] uppercase tracking-tight text-slate-800 dark:text-white">Повторяющиеся дефекты · А3</div>
-                    <div class="text-[9px] font-bold text-slate-400 uppercase mt-0.5 leading-snug" id="defect-remediation-modal-sub">Фильтры аналитики</div>
+                    <div class="font-black text-[12px] uppercase tracking-tight text-slate-800 dark:text-white">${_t('quality.reports.remediation.title', 'Повторяющиеся дефекты · А3')}</div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mt-0.5 leading-snug" id="defect-remediation-modal-sub">${_t('quality.reports.remediation.subtitle_filters', 'Фильтры аналитики')}</div>
                 </div>
-                <button type="button" onclick="closeDefectRemediationPreview()" class="shrink-0 w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-95" aria-label="Закрыть">✕</button>
+                <button type="button" onclick="closeDefectRemediationPreview()" class="shrink-0 w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-95" aria-label="${_t('quality.reports.remediation.close', 'Закрыть')}">✕</button>
             </div>
             <div id="defect-remediation-list" class="p-2 sm:p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1"></div>
             <div class="p-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-2">
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" id="defect-remediation-ai-draft-btn" onclick="runDefectRemediationAi('draft')" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-800 font-bold text-[10px] uppercase tracking-widest active:scale-95">Черновик ИИ</button>
-                    <button type="button" id="defect-remediation-ai-improve-btn" onclick="runDefectRemediationAi('improve')" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-[10px] uppercase tracking-widest active:scale-95">Улучшить мой текст</button>
+                    <button type="button" id="defect-remediation-ai-draft-btn" onclick="runDefectRemediationAi('draft')" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-800 font-bold text-[10px] uppercase tracking-widest active:scale-95">${_t('quality.reports.remediation.ai_draft', 'Черновик ИИ')}</button>
+                    <button type="button" id="defect-remediation-ai-improve-btn" onclick="runDefectRemediationAi('improve')" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-[10px] uppercase tracking-widest active:scale-95">${_t('quality.reports.remediation.ai_improve', 'Улучшить мой текст')}</button>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" onclick="closeDefectRemediationPreview()" class="flex-1 min-w-[100px] py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[11px] uppercase tracking-widest active:scale-95">Отмена</button>
-                    <button type="button" onclick="confirmDefectRemediationExport('browser')" class="flex-1 min-w-[100px] py-3 rounded-xl bg-slate-700 text-white font-bold text-[11px] uppercase tracking-widest active:scale-95">Печать</button>
-                    <button type="button" onclick="confirmDefectRemediationExport('script')" class="flex-[1.2] min-w-[120px] py-3 rounded-xl bg-indigo-600 text-white font-bold text-[11px] uppercase tracking-widest active:scale-95 shadow-md">Скачать PDF</button>
+                    <button type="button" onclick="closeDefectRemediationPreview()" class="flex-1 min-w-[100px] py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[11px] uppercase tracking-widest active:scale-95">${_t('quality.reports.remediation.cancel', 'Отмена')}</button>
+                    <button type="button" onclick="confirmDefectRemediationExport('browser')" class="flex-1 min-w-[100px] py-3 rounded-xl bg-slate-700 text-white font-bold text-[11px] uppercase tracking-widest active:scale-95">${_t('quality.reports.remediation.print', 'Печать')}</button>
+                    <button type="button" onclick="confirmDefectRemediationExport('script')" class="flex-[1.2] min-w-[120px] py-3 rounded-xl bg-indigo-600 text-white font-bold text-[11px] uppercase tracking-widest active:scale-95 shadow-md">${_t('quality.reports.remediation.download_pdf', 'Скачать PDF')}</button>
                 </div>
             </div>
             <input type="file" id="defect-remediation-photo-input" accept="image/*" class="hidden">
@@ -7059,12 +7084,12 @@ function _ensureDefectRemediationModal() {
                 if (!card) return;
                 if (ctx.side === 'left') {
                     card.leftSrc = dataUrl;
-                    card.leftCaption = 'Брак (загружено)';
+                    card.leftCaption = _t('quality.reports.remediation.caption_defect_uploaded', 'Брак (загружено)');
                     if (!card.leftCandidates.includes(dataUrl)) card.leftCandidates.push(dataUrl);
                 } else {
                     card.rightSrc = dataUrl;
                     card.rightSource = 'upload';
-                    card.rightCaption = 'Устранение / эталон (загружено)';
+                    card.rightCaption = _t('quality.reports.remediation.caption_fix_uploaded', 'Устранение / эталон (загружено)');
                     if (!card.rightCandidates.includes(dataUrl)) card.rightCandidates.push(dataUrl);
                 }
                 _syncDefectRemediationFieldsFromDom();
@@ -7098,7 +7123,7 @@ function _renderDefectRemediationPreviewList() {
     if (!state || !list) return;
     const cards = state.cards || [];
     if (!cards.length) {
-        list.innerHTML = `<div class="text-center py-8 text-[11px] font-bold text-slate-500 uppercase">Нет дефектов с ≥${DEFECT_REMEDIATION_THRESHOLD} повторениями по текущим фильтрам</div>`;
+        list.innerHTML = `<div class="text-center py-8 text-[11px] font-bold text-slate-500 uppercase">${_t('quality.reports.remediation.empty', 'Нет дефектов с ≥{n} повторениями по текущим фильтрам', { n: DEFECT_REMEDIATION_THRESHOLD })}</div>`;
         return;
     }
 
@@ -7114,11 +7139,11 @@ function _renderDefectRemediationPreviewList() {
     list.innerHTML = cards.map((card, idx) => {
         const leftThumb = card.leftSrc
             ? `<img src="${escapeHtml(_defectRemediationPhotoSrc(card.leftSrc))}" class="w-full h-full object-cover" alt="">`
-            : `<div class="w-full h-full flex flex-col items-center justify-center gap-1 text-[9px] font-bold text-slate-400 uppercase px-2 text-center">Нет фото<br><span class="text-indigo-500 normal-case font-black">нажмите · загрузить</span></div>`;
+            : `<div class="w-full h-full flex flex-col items-center justify-center gap-1 text-[9px] font-bold text-slate-400 uppercase px-2 text-center">${_t('quality.reports.remediation.no_photo', 'Нет фото')}<br><span class="text-indigo-500 normal-case font-black">${_t('quality.reports.remediation.click_upload', 'нажмите · загрузить')}</span></div>`;
         const rightThumb = card.rightSrc
             ? `<img src="${escapeHtml(_defectRemediationPhotoSrc(card.rightSrc))}" class="w-full h-full object-cover" alt="">`
-            : `<div class="w-full h-full flex flex-col items-center justify-center gap-1 text-[9px] font-bold text-amber-600/80 uppercase px-2 text-center">Нет эталона<br><span class="text-indigo-500 normal-case font-black">нажмите · загрузить</span></div>`;
-        const rightBadge = card.rightSource === 'ok' ? 'ok' : (card.rightSource === 'twi' ? 'TWI' : (card.rightSource === 'upload' ? 'файл' : '—'));
+            : `<div class="w-full h-full flex flex-col items-center justify-center gap-1 text-[9px] font-bold text-amber-600/80 uppercase px-2 text-center">${_t('quality.reports.remediation.no_etalon', 'Нет эталона')}<br><span class="text-indigo-500 normal-case font-black">${_t('quality.reports.remediation.click_upload', 'нажмите · загрузить')}</span></div>`;
+        const rightBadge = card.rightSource === 'ok' ? 'ok' : (card.rightSource === 'twi' ? 'TWI' : (card.rightSource === 'upload' ? _t('quality.reports.remediation.badge_file', 'файл') : '—'));
         return `
         <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/40 ${card.included ? '' : 'opacity-50'}" data-dr-idx="${idx}">
             <div class="flex items-start gap-2 mb-2">
@@ -7135,10 +7160,10 @@ function _renderDefectRemediationPreviewList() {
             <div class="grid grid-cols-2 gap-2 mb-2">
                 <div>
                     <div class="text-[9px] font-black uppercase text-slate-400 mb-1.5 flex justify-between items-center gap-1">
-                        <span>Брак</span>
+                        <span>${_t('quality.reports.remediation.side_defect', 'Брак')}</span>
                         <span class="flex gap-1.5">
-                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600" onclick="event.stopPropagation();cycleDefectRemediationPhoto(${idx}, 'left')" title="Сменить из кандидатов">↻</button>
-                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[16px] font-black active:scale-95 border border-indigo-200 dark:border-indigo-700" onclick="event.stopPropagation();uploadDefectRemediationPhoto(${idx}, 'left')" title="Загрузить своё">↑</button>
+                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600" onclick="event.stopPropagation();cycleDefectRemediationPhoto(${idx}, 'left')" title="${_t('quality.reports.remediation.cycle_photo', 'Сменить из кандидатов')}">↻</button>
+                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[16px] font-black active:scale-95 border border-indigo-200 dark:border-indigo-700" onclick="event.stopPropagation();uploadDefectRemediationPhoto(${idx}, 'left')" title="${_t('quality.reports.remediation.upload_own', 'Загрузить своё')}">↑</button>
                         </span>
                     </div>
                     <div class="aspect-[4/3] rounded-lg overflow-hidden border border-rose-200 bg-slate-50 dark:bg-slate-800 cursor-pointer" onclick="onDefectRemediationPhotoClick(${idx}, 'left')">${leftThumb}</div>
@@ -7146,10 +7171,10 @@ function _renderDefectRemediationPreviewList() {
                 </div>
                 <div>
                     <div class="text-[9px] font-black uppercase text-slate-400 mb-1.5 flex justify-between items-center gap-1">
-                        <span>Устранение · ${escapeHtml(rightBadge)}</span>
+                        <span>${_t('quality.reports.remediation.side_fix', 'Устранение')} · ${escapeHtml(rightBadge)}</span>
                         <span class="flex gap-1.5">
-                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600" onclick="event.stopPropagation();cycleDefectRemediationPhoto(${idx}, 'right')" title="Сменить из кандидатов">↻</button>
-                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[16px] font-black active:scale-95 border border-indigo-200 dark:border-indigo-700" onclick="event.stopPropagation();uploadDefectRemediationPhoto(${idx}, 'right')" title="Загрузить своё">↑</button>
+                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 text-[16px] font-black active:scale-95 border border-slate-200 dark:border-slate-600" onclick="event.stopPropagation();cycleDefectRemediationPhoto(${idx}, 'right')" title="${_t('quality.reports.remediation.cycle_photo', 'Сменить из кандидатов')}">↻</button>
+                            <button type="button" class="min-w-[2.75rem] h-10 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[16px] font-black active:scale-95 border border-indigo-200 dark:border-indigo-700" onclick="event.stopPropagation();uploadDefectRemediationPhoto(${idx}, 'right')" title="${_t('quality.reports.remediation.upload_own', 'Загрузить своё')}">↑</button>
                         </span>
                     </div>
                     <div class="aspect-[4/3] rounded-lg overflow-hidden border border-emerald-200 bg-slate-50 dark:bg-slate-800 cursor-pointer" onclick="onDefectRemediationPhotoClick(${idx}, 'right')">${rightThumb}</div>
@@ -7157,12 +7182,12 @@ function _renderDefectRemediationPreviewList() {
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                ${field(idx, 'description', 'Описание дефекта', 2)}
-                ${field(idx, 'causeRisk', 'Причины возникновения и риски', 2)}
-                ${field(idx, 'fix', 'Меры по устранению', 2)}
-                ${field(idx, 'prevention', 'Меры по предотвращению', 2)}
-                ${field(idx, 'deadline', 'Срок', 1)}
-                ${field(idx, 'responsible', 'Ответственный', 1)}
+                ${field(idx, 'description', _t('quality.reports.remediation.field_description', 'Описание дефекта'), 2)}
+                ${field(idx, 'causeRisk', _t('quality.reports.remediation.field_cause_risk', 'Причины возникновения и риски'), 2)}
+                ${field(idx, 'fix', _t('quality.reports.remediation.field_fix', 'Меры по устранению'), 2)}
+                ${field(idx, 'prevention', _t('quality.reports.remediation.field_prevention', 'Меры по предотвращению'), 2)}
+                ${field(idx, 'deadline', _t('quality.reports.remediation.field_deadline', 'Срок'), 1)}
+                ${field(idx, 'responsible', _t('quality.reports.remediation.field_responsible', 'Ответственный'), 1)}
             </div>
         </div>`;
     }).join('');
@@ -7172,7 +7197,7 @@ async function openDefectRemediationPreview(data, mode = 'script') {
     // data уже из getFilteredAnalyticsData() (период / объект / подрядчик / инспектор / шаблон)
     const cards = collectRecurringDefectCards(data);
     if (!cards.length) {
-        return showToast(`Нет дефектов с ≥${DEFECT_REMEDIATION_THRESHOLD} повторениями (B2/B3) по текущим фильтрам`);
+        return showToast(_t('quality.reports.toast.no_recurring_defects', 'Нет дефектов с ≥{n} повторениями (B2/B3) по текущим фильтрам', { n: DEFECT_REMEDIATION_THRESHOLD }));
     }
 
     const projectNames = [...new Set(cards.map((c) => c.project).filter(Boolean))];
@@ -7184,15 +7209,15 @@ async function openDefectRemediationPreview(data, mode = 'script') {
         filterSummary,
         projectLabel: projectNames.length === 1
             ? projectNames[0]
-            : (projectNames.length ? `${projectNames.length} объектов` : 'Объект'),
+            : (projectNames.length ? _t('quality.reports.remediation.n_objects', '{n} объектов', { n: projectNames.length }) : _t('quality.reports.remediation.object', 'Объект')),
     };
 
     const overlay = _ensureDefectRemediationModal();
-    if (!overlay) return showToast('Не удалось открыть превью');
+    if (!overlay) return showToast(_t('quality.reports.toast.preview_open_failed', 'Не удалось открыть превью'));
 
     const sub = document.getElementById('defect-remediation-modal-sub');
     if (sub) {
-        sub.textContent = `${cards.length} карточек · фильтры: ${filterSummary}`;
+        sub.textContent = _t('quality.reports.remediation.sub_cards', '{n} карточек · фильтры: {filters}', { n: cards.length, filters: filterSummary });
     }
     _renderDefectRemediationPreviewList();
 
@@ -7227,7 +7252,7 @@ function cycleDefectRemediationPhoto(idx, side) {
         }
         const cur = Math.max(0, list.indexOf(card.leftSrc));
         card.leftSrc = list[(cur + 1) % list.length];
-        card.leftCaption = 'Брак (выбран вручную)';
+        card.leftCaption = _t('quality.reports.remediation.caption_defect_manual', 'Брак (выбран вручную)');
     } else {
         const list = card.rightCandidates || [];
         if (!list.length) return uploadDefectRemediationPhoto(idx, 'right');
@@ -7237,13 +7262,13 @@ function cycleDefectRemediationPhoto(idx, side) {
         const twi = _defectRemediationFindTwi(card.templateKey, card.itemId);
         if (twi && twi.photoGood === next) {
             card.rightSource = 'twi';
-            card.rightCaption = `Эталон TWI · ${twi.title || 'карта'}`;
+            card.rightCaption = _t('quality.reports.remediation.caption_twi', 'Эталон TWI · {title}', { title: twi.title || _t('quality.reports.remediation.card', 'карта') });
         } else if (String(next).startsWith('data:')) {
             card.rightSource = 'upload';
-            card.rightCaption = 'Устранение / эталон (загружено)';
+            card.rightCaption = _t('quality.reports.remediation.caption_fix_uploaded', 'Устранение / эталон (загружено)');
         } else {
             card.rightSource = 'ok';
-            card.rightCaption = 'Устранение / эталон (выбран вручную)';
+            card.rightCaption = _t('quality.reports.remediation.caption_fix_manual', 'Устранение / эталон (выбран вручную)');
         }
     }
     _renderDefectRemediationPreviewList();
@@ -7271,32 +7296,32 @@ async function runDefectRemediationAi(mode) {
     if (!state) return;
     _syncDefectRemediationFieldsFromDom();
     const selected = (state.cards || []).filter((c) => c.included);
-    if (!selected.length) return showToast('Выберите хотя бы одну карточку');
+    if (!selected.length) return showToast(_t('quality.reports.toast.select_at_least_one_card', 'Выберите хотя бы одну карточку'));
 
     const draftBtn = document.getElementById('defect-remediation-ai-draft-btn');
     const improveBtn = document.getElementById('defect-remediation-ai-improve-btn');
     const setAiBusy = (busy, label) => {
         if (draftBtn) {
             draftBtn.disabled = !!busy;
-            draftBtn.textContent = busy ? (label || '⏳ Ждём ИИ…') : 'Черновик ИИ';
+            draftBtn.textContent = busy ? (label || _t('quality.reports.remediation.ai_waiting', '⏳ Ждём ИИ…')) : _t('quality.reports.remediation.ai_draft', 'Черновик ИИ');
         }
         if (improveBtn) {
             improveBtn.disabled = !!busy;
-            improveBtn.textContent = busy ? (label || '⏳ Ждём ИИ…') : 'Улучшить мой текст';
+            improveBtn.textContent = busy ? (label || _t('quality.reports.remediation.ai_waiting', '⏳ Ждём ИИ…')) : _t('quality.reports.remediation.ai_improve', 'Улучшить мой текст');
         }
     };
-    setAiBusy(true, '⏳ Пакет 1…');
-    showToast(mode === 'improve' ? 'ИИ улучшает текст пакетами…' : 'ИИ готовит черновик пакетами…');
+    setAiBusy(true, _t('quality.reports.remediation.ai_batch_1', '⏳ Пакет 1…'));
+    showToast(mode === 'improve' ? _t('quality.reports.toast.ai_improving_batches', 'ИИ улучшает текст пакетами…') : _t('quality.reports.toast.ai_drafting_batches', 'ИИ готовит черновик пакетами…'));
 
     try {
         if (typeof window.generateDefectRemediationTexts !== 'function') {
-            return showToast('ИИ недоступен');
+            return showToast(_t('quality.reports.toast.ai_unavailable', 'ИИ недоступен'));
         }
         const textsMap = await window.generateDefectRemediationTexts(selected, {
             mode,
             onProgress: (batchNum, totalBatches) => {
-                setAiBusy(true, `⏳ ${batchNum}/${totalBatches}`);
-                showToast(`🤖 ИИ: пакет ${batchNum} из ${totalBatches}…`);
+                setAiBusy(true, _t('quality.reports.remediation.ai_batch_n', '⏳ {batch}/{total}', { batch: batchNum, total: totalBatches }));
+                showToast(_t('quality.reports.toast.ai_batch_progress', '🤖 ИИ: пакет {batch} из {total}…', { batch: batchNum, total: totalBatches }));
             },
         }) || {};
         let filled = 0;
@@ -7324,15 +7349,15 @@ async function runDefectRemediationAi(mode) {
         });
         _renderDefectRemediationPreviewList();
         if (!filled) {
-            showToast('ИИ ответил, но поля не распознаны — попробуйте ещё раз');
+            showToast(_t('quality.reports.toast.ai_fields_unrecognized', 'ИИ ответил, но поля не распознаны — попробуйте ещё раз'));
         } else {
             showToast(mode === 'improve'
-                ? `Текст улучшен (${cardsFilled} карт.)`
-                : `Черновик заполнен (${cardsFilled} карт.)`);
+                ? _t('quality.reports.toast.ai_improved', 'Текст улучшен ({n} карт.)', { n: cardsFilled })
+                : _t('quality.reports.toast.ai_draft_filled', 'Черновик заполнен ({n} карт.)', { n: cardsFilled }));
         }
     } catch (e) {
         console.warn('[defect_remediation AI]', e);
-        showToast('Ошибка ИИ: ' + (e.message || e));
+        showToast(_t('quality.reports.toast.ai_error', 'Ошибка ИИ: {msg}', { msg: (e.message || e) }));
     } finally {
         setAiBusy(false);
     }
@@ -7343,7 +7368,7 @@ async function confirmDefectRemediationExport(modeOverride) {
     if (!state) return;
     _syncDefectRemediationFieldsFromDom();
     const selected = (state.cards || []).filter((c) => c.included);
-    if (!selected.length) return showToast('Выберите хотя бы одну карточку');
+    if (!selected.length) return showToast(_t('quality.reports.toast.select_at_least_one_card', 'Выберите хотя бы одну карточку'));
 
     const mode = modeOverride || state.mode || 'script';
     closeDefectRemediationPreview();
@@ -7355,7 +7380,7 @@ async function confirmDefectRemediationExport(modeOverride) {
 }
 
 async function exportPdfDefectRemediation(cards, mode = 'script', meta = {}) {
-    if (!cards || !cards.length) return showToast('Нет карточек для отчёта');
+    if (!cards || !cards.length) return showToast(_t('quality.reports.toast.no_cards_for_report', 'Нет карточек для отчёта'));
 
     const periodLabel = meta.periodLabel || resolveExportPeriodLabel(null);
     const projectLabel = meta.projectLabel || 'Объект';
@@ -7948,10 +7973,10 @@ async function exportPdfPoster(data, mode = 'script') {
         : await _promptPosterFormat();
     if (!formatChoice) return;
 
-    showToast(mode === 'script' ? '⏳ Формируем плакат...' : '🖨️ Подготовка плаката...');
+    showToast(mode === 'script' ? _t('quality.reports.toast.forming_poster', '⏳ Формируем плакат...') : _t('quality.reports.toast.preparing_poster', '🖨️ Подготовка плаката...'));
 
     const { current: weekData, previous: prevData, periodStr } = _posterResolvePeriod(data);
-    if (!weekData.length) return showToast('За выбранный период нет данных для плаката');
+    if (!weekData.length) return showToast(_t('quality.reports.toast.poster_no_period_data', 'За выбранный период нет данных для плаката'));
 
     const grouped = {};
     weekData.forEach((item) => {
@@ -8000,13 +8025,13 @@ async function exportPdfPoster(data, mode = 'script') {
         });
     }
 
-    if (!candidates.length) return showToast('Недостаточно данных для плаката (нужно ≥3 проверки у подрядчика)');
+    if (!candidates.length) return showToast(_t('quality.reports.toast.poster_insufficient_data', 'Недостаточно данных для плаката (нужно ≥3 проверки у подрядчика)'));
 
     const periodPhotos = _posterCollectPeriodPhotos(weekData);
     const realOk = (periodPhotos.ok || []).filter((p) => p && p.src);
     const realFail = (periodPhotos.fail || []).filter((p) => p && p.src);
     if (!realOk.length && !realFail.length) {
-        return showToast('Защита печати: на плакате нужны фото. За период нет снимков OK/брака.');
+        return showToast(_t('quality.reports.toast.poster_need_photos', 'Защита печати: на плакате нужны фото. За период нет снимков OK/брака.'));
     }
 
     // УрК объекта: среднее УрК подрядчиков (каждый — окно ≤15), не среднее всех проверок
@@ -8378,20 +8403,20 @@ async function logToBackupRegistry(typeStr, stats, fileName) {
 
 // Очистка реестра
 async function clearBackupRegistry() {
-    if (!confirm("Очистить историю выгрузок? Сами данные проверок не удалятся.")) return;
+    if (!confirm(_t('quality.reports.confirm.clear_export_history', 'Очистить историю выгрузок? Сами данные проверок не удалятся.'))) return;
     await _storage().put(_storage().stores().BACKUP_LOGS, { id: 'main', data: [] });
     if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
-    showToast("Реестр очищен");
+    showToast(_t('quality.reports.toast.registry_cleared', 'Реестр очищен'));
 }
 
 // Универсальная функция загрузки файла
 async function handleDataExport(type, mode = 'full', silent = false) {
     if (type !== 'json') return;
-    if (!silent) showToast("Сборка базы данных...");
+    if (!silent) showToast(_t('quality.reports.toast.building_database', 'Сборка базы данных...'));
 
     const { obj, stats } = generateBackupObject(mode);
     if ((mode === 'incremental' || mode === 'manager') && stats.checks === 0) {
-        if (!silent) showToast('Нет новых проверок для выгрузки.');
+        if (!silent) showToast(_t('quality.reports.toast.no_new_checks_export', 'Нет новых проверок для выгрузки.'));
         return false;
     }
 
@@ -8419,7 +8444,7 @@ async function handleDataExport(type, mode = 'full', silent = false) {
     if (mode === 'manager') localStorage.setItem('last_share_to_manager_date', new Date().toISOString());
 
     if (!silent) {
-        showToast(`Успешно скачан: ${logName}`);
+        showToast(_t('quality.reports.toast.download_success', 'Успешно скачан: {name}', { name: logName }));
         if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
     }
     return true;
@@ -8427,11 +8452,11 @@ async function handleDataExport(type, mode = 'full', silent = false) {
 
 // Отправка через Web Share API с Fallback
 async function shareBackupViaApi(mode = 'full', silent = false) {
-    if (!silent) showToast("Подготовка файла для отправки...");
+    if (!silent) showToast(_t('quality.reports.toast.preparing_send_file', 'Подготовка файла для отправки...'));
 
     const { obj, stats } = generateBackupObject(mode);
     if ((mode === 'incremental' || mode === 'manager') && stats.checks === 0) {
-        if (!silent) showToast('Нет новых проверок для отправки.');
+        if (!silent) showToast(_t('quality.reports.toast.no_new_checks_send', 'Нет новых проверок для отправки.'));
         return false;
     }
 
@@ -8465,7 +8490,7 @@ async function shareBackupViaApi(mode = 'full', silent = false) {
             if (mode === 'manager') localStorage.setItem('last_share_to_manager_date', new Date().toISOString());
 
             if (!silent) {
-                showToast("Файл успешно передан в меню отправки!");
+                showToast(_t('quality.reports.toast.file_shared', 'Файл успешно передан в меню отправки!'));
                 if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
             }
             return true;
@@ -8481,7 +8506,7 @@ async function shareBackupViaApi(mode = 'full', silent = false) {
             if (mode === 'manager') localStorage.setItem('last_share_to_manager_date', new Date().toISOString());
 
             if (!silent) {
-                showToast("Файл сохранён. Вы можете отправить его вручную через почту или мессенджер.");
+                showToast(_t('quality.reports.toast.file_saved_manual', 'Файл сохранён. Вы можете отправить его вручную через почту или мессенджер.'));
                 if (typeof renderCurrentAnalyticsTab === 'function') renderCurrentAnalyticsTab();
             }
             return true;
@@ -8631,7 +8656,7 @@ function processDataImport(event) {
 
     const importBatchId = 'import_' + Date.now().toString(36);
 
-    showToast("Чтение файла и безопасный импорт...");
+    showToast(_t('quality.reports.toast.reading_import', 'Чтение файла и безопасный импорт...'));
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
@@ -8855,7 +8880,7 @@ function processDataImport(event) {
                     }
                 }
 
-                showToast(`✅ Базы слиты!\nПров: +${addedHist} | Ч/Л: +${addedTmpl}\nTWI: +${addedTwi} | НД: +${addedDocs}`);
+                showToast(_t('quality.reports.toast.bases_merged', '✅ Базы слиты!\nПров: +{hist} | Ч/Л: +{tmpl}\nTWI: +{twi} | НД: +{docs}', { hist: addedHist, tmpl: addedTmpl, twi: addedTwi, docs: addedDocs }));
             } else if (Array.isArray(parsed)) {
                 const _arr2 = _getAllInspections();
                 for (const item of parsed) {
@@ -8866,7 +8891,7 @@ function processDataImport(event) {
                     }
                 }
                 _arr2.sort((a, b) => new Date(b.date) - new Date(a.date));
-                showToast(`✅ История объединена! Добавлено: ${addedHist} шт.`);
+                showToast(_t('quality.reports.toast.history_merged', '✅ История объединена! Добавлено: {n} шт.', { n: addedHist }));
             } else { throw new Error("Неизвестный формат"); }
             // После импорта данные остаются локальными.
             // Облако само решит при следующей синхронизации, что можно отправлять.
@@ -9108,13 +9133,13 @@ export const ReportsActions = {
      */
     exportCsv() {
         const data = getFilteredAnalyticsData();
-        if (!data || data.length === 0) return showToast('Нет данных для выгрузки');
+        if (!data || data.length === 0) return showToast(_t('quality.reports.toast.no_data_export', 'Нет данных для выгрузки'));
         const csv = exportToCSV(data);
         if (csv) {
             downloadFile(csv, `RBI_Filtered_Base_${new Date().toLocaleDateString('ru-RU')}.csv`, 'text/csv');
-            showToast('✅ Таблица выгружена в Excel!');
+            showToast(_t('quality.reports.toast.table_excel_exported', '✅ Таблица выгружена в Excel!'));
         } else {
-            showToast('❌ Ошибка при формировании файла');
+            showToast(_t('quality.reports.toast.file_form_error', '❌ Ошибка при формировании файла'));
         }
     },
 
@@ -9124,13 +9149,13 @@ export const ReportsActions = {
      */
     async exportPersonalReport(contractorName) {
         const data = getFilteredAnalyticsData().filter(c => c.contractorName + ' [' + (c.projectName || 'Без объекта') + ']' === contractorName);
-        if (data.length === 0) return showToast('Нет данных для отчета');
+        if (data.length === 0) return showToast(_t('quality.reports.toast.no_data_for_report', 'Нет данных для отчета'));
 
-        showToast('⚙️ Собираем слайды по подрядчику…');
+        showToast(_t('quality.reports.toast.building_contractor_slides', '⚙️ Собираем слайды по подрядчику…'));
 
         const list = _meetingGroupContractors(data);
         const cObj = list[0];
-        if (!cObj) return showToast('Нет данных для отчета');
+        if (!cObj) return showToast(_t('quality.reports.toast.no_data_for_report', 'Нет данных для отчета'));
 
         let content = await buildPersonalMeetingTitleSlide(cObj, 'script');
         content += await buildContractorMeetingSlides(cObj, 'script', { pageBreakFirst: false });
@@ -9189,7 +9214,7 @@ export const ReportsActions = {
      */
     async printInspectionActs(ids, mode = 'browser') {
         const idList = Array.isArray(ids) ? ids : (ids != null ? [ids] : []);
-        if (!idList.length) return showToast('⚠️ Нет проверок для печати');
+        if (!idList.length) return showToast(_t('quality.reports.toast.no_checks_print', '⚠️ Нет проверок для печати'));
 
         const all = _getAllInspections() || [];
         const etalonActs = _getEtalonActs() || [];
@@ -9207,10 +9232,10 @@ export const ReportsActions = {
         }
 
         if (!records.length) {
-            if (skippedEtalon) return showToast('⚠️ Для Акта-Эталона используйте кнопку печати эталона');
-            return showToast('⚠️ Проверки не найдены');
+            if (skippedEtalon) return showToast(_t('quality.reports.toast.use_etalon_print', '⚠️ Для Акта-Эталона используйте кнопку печати эталона'));
+            return showToast(_t('quality.reports.toast.checks_not_found', '⚠️ Проверки не найдены'));
         }
-        if (skippedEtalon) showToast('ℹ️ Эталоны пропущены — печатайте их отдельно');
+        if (skippedEtalon) showToast(_t('quality.reports.toast.etalons_skipped', 'ℹ️ Эталоны пропущены — печатайте их отдельно'));
 
         const parts = [];
         let planSheetToastShown = false;
@@ -9260,7 +9285,7 @@ export const ReportsActions = {
         // оригинального шаблона (см. etalon-v18b.frame.html) — не через
         // printPdfShell, а нативным window.print() внутри iframe.
         if (record && record.source_kind === 'act_v18b') return ReportsActions.printEtalonV18B(historyId, mode);
-        if (!record || !record.details || !record.details.elements) return showToast("Ошибка чтения Акта");
+        if (!record || !record.details || !record.details.elements) return showToast(_t('quality.reports.toast.act_read_error', 'Ошибка чтения Акта'));
 
         const d = record.details;
         const esc = (s) => escapeHtml(String(s == null ? '' : s));
@@ -9412,7 +9437,7 @@ export const ReportsActions = {
      */
     async printEtalonV18(historyId, mode = 'script') {
         const record = _getEtalonActs().find(c => c.id === historyId);
-        if (!record || !record.details || !record.details.actV18) return showToast("Ошибка чтения Акта");
+        if (!record || !record.details || !record.details.actV18) return showToast(_t('quality.reports.toast.act_read_error', 'Ошибка чтения Акта'));
 
         const a = record.details.actV18;
         const h = a.header || {};
@@ -9599,8 +9624,8 @@ export const ReportsActions = {
      * зеркалирование полей (см. etalon-v18b.frame.html).
      */
     async printEtalonV18B(historyId) {
-        if (window.innerWidth < 768) return showToast('⚠️ Печать «Акт-Эталон (Бета 2)» доступна только на ПК');
-        if (!window.EtalonV18BActions) return showToast('❌ Модуль Акт-Эталон (Бета 2) не загружен');
+        if (window.innerWidth < 768) return showToast(_t('quality.reports.toast.etalon_beta2_pc_only', '⚠️ Печать «Акт-Эталон (Бета 2)» доступна только на ПК'));
+        if (!window.EtalonV18BActions) return showToast(_t('quality.reports.toast.etalon_beta2_not_loaded', '❌ Модуль Акт-Эталон (Бета 2) не загружен'));
 
         await window.EtalonV18BActions.editAct(historyId);
 
@@ -9623,7 +9648,7 @@ export const ReportsActions = {
         const meet = _getMeetings().find(m => m.id === id);
         if (!meet) return;
 
-        showToast("⏳ Формируем протокол...");
+        showToast(_t('quality.reports.toast.forming_protocol', '⏳ Формируем протокол...'));
         const content = await buildMeetingProtocolHtml(meet);
         if (typeof printPdfShell === 'function') {
             const meetDate = meet.date ? new Date(meet.date).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
@@ -9647,9 +9672,9 @@ export const ReportsActions = {
      */
     async printFmea(fmeaId, mode = 'browser') {
         const record = _getFmea().find(f => f.id === fmeaId);
-        if (!record) return showToast("Запись не найдена");
+        if (!record) return showToast(_t('quality.reports.toast.record_not_found', 'Запись не найдена'));
 
-        showToast("⏳ Формируем документ...");
+        showToast(_t('quality.reports.toast.forming_document', '⏳ Формируем документ...'));
 
         const sortedDefects = [...record.defects].sort((a, b) => (parseInt(b.rpn) || 0) - (parseInt(a.rpn) || 0));
 
@@ -9755,7 +9780,7 @@ export const ReportsActions = {
      */
     exportSchedulePdf(mode = 'script') {
         if (!_getSchedule() || _getSchedule().length === 0) {
-            return showToast('График СМР пуст. Нет данных для выгрузки.');
+            return showToast(_t('quality.reports.toast.smr_schedule_empty', 'График СМР пуст. Нет данных для выгрузки.'));
         }
 
         const activeData = _getSchedule().filter(s => !s._deleted).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
@@ -9804,7 +9829,7 @@ export const ReportsActions = {
     exportSkPdf(mode = 'script') {
         let skRecordsList = (_getSkRecords() || []).filter(r => !r._deleted && !r.is_deleted);
         if (!skRecordsList.length) {
-            return showToast('Нет загруженных замечаний ПК СК.');
+            return showToast(_t('quality.reports.toast.no_sk_remarks', 'Нет загруженных замечаний ПК СК.'));
         }
 
         // Как в sk_renderDashboard — печать = то, что видит пользователь на экране.
@@ -9854,7 +9879,7 @@ export const ReportsActions = {
         }
 
         if (!skRecordsList.length) {
-            return showToast('По активным фильтрам замечаний ПК СК нет.');
+            return showToast(_t('quality.reports.toast.no_sk_remarks_filtered', 'По активным фильтрам замечаний ПК СК нет.'));
         }
 
         const isSkOpen = (r) => !(r.is_verified_closed === true
@@ -10144,7 +10169,7 @@ export const ReportsActions = {
                 </div>
             </div>`;
         } else {
-            return showToast('Печать PDF-файлов осуществляется внешними средствами.');
+            return showToast(_t('quality.reports.toast.pdf_print_external', 'Печать PDF-файлов осуществляется внешними средствами.'));
         }
 
         const shellTitle = `TWI: ${card.title || 'Карта качества'}`;
@@ -10377,16 +10402,20 @@ export const ReportsActions = {
      */
     async printWorkshop(taskId, mode = 'browser') {
         const task = _getTasks().find(t => t.id === taskId);
-        const scenario = document.getElementById('workshop-ai-scenario')?.value;
-        if (!scenario || scenario.includes('⏳')) return showToast("Сгенерируйте сценарий!");
+        const scenario = (document.getElementById('workshop-ai-scenario')?.value
+            || window._workshopAiLastPlain
+            || '').trim();
+        if (!scenario || scenario.includes('⏳') || scenario.includes('ИИ пишет')) {
+            return showToast(_t('quality.reports.toast.generate_scenario', 'Сгенерируйте сценарий!'));
+        }
 
         const relatedTwi = typeof customTwiCards !== 'undefined' ? _getTwiCards().find(c => c.checklistKey === task.templateKey) : null;
 
         let content = `
             <div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase;">Сценарий планерки (Toolbox Talk)</h2>
+                <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase;">Разбор дефектов</h2>
                 <div style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Подрядчик: ${task.contractor} | Вид работ: ${task.templateTitle}</div>
-                <div style="font-size: 14px; line-height: 1.6; color: #1e293b; white-space: pre-wrap;">${scenario.replace(/\n/g, '<br>')}</div>
+                <div style="font-size: 14px; line-height: 1.6; color: #1e293b;">${meetingRichToSafeHtml(scenario)}</div>
             </div>
         `;
 
@@ -10422,7 +10451,7 @@ export const ReportsActions = {
      */
     async printIntroBriefing(taskId, mode = 'browser') {
         const task = _getTasks().find(t => t.id === taskId);
-        if (!task || !task.aiData) return showToast("Сначала сгенерируйте данные!");
+        if (!task || !task.aiData) return showToast(_t('quality.reports.toast.generate_data_first', 'Сначала сгенерируйте данные!'));
 
         const tableRows = task.aiData.checklist.map((item, idx) => `
             <tr>
@@ -10524,7 +10553,7 @@ export const ReportsActions = {
      */
     async generateQualityDayReport(taskId) {
         if (!_getSetting('aiEnabled')) {
-            showToast("⚠️ Для формирования отчета Дня Качества требуется включить DeepSeek AI в настройках!");
+            showToast(_t('quality.reports.toast.dq_need_deepseek', '⚠️ Для формирования отчета Дня Качества требуется включить DeepSeek AI в настройках!'));
             return;
         }
 
@@ -10674,7 +10703,7 @@ export const ReportsActions = {
                 <!-- БЛОК 1: AI-РЕЗЮМЕ -->
                 <div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 14pt; text-transform: uppercase;">🧠 УПРАВЛЕНЧЕСКОЕ РЕЗЮМЕ (DEEPSEEK AI)</h2>
-                    <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-weight: 500;">${aiSummary}</div>
+                    <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; font-weight: 500;">${meetingRichToSafeHtml(aiSummary)}</div>
                 </div>
 
                 <!-- БЛОК 2: МАКРОПОКАЗАТЕЛИ -->
@@ -10738,7 +10767,7 @@ export const ReportsActions = {
 
         } catch (e) {
             closeModal();
-            showToast("❌ Ошибка сборки отчета: " + e.message);
+            showToast(_t('quality.reports.toast.report_build_error', '❌ Ошибка сборки отчета: {msg}', { msg: e.message }));
         }
     },
 
@@ -10799,7 +10828,7 @@ export const ReportsActions = {
         document.getElementById('pdf-tmpl-layout').value = 'two_uneven';
         document.getElementById('pdf-tmpl-logo').checked = true;
         document.getElementById('pdf-tmpl-qr').checked = true;
-        document.getElementById('pdf-tmpl-footer').value = 'Конфиденциально. Только для внутреннего использования.';
+        document.getElementById('pdf-tmpl-footer').value = _t('quality.reports.templates.default_footer', 'Конфиденциально. Только для внутреннего использования.');
 
         initDragAndDrop([], PDF_BLOCKS_LIBRARY.map(b => b.id));
 
@@ -10839,12 +10868,12 @@ export const ReportsActions = {
      */
     async savePdfTemplate() {
         const name = document.getElementById('pdf-tmpl-name').value.trim();
-        if (!name) return showToast("⚠️ Укажите название шаблона!");
+        if (!name) return showToast(_t('quality.reports.toast.template_name_required', '⚠️ Укажите название шаблона!'));
 
         const activeBlocksEls = document.getElementById('pdf-blocks-active').children;
         const activeBlocks = Array.from(activeBlocksEls).map(el => el.dataset.id);
 
-        if (activeBlocks.length === 0) return showToast("⚠️ Добавьте хотя бы один блок в отчет!");
+        if (activeBlocks.length === 0) return showToast(_t('quality.reports.toast.template_need_block', '⚠️ Добавьте хотя бы один блок в отчет!'));
 
         const templateData = {
             id: currentEditingPdfTemplateId || 'tmpl_' + Date.now().toString(36),
@@ -10872,7 +10901,7 @@ export const ReportsActions = {
         localStorage.setItem('rbi_cloud_dirty', '1');
         _triggerSync('silent');
 
-        showToast("✅ Шаблон успешно сохранен!");
+        showToast(_t('quality.reports.toast.template_saved', '✅ Шаблон успешно сохранен!'));
         document.getElementById('pdf-template-editor').classList.add('hidden');
         renderPdfTemplatesList();
     },
@@ -10882,7 +10911,7 @@ export const ReportsActions = {
      * Перенесено из export.js:deletePdfTemplate (группа G5).
      */
     async deletePdfTemplate(id) {
-        if (!confirm("Удалить этот шаблон?")) return;
+        if (!confirm(_t('quality.reports.confirm.delete_template', 'Удалить этот шаблон?'))) return;
 
         const idx = window.userReportTemplates.findIndex(x => x.id === id);
         if (idx > -1) {
@@ -10898,7 +10927,7 @@ export const ReportsActions = {
             localStorage.setItem('rbi_cloud_dirty', '1');
             _triggerSync('silent');
 
-            showToast("🗑️ Шаблон удален");
+            showToast(_t('quality.reports.toast.template_deleted', '🗑️ Шаблон удален'));
         }
     },
 

@@ -4,7 +4,27 @@
 // вся отрисовка встроена в openEtalonConstructor и openEtalonViewer.
 // EtalonRender делегирует в EtalonActions (тонкий диспетчер).
 
+function _etalonRenderT(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
 (function () {
+  function _t(key, fallback, vars) {
+    return _etalonRenderT(key, fallback, vars);
+  }
+
   const EtalonRender = {
 
     /**
@@ -36,6 +56,42 @@
       } else {
         console.warn('[EtalonRender] EtalonActions недоступен');
       }
+    },
+
+    /**
+     * Пересобирает статическую разметку #etalon-constructor-view при смене локали.
+     * Если конструктор открыт — сохраняет черновик и восстанавливает поля.
+     */
+    remountConstructorChrome: function () {
+      var view = document.getElementById('etalon-constructor-view');
+      if (!view) return;
+      var wasOpen = !view.classList.contains('hidden');
+      var draft = null;
+      var editingId = window.currentEditingEtalonId;
+      var openParams = null;
+      if (wasOpen && window.EtalonActions) {
+        draft = window.EtalonActions._collectNewDraft();
+        openParams = window.EtalonActions._getOpenContext ? window.EtalonActions._getOpenContext() : null;
+      }
+      view.outerHTML = renderConstructorMarkup();
+      if (wasOpen && window.EtalonActions && openParams) {
+        window.currentEditingEtalonId = editingId;
+        window._rbiEtalonSkipDraft = true;
+        window.EtalonActions.openConstructor(
+          openParams.contractor,
+          openParams.templateKey,
+          openParams.templateTitle,
+          openParams.projectName,
+          openParams.statusKey
+        );
+        if (editingId) {
+          window.EtalonActions.editAct(editingId);
+        } else if (draft) {
+          window.EtalonActions._applyNewDraft(draft).catch(function (e) {
+            console.warn('[EtalonRender] locale remount draft restore failed', e);
+          });
+        }
+      }
     }
   };
 
@@ -56,12 +112,12 @@ function renderConstructorMarkup() {
                 class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
-                </svg> Назад
+                </svg> ${_etalonRenderT('quality.etalon.btn.back', 'Назад')}
             </button>
             <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest text-center"
-                id="etalon-title-text">Акт-Эталон</div>
+                id="etalon-title-text">${_etalonRenderT('quality.etalon.title.act', 'Акт-Эталон')}</div>
             <button data-etalon-action="saveEtalonAct"
-                class="text-[11px] font-bold text-white bg-indigo-600 px-4 py-2 rounded-lg active:scale-95 shadow-md transition-colors">Сохранить</button>
+                class="text-[11px] font-bold text-white bg-indigo-600 px-4 py-2 rounded-lg active:scale-95 shadow-md transition-colors">${_etalonRenderT('quality.etalon.btn.save', 'Сохранить')}</button>
         </div>
 
         <div class="space-y-4 px-3 max-w-2xl mx-auto">
@@ -70,51 +126,45 @@ function renderConstructorMarkup() {
                 class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm space-y-3">
                 <div
                     class="text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-1 border-b border-slate-100 dark:border-slate-700 pb-2">
-                    Привязка эталона</div>
+                    ${_etalonRenderT('quality.etalon.section.binding', 'Привязка эталона')}</div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Объект
-                            *</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.project', 'Объект *')}</label>
                         <div class="relative"><input type="text" id="etalon-project" autocomplete="off"
                                 class="input-base text-[12px] font-bold text-slate-800 dark:text-white"
-                                placeholder="Название объекта..."></div>
+                                placeholder="${_etalonRenderT('quality.etalon.placeholder.project', 'Название объекта...')}"></div>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Подрядчик
-                            *</label>
+                        <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.contractor', 'Подрядчик *')}</label>
                         <div class="relative"><input type="text" id="etalon-contractor" autocomplete="off"
                                 class="input-base text-[12px] font-bold text-slate-800 dark:text-white"
-                                placeholder="ООО Ромашка..."></div>
+                                placeholder="${_etalonRenderT('quality.etalon.placeholder.contractor', 'ООО Ромашка...')}"></div>
                     </div>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Вид работ
-                        (Чек-лист) *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.template', 'Вид работ (Чек-лист) *')}</label>
                     <select id="etalon-template"
                         class="input-base text-[12px] font-bold text-slate-800 dark:text-white"></select>
                 </div>
 
                 <div
                     class="text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-1 border-b border-slate-100 dark:border-slate-700 pb-2 mt-4 pt-3">
-                    Расположение и Участники</div>
+                    ${_etalonRenderT('quality.etalon.section.location_participants', 'Расположение и Участники')}</div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Локация (Оси,
-                        Этаж) *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.location', 'Локация (Оси, Этаж) *')}</label>
                     <input type="text" id="etalon-location" class="input-base text-[12px]"
-                        placeholder="Напр: Секция 1, Этаж 5, Оси А-Б">
+                        placeholder="${_etalonRenderT('quality.etalon.placeholder.location', 'Напр: Секция 1, Этаж 5, Оси А-Б')}">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Комиссия
-                        (Участники) *</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.participants', 'Комиссия (Участники) *')}</label>
                     <textarea id="etalon-participants" class="input-base text-[11px] h-14 resize-none"
-                        placeholder="ФИО, Должности представителей..."></textarea>
+                        placeholder="${_etalonRenderT('quality.etalon.placeholder.participants', 'ФИО, Должности представителей...')}"></textarea>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Допущения (Если
-                        есть)</label>
+                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.deviations', 'Допущения (Если есть)')}</label>
                     <textarea id="etalon-deviations" class="input-base text-[11px] h-14 resize-none"
-                        placeholder="Отклонений не выявлено"></textarea>
+                        placeholder="${_etalonRenderT('quality.etalon.placeholder.deviations', 'Отклонений не выявлено')}"></textarea>
                 </div>
             </div>
 
@@ -127,14 +177,14 @@ function renderConstructorMarkup() {
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                         </path>
-                    </svg> Фиксация узлов
+                    </svg> ${_etalonRenderT('quality.etalon.section.nodes', 'Фиксация узлов')}
                 </div>
                 <div id="etalon-elements-container"></div>
                 <button data-etalon-action="addEtalonElement"
                     class="w-full bg-indigo-50 border border-dashed border-indigo-300 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-700 dark:text-indigo-400 py-4 rounded-2xl font-bold text-[11px] uppercase active:scale-95 flex items-center justify-center gap-2 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                    </svg> Добавить узел эталона
+                    </svg> ${_etalonRenderT('quality.etalon.btn.add_element', 'Добавить узел эталона')}
                 </button>
             </div>
         </div>

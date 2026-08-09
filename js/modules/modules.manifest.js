@@ -13,7 +13,7 @@
 import { QualityManifest }      from './quality/manifest.js';
 import { SKManifest }           from './quality/features/sk/sk.manifest.js';
 import { SettingsManifest }     from './settings/settings.manifest.js';
-import { KnowledgeManifest }    from './quality/features/knowledge/knowledge.manifest.js';
+import { KnowledgeManifest }    from './knowledge/knowledge.manifest.js';
 import { ConstructionManifest } from './construction/construction.manifest.js';
 import { ConstructionV2Manifest } from './construction-v2/construction-v2.manifest.js';
 import { GameManifest }         from './quality/features/gamification/game.manifest.js';

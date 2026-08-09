@@ -119,6 +119,10 @@ function refreshDefectModalStaticLabels() {
     if (normHdr) {
         var normTitle = normHdr.querySelector('.text-\\[9px\\]');
         if (normTitle) normTitle.textContent = _t('construction.form.norm_reference', 'Справочно (Норматив)');
+        var helpBtn = document.getElementById('const-defect-btn-help');
+        if (helpBtn) helpBtn.textContent = _t('construction.form.btn_help', 'Справка');
+        var normBtn = document.getElementById('const-defect-btn-norm');
+        if (normBtn) normBtn.textContent = _t('construction.form.btn_norm', 'Норматив');
     }
 }
 
@@ -320,6 +324,14 @@ function _permissions() {
                     <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_t('construction.form.norm_reference', 'Справочно (Норматив)')}</div>
                     <div id="const-defect-norm-text" class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
                     </div>
+                    <div class="flex gap-2 mt-2" id="const-defect-help-actions">
+                        <button type="button" id="const-defect-btn-help"
+                            class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800"
+                            onclick="window.ConstDefectForm.openItemHelp(event)">${_t('construction.form.btn_help', 'Справка')}</button>
+                        <button type="button" id="const-defect-btn-norm"
+                            class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                            onclick="window.ConstDefectForm.openNorm()">${_t('construction.form.btn_norm', 'Норматив')}</button>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -499,10 +511,11 @@ window.ConstDefectForm = {
 
         if (norm && norm.trim()) {
             document.getElementById('const-defect-norm-text').innerHTML = norm;
-            normBlock.classList.remove('hidden');
         } else {
-            normBlock.classList.add('hidden');
+            document.getElementById('const-defect-norm-text').innerHTML = '';
         }
+        // Блок оставляем видимым при выбранном пункте — кнопки Справка/Норматив
+        normBlock.classList.remove('hidden');
 
         // Авто-формирование текста замечания (Нарушение + Норматив)
         let autoText = _t('construction.form.violation_prefix', 'Нарушение: {name}.', { name: name });
@@ -520,6 +533,76 @@ window.ConstDefectForm = {
 
         catSelect.setAttribute('disabled', 'true');
         catSelect.classList.add('opacity-60', 'cursor-not-allowed');
+    },
+
+    openItemHelp(event) {
+        const itemId = (document.getElementById('const-defect-item') || {}).value || '';
+        const toastFn = window['showToast'];
+        if (!itemId) {
+            if (typeof toastFn === 'function') {
+                toastFn(_t('construction.form.toast_select_item_help', 'Выберите пункт чек-листа'));
+            }
+            return;
+        }
+        const tmplKey = (document.getElementById('const-defect-template') || {}).value || '';
+        const type = tmplKey.split('_')[0];
+        const key = tmplKey.replace(type + '_', '');
+        let groups = [];
+        if (type === 'sys' && _templates().getSystemTemplates()[key]) groups = _templates().getSystemTemplates()[key].groups || [];
+        else if (type === 'user' && _templates().getUserTemplates()[key]) groups = _templates().getUserTemplates()[key].groups || [];
+        const helpCtx = { templateKey: tmplKey || undefined, checklist: groups };
+        const svc = window.RBI && window.RBI.services && window.RBI.services.knowledge;
+        if (svc && typeof svc.openItemHelp === 'function') {
+            svc.openItemHelp(itemId, event, helpCtx);
+            return;
+        }
+        const openMenu = window['openItemHelpMenu'];
+        if (typeof openMenu === 'function') {
+            openMenu(itemId, event, helpCtx);
+            return;
+        }
+        if (typeof toastFn === 'function') {
+            toastFn(_t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна'));
+        }
+    },
+
+    openNorm() {
+        const tmplKey = (document.getElementById('const-defect-template') || {}).value || '';
+        const itemId = (document.getElementById('const-defect-item') || {}).value || '';
+        const normEl = document.getElementById('const-defect-norm-text');
+        const normText = normEl ? (normEl.textContent || '').trim() : '';
+        const type = tmplKey.split('_')[0];
+        const key = tmplKey.replace(type + '_', '');
+        let groups = [];
+        if (type === 'sys' && _templates().getSystemTemplates()[key]) groups = _templates().getSystemTemplates()[key].groups || [];
+        else if (type === 'user' && _templates().getUserTemplates()[key]) groups = _templates().getUserTemplates()[key].groups || [];
+        const flat = this.getFlatItemsFromGroups(groups);
+        const item = flat.find(function (i) { return String(i.id) === String(itemId); });
+        const ndId = item && item.ndId ? String(item.ndId) : '';
+        const svc = window.RBI && window.RBI.services && window.RBI.services.knowledge;
+        const toastFn = window['showToast'];
+        if (ndId && svc && typeof svc.openDocViewer === 'function') {
+            svc.openDocViewer(ndId);
+            return;
+        }
+        if (!normText) {
+            if (typeof toastFn === 'function') {
+                toastFn(_t('construction.form.toast_no_norm', 'Норматив не указан'));
+            }
+            return;
+        }
+        if (svc && typeof svc.findAndOpenND === 'function') {
+            svc.findAndOpenND(normText);
+            return;
+        }
+        const findNd = window['findAndOpenND'];
+        if (typeof findNd === 'function') {
+            findNd(normText);
+            return;
+        }
+        if (typeof toastFn === 'function') {
+            toastFn(_t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна'));
+        }
     },
 
     // --- Открыть форму для нового дефекта ---
@@ -574,10 +657,13 @@ window.ConstDefectForm = {
             document.getElementById('const-defect-item').value = defect.itemId || '';
             document.getElementById('const-defect-item-search').value = defect.itemName || '';
 
-            // Восстанавливаем блок норматива
+            // Восстанавливаем блок норматива (+ кнопки справки при выбранном пункте)
             const normBlock = document.getElementById('const-defect-norm-block');
             if (defect.normText && defect.normText.trim()) {
                 document.getElementById('const-defect-norm-text').innerHTML = defect.normText;
+                normBlock.classList.remove('hidden');
+            } else if (defect.itemId) {
+                document.getElementById('const-defect-norm-text').innerHTML = '';
                 normBlock.classList.remove('hidden');
             } else {
                 normBlock.classList.add('hidden');
@@ -662,7 +748,7 @@ window.ConstDefectForm = {
 
                 let histPhoto = '';
                 if (h.photo) {
-                    histPhoto = `<img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(h.photo, { preferThumb: true }) : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(h.photo) + '"')} class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" loading="lazy" onclick="openPhotoViewer('${h.photo}')">`;
+                    histPhoto = `<img ${(typeof window['rbiBuildPhotoImgAttrs'] === 'function') ? window.rbiBuildPhotoImgAttrs(h.photo, { preferThumb: true }) : ('src="' + (window.getPhotoThumbSrc || window.getPhotoSrc)(h.photo) + '"')} class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" loading="lazy" onclick="openPhotoViewer('${h.photo}')">`;
                 }
 
                 historyHtml += `
@@ -825,7 +911,7 @@ window.ConstDefectForm = {
             window.tempDefectPhotoKey = null;
         }
 
-        if (photo && String(photo).startsWith('data:') && typeof window.ensureLocalPhotoRef === 'function') {
+        if (photo && String(photo).startsWith('data:') && typeof window['ensureLocalPhotoRef'] === 'function') {
             photo = await window.ensureLocalPhotoRef(photo, 'const', {
                 entityType: 'construction_defect',
                 entityId: id
@@ -1168,7 +1254,7 @@ window.ConstDefectForm = {
             window.currentPhotoId = defectId;
         }
         window.activePhotoContext = 'defect';
-        if (typeof window.handlePhotoUpload === 'function') {
+        if (typeof window['handlePhotoUpload'] === 'function') {
             window.handlePhotoUpload(event);
         } else {
             console.error('window.handlePhotoUpload not found');

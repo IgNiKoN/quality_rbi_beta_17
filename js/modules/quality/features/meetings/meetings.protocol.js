@@ -29,6 +29,91 @@ function _esc(s) {
         .replace(/"/g, '&quot;');
 }
 
+/** Реальные переводы строк + «заэкранированные» \\n из JSON/sync. */
+function _normalizeNewlines(raw) {
+    let text = String(raw == null ? '' : raw);
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Двойное экранирование из облака/JSON: "\\n" как два символа
+    text = text.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+    return text;
+}
+
+/**
+ * callAI по умолчанию меняет ** на <b>. Если потом сделать только _esc(),
+ * в просмотре мемо/протокола остаются буквальные теги &lt;b&gt;…&lt;/b&gt;.
+ * Нормализуем HTML/markdown → читаемый plain (для textarea / карточек).
+ */
+export function meetingRichToPlain(raw) {
+    let text = _normalizeNewlines(raw);
+    text = text.replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '');
+    text = text.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+    text = text.replace(/<\s*\/\s*p\s*>/gi, '\n').replace(/<\s*p[^>]*>/gi, '');
+    text = text.replace(/<\s*\/\s*li\s*>/gi, '\n').replace(/<\s*li[^>]*>/gi, '- ');
+    text = text.replace(/<\s*\/\s*(ul|ol)\s*>/gi, '\n').replace(/<\s*(ul|ol)[^>]*>/gi, '\n');
+    text = text.replace(/<\s*\/?\s*(div|span|h[1-6])[^>]*>/gi, '\n');
+    text = text.replace(/<\s*\/?\s*(b|strong|i|em)\s*>/gi, '');
+    text = text.replace(/<[^>]+>/g, '');
+    text = text
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/gi, "'");
+    // на случай, если после decode снова всплыли теги
+    text = text.replace(/<[^>]+>/g, '');
+    text = text.replace(/\*\*\*(.+?)\*\*\*/g, '$1');
+    text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+    text = text.replace(/__(.+?)__/g, '$1');
+    text = text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    return text;
+}
+
+/**
+ * Safe HTML для просмотра/печати протокола: real &lt;b&gt;, списки, &lt;br&gt;.
+ * Не путать с _esc(raw) — тот как раз показывает «тэги кода».
+ */
+export function meetingRichToSafeHtml(raw) {
+    let text = _normalizeNewlines(raw).trim();
+    if (!text) return '';
+    text = text.replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim();
+
+    text = text.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+    text = text.replace(/<\s*\/\s*p\s*>/gi, '\n').replace(/<\s*p[^>]*>/gi, '');
+    text = text.replace(/<\s*\/\s*li\s*>/gi, '\n').replace(/<\s*li[^>]*>/gi, '• ');
+    text = text.replace(/<\s*\/\s*(ul|ol)\s*>/gi, '\n').replace(/<\s*(ul|ol)[^>]*>/gi, '\n');
+    text = text.replace(/<\s*\/?\s*(div|span|h[1-6])[^>]*>/gi, '\n');
+    text = text.replace(/<\s*\/?\s*(b|strong)\s*>/gi, function (m) {
+        return /^\<\s*\//i.test(m) ? '§/B§' : '§B§';
+    });
+    text = text.replace(/<\s*\/?\s*(i|em)\s*>/gi, '');
+    text = text.replace(/<[^>]+>/g, '');
+    text = text
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/gi, "'");
+
+    // После decode entities теги могут всплыть снова (&lt;b&gt; → <b>)
+    text = text.replace(/<\s*\/?\s*(b|strong)\s*>/gi, function (m) {
+        return /^\<\s*\//i.test(m) ? '§/B§' : '§B§';
+    });
+    text = text.replace(/<[^>]+>/g, '');
+
+    text = text.replace(/\*\*\*(.+?)\*\*\*/g, '§B§$1§/B§');
+    text = text.replace(/\*\*(.+?)\*\*/g, '§B§$1§/B§');
+    text = text.replace(/__(.+?)__/g, '§B§$1§/B§');
+
+    text = _esc(text);
+    text = text
+        .replace(/§B§([\s\S]+?)§\/B§/g, '<b>$1</b>')
+        .replace(/§B§|§\/B§/g, '');
+    text = text.replace(/\n/g, '<br>');
+    return text;
+}
+
 function _normalizeName(name) {
     return String(name || '')
         .replace(/^\[Просрочено в СК\]\s*/i, '')
@@ -118,7 +203,7 @@ function _buildResolvedRegistry(pastMeetings) {
 
             let details = Array.isArray(a.details) ? a.details : [];
             if (!details.length && a.defect && String(a.defect).includes('•')) {
-                details = String(a.defect).split('\n')
+                details = _normalizeNewlines(a.defect).split('\n')
                     .map(l => l.replace(/^•\s*/, '').trim())
                     .filter(l => l && !/:$/.test(l) && l !== String(a.defect).split(':')[0]);
             }
@@ -420,7 +505,7 @@ export function buildMeetingAgenda(input) {
         const defect = String(a.defect || '');
         if (!defect) return [];
         if (defect.includes('•')) {
-            return defect.split('\n')
+            return _normalizeNewlines(defect).split('\n')
                 .map(l => l.replace(/^[\s]*[•●\-]\s*/, '').trim())
                 .filter(l => l && !/:$/.test(l)
                     && !/^(крит\.?\s*деф|повторяющ|просрочено|долг|пк\s*ск)/i.test(l));
@@ -519,12 +604,12 @@ export async function buildMeetingProtocolHtml(meet) {
                 : '';
             let defectHtml;
             if (Array.isArray(a.details) && a.details.length > 0) {
-                const title = _esc(a.title || '');
-                const lis = a.details.map(d => `<li style="margin: 2px 0;">${_esc(d)}</li>`).join('');
+                const title = meetingRichToSafeHtml(a.title || '');
+                const lis = a.details.map(d => `<li style="margin: 2px 0;">${meetingRichToSafeHtml(d)}</li>`).join('');
                 defectHtml = `${title ? `<div style="font-weight: 900; margin-bottom: 4px;">${title}</div>` : ''}
                         <ul style="margin: 0; padding-left: 18px; font-size: 11px; color: #b91c1c; font-weight: 600; line-height: 1.45;">${lis}</ul>`;
             } else {
-                defectHtml = `<div style="font-size: 11px; color: #b91c1c; font-weight: bold;">${_esc(a.defect || '').replace(/\n/g, '<br>')}</div>`;
+                defectHtml = `<div style="font-size: 11px; color: #b91c1c; font-weight: bold;">${meetingRichToSafeHtml(a.defect || '')}</div>`;
             }
             return `
                 <tr style="border-bottom: 1px solid #e2e8f0; background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'}; page-break-inside: avoid;">
@@ -534,7 +619,7 @@ export async function buildMeetingProtocolHtml(meet) {
                         ${reopenBadge}
                     </td>
                     <td style="padding: 10px; border-right: 1px solid #e2e8f0; vertical-align: top; width: 45%;">
-                        <div style="font-size: 11px; color: #334155; margin-bottom: 4px;">${_esc(a.comment || 'Решение не зафиксировано')}</div>
+                        <div style="font-size: 11px; color: #334155; margin-bottom: 4px;">${meetingRichToSafeHtml(a.comment || 'Решение не зафиксировано')}</div>
                         ${a.resp ? `<div style="font-size: 9px; color: #64748b; font-weight: bold;">Отв: ${_esc(a.resp)}</div>` : ''}
                     </td>
                     <td style="padding: 10px; vertical-align: top; width: 20%; text-align: center;">
@@ -567,13 +652,13 @@ export async function buildMeetingProtocolHtml(meet) {
 
             <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; page-break-inside: avoid;">
                 <h3 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #16a34a; border-bottom: 2px solid #bbf7d0; padding-bottom: 6px; margin-bottom: 10px;">✅ ИТОГОВОЕ РЕШЕНИЕ (МЕМО)</h3>
-                <div style="font-size: 12px; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-weight: 500;">${_esc(meet.memoText || 'Текст протокола отсутствует.')}</div>
+                <div style="font-size: 12px; line-height: 1.6; color: #1e293b; font-weight: 500;">${meetingRichToSafeHtml(meet.memoText || 'Текст протокола отсутствует.')}</div>
             </div>
 
             ${meet.notes ? `
             <div style="background: #fffbeb; border: 1px solid #fde047; padding: 15px; border-radius: 8px; margin-bottom: 20px; page-break-inside: avoid;">
                 <h3 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #b45309; border-bottom: 2px solid #fef08a; padding-bottom: 6px; margin-bottom: 10px;">📌 Дополнительные тезисы</h3>
-                <div style="font-size: 11px; line-height: 1.5; color: #713f12; white-space: pre-wrap;">${_esc(meet.notes)}</div>
+                <div style="font-size: 11px; line-height: 1.5; color: #713f12;">${meetingRichToSafeHtml(meet.notes)}</div>
             </div>` : ''}
 
             <h3 style="font-size: 14px; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 15px;">📋 Детальная повестка и разбор дефектов</h3>

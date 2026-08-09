@@ -1,26 +1,291 @@
 // company.service.js — Minimal Company Context (§29, п.11)
 //
-// Read-only сервис данных о компании. Единственная существующая
-// компания (single-tenant) — не multi-tenant engine, не матрица прав,
-// без UI. enabledModules — каталог platform-модулей компании (согласован
-// с MODULE_KEYS / modules.manifest.js). app.entry режет init по
-// availableModules (= enabled ∩ getAllowedModules) + бандлы; settings
-// всегда в init как platform chrome, даже если нет в availableModules.
+// Config/context компании (single-tenant) — не multi-tenant engine.
+// enabledModules — каталог business platform-modules (quality/construction/knowledge).
+// knowledge — сквозной: при quality и/или construction всегда присутствует в каталоге
+// (sanitize) и в init через BUNDLES; knowledge-only и empty shell [] допустимы.
+// UI §37.2 Block 3: оверрайд в appSettings.enabledModules (prefs устройства /
+// sync UI-профиля), не отдельная company-таблица. Feature-of / construction-v2 —
+// через BUNDLES в app.entry; settings — ALWAYS_INIT (platform chrome).
+// app.entry режет init по availableModules (= enabled ∩ getAllowedModules)
+// + бандлы + ALWAYS_INIT.
+//
+// §23 Блок 2: roleMatrixOverrides — company SoT в памяти (+ mirror в
+// appSettings для offline UI). Cloud: таблица rbi_company_settings.
+// Пустой '{}' / нет строки = права как DEFAULT ROLE_MATRIX в permission.service.
 
 (function () {
   'use strict';
   if (typeof window === 'undefined') return;
 
-  var ENABLED_MODULES = ['quality', 'sk', 'settings', 'knowledge', 'construction', 'construction-v2', 'game', 'ai'];
+  var DEFAULT_ENABLED_MODULES = ['quality', 'construction', 'knowledge'];
+  var BUSINESS_ID_SET = { quality: true, construction: true, knowledge: true };
+  var BUSINESS_ORDER = ['quality', 'construction', 'knowledge'];
+  var COMPANY_ID = 'rbi';
+  var SMOKE_MARKER = '__SMOKE_TEST__';
 
+  /** In-memory company SoT for role matrix overrides. null = ещё не применяли cloud. */
+  var _roleMatrixOverrides = null;
+  var _roleMatrixDirty = false;
+  var _roleMatrixUpdatedAt = null;
+
+  function _settingsSvc() {
+    return (window.RBI && window.RBI.services && window.RBI.services.settings) || null;
+  }
+
+  function _emit(name, payload) {
+    try {
+      if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') {
+        window.RBI.events.emit(name, payload);
+      }
+    } catch (_e) { /* ignore */ }
+  }
+
+  /**
+   * Sanitize to business ids only: dedupe, order quality → construction → knowledge.
+   * If quality or construction present → knowledge is forced on (cross-cutting).
+   * Empty array is valid (empty shell). Invalid / non-array → null (use default).
+   */
+  function _sanitizeEnabledModules(ids) {
+    if (!Array.isArray(ids)) return null;
+    var seen = {};
+    var cleaned = [];
+    BUSINESS_ORDER.forEach(function (id) {
+      if (ids.indexOf(id) >= 0 && BUSINESS_ID_SET[id] && !seen[id]) {
+        seen[id] = true;
+        cleaned.push(id);
+      }
+    });
+    var hadOnlyJunk = ids.length > 0 && cleaned.length === 0 &&
+      !ids.some(function (id) { return BUSINESS_ID_SET[id]; });
+    if (hadOnlyJunk) return null;
+    // Сквозной knowledge: обязателен вместе с quality / construction
+    var needsKb = cleaned.indexOf('quality') >= 0 || cleaned.indexOf('construction') >= 0;
+    if (needsKb && cleaned.indexOf('knowledge') < 0) {
+      cleaned.push('knowledge');
+    }
+    return cleaned;
+  }
+
+  function _readOverride() {
+    var svc = _settingsSvc();
+    var raw = null;
+    if (svc && typeof svc.get === 'function') {
+      raw = svc.get('enabledModules');
+    } else if (window.appSettings) {
+      raw = window.appSettings.enabledModules;
+    }
+    if (raw == null) return null;
+    return _sanitizeEnabledModules(raw);
+  }
+
+  function _persist(value) {
+    var svc = _settingsSvc();
+    if (svc && typeof svc.set === 'function') {
+      return Promise.resolve(svc.set('enabledModules', value)).then(function () {
+        return true;
+      });
+    }
+    if (window.appSettings) {
+      window.appSettings.enabledModules = value;
+      window.appSettings.settingsUpdatedAt = Date.now();
+      return Promise.resolve(true);
+    }
+    return Promise.resolve(false);
+  }
+
+  function _cloneRoleOverrides(src) {
+    var out = {};
+    var raw = src && typeof src === 'object' && !Array.isArray(src) ? src : {};
+    Object.keys(raw).forEach(function (key) {
+      if (key === SMOKE_MARKER) {
+        out[SMOKE_MARKER] = raw[SMOKE_MARKER];
+        return;
+      }
+      var entry = raw[key];
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
+      out[key] = Object.assign({}, entry);
+      if (Array.isArray(entry.allowedModules)) {
+        out[key].allowedModules = entry.allowedModules.slice();
+      }
+    });
+    return out;
+  }
+
+  /** Meaningful SoT: at least one roleKey (не считая служебный smoke-маркер). */
+  function _hasMeaningfulRoleKeys(map) {
+    if (!map || typeof map !== 'object') return false;
+    return Object.keys(map).some(function (k) {
+      return k !== SMOKE_MARKER && map[k] && typeof map[k] === 'object';
+    });
+  }
+
+  function _mirrorRoleOverridesLocal(map) {
+    var safe = _cloneRoleOverrides(map);
+    var svc = _settingsSvc();
+    if (svc && typeof svc.set === 'function') {
+      return Promise.resolve(svc.set('roleMatrixOverrides', safe)).then(function () {
+        return true;
+      });
+    }
+    if (window.appSettings) {
+      window.appSettings.roleMatrixOverrides = safe;
+      window.appSettings.settingsUpdatedAt = Date.now();
+      return Promise.resolve(true);
+    }
+    return Promise.resolve(false);
+  }
 
   var CompanyService = {
+    getDefaultEnabledModules: function () {
+      return DEFAULT_ENABLED_MODULES.slice();
+    },
+
     getCompany: function () {
+      var override = _readOverride();
+      var enabled = override != null ? override : DEFAULT_ENABLED_MODULES.slice();
       return {
-        id: 'rbi',
+        id: COMPANY_ID,
         name: 'RBI',
-        enabledModules: ENABLED_MODULES.slice()
+        enabledModules: enabled.slice()
       };
+    },
+
+    /**
+     * Persist enabledModules override (prefs). Empty [] allowed = empty shell.
+     * @returns {Promise<{ error: string|null, enabledModules?: string[] }>}
+     */
+    setEnabledModules: function (ids) {
+      var cleaned = _sanitizeEnabledModules(ids);
+      if (cleaned == null) {
+        return Promise.resolve({ error: 'invalid_modules' });
+      }
+      return _persist(cleaned).then(function (ok) {
+        if (!ok) return { error: 'persist_failed' };
+        _emit('company:enabledModulesChanged', { enabledModules: cleaned.slice() });
+        return { error: null, enabledModules: cleaned.slice() };
+      }).catch(function (e) {
+        console.error('[CompanyService] setEnabledModules', e);
+        return { error: e && e.message ? e.message : 'persist_failed' };
+      });
+    },
+
+    /**
+     * Clear override → default ['quality','construction','knowledge'].
+     * @returns {Promise<{ error: string|null, enabledModules?: string[] }>}
+     */
+    resetEnabledModules: function () {
+      return _persist(null).then(function (ok) {
+        if (!ok) return { error: 'persist_failed' };
+        var def = DEFAULT_ENABLED_MODULES.slice();
+        _emit('company:enabledModulesChanged', { enabledModules: def });
+        return { error: null, enabledModules: def };
+      }).catch(function (e) {
+        console.error('[CompanyService] resetEnabledModules', e);
+        return { error: e && e.message ? e.message : 'persist_failed' };
+      });
+    },
+
+    // --- §23 Блок 2: company role-matrix SoT ---
+
+    getCompanyId: function () {
+      return COMPANY_ID;
+    },
+
+    /**
+     * Копия company-оверрайдов из памяти ({} если SoT ещё не задан).
+     * Не включает fallback на local prefs — это делает permission.service.
+     */
+    getRoleMatrixOverrides: function () {
+      return _cloneRoleOverrides(_roleMatrixOverrides || {});
+    },
+
+    /**
+     * Есть ли company SoT с хотя бы одним roleKey (тогда он побеждает local).
+     */
+    hasCompanyRoleMatrixOverrides: function () {
+      return _hasMeaningfulRoleKeys(_roleMatrixOverrides);
+    },
+
+    isRoleMatrixDirty: function () {
+      return !!_roleMatrixDirty;
+    },
+
+    getRoleMatrixUpdatedAt: function () {
+      return _roleMatrixUpdatedAt;
+    },
+
+    /**
+     * Записать sparse overrides в company SoT + local mirror; пометить dirty для sync push.
+     * @returns {Promise<{ error: string|null, overrides?: object }>}
+     */
+    setRoleMatrixOverrides: function (overrides) {
+      var next = _cloneRoleOverrides(overrides);
+      _roleMatrixOverrides = next;
+      _roleMatrixDirty = true;
+      _roleMatrixUpdatedAt = new Date().toISOString();
+      try {
+        localStorage.setItem('rbi_cloud_dirty', '1');
+      } catch (_ls) { /* ignore */ }
+      return _mirrorRoleOverridesLocal(next).then(function () {
+        _emit('company:roleMatrixOverridesChanged', {
+          overrides: _cloneRoleOverrides(next),
+          source: 'local'
+        });
+        try {
+          if (typeof window.triggerSync === 'function') {
+            window.triggerSync('silent');
+          }
+        } catch (_sync) { /* ignore */ }
+        return { error: null, overrides: _cloneRoleOverrides(next) };
+      }).catch(function (e) {
+        console.error('[CompanyService] setRoleMatrixOverrides', e);
+        return { error: e && e.message ? e.message : 'persist_failed' };
+      });
+    },
+
+    /**
+     * Сброс company SoT → {} (DEFAULT в permission); dirty для push.
+     * @returns {Promise<{ error: string|null, overrides?: object }>}
+     */
+    clearRoleMatrixOverrides: function () {
+      return this.setRoleMatrixOverrides({});
+    },
+
+    /**
+     * Применить оверрайды с cloud pull (без dirty). Пустой/null → очистить SoT.
+     * Если локально dirty — не затирать (ожидаем push).
+     * @returns {{ applied: boolean, skippedDirty?: boolean }}
+     */
+    applyRoleMatrixOverridesFromCloud: function (overrides, updatedAt) {
+      if (_roleMatrixDirty) {
+        return { applied: false, skippedDirty: true };
+      }
+      var next = _cloneRoleOverrides(overrides || {});
+      _roleMatrixOverrides = next;
+      _roleMatrixUpdatedAt = updatedAt || new Date().toISOString();
+      _mirrorRoleOverridesLocal(next);
+      _emit('company:roleMatrixOverridesChanged', {
+        overrides: _cloneRoleOverrides(next),
+        source: 'cloud'
+      });
+      return { applied: true };
+    },
+
+    /**
+     * После успешного push — снять dirty (SoT уже в облаке).
+     */
+    markRoleMatrixSynced: function (updatedAt) {
+      _roleMatrixDirty = false;
+      if (updatedAt) _roleMatrixUpdatedAt = updatedAt;
+    },
+
+    /**
+     * Пометить dirty вручную (редко; обычно setRoleMatrixOverrides).
+     */
+    markRoleMatrixDirty: function () {
+      _roleMatrixDirty = true;
+      _roleMatrixUpdatedAt = new Date().toISOString();
     }
   };
 

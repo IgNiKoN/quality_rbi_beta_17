@@ -1,5 +1,5 @@
-/* Файл: js/modules/quality/features/reference/reference.js */
-/* Internal feature quality/reference — «Справочник → Чек-листы»: рендер, конструктор пользовательских
+/* Файл: js/modules/knowledge/features/reference.js */
+/* Internal feature knowledge/reference — «Справочник → Чек-листы»: рендер, конструктор пользовательских
    чек-листов, Excel импорт/экспорт, открытие связанного НД. Classic-script (не ES-модуль) — перенесено
    1:1 из js/app.js, чтобы inline onclick/onchange из index.html продолжили работать без изменений. */
 
@@ -1285,7 +1285,11 @@ function switchReferenceSubTab(tabId, btnElement, opts) {
     }
 
     if (!fromRouter && window.AppRouter && typeof window.AppRouter.navigateSub === 'function') {
-        window.AppRouter.navigateSub('#/quality/reference', tabId);
+        var hash = String(window.location.hash || '');
+        var refBase = '#/quality/reference';
+        if (hash.indexOf('#/knowledge') === 0) refBase = '#/knowledge';
+        else if (hash.indexOf('#/construction/reference') === 0) refBase = '#/construction/reference';
+        window.AppRouter.navigateSub(refBase, tabId);
     }
 }
 window.switchReferenceSubTab = switchReferenceSubTab;
@@ -1748,12 +1752,12 @@ function addBuilderItem(containerId, itemData = null) {
             
             <div class="grid grid-cols-1 gap-2 mb-2">
                 <div class="flex gap-2">
-                    <select class="input-base text-[10px] !py-1.5 item-weight-select bg-white w-1/3 font-bold">
+                    <select class="input-base text-[10px] !py-1.5 item-weight-select bg-white dark:bg-slate-900 w-1/3 font-bold">
                         <option value="1" ${wVal === 1 ? 'selected' : ''}>B1 (Мелкий)</option>
                         <option value="2" ${wVal === 2 ? 'selected' : ''}>B2 (Значимый)</option>
                         <option value="3" ${wVal === 3 ? 'selected' : ''}>B3 (Критич.)</option>
                     </select>
-                    <select class="input-base text-[10px] !py-1.5 item-nd-select bg-white w-2/3 truncate">
+                    <select class="input-base text-[10px] !py-1.5 item-nd-select bg-white dark:bg-slate-900 w-2/3 truncate">
                         ${docOptions}
                     </select>
                 </div>
@@ -1906,7 +1910,7 @@ window.editUserTemplate = function (slug) {
                     </div>
                     <div class="grid grid-cols-3 gap-2 mb-2">
                         <div class="col-span-1">
-                            <select class="input-base text-[10px] !py-1 item-weight-select bg-white">
+                            <select class="input-base text-[10px] !py-1 item-weight-select bg-white dark:bg-slate-900">
                                 <option value="1" ${item.w === 1 ? 'selected' : ''}>B1 (Мелкий)</option>
                                 <option value="2" ${item.w === 2 ? 'selected' : ''}>B2 (Значимый)</option>
                                 <option value="3" ${item.w === 3 ? 'selected' : ''}>B3 (Критич.)</option>

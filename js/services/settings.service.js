@@ -32,7 +32,7 @@
         autoReportDay: '1', // Число месяца
         autoReportType: 'global_onepager', // Тип отчета
         contractorName: '',
-        theme: 'auto',
+        theme: 'rbi-auto-v3',
         engineerName: '',
         defaultProject: '',
         fontSize: 'medium',
@@ -109,7 +109,9 @@
         autoManagerDay: '5', // 5 - Пятница
         taskMeetingDay: '1',      // Понедельник
         taskFmeaDay: '5',         // Пятница
-        taskMonthReportDay: '1'   // 1-е число месяца
+        taskMonthReportDay: '1',  // 1-е число месяца
+        /** §37.2 Block 3: null = нет оверрайда → company default ['quality','construction','knowledge'] */
+        enabledModules: null
     };
     var _appSettings = Object.assign({}, DEFAULT_SETTINGS);
     window.appSettings = _appSettings;
@@ -168,7 +170,7 @@
             }
 
             if (key === 'theme') {
-                value = ALLOWED_THEMES.includes(value) ? value : 'auto';
+                value = ALLOWED_THEMES.includes(value) ? value : 'rbi-auto-v3';
                 try { localStorage.setItem('rbi_theme_preference', value); } catch (e) { /* ignore */ }
             }
 
@@ -255,7 +257,7 @@
          * Получить текущую тему (с учётом auto / rbi-auto-v2 / rbi-auto-v3).
          */
         getResolvedTheme: function () {
-            var theme = (window.appSettings && window.appSettings.theme) || 'auto';
+            var theme = (window.appSettings && window.appSettings.theme) || 'rbi-auto-v3';
             var prefersDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
             if (theme === 'auto') return prefersDark ? 'dark' : 'light';
             if (theme === 'rbi-auto-v2') return prefersDark ? 'rbi-dark-v2' : 'rbi-light-v2';

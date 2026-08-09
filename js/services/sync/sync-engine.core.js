@@ -375,7 +375,7 @@ window.triggerSync = async function (mode = 'silent') {
                         try {
                             const t = appSettings.theme;
                             if (typeof window.rbiSaveThemePreference === 'function') {
-                                window.rbiSaveThemePreference(t || 'auto');
+                                window.rbiSaveThemePreference(t || 'rbi-auto-v3');
                             } else if (t) {
                                 localStorage.setItem('rbi_theme_preference', t);
                             }
@@ -795,6 +795,43 @@ window.triggerSync = async function (mode = 'silent') {
         } catch (e) {
             console.warn("[Sync] Корпоративные настройки проекта не найдены.");
         }
+
+        // =====================================================
+        // 1.6. PULL: company role-matrix overrides (§23 Блок 2)
+        // =====================================================
+        try {
+            const companySvc = window.RBI && window.RBI.services && window.RBI.services.company;
+            const companyId = (companySvc && typeof companySvc.getCompanyId === 'function')
+                ? companySvc.getCompanyId()
+                : 'rbi';
+            const { data: cSet, error: cSetErr } = await window.supabaseClient
+                .from('rbi_company_settings')
+                .select('company_id, role_matrix_overrides, updated_at')
+                .eq('company_id', companyId)
+                .maybeSingle();
+
+            if (cSetErr) {
+                // Таблица ещё не создана (012 не применён) — не ломаем sync.
+                console.warn('[Sync] rbi_company_settings pull:', cSetErr.message || cSetErr);
+            } else if (companySvc && typeof companySvc.applyRoleMatrixOverridesFromCloud === 'function') {
+                const overrides = (cSet && cSet.role_matrix_overrides && typeof cSet.role_matrix_overrides === 'object')
+                    ? cSet.role_matrix_overrides
+                    : {};
+                const applied = companySvc.applyRoleMatrixOverridesFromCloud(
+                    overrides,
+                    cSet && cSet.updated_at ? cSet.updated_at : null
+                );
+                if (applied && applied.skippedDirty) {
+                    console.log('[Sync] company role-matrix: skip pull (local dirty)');
+                } else {
+                    console.log('[Sync] company role-matrix overrides applied',
+                        Object.keys(overrides || {}).length);
+                }
+            }
+        } catch (e) {
+            console.warn('[Sync] company role-matrix pull failed:', e && e.message ? e.message : e);
+        }
+
         // 🛡️ САМОЛЕЧЕНИЕ БАЗЫ ДАННЫХ (Для PWA на iOS)
         // Проверяем: если локальная база пуста, но время lastPullAt стоит - это глюк PWA.
         // Нужно принудительно сбросить время и скачать всё с нуля!
@@ -2020,6 +2057,48 @@ window.triggerSync = async function (mode = 'silent') {
         // =====================================================
         if (_syncProg()) _syncProg().setStep(6);
         if (canPush) {
+            // =====================================================
+            // 4.9. PUSH: company role-matrix overrides (§23 Блок 2)
+            // Только isAdmin / canManageRoles; sparse jsonb; dirty-only.
+            // =====================================================
+            try {
+                const companySvcPush = window.RBI && window.RBI.services && window.RBI.services.company;
+                const permsPush = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                const canManageMatrix = !!(permsPush && (
+                    (typeof permsPush.isAdmin === 'function' && permsPush.isAdmin()) ||
+                    (typeof permsPush.canManageRoles === 'function' && permsPush.canManageRoles())
+                ));
+                if (companySvcPush && canManageMatrix &&
+                    typeof companySvcPush.isRoleMatrixDirty === 'function' &&
+                    companySvcPush.isRoleMatrixDirty()) {
+                    const companyIdPush = (typeof companySvcPush.getCompanyId === 'function')
+                        ? companySvcPush.getCompanyId()
+                        : 'rbi';
+                    const overridesPush = (typeof companySvcPush.getRoleMatrixOverrides === 'function')
+                        ? companySvcPush.getRoleMatrixOverrides()
+                        : {};
+                    const updatedAtPush = new Date().toISOString();
+                    const { error: cPushErr } = await window.supabaseClient
+                        .from('rbi_company_settings')
+                        .upsert({
+                            company_id: companyIdPush,
+                            role_matrix_overrides: overridesPush,
+                            updated_at: updatedAtPush
+                        }, { onConflict: 'company_id' });
+                    if (cPushErr) {
+                        console.warn('[Sync] company role-matrix push:', cPushErr.message || cPushErr);
+                        pushErrors++;
+                        localStorage.setItem('rbi_cloud_dirty', '1');
+                    } else if (typeof companySvcPush.markRoleMatrixSynced === 'function') {
+                        companySvcPush.markRoleMatrixSynced(updatedAtPush);
+                        console.log('[Sync] company role-matrix overrides pushed');
+                    }
+                }
+            } catch (e) {
+                console.warn('[Sync] company role-matrix push failed:', e && e.message ? e.message : e);
+                pushErrors++;
+            }
+
             currentHistory = typeof dbGetAll === 'function' ? (await dbGetAll('app_history') || []) : [];
 
             // Если не админ, отправляем только свои проверки

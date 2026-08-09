@@ -7,20 +7,36 @@
 (function () {
   'use strict';
 
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
   function renderMarkup() {
     var html = '';
     html += '<div id="etalon-v18b-view" class="hidden bg-slate-100 dark:bg-slate-900 fixed inset-0 z-[3000] h-screen flex flex-col">';
 
-    html += '<div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 shadow-sm flex flex-wrap items-center gap-3 shrink-0">';
+    html += '<div id="etv18b-shell-header" class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 shadow-sm flex flex-wrap items-center gap-3 shrink-0">';
     html += '<button onclick="closeEtalonV18BConstructor()" class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg transition-colors shrink-0">';
-    html += '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> Назад';
+    html += '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> ' + _t('quality.etalon.btn.back', 'Назад');
     html += '</button>';
-    html += '<div class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest truncate flex-1 min-w-[160px]" id="etv18b-title-text">Акт-Эталон (Бета 2, ПК)</div>';
+    html += '<div class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest truncate flex-1 min-w-[160px]" id="etv18b-title-text">' + _t('quality.etalon.v18b.title', 'Акт-Эталон (Бета 2, ПК)') + '</div>';
 
     html += '<div class="flex flex-wrap items-end gap-2">';
-    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">Объект *</label><input type="text" id="etv18b-project" autocomplete="off" class="input-base text-[11px] font-bold" style="min-width:140px"></div>';
-    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">Подрядчик *</label><input type="text" id="etv18b-contractor" autocomplete="off" class="input-base text-[11px] font-bold" style="min-width:140px"></div>';
-    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">Вид работ *</label><select id="etv18b-template" class="input-base text-[11px] font-bold" style="min-width:160px"></select></div>';
+    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">' + _t('quality.etalon.label.project', 'Объект *') + '</label><input type="text" id="etv18b-project" autocomplete="off" class="input-base text-[11px] font-bold" style="min-width:140px"></div>';
+    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">' + _t('quality.etalon.label.contractor', 'Подрядчик *') + '</label><input type="text" id="etv18b-contractor" autocomplete="off" class="input-base text-[11px] font-bold" style="min-width:140px"></div>';
+    html += '<div><label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-0.5 block">' + _t('quality.etalon.v18b.label.template_short', 'Вид работ *') + '</label><select id="etv18b-template" class="input-base text-[11px] font-bold" style="min-width:160px"></select></div>';
     html += '</div>';
     html += '</div>';
 
@@ -44,9 +60,6 @@
       } else if (msg.type === 'draft-snapshot') {
         if (window.EtalonV18BActions) window.EtalonV18BActions.onDraftSnapshot(msg.payload);
       }
-      // 'act-saved' (браузерный localStorage внутри iframe) — информационный,
-      // платформа не обязана на него реагировать: реальное сохранение в RBI
-      // происходит только через явный 'act-save-request'.
     });
   }
 
@@ -71,6 +84,29 @@
         iframe.style.border = '0';
         iframe.style.display = 'block';
         host.appendChild(iframe);
+      }
+    },
+
+    remountShellIfOpen: function () {
+      var view = document.getElementById('etalon-v18b-view');
+      if (!view) return;
+      var wasOpen = !view.classList.contains('hidden');
+      var shellState = null;
+      if (wasOpen && window.EtalonV18BActions && window.EtalonV18BActions._getShellRemountState) {
+        shellState = window.EtalonV18BActions._getShellRemountState();
+      }
+      var frameHost = document.getElementById('etv18b-frame-host');
+      var frame = document.getElementById('etv18b-frame');
+      var frameSrc = frame ? frame.src : null;
+      var header = document.getElementById('etv18b-shell-header');
+      if (header) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = renderMarkup();
+        var freshHeader = tmp.querySelector('#etv18b-shell-header');
+        if (freshHeader) header.replaceWith(freshHeader);
+      }
+      if (shellState && window.EtalonV18BActions) {
+        window.EtalonV18BActions._applyShellRemountState(shellState);
       }
     }
   };

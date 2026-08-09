@@ -64,9 +64,11 @@ function isQualityMode() {
 }
 
 function isKnowledgeActive() {
-  if (!isQualityMode()) return false;
   const hash = String(location.hash || '');
-  if (hash && !/#\/quality\/reference/i.test(hash)) return false;
+  if (hash && hash !== '#') {
+    return /#\/(?:quality\/reference|knowledge)(\/|$|\?)/i.test(hash)
+      || /^#\/(?:quality\/reference|knowledge)$/i.test(hash);
+  }
   const tab = document.getElementById(TAB_ID);
   return !!(tab && tab.classList.contains('active'));
 }

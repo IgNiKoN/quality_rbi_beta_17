@@ -448,7 +448,8 @@ body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions {
 
 body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .eng-desk-task-cta,
 body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .eng-desk-task-cta-wrap > button,
-body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions > button {
+body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions > button,
+body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .workshop-ai-block #btn-gen-workshop {
   min-height: 52px !important;
   font-size: 13px !important;
   font-weight: 800 !important;
@@ -457,6 +458,15 @@ body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions > bu
   padding: 14px 18px !important;
   margin-bottom: 0 !important;
   width: 100% !important;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .workshop-ai-block {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .workshop-ai-block #workshop-actions .grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-tasks .eng-desk-task-detail-actions .eng-desk-task-cta-wrap {
@@ -1524,30 +1534,37 @@ body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-row-line {
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-cards {
   display: grid !important;
-  /* Fixed track width — no 1fr stretch across the viewer */
-  grid-template-columns: repeat(auto-fill, minmax(300px, 340px)) !important;
-  gap: 16px !important;
-  justify-content: start !important;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  gap: 14px !important;
+  justify-content: stretch !important;
   align-content: start !important;
-  align-items: start !important;
+  align-items: stretch !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-cards.is-list {
-  grid-template-columns: minmax(0, 720px) !important;
-  gap: 12px !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card {
   margin: 0 !important;
   cursor: pointer;
   width: 100%;
-  max-width: 340px;
+  max-width: none;
   height: auto !important;
-  align-self: start !important;
+  align-self: stretch !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-cards.is-list .eng-desk-fmea-card {
-  max-width: 720px;
+  max-width: none;
+  min-height: 64px;
+  padding: 12px 14px !important;
+  align-items: flex-start !important;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-cards.is-list .eng-desk-fmea-card .w-11 {
+  width: 52px !important;
+  height: 52px !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .truncate,
@@ -1559,9 +1576,19 @@ body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .line-clamp-2 {
   -webkit-line-clamp: unset !important;
 }
 
+/* Readable scale for cloned mobile cards — same as meetings */
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .text-\[12px\] {
   font-size: 15px !important;
   line-height: 1.35 !important;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .text-\[11px\] {
+  font-size: 14px !important;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .text-\[10px\] {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-card .text-\[9px\] {

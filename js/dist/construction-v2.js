@@ -45,6 +45,93 @@ function filterAcceptancesForRole(list) {
   if (!myId) return [];
   return (list || []).filter((a) => String(a.contractorId || "").trim() === myId);
 }
+function _knowledgeSvc() {
+  var _a, _b;
+  return (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.knowledge;
+}
+function _helpButtonsHtml() {
+  return `<div class="flex gap-2 mt-2" data-c2-help-actions>
+      <button type="button" data-c2-item-help
+        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+        ${_escape$b(_t$e("construction.form.btn_help", "Справка"))}
+      </button>
+      <button type="button" data-c2-item-norm
+        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600">
+        ${_escape$b(_t$e("construction.form.btn_norm", "Норматив"))}
+      </button>
+    </div>`;
+}
+function _openDefectItemHelp(panel, event) {
+  var _a, _b, _c, _d, _e;
+  const itemId = ((_b = (_a = panel.querySelector("[data-c2-item-id]")) == null ? void 0 : _a.value) == null ? void 0 : _b.trim()) || "";
+  if (!itemId) {
+    (_c = window.showToast) == null ? void 0 : _c.call(
+      window,
+      _t$e("construction.form.toast_select_item_help", "Выберите пункт чек-листа")
+    );
+    return;
+  }
+  const templateKey = ((_d = panel.querySelector("[data-c2-template]")) == null ? void 0 : _d.value) || "";
+  const groups = _resolveTemplateGroups(templateKey);
+  const helpCtx = { templateKey: templateKey || void 0, checklist: groups };
+  const svc = _knowledgeSvc();
+  if (svc && typeof svc.openItemHelp === "function") {
+    svc.openItemHelp(itemId, event, helpCtx);
+    return;
+  }
+  const openMenu = window.openItemHelpMenu;
+  if (typeof openMenu === "function") {
+    openMenu(itemId, event, helpCtx);
+    return;
+  }
+  (_e = window.showToast) == null ? void 0 : _e.call(
+    window,
+    _t$e("construction.v2.acc.knowledge_unavailable", "База знаний недоступна")
+  );
+}
+function _openDefectNorm(panel) {
+  var _a, _b, _c, _d, _e, _f, _g;
+  const templateKey = ((_a = panel.querySelector("[data-c2-template]")) == null ? void 0 : _a.value) || "";
+  const itemId = ((_c = (_b = panel.querySelector("[data-c2-item-id]")) == null ? void 0 : _b.value) == null ? void 0 : _c.trim()) || "";
+  const normText = ((_e = (_d = panel.querySelector("[data-c2-norm-text]")) == null ? void 0 : _d.textContent) == null ? void 0 : _e.trim()) || "";
+  const flat = _flatItems(_resolveTemplateGroups(templateKey));
+  const item = flat.find((i) => String(i.id) === String(itemId));
+  const ndId = (item == null ? void 0 : item.ndId) ? String(item.ndId) : "";
+  const svc = _knowledgeSvc();
+  if (ndId && svc && typeof svc.openDocViewer === "function") {
+    svc.openDocViewer(ndId);
+    return;
+  }
+  if (!normText) {
+    (_f = window.showToast) == null ? void 0 : _f.call(
+      window,
+      _t$e("construction.form.toast_no_norm", "Норматив не указан")
+    );
+    return;
+  }
+  if (svc && typeof svc.findAndOpenND === "function") {
+    svc.findAndOpenND(normText);
+    return;
+  }
+  const findNd = window.findAndOpenND;
+  if (typeof findNd === "function") {
+    findNd(normText);
+    return;
+  }
+  (_g = window.showToast) == null ? void 0 : _g.call(
+    window,
+    _t$e("construction.v2.acc.knowledge_unavailable", "База знаний недоступна")
+  );
+}
+function _bindHelpActions(panel) {
+  var _a, _b;
+  (_a = panel.querySelector("[data-c2-item-help]")) == null ? void 0 : _a.addEventListener("click", (ev) => {
+    _openDefectItemHelp(panel, ev);
+  });
+  (_b = panel.querySelector("[data-c2-item-norm]")) == null ? void 0 : _b.addEventListener("click", () => {
+    _openDefectNorm(panel);
+  });
+}
 function _t$e(key, fallback, vars) {
   var _a, _b;
   try {
@@ -63,6 +150,32 @@ function _t$e(key, fallback, vars) {
 }
 function _escape$b(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _defaultDeadline$1() {
+  const d = /* @__PURE__ */ new Date();
+  d.setDate(d.getDate() + 14);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function _stripHtml$2(html) {
+  return String(html || "").replace(/<br\s*\/?>/gi, " ").replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+function _setNormDisplay(el, raw) {
+  if (!el) return;
+  const s = String(raw || "");
+  if (/<[a-z][\s\S]*>/i.test(s)) el.innerHTML = s;
+  else el.textContent = s;
+}
+function _autoDescription(name, normRaw) {
+  let auto = _t$e("construction.form.violation_prefix", "Нарушение: {name}.", { name });
+  const cleanNorm = _stripHtml$2(normRaw);
+  const noNorm = _t$e("construction.form.no_norm", "Без норматива");
+  if (cleanNorm && cleanNorm !== noNorm) {
+    auto += _t$e("construction.form.requirements_prefix", " Требования: {norm}", { norm: cleanNorm });
+  }
+  return auto;
 }
 function _contractors() {
   var _a, _b;
@@ -321,17 +434,11 @@ function _bindItemSearch(panel) {
         if (itemIdEl) itemIdEl.value = id;
         if (itemNameEl) itemNameEl.value = name;
         if (search) search.value = name;
-        if (norm && normText && normBlock) {
-          normText.textContent = norm;
+        if (normBlock) {
+          _setNormDisplay(normText, norm || "");
           normBlock.classList.remove("hidden");
-        } else {
-          normBlock == null ? void 0 : normBlock.classList.add("hidden");
         }
-        if (desc) {
-          let auto = _t$e("construction.form.violation_prefix", "Нарушение: {name}.", { name });
-          if (norm && norm !== "Без норматива") auto += _t$e("construction.form.requirements_prefix", " Требования: {norm}", { norm });
-          desc.value = auto;
-        }
+        if (desc) desc.value = _autoDescription(name, norm || "");
         if (cat) {
           if (w === 1) cat.value = "B1";
           else if (w === 3) cat.value = "B3";
@@ -346,7 +453,7 @@ function _bindItemSearch(panel) {
   search == null ? void 0 : search.addEventListener("blur", () => setTimeout(hideDd, 150));
 }
 function _readCommonFields(panel) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
   const description = ((_b = (_a = panel.querySelector("[data-c2-defect-desc]")) == null ? void 0 : _a.value) == null ? void 0 : _b.trim()) || "";
   const category = ((_c = panel.querySelector("[data-c2-defect-cat]")) == null ? void 0 : _c.value) || "B2";
   const contractorId = ((_d = panel.querySelector("[data-c2-defect-contractor]")) == null ? void 0 : _d.value) || "";
@@ -354,9 +461,10 @@ function _readCommonFields(panel) {
   const template_key = ((_f = panel.querySelector("[data-c2-template]")) == null ? void 0 : _f.value) || "";
   const item_id = ((_g = panel.querySelector("[data-c2-item-id]")) == null ? void 0 : _g.value) || "";
   const item_name = ((_h = panel.querySelector("[data-c2-item-name]")) == null ? void 0 : _h.value) || ((_i = panel.querySelector("[data-c2-item-search]")) == null ? void 0 : _i.value) || "";
-  const norm_text = ((_k = (_j = panel.querySelector("[data-c2-norm-text]")) == null ? void 0 : _j.textContent) == null ? void 0 : _k.trim()) || "";
+  const normEl = panel.querySelector("[data-c2-norm-text]");
+  const norm_text = _stripHtml$2((normEl == null ? void 0 : normEl.textContent) || (normEl == null ? void 0 : normEl.innerHTML) || "");
   return {
-    description,
+    description: _stripHtml$2(description) || description,
     category,
     contractorId: contractorId || null,
     deadline: deadlineRaw || null,
@@ -404,6 +512,9 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
   const catOpts = DEFECT_CATEGORIES_V2.map(
     (c) => `<option value="${c}"${c === "B2" ? " selected" : ""}>${_escape$b(_catLabel(c))}</option>`
   ).join("");
+  const deadlineDefault = _defaultDeadline$1();
+  const prefillNormRaw = (prefill == null ? void 0 : prefill.norm_text) || "";
+  const prefillDesc = (prefill == null ? void 0 : prefill.description) != null && String(prefill.description).trim() ? _stripHtml$2(String(prefill.description)) : (prefill == null ? void 0 : prefill.item_name) ? _autoDescription(String(prefill.item_name), prefillNormRaw) : "";
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape$b(_t$e("construction.form.new_defect", "Новое замечание"))}</h3>
@@ -423,9 +534,10 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
       <input type="hidden" data-c2-item-name value="${_escape$b((prefill == null ? void 0 : prefill.item_name) || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${(prefill == null ? void 0 : prefill.norm_text) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${prefillNormRaw || (prefill == null ? void 0 : prefill.item_id) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$b(_t$e("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b((prefill == null ? void 0 : prefill.norm_text) || "")}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -436,7 +548,7 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
       </div>
       <div>
         <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.deadline", "Срок"))}</label>
-        <input type="date" data-c2-defect-deadline
+        <input type="date" data-c2-defect-deadline value="${_escape$b(deadlineDefault)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
       </div>
     </div>
@@ -446,7 +558,7 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$b((prefill == null ? void 0 : prefill.description) || (prefill == null ? void 0 : prefill.item_name) || "")}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$b(prefillDesc)}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -460,7 +572,11 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
     </div>`;
   root.classList.remove("hidden");
   root.classList.add("flex");
+  if (prefillNormRaw) {
+    _setNormDisplay(panel.querySelector("[data-c2-norm-text]"), prefillNormRaw);
+  }
   _bindItemSearch(panel);
+  _bindHelpActions(panel);
   _bindGallery(panel, photosRef, () => {
   });
   (_a = panel.querySelector("[data-c2-photo-add]")) == null ? void 0 : _a.addEventListener("click", () => {
@@ -591,9 +707,10 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
       <input type="hidden" data-c2-item-name value="${_escape$b(defect.item_name || "")}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${defect.norm_text ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$b(_t$e("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape$b(defect.norm_text || "")}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -614,7 +731,7 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$b(defect.description)}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$b(_stripHtml$2(String(defect.description || "")))}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$b(_t$e("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${canEditFields ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -628,6 +745,10 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
     </div>`;
   root.classList.remove("hidden");
   root.classList.add("flex");
+  if (defect.norm_text) {
+    _setNormDisplay(panel.querySelector("[data-c2-norm-text]"), String(defect.norm_text));
+  }
+  _bindHelpActions(panel);
   if (canEditFields) {
     _bindItemSearch(panel);
     _bindGallery(panel, photosRef, () => {
@@ -2215,6 +2336,17 @@ function _t$8(key, fallback, vars) {
 function _escape$7(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+function _defaultDeadline() {
+  const d = /* @__PURE__ */ new Date();
+  d.setDate(d.getDate() + 14);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function _stripHtml$1(html) {
+  return String(html || "").replace(/<br\s*\/?>/gi, " ").replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
 function _roleInfo() {
   var _a, _b, _c, _d;
   const perms = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.permissions;
@@ -2649,11 +2781,11 @@ function openAcceptanceDetails(item, handlers) {
           description: c.name || c.id,
           category: c.category,
           contractorId: latest.contractorId || null,
-          deadline: null,
+          deadline: _defaultDeadline(),
           template_key: latest.template_key || null,
           item_id: c.id,
           item_name: c.name || null,
-          norm_text: c.norm || null,
+          norm_text: _stripHtml$1(c.norm || "") || null,
           photos: [],
           status: "issued"
         });
@@ -2817,14 +2949,15 @@ function openAcceptanceDetails(item, handlers) {
       },
       onHelp: (id, event, itemMeta) => {
         var _a3, _b3, _c3;
-        const openMenu = window.openItemHelpMenu;
-        if (typeof openMenu === "function") {
-          openMenu(id, event, { templateKey: tmplKey, checklist: groups });
+        const helpCtx = { templateKey: tmplKey, checklist: groups };
+        const svc = (_b3 = (_a3 = window.RBI) == null ? void 0 : _a3.services) == null ? void 0 : _b3.knowledge;
+        if (svc && typeof svc.openItemHelp === "function") {
+          svc.openItemHelp(id, event, helpCtx);
           return;
         }
-        const svc = (_b3 = (_a3 = window.RBI) == null ? void 0 : _a3.services) == null ? void 0 : _b3.knowledge;
-        if (svc == null ? void 0 : svc.openItemHelp) {
-          svc.openItemHelp(id, event);
+        const openMenu = window.openItemHelpMenu;
+        if (typeof openMenu === "function") {
+          openMenu(id, event, helpCtx);
           return;
         }
         (_c3 = window.showToast) == null ? void 0 : _c3.call(window, _t$8("construction.v2.acc.knowledge_unavailable", "База знаний недоступна"));
@@ -3950,6 +4083,9 @@ function _t$3(key, fallback, vars) {
 function _escape$3(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+function _stripHtml(html) {
+  return String(html || "").replace(/<br\s*\/?>/gi, " ").replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
 function _statusLabel$1(s) {
   const map = {
     issued: ["construction.status.issued", "Выдано"],
@@ -4029,7 +4165,9 @@ function renderDefectsRegistry(host, opts) {
           ${_escape$3(_t$3("construction.v2.registry.empty_filter", "Нет замечаний по выбранному фильтру"))}
         </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered.map((d, i) => {
-    const desc = String(d.description || d.item_name || d.text || _t$3("construction.v2.no_description", "Без описания")).slice(0, 140);
+    const desc = _stripHtml(
+      String(d.description || d.item_name || d.text || _t$3("construction.v2.no_description", "Без описания"))
+    ).slice(0, 140);
     const dl = _deadlineMeta(d);
     const openDays = daysOpen(d);
     const daysBadge = openDays != null ? `<span class="text-[10px] font-bold ${dl.overdue ? "text-red-600 dark:text-red-400" : "text-slate-400"}">${openDays} ${_escape$3(_t$3("construction.v2.registry.days_short", "дн."))}</span>` : "";

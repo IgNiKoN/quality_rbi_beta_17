@@ -52,9 +52,12 @@ const DATA_SCOPES = [
 ];
 
 const MODULE_OPTIONS = [
-    { id: 'quality', labelKey: 'settings.admin.roles.module.quality', hintKey: 'settings.admin.roles.module.quality_hint', labelFb: 'Качество', hintFb: 'Модуль качества: осмотр, история, аналитика, задачи, БЗ и связанные вкладки.' },
-    { id: 'construction', labelKey: 'settings.admin.roles.module.construction', hintKey: 'settings.admin.roles.module.construction_hint', labelFb: 'Стройконтроль', hintFb: 'Модуль стройконтроля: дефекты, приёмка, планы, кабинет подрядчика.' }
+    { id: 'quality', labelKey: 'settings.admin.roles.module.quality', hintKey: 'settings.admin.roles.module.quality_hint', labelFb: 'Качество', hintFb: 'Модуль качества: осмотр, история, аналитика, задачи и связанные вкладки.' },
+    { id: 'construction', labelKey: 'settings.admin.roles.module.construction', hintKey: 'settings.admin.roles.module.construction_hint', labelFb: 'Стройконтроль', hintFb: 'Модуль стройконтроля: дефекты, приёмка, планы, кабинет подрядчика.' },
+    { id: 'knowledge', labelKey: 'settings.admin.roles.module.knowledge', hintKey: 'settings.admin.roles.module.knowledge_hint', labelFb: 'База знаний', hintFb: 'Сквозной модуль базы знаний (TWI, документы, узлы). По умолчанию включён у всех ролей.' }
 ];
+
+const DEFAULT_MODULES = ['quality', 'construction', 'knowledge'];
 
 function _perm() {
     return (window.RBI && window.RBI.services && window.RBI.services.permissions) || null;
@@ -113,7 +116,7 @@ function _ensureDraft() {
         return;
     }
     _draft = Object.assign({}, entry, {
-        allowedModules: Array.isArray(entry.allowedModules) ? entry.allowedModules.slice() : ['quality', 'construction']
+        allowedModules: Array.isArray(entry.allowedModules) ? entry.allowedModules.slice() : DEFAULT_MODULES.slice()
     });
 }
 
@@ -135,7 +138,7 @@ function _readFormIntoDraft() {
         const el = document.getElementById('role-matrix-mod-' + m.id);
         if (el && el.checked) mods.push(m.id);
     });
-    _draft.allowedModules = mods.length ? mods : ['quality', 'construction'];
+    _draft.allowedModules = mods.length ? mods : DEFAULT_MODULES.slice();
 }
 
 function _roleListHtml() {
@@ -254,7 +257,7 @@ function _rootHtml() {
     return `
         <div class="p-4 space-y-3">
             <div class="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                ${_escapeHtml(_t('settings.admin.roles.intro', 'Изменения пока сохраняются в настройках профиля админа (не общая матрица компании). Ключи ролей (guest…manager) не меняются. Чтобы права реально действовали у инженеров/подрядчиков — нужен отдельный блок: общая матрица + раздача при sync; жёсткий RLS в базе — ещё позже.'))}
+                ${_escapeHtml(_t('settings.admin.roles.intro', 'Командная матрица ролей (синхронизируется на устройства через облако). Пустые оверрайды = права по умолчанию из кода. Ключи ролей (guest…manager) не меняются. Жёсткий RLS в базе — отдельный блок.'))}
             </div>
             <div class="grid grid-cols-1 md:grid-cols-[11rem_1fr] gap-3">
                 <div id="role-matrix-list" class="flex flex-col gap-1.5">${_roleListHtml()}</div>
@@ -302,7 +305,7 @@ async function _onSave() {
                 ? _t('settings.admin.roles.forbidden', '⛔ Нет прав')
                 : _t('settings.admin.roles.save_error', '❌ Ошибка сохранения'));
         } else {
-            _toast(_t('settings.admin.roles.saved', '✅ Права роли сохранены'));
+            _toast(_t('settings.admin.roles.saved', '✅ Права роли сохранены (командная матрица)'));
             _draft = null;
             _ensureDraft();
         }

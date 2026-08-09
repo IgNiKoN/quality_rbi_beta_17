@@ -17,7 +17,7 @@ var MODULE_BASE_URLS = {
     'quality':      './js/modules/quality/',
     'sk':           './js/modules/quality/features/sk/',
     'settings':     './js/modules/settings/',
-    'knowledge':    './js/modules/quality/features/knowledge/',
+    'knowledge':    './js/modules/knowledge/',
     'construction':    './js/modules/construction/',
     'construction-v2': './js/modules/construction-v2/',
     'game':            './js/modules/quality/features/gamification/',
@@ -25,6 +25,9 @@ var MODULE_BASE_URLS = {
 };
 
 window.RBI.moduleLoader = {
+    /** Once-cache: id → Promise<module> (повторный loadModule не зовёт init снова). */
+    _loaded: Object.create(null),
+
     /** Возвращает копию массива всех манифестов. */
     getAll: function () {
         return ModulesManifest.slice();
@@ -64,9 +67,15 @@ window.RBI.moduleLoader = {
      * Динамически загружает и инициализирует модуль по id.
      * Читает manifest.entry, строит URL, делает import(), вызывает init(ctx).
      * ctx — необязателен; если не передан, берётся window.RBI.ctx или {}.
+     * Идемпотентен: повторный вызов того же id возвращает тот же Promise (без повторного init).
      * Возвращает Promise<module>.
      */
     loadModule: function (id, ctx) {
+        var self = this;
+        if (self._loaded[id]) {
+            console.log('[module-loader] loadModule: cache-hit ' + id);
+            return self._loaded[id];
+        }
         var manifest = getModuleManifest(id);
         if (!manifest) {
             console.error('[module-loader] loadModule: манифест не найден для id=' + id);
@@ -85,7 +94,7 @@ window.RBI.moduleLoader = {
         var entryUrl = new URL(relativeUrl, document.baseURI).href;
         var resolvedCtx = ctx || (window.RBI && window.RBI.ctx) || {};
         console.log('[module-loader] loadModule: загружаю ' + id + ' → ' + entryUrl);
-        return import(entryUrl).then(function (mod) {
+        var promise = import(entryUrl).then(function (mod) {
             if (typeof mod.init === 'function') {
                 return Promise.resolve(mod.init(resolvedCtx)).then(function () {
                     console.log('[module-loader] loadModule: init выполнен для ' + id);
@@ -95,9 +104,19 @@ window.RBI.moduleLoader = {
             console.log('[module-loader] loadModule: модуль загружен (нет init) ' + id);
             return mod;
         }).catch(function (err) {
+            delete self._loaded[id];
             console.error('[module-loader] loadModule: ошибка при загрузке ' + id, err);
             return Promise.reject(err);
         });
+        self._loaded[id] = promise;
+        return promise;
+    },
+
+    /**
+     * Алиас loadModule для early-ensure (views/bootstrap) — тот же once-cache.
+     */
+    ensureLoaded: function (id, ctx) {
+        return this.loadModule(id, ctx);
     }
 };
 

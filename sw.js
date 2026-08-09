@@ -1,11 +1,78 @@
 /* Файл: sw.js */
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
-const APP_VERSION = '18.58.0';
-const SW_VERSION = '18.58.75';
+const APP_VERSION = '18.59.0';
+const SW_VERSION = '18.59.1';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
-// 1. ПРЕ-КЭШ: Локальные файлы и ВНЕШНИЕ БИБЛИОТЕКИ (для 100% офлайна)
+/**
+ * Business path prefix → shortId (app.entry allowSet / RBI_SW_ALLOWLIST).
+ * Order: longer / more specific prefixes first (construction-v2 before construction).
+ * *.manifest.js under these prefixes are NOT gated (declarative glue for modules.manifest.js).
+ */
+const BUSINESS_PREFIX_TO_MODULE = [
+  { prefix: '/js/modules/construction-v2/', module: 'construction-v2' },
+  { prefix: '/js/modules/construction/', module: 'construction' },
+  { prefix: '/js/modules/quality/', module: 'quality' },
+  { prefix: '/js/dist/construction-v2.js', module: 'construction-v2' },
+  { prefix: '/js/dist/rbi-construction-', module: 'construction' }
+];
+
+/** null = allowlist ещё не пришёл — временно разрешаем cache.put (первый paint). */
+let allowedModules = null;
+
+function isManifestUrl(url) {
+  try {
+    const path = new URL(url).pathname;
+    return /(^|\/)[^/]*manifest\.js$/.test(path);
+  } catch (e) {
+    return false;
+  }
+}
+
+function resolveBusinessModule(url) {
+  try {
+    const path = new URL(url).pathname;
+    for (let i = 0; i < BUSINESS_PREFIX_TO_MODULE.length; i++) {
+      const { prefix, module } = BUSINESS_PREFIX_TO_MODULE[i];
+      if (prefix.endsWith('.js')) {
+        if (path === prefix || path.endsWith(prefix)) return module;
+      } else if (path.indexOf(prefix) !== -1) {
+        return module;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function mayCachePut(url) {
+  if (isManifestUrl(url)) return true;
+  const mod = resolveBusinessModule(url);
+  if (!mod) return true;
+  if (allowedModules === null) return true;
+  return allowedModules.indexOf(mod) !== -1;
+}
+
+function purgeDisallowedBusinessCache() {
+  if (allowedModules === null) return Promise.resolve();
+  return caches.open(CACHE_NAME).then((cache) => {
+    return cache.keys().then((keys) => {
+      return Promise.all(
+        keys.map((req) => {
+          if (isManifestUrl(req.url)) return null;
+          const mod = resolveBusinessModule(req.url);
+          if (mod && allowedModules.indexOf(mod) === -1) {
+            return cache.delete(req);
+          }
+          return null;
+        })
+      );
+    });
+  });
+}
+
+// 1. ПРЕ-КЭШ: shell + settings + locations (+ business *.manifest.js as declarations).
+// Business bundles (quality/construction/…) — runtime cache via fetch + RBI_SW_ALLOWLIST.
 const urlsToCache = [
   './',
   './index.html',
@@ -29,12 +96,6 @@ const urlsToCache = [
   './data/system_twi.js',
   './js/shared/template.utils.js',
   './data/system_templates.js',
-  './js/modules/construction/features/construction-core.js',
-  './js/modules/construction/features/defect-form.js',
-  './js/modules/construction/features/pdf-viewer.js',
-  './js/modules/construction/features/admin.js',
-  './js/modules/construction/features/acceptance.js',
-  './js/modules/construction/features/transfer.js',
   './js/core/router.js',
   './js/core/views.js',
   './js/services/config.service.js',
@@ -145,148 +206,21 @@ const urlsToCache = [
   './js/modules/settings/features/contractor-id-backfill-ui.js',
   './js/modules/settings/features/project-id-backfill-ui.js',
   './js/modules/settings/features/cloud-deleted-purge-ui.js',
+  './js/modules/settings/features/cloud-orphan-urls-ui.js',
   './js/modules/settings/features/role-matrix-ui.js',
+  './js/modules/settings/features/enabled-modules-ui.js',
   './js/modules/settings/features/location-directory-ui.js',
   './js/modules/settings/index.js',
   './js/dist/rbi-locations.js',
-  './js/dist/rbi-construction-defects.js',
-  './js/dist/rbi-construction-acceptance.js',
-  './js/dist/rbi-construction-units.js',
-  './js/dist/construction-v2.js',
-  './js/modules/construction-v2/construction-v2.manifest.js',
-  './js/modules/construction-v2/index.js',
 
-  // Фаза 9 — Knowledge Module
-  './js/modules/quality/features/knowledge/knowledge.manifest.js',
-  './js/modules/quality/features/knowledge/knowledge.module.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.render.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.checklists.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.docs.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.twi.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.nodes.js',
-  './js/modules/quality/features/knowledge/knowledge.desktop.practices.js',
-  './js/modules/quality/features/knowledge/knowledge.state.js',
-  './js/modules/quality/features/knowledge/knowledge.actions.js',
-  './js/modules/quality/features/knowledge/knowledge.render.js',
-  './js/modules/quality/features/knowledge/twi.docx-export.js',
-  './js/modules/quality/features/knowledge/features/faq.js',
-  './js/modules/quality/features/knowledge/index.js',
-
-  // Фаза 10 — Tasks Module
-  './js/modules/quality/features/tasks/tasks.module.js',
-  './js/modules/quality/features/tasks/tasks.state.js',
-  './js/modules/quality/features/tasks/tasks.actions.js',
-  './js/modules/quality/features/tasks/tasks.render.js',
-
-  // Фаза 11 — Analytics Module
-  './js/modules/quality/features/analytics/analytics.module.js',
-  './js/modules/quality/features/analytics/analytics.state.js',
-  './js/modules/quality/features/analytics/analytics.actions.js',
-  './js/modules/quality/features/analytics/analytics.render.js',
-  './js/modules/quality/features/analytics/analytics.pptx-export.js',
-  './js/modules/quality/features/analytics/analytics.desktop.render.js',
-  './js/modules/quality/features/analytics/history.desktop.content.js',
-  './js/modules/quality/features/analytics/sk.desktop.content.js',
-  './js/modules/quality/features/analytics/schedule.desktop.content.js',
-
-  // Фаза 12 — History Module
-  './js/modules/quality/features/history/history.module.js',
-  './js/modules/quality/features/history/history.state.js',
-  './js/modules/quality/features/history/history.actions.js',
-  './js/modules/quality/features/history/history.render.js',
-  './js/modules/quality/features/shared/multi-filter.js',
-  './js/modules/quality/features/shared/plan-pin-label.js',
-  './js/modules/quality/features/shared/plan-pin-print.js',
-  './js/modules/quality/features/reference/reference.js',
-
-  // Фаза 13 — SK Module
-  './js/modules/quality/features/sk/sk.module.js',
-  './js/modules/quality/features/sk/sk.state.js',
-  './js/modules/quality/features/sk/sk.actions.js',
-  './js/modules/quality/features/sk/sk.render.js',
-  './js/modules/quality/features/sk/sk.manifest.js',
-  './js/modules/quality/features/sk/index.js',
-
-  // Фаза 14 — Audit Module
-  './js/modules/quality/features/audit/audit.module.js',
-  './js/modules/quality/features/audit/audit.state.js',
-  './js/modules/quality/features/audit/audit.actions.js',
-  './js/modules/quality/features/audit/audit.render.js',
-  './js/modules/quality/features/audit/audit.desktop.render.js',
-  './js/modules/quality/features/audit/features/quality-plan-pin.js',
-
-  // Фаза 15 — Construction Module
-  './js/modules/construction/construction.module.js',
-  './js/modules/construction/construction.state.js',
-  './js/modules/construction/construction.actions.js',
-  './js/modules/construction/construction.render.js',
-  './js/modules/construction/construction.manifest.js',
-  './js/modules/construction/index.js',
-
-  // Фаза 16 — Reports Module
-  './js/modules/quality/features/reports/reports.module.js',
-  './js/modules/quality/features/reports/reports.state.js',
-  './js/modules/quality/features/reports/reports.actions.js',
-  './js/modules/quality/features/reports/reports.render.js',
-  './js/modules/quality/features/reports/report-preview.js',
-  './js/modules/quality/features/reports/reports.pptx-export.js',
-  './js/modules/quality/features/reports/reports.pptx-viewer.js',
-
-  // Фаза 17 — Game Module
-  './js/modules/quality/features/gamification/game.module.js',
-  './js/modules/quality/features/gamification/game.state.js',
-  './js/modules/quality/features/gamification/game.actions.js',
-  './js/modules/quality/features/gamification/game.render.js',
-  './js/modules/quality/features/gamification/game.manifest.js',
-  './js/modules/quality/features/gamification/index.js',
-
-  // Фаза 18 — Etalon Module
-  './js/modules/quality/features/etalon/etalon.module.js',
-  './js/modules/quality/features/etalon/etalon.state.js',
-  './js/modules/quality/features/etalon/etalon.actions.js',
-  './js/modules/quality/features/etalon/etalon.render.js',
-  './js/modules/quality/features/etalon/etalon-v18.render.js',
-  './js/modules/quality/features/etalon/etalon-v18.actions.js',
-  './js/modules/quality/features/etalon/etalon-v18b.render.js',
-  './js/modules/quality/features/etalon/etalon-v18b.actions.js',
-  './js/modules/quality/features/etalon/etalon-v18b.frame.html',
-  './js/modules/quality/features/etalon/etalon.docx-export.js',
-
-  // Фаза 19 — AI Module
-  './js/modules/quality/features/ai/ai.module.js',
-  './js/modules/quality/features/ai/ai.state.js',
-  './js/modules/quality/features/ai/ai.actions.js',
-  './js/modules/quality/features/ai/ai.render.js',
-  './js/modules/quality/features/ai/ai.manifest.js',
-  './js/modules/quality/features/ai/index.js',
-
-  // Фаза 20 — Engineer Module
-  './js/modules/quality/features/engineer/engineer.module.js',
-  './js/modules/quality/features/engineer/engineer.state.js',
-  './js/modules/quality/features/engineer/engineer.actions.js',
-  './js/modules/quality/features/engineer/engineer.render.js',
-  './js/modules/quality/features/engineer/engineer.desktop.render.js',
-
-  // Блок 29 — Schedule Module (Wrapper, Шаг 1/10)
-  './js/modules/quality/features/schedule/schedule.module.js',
-  './js/modules/quality/features/schedule/schedule.state.js',
-  './js/modules/quality/features/schedule/schedule.actions.js',
-  './js/modules/quality/features/schedule/schedule.render.js',
-
-  // Step 32 — Meetings Module (Wrapper, Шаг 1/10)
-  './js/modules/quality/features/meetings/meetings.module.js',
-  './js/modules/quality/features/meetings/meetings.state.js',
-  './js/modules/quality/features/meetings/meetings.actions.js',
-  './js/modules/quality/features/meetings/meetings.render.js',
-  './js/modules/quality/features/meetings/meetings.protocol.js',
-  './js/modules/quality/features/meetings/meetings.docx-export.js',
-
-  // Compact Module Restructure, шаг 1 — агрегирующий platform module quality
+  // Business manifests only (declarative; modules.manifest.js imports them)
   './js/modules/quality/manifest.js',
-  './js/modules/quality/index.js',
-  './js/modules/quality/quality.module.js',
-  './js/modules/quality/features/interventions.js',
-  './js/modules/quality/features/practice.pptx-export.js',
+  './js/modules/quality/features/sk/sk.manifest.js',
+  './js/modules/knowledge/knowledge.manifest.js',
+  './js/modules/quality/features/gamification/game.manifest.js',
+  './js/modules/quality/features/ai/ai.manifest.js',
+  './js/modules/construction/construction.manifest.js',
+  './js/modules/construction-v2/construction-v2.manifest.js',
 
   // Модули (legacy)
   './manifest.webmanifest',
@@ -413,7 +347,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && mayCachePut(event.request.url)) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -470,5 +404,12 @@ self.addEventListener('message', (event) => {
   // Если получаем команду SKIP_WAITING от кнопки "Обновить" в интерфейсе
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting(); // Заставляем новый Service Worker немедленно взять управление на себя
+    return;
+  }
+  // Platform runtime independence · столп A: allowlist shortIds → gate cache.put + purge
+  if (event.data && event.data.type === 'RBI_SW_ALLOWLIST' && Array.isArray(event.data.modules)) {
+    allowedModules = event.data.modules.slice();
+    console.log('[SW] RBI_SW_ALLOWLIST:', allowedModules.join(','));
+    event.waitUntil(purgeDisallowedBusinessCache());
   }
 });

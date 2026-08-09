@@ -95,7 +95,7 @@ function showModePlaceholder(modeName, customMessage) {
     var keepHeader = !window.rbi_sidebarPlaceholderReturnHash;
     switchViewNode('tab-mode-placeholder', keepHeader);
 
-    // Sidebar-поток (rbi_showSidebarPlaceholder) не меняет AppModeManager.currentMode,
+    // Sidebar-поток (rbi_showSidebarPlaceholder) не меняет window.AppModeManager.currentMode,
     // поэтому renderBottomNav() не вызывается и таббар (Осмотр/Инженер/... или
     // Дефекты/Приёмка/...) остаётся видимым поверх заглушки — прячем его явно
     // здесь. Поток AppModeManager (safety/warranty/uk) уже скрывает нав сам
@@ -111,7 +111,7 @@ function showModePlaceholder(modeName, customMessage) {
 // бизнес-режима AppModeManager (§29 п.9 — «Тендерный отдел»/«Стандарты»/
 // «Сроки»/«Бюджет» и т.п.). В отличие от showModePlaceholder(...) из
 // AppModeManager-потока (safety/warranty/uk), здесь НЕ меняется
-// AppModeManager.currentMode/previousMode — раздел открывается «поверх»
+// window.AppModeManager.currentMode/previousMode — раздел открывается «поверх»
 // текущего маршрута без переключения бизнес-режима. Поэтому кнопка «Назад»
 // не может полагаться на revertToPreviousMode() (no-op, если currentMode не
 // менялся) — путь возврата запоминается отдельно и обрабатывается
@@ -151,17 +151,30 @@ window.AppViews = {
         if (typeof window.ensureAuditMarkup === 'function') {
             try { window.ensureAuditMarkup(); } catch (_) { /* ignore */ }
         }
-        if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'quality') window.AppModeManager.changeMode('quality');
         switchViewNode('tab-audit', true); // ТУТ TRUE (шапка нужна)
+        // После teardown→remount options в fake/checklist select пустые —
+        // идемпотентно перезаполнить (ensureAuditMarkup тоже чинит remount).
+        if (typeof window.renderSelector === 'function') {
+            try { window.renderSelector(); } catch (_) { /* ignore */ }
+        }
         if (typeof updateUI === 'function') updateUI();
         if (typeof updateFabButton === 'function') updateFabButton('tab-audit');
+        // Desktop shell: AppRouter держит снимок renderAudit с DCL, а navigate
+        // идёт через replaceState (без hashchange). После ухода в соседний модуль
+        // teardown снимает wide — без sync здесь ПК залипает в mobile-шапке.
+        try {
+            if (window.__auditDesktop && typeof window.__auditDesktop.sync === 'function') {
+                window.__auditDesktop.sync();
+            }
+        } catch (_) { /* ignore */ }
     },
     
     renderEngineer() {
         if (typeof window.ensureEngineerMarkup === 'function') {
             try { window.ensureEngineerMarkup(); } catch (_) { /* ignore */ }
         }
-        if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'quality') window.AppModeManager.changeMode('quality');
         var tabEl = document.getElementById('tab-engineer');
         var alreadyMounted = !!(tabEl && tabEl.classList.contains('active') && tabEl.querySelector('#engineer-subtabs-block'));
         switchViewNode('tab-engineer', false); // ТУТ FALSE
@@ -178,6 +191,11 @@ window.AppViews = {
             }
         }
         if (typeof updateFabButton === 'function') updateFabButton('tab-engineer');
+        try {
+            if (window.__engineerDesktop && typeof window.__engineerDesktop.sync === 'function') {
+                window.__engineerDesktop.sync();
+            }
+        } catch (_) { /* ignore */ }
     },
 
     renderAnalytics() {
@@ -241,7 +259,7 @@ window.AppViews = {
             return;
         }
 
-        if (AppModeManager.currentMode !== 'quality') AppModeManager.changeMode('quality');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'quality') window.AppModeManager.changeMode('quality');
         switchViewNode('tab-analytics', false); // Шапка скрыта
 
         function _syncAnalyticsSubFromHash() {
@@ -346,8 +364,12 @@ window.AppViews = {
         var alreadyMounted = !!(tabEl && tabEl.classList.contains('active') && tabEl.querySelector('#reference-subtabs-block'));
         switchViewNode('tab-reference', false); // ТУТ FALSE
         if (typeof updateFabButton === 'function') updateFabButton('tab-reference');
+        var hash = window.location.hash || '';
+        var refBase = '#/quality/reference';
+        if (hash.indexOf('#/knowledge') === 0) refBase = '#/knowledge';
+        else if (hash.indexOf('#/construction/reference') === 0) refBase = '#/construction/reference';
         var subId = (window.AppRouter && typeof window.AppRouter.subTabIdFromPath === 'function')
-            ? window.AppRouter.subTabIdFromPath(window.location.hash || '', '#/quality/reference')
+            ? window.AppRouter.subTabIdFromPath(hash, refBase)
             : null;
         subId = subId || 'ref-sub-checklists';
         if (alreadyMounted && typeof window.switchReferenceSubTab === 'function') {
@@ -370,6 +392,14 @@ window.AppViews = {
                 });
             }
         }
+    },
+
+    renderKnowledge() {
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'knowledge') {
+            window.AppModeManager.changeMode('knowledge');
+            return;
+        }
+        window.AppViews.renderReference();
     },
 
     renderSettings() {
@@ -416,7 +446,7 @@ window.AppViews = {
         if (typeof window.ensureConstructionMarkup === 'function') {
             try { window.ensureConstructionMarkup('tab-construction-defects'); } catch (_) { /* ignore */ }
         }
-        if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'construction') window.AppModeManager.changeMode('construction');
         switchViewNode('tab-construction-defects', true); // ТУТ TRUE (нужна шапка с режимами)
         
         // Запуск логики отрисовки планов СК
@@ -428,7 +458,7 @@ window.AppViews = {
         if (typeof window.ensureConstructionMarkup === 'function') {
             try { window.ensureConstructionMarkup('tab-construction-acceptance'); } catch (_) { /* ignore */ }
         }
-        if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'construction') window.AppModeManager.changeMode('construction');
         switchViewNode('tab-construction-acceptance', true); 
         if (window.ConstructionActions && typeof window.ConstructionActions.initAcceptance === 'function') window.ConstructionActions.initAcceptance(); 
     },
@@ -437,7 +467,7 @@ window.AppViews = {
     renderConstructionReports() { showModePlaceholder('construction_reports'); },
 
     renderConstructionReference() {
-        if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'construction') window.AppModeManager.changeMode('construction');
         window.AppViews.renderReference();
     },
     
@@ -447,7 +477,7 @@ window.AppViews = {
             try { window.ensureConstructionMarkup('tab-transfer'); } catch (_) { /* ignore */ }
         }
         // Если мы не в Стройконтроле, переключаемся на Стройконтроль
-        if (AppModeManager.currentMode !== 'construction') AppModeManager.changeMode('construction');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'construction') window.AppModeManager.changeMode('construction');
         
         switchViewNode('tab-transfer', true); 
         
@@ -461,8 +491,8 @@ window.AppViews = {
 
     // Новый construction-v2 (Vite) — параллельный тестовый контур, не legacy #/construction/*
     renderConstructionV2() {
-        if (AppModeManager.currentMode !== 'construction-v2') {
-            AppModeManager.changeMode('construction-v2');
+        if (window.AppModeManager && window.AppModeManager.currentMode !== 'construction-v2') {
+            window.AppModeManager.changeMode('construction-v2');
             return;
         }
         if (window.ConstructionV2Module && typeof window.ConstructionV2Module.showTab === 'function') {
@@ -475,33 +505,58 @@ window.AppViews = {
     renderNotFound() { showModePlaceholder('404'); }
 };
 
+async function ensureSettingsModuleLoaded() {
+    if (window.AppModeManager) return;
+    var loader = window.RBI && window.RBI.moduleLoader;
+    if (!loader || typeof loader.loadModule !== 'function') {
+        console.warn('[views] moduleLoader unavailable for settings ensure');
+        return;
+    }
+    var ctx = (window.RBI.createContext && window.RBI.createContext()) || {};
+    await loader.loadModule('settings', ctx);
+}
+
 // Регистрируем маршруты
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Live lookup: desktop-модули патчат AppViews.* после DCL; снимок fn с DCL
+    // обходил wrap → sync не вызывался после AppRouter.navigate(replaceState).
+    function route(fnName) {
+        return function () {
+            var fn = window.AppViews && window.AppViews[fnName];
+            if (typeof fn === 'function') return fn.apply(window.AppViews, arguments);
+        };
+    }
     // Качество (База)
-    AppRouter.addRoute('#/quality/audit', window.AppViews.renderAudit);
-    AppRouter.addRoute('#/quality/engineer', window.AppViews.renderEngineer);
-    AppRouter.addRoute('#/quality/analytics', window.AppViews.renderAnalytics);
-    AppRouter.addRoute('#/quality/reference', window.AppViews.renderReference);
-    AppRouter.addRoute('#/settings', window.AppViews.renderSettings);
+    AppRouter.addRoute('#/quality/audit', route('renderAudit'));
+    AppRouter.addRoute('#/quality/engineer', route('renderEngineer'));
+    AppRouter.addRoute('#/quality/analytics', route('renderAnalytics'));
+    AppRouter.addRoute('#/quality/reference', route('renderReference'));
+    AppRouter.addRoute('#/knowledge', route('renderKnowledge'));
+    AppRouter.addRoute('#/settings', route('renderSettings'));
     // Legacy alias — resolveRoute longest-prefix; normalizeSubPath перепишет hash
-    AppRouter.addRoute('#/quality/settings', window.AppViews.renderSettings);
+    AppRouter.addRoute('#/quality/settings', route('renderSettings'));
     
    // Стройконтроль
-    AppRouter.addRoute('#/construction/defects', window.AppViews.renderConstructionDefects);
-    AppRouter.addRoute('#/construction/acceptance', window.AppViews.renderConstructionAcceptance);
-    AppRouter.addRoute('#/construction/reports', window.AppViews.renderConstructionReports);
-    AppRouter.addRoute('#/construction/transfer', window.AppViews.renderTransfer);
-    AppRouter.addRoute('#/construction/reference', window.AppViews.renderConstructionReference);
-    AppRouter.addRoute('#/construction-v2', window.AppViews.renderConstructionV2);
+    AppRouter.addRoute('#/construction/defects', route('renderConstructionDefects'));
+    AppRouter.addRoute('#/construction/acceptance', route('renderConstructionAcceptance'));
+    AppRouter.addRoute('#/construction/reports', route('renderConstructionReports'));
+    AppRouter.addRoute('#/construction/transfer', route('renderTransfer'));
+    AppRouter.addRoute('#/construction/reference', route('renderConstructionReference'));
+    AppRouter.addRoute('#/construction-v2', route('renderConstructionV2'));
     
     // Заглушки
-    AppRouter.addRoute('#/warranty/placeholder', window.AppViews.renderWarranty);
-    AppRouter.addRoute('#/uk/placeholder', window.AppViews.renderUk);
-    AppRouter.addRoute('#/safety/placeholder', window.AppViews.renderSafety); // <-- ДОБАВИЛИ ЭТУ СТРОКУ
+    AppRouter.addRoute('#/warranty/placeholder', route('renderWarranty'));
+    AppRouter.addRoute('#/uk/placeholder', route('renderUk'));
+    AppRouter.addRoute('#/safety/placeholder', route('renderSafety'));
     
-    AppRouter.addRoute('*', window.AppViews.renderNotFound);
+    AppRouter.addRoute('*', route('renderNotFound'));
     
-    // Инициализация менеджера режимов перед роутером
-    AppModeManager.init();
+    // Settings раньше жил в статичных <script> до DCL; теперь — early loadModule
+    await ensureSettingsModuleLoaded();
+    if (window.AppModeManager && typeof window.AppModeManager.init === 'function') {
+        window.AppModeManager.init();
+    } else {
+        console.warn('[views] AppModeManager unavailable after settings ensure');
+    }
     AppRouter.init();
 });

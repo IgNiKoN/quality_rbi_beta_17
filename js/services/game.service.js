@@ -7,6 +7,26 @@
     window.RBI = window.RBI || {};
     window.RBI.services = window.RBI.services || {};
 
+    /* SoT календарных хелперов (Фаза B++): копия game.state.js — работает без game.module / window.* */
+    function _getWeekId(date) {
+        if (date == null) date = new Date();
+        var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        var dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return d.getUTCFullYear() + '-W' + weekNo;
+    }
+
+    function _getStartOfWeek(date) {
+        if (date == null) date = new Date();
+        var d = new Date(date);
+        var day = d.getDay() || 7;
+        if (day !== 1) d.setHours(-24 * (day - 1));
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
     window.RBI.services.game = {
 
         getWeeklyPlanSync: function () {
@@ -103,18 +123,16 @@
             window.saveWeeklyPlan();
         },
         getWeekId: function (date) {
-            if (typeof window.getWeekId !== 'function') {
-                console.warn('[RBI Game Service] window.getWeekId недоступен');
-                return null;
+            if (typeof window.getWeekId === 'function') {
+                return window.getWeekId(date);
             }
-            return window.getWeekId(date);
+            return _getWeekId(date);
         },
         getStartOfWeek: function (date) {
-            if (typeof window.getStartOfWeek !== 'function') {
-                console.warn('[RBI Game Service] window.getStartOfWeek недоступен');
-                return null;
+            if (typeof window.getStartOfWeek === 'function') {
+                return window.getStartOfWeek(date);
             }
-            return window.getStartOfWeek(date);
+            return _getStartOfWeek(date);
         }
     };
 

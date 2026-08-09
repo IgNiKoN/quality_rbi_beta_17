@@ -20,6 +20,24 @@
  */
 
 import { AnalyticsState } from './analytics.state.js';
+import { meetingRichToSafeHtml } from '../meetings/meetings.protocol.js';
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
 
 /** Ключ линии подрядчика на трендах — тот же формат, что в списке/фильтре. */
 function trendContractorKey(item) {
@@ -44,7 +62,7 @@ function _trendCatMatchesFilter(cat, allowedCats) {
 function _trendBucketLabel(d, period) {
     if (period === 'YEAR') return d.getFullYear().toString();
     if (period === 'QUARTER') return `Q${Math.floor(d.getMonth() / 3) + 1} '${d.getFullYear().toString().slice(-2)}`;
-    if (period === 'WEEK') return `Нед.${window.getWeekNumber(d)} '${d.getFullYear().toString().slice(-2)}`;
+    if (period === 'WEEK') return `${_t('quality.analytics.period.week_short', 'Нед.')}${window.getWeekNumber(d)} '${d.getFullYear().toString().slice(-2)}`;
     return d.toLocaleString('ru-RU', { month: 'short', year: '2-digit' });
 }
 
@@ -463,7 +481,7 @@ export const AnalyticsActions = {
 
     onePagerTrendWindowHint(grouping) {
         const g = grouping || (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
-        return g === 'MONTH' ? '6 мес. · вне фильтра периода' : '12 нед. · вне фильтра периода';
+        return g === 'MONTH' ? _t('quality.analytics.trend.window_6m', '6 мес. · вне фильтра периода') : _t('quality.analytics.trend.window_12w', '12 нед. · вне фильтра периода');
     },
 
     // =========================================================================
@@ -550,7 +568,7 @@ export const AnalyticsActions = {
                 if (el) {
                     window.rbiShowContentSkeleton(el, {
                         cards: tabId === 'sub-history' ? 5 : 4,
-                        label: 'Загрузка…'
+                        label: _t('quality.analytics.loading', 'Загрузка…')
                     });
                 }
             }
@@ -633,7 +651,7 @@ export const AnalyticsActions = {
         // works — виды работ. Раньше для onepager ошибочно брался templateTitle,
         // а для contrs — голое contractorName без объекта → фильтр не попадал в ключи графика.
         const isContractorLines = (type === 'contrs' || type === 'onepager');
-        const title = isContractorLines ? 'Линии: Подрядчики' : 'Линии: Виды работ';
+        const title = isContractorLines ? _t('quality.analytics.chart.lines_contractors', 'Линии: Подрядчики') : _t('quality.analytics.chart.lines_works', 'Линии: Виды работ');
 
         const counts = {};
         data.forEach((i) => {
@@ -657,7 +675,7 @@ export const AnalyticsActions = {
         html += `<label class="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl mb-3 font-bold cursor-pointer text-indigo-800 dark:text-indigo-300">
             <input type="checkbox" id="chart-filter-auto" class="w-5 h-5 accent-indigo-600" onchange="if(this.checked) document.querySelectorAll('.chart-filter-cb').forEach(cb => cb.checked = false)" ${isAuto ? 'checked' : ''}>
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Автовыбор (до 10)
+            ${_t('quality.analytics.chart.auto_select', 'Автовыбор (до 10)')}
         </label>`;
 
         uniqueItems.forEach(item => {
@@ -667,13 +685,13 @@ export const AnalyticsActions = {
             html += `<label class="flex items-center gap-3 p-3 bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] rounded-xl cursor-pointer border border-[var(--card-border)] transition-colors">
                 <input type="checkbox" value="${safeVal}" class="chart-filter-cb w-5 h-5 accent-indigo-600 shrink-0" ${isChecked ? 'checked' : ''} onchange="document.getElementById('chart-filter-auto').checked = false">
                 <span class="text-[12px] truncate flex-1 min-w-0" title="${safeVal}">${safeLabel}</span>
-                <span class="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md font-bold shrink-0">${counts[item]} шт</span>
+                <span class="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md font-bold shrink-0">${counts[item]} ${_t('quality.analytics.chart.pcs', 'шт')}</span>
             </label>`;
         });
         html += `</div>
         <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold uppercase active:scale-95 border border-slate-200 dark:border-slate-700">Отмена</button>
-            <button onclick="saveChartFilters('${type}')" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase shadow-md active:scale-95">Применить</button>
+            <button onclick="closeModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold uppercase active:scale-95 border border-slate-200 dark:border-slate-700">${_t('quality.analytics.btn.cancel', 'Отмена')}</button>
+            <button onclick="saveChartFilters('${type}')" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase shadow-md active:scale-95">${_t('quality.analytics.btn.apply', 'Применить')}</button>
         </div>`;
 
         const modal = document.getElementById('modal-overlay');
@@ -692,7 +710,7 @@ export const AnalyticsActions = {
         if (isAuto) { window.selectedChartFilters[type] = []; }
         else {
             const checked = Array.from(document.querySelectorAll('.chart-filter-cb:checked')).map(cb => cb.value);
-            if (checked.length === 0) return showToast('Выберите линии или включите Авто');
+            if (checked.length === 0) return showToast(_t('quality.analytics.toast.select_lines', 'Выберите линии или включите Авто'));
             window.selectedChartFilters[type] = checked;
         }
         closeModal(); AnalyticsActions.updateTrendCharts(type);
@@ -754,7 +772,7 @@ export const AnalyticsActions = {
 
     resetExpertEdit() {
         if (!window.currentEditingExpertKey) return;
-        if (confirm('Сбросить текст до оригинального заключения ИИ? Ваша редакция будет удалена.')) {
+        if (confirm(_t('quality.analytics.confirm.reset_expert', 'Сбросить текст до оригинального заключения ИИ? Ваша редакция будет удалена.'))) {
             _reports().deleteExpertConclusion(window.currentEditingExpertKey);
             AnalyticsActions.cancelExpertEdit(); scheduleSessionSave();
             if (window.currentDetailedContractor) {
@@ -762,7 +780,7 @@ export const AnalyticsActions = {
             } else if (typeof window.renderCurrentAnalyticsTab === 'function') {
                 window.renderCurrentAnalyticsTab();
             }
-            showToast('Текст сброшен к исходному');
+            showToast(_t('quality.analytics.toast.expert_reset', 'Текст сброшен к исходному'));
         }
     },
 
@@ -770,14 +788,14 @@ export const AnalyticsActions = {
         const modalInput = document.getElementById('modal-expert-input');
         if (!modalInput || !window.currentEditingExpertKey) return;
         let newText = modalInput.value.trim();
-        if (newText === "") return showToast('Текст не может быть пустым!');
+        if (newText === "") return showToast(_t('quality.analytics.toast.expert_empty', 'Текст не может быть пустым!'));
 
         // Сводка One-Pager: лимит 500 символов, чтобы печать A3 не уезжала на 2-ю страницу.
         const isOnePagerPdca = window.currentEditingExpertKey === 'global_onepager_pdca'
             || String(window.currentEditingExpertKey || '').endsWith('_pdca');
         if (isOnePagerPdca && newText.length > 500) {
             newText = newText.slice(0, 499).trimEnd() + '…';
-            showToast('Текст обрезан до 500 символов для печати');
+            showToast(_t('quality.analytics.toast.expert_trimmed', 'Текст обрезан до 500 символов для печати'));
         }
 
         _reports().setExpertConclusion(window.currentEditingExpertKey, newText);
@@ -788,7 +806,7 @@ export const AnalyticsActions = {
         } else if (typeof window.renderCurrentAnalyticsTab === 'function') {
             window.renderCurrentAnalyticsTab();
         }
-        showToast('Изменения сохранены!');
+        showToast(_t('quality.analytics.toast.saved', 'Изменения сохранены!'));
     },
 
     copyExpertText(btnId, textAreaId) {
@@ -798,12 +816,12 @@ export const AnalyticsActions = {
 
         navigator.clipboard.writeText(textArea.value).then(() => {
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '✅<span class="hidden min-[400px]:inline"> Скопировано</span>';
+            btn.innerHTML = '✅<span class="hidden min-[400px]:inline"> ' + _t('quality.analytics.btn.copied', 'Скопировано') + '</span>';
             btn.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
             setTimeout(() => { btn.innerHTML = originalHtml; btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-200'); }, 2000);
-            showToast('Текст скопирован в буфер!');
+            showToast(_t('quality.analytics.toast.copied', 'Текст скопирован в буфер!'));
             _gameLogAction('ai_copy', 'clipboard');
-        }).catch(() => showToast('Ошибка копирования'));
+        }).catch(() => showToast(_t('quality.analytics.toast.copy_fail', 'Ошибка копирования')));
     },
 
     // =========================================================================
@@ -837,7 +855,7 @@ export const AnalyticsActions = {
                     window.refreshTwiPhotoCandidates();
                 }
 
-                showToast('✨ Магия сработала! Допишите текст и сохраните (+100 XP).');
+                showToast(_t('quality.analytics.toast.magic_twi', '✨ Магия сработала! Допишите текст и сохраните (+100 XP).'));
             }, 300);
         }, 100);
     },
@@ -888,7 +906,7 @@ export const AnalyticsActions = {
 
     async openReport(id) {
         const r = _reports().getAllSync().find(x => x.id === id);
-        if (!r) return showToast('Файл отчета не найден');
+        if (!r) return showToast(_t('quality.analytics.toast.report_not_found', 'Файл отчета не найден'));
 
         const isPptx = (r.mime_type && String(r.mime_type).includes('presentation'))
             || r.report_type === 'pptx'
@@ -906,7 +924,7 @@ export const AnalyticsActions = {
                 // In-app viewer (PptxViewJS); при сбое — скачивание.
                 if (typeof window.openPptxViewer === 'function') {
                     const ok = await window.openPptxViewer(blob, {
-                        title: r.title || 'Презентация',
+                        title: r.title || _t('quality.analytics.report.presentation', 'Презентация'),
                         downloadName
                     });
                     if (ok) return;
@@ -919,7 +937,7 @@ export const AnalyticsActions = {
                 a.click();
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(url), 15000);
-                showToast('PPTX скачан — откройте в PowerPoint');
+                showToast(_t('quality.analytics.toast.pptx_downloaded', 'PPTX скачан — откройте в PowerPoint'));
                 return;
             }
 
@@ -929,7 +947,7 @@ export const AnalyticsActions = {
                 try { legacyModal.remove(); } catch (_) { /* ignore */ }
             }
             if (typeof window.rbiOpenPdfDocument !== 'function') {
-                showToast('PDF opener недоступен');
+                showToast(_t('quality.analytics.toast.pdf_opener_unavailable', 'PDF opener недоступен'));
                 return;
             }
             const httpsUrl = (r.file_url && String(r.file_url).startsWith('http')) ? r.file_url : '';
@@ -1012,12 +1030,12 @@ export const AnalyticsActions = {
         // 2. ПРИОРИТЕТ 2: Файла локально нет — скачать по ссылке в IDB (не держать в RAM списка)
         if (r.file_url && r.file_url.startsWith('http')) {
             if (!navigator.onLine) {
-                return showToast('❌ Отчет не кэширован на устройстве. Нужен интернет для скачивания.');
+                return showToast(_t('quality.analytics.toast.report_not_cached', '❌ Отчет не кэширован на устройстве. Нужен интернет для скачивания.'));
             }
-            showToast('⏳ Скачиваем файл из облака...');
+            showToast(_t('quality.analytics.toast.downloading_cloud', '⏳ Скачиваем файл из облака...'));
             try {
                 const response = await fetch(r.file_url);
-                if (!response.ok) throw new Error("Не удалось скачать файл");
+                if (!response.ok) throw new Error(_t('quality.analytics.error.download_failed', 'Не удалось скачать файл'));
                 const blob = await response.blob();
 
                 const toSave = {
@@ -1058,12 +1076,12 @@ export const AnalyticsActions = {
             }
         }
 
-        showToast('❌ Ошибка: Файл отчета пуст или поврежден.');
+        showToast(_t('quality.analytics.toast.report_corrupt', '❌ Ошибка: Файл отчета пуст или поврежден.'));
     },
 
     async shareReport(id) {
         const r = _reports().getAllSync().find(x => x.id === id);
-        if (!r) return showToast('Файл отчета не найден');
+        if (!r) return showToast(_t('quality.analytics.toast.report_not_found', 'Файл отчета не найден'));
 
         try {
             let fileToShare = null;
@@ -1079,20 +1097,20 @@ export const AnalyticsActions = {
             }
             // Если файла локально нет, но есть ссылка (прилетел из облака)
             if (!fileToShare && r.file_url && r.file_url.startsWith('http')) {
-                showToast('⏳ Скачиваем файл из облака для отправки...');
+                showToast(_t('quality.analytics.toast.downloading_for_share', '⏳ Скачиваем файл из облака для отправки...'));
                 const response = await fetch(r.file_url);
-                if (!response.ok) throw new Error("Не удалось скачать файл");
+                if (!response.ok) throw new Error(_t('quality.analytics.error.download_failed', 'Не удалось скачать файл'));
                 const blob = await response.blob();
                 fileToShare = new File([blob], r.title + '.pdf', { type: 'application/pdf' });
             }
 
-            if (!fileToShare) return showToast('❌ Не удалось подготовить файл к отправке');
+            if (!fileToShare) return showToast(_t('quality.analytics.toast.share_prepare_fail', '❌ Не удалось подготовить файл к отправке'));
 
             // Отправка через системное меню Share
             if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
                 await navigator.share({
                     title: r.title,
-                    text: 'Отчет: ' + r.title,
+                    text: _t('quality.analytics.share.report_prefix', 'Отчет:') + ' ' + r.title,
                     files: [fileToShare]
                 });
             } else {
@@ -1105,12 +1123,12 @@ export const AnalyticsActions = {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                showToast('✅ Файл сохранен на устройство');
+                showToast(_t('quality.analytics.toast.file_saved', '✅ Файл сохранен на устройство'));
             }
         } catch (e) {
             if (e.name !== 'AbortError') {
                 console.error("Ошибка при отправке файла:", e);
-                showToast('❌ Ошибка при отправке файла');
+                showToast(_t('quality.analytics.toast.share_fail', '❌ Ошибка при отправке файла'));
             }
         }
     },
@@ -1119,15 +1137,15 @@ export const AnalyticsActions = {
         const record = _reports().getAllSync().find(x => x.id === id);
 
         // Проверяем права: удалить может либо автор, либо Админ/Зам
-        const currentEngineer = _getSetting('engineerName') || 'Инженер';
+        const currentEngineer = _getSetting('engineerName') || _t('quality.analytics.fallback.engineer', 'Инженер');
         const role = window.RBI.services.permissions ? window.RBI.services.permissions.getCurrentRole() : 'guest';
         const isManager = window.RBI.services.permissions ? window.RBI.services.permissions.isAdmin() : ['manager', 'deputy_manager'].includes(role);
 
         if (record.created_by && record.created_by !== currentEngineer && !isManager) {
-            return showToast("⚠️ Вы можете удалять только свои отчеты!");
+            return showToast(_t('quality.analytics.toast.delete_own_only', '⚠️ Вы можете удалять только свои отчеты!'));
         }
 
-        if (!confirm('Удалить этот отчет?')) return;
+        if (!confirm(_t('quality.analytics.confirm.delete_report', 'Удалить этот отчет?'))) return;
 
         const idx = _reports().getAllSync().findIndex(x => x.id === id);
         if (idx > -1) {
@@ -1170,8 +1188,8 @@ export const AnalyticsActions = {
         const checkboxes = document.querySelectorAll('.report-checkbox:checked');
         const ids = Array.from(checkboxes).map(cb => cb.value);
 
-        if (ids.length === 0) return showToast('Выберите отчеты для удаления');
-        if (!confirm(`Удалить выбранные отчеты (${ids.length} шт)?`)) return;
+        if (ids.length === 0) return showToast(_t('quality.analytics.toast.select_reports_delete', 'Выберите отчеты для удаления'));
+        if (!confirm(_t('quality.analytics.confirm.delete_reports_n', 'Удалить выбранные отчеты ({n} шт)?', { n: ids.length }))) return;
 
         for (let id of ids) {
             const record = _reports().getAllSync().find(x => x.id === id);
@@ -1200,7 +1218,7 @@ export const AnalyticsActions = {
         localStorage.setItem('rbi_cloud_dirty', '1');
         _sync('silent');
 
-        showToast(`✅ Удалено отчетов: ${ids.length}`);
+        showToast(_t('quality.analytics.toast.reports_deleted', '✅ Удалено отчетов: {n}', { n: ids.length }));
     },
 
     // =========================================================================
@@ -1210,29 +1228,29 @@ export const AnalyticsActions = {
     rbi_openQualityDaySettings(taskId) {
         const modal = document.getElementById('modal-overlay');
         document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200">📅</div>`;
-        document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Настройки Отчета</div>`;
+        document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.analytics.qday.settings_title', 'Настройки Отчета')}</div>`;
 
         document.getElementById('modal-body').innerHTML = `
             <div class="text-center text-[12px] text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
-                Выберите период для формирования Мега-Отчета. Система агрегирует метрики всех подрядчиков, выберет лучшие практики и запросит ИИ-резюме.
+                ${_t('quality.analytics.qday.settings_hint', 'Выберите период для формирования Мега-Отчета. Система агрегирует метрики всех подрядчиков, выберет лучшие практики и запросит ИИ-резюме.')}
             </div>
             
             <div class="mb-6">
-                <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Отчетный период</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block">${_t('quality.analytics.qday.period_label', 'Отчетный период')}</label>
                 <select id="qday-period-select" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none">
-                    <option value="current_month">За текущий месяц</option>
-                    <option value="last_month">За прошлый месяц</option>
-                    <option value="quarter">За последние 3 месяца (Квартал)</option>
-                    <option value="all_time">За всё время</option>
+                    <option value="current_month">${_t('quality.analytics.qday.period_current_month', 'За текущий месяц')}</option>
+                    <option value="last_month">${_t('quality.analytics.qday.period_last_month', 'За прошлый месяц')}</option>
+                    <option value="quarter">${_t('quality.analytics.qday.period_quarter', 'За последние 3 месяца (Квартал)')}</option>
+                    <option value="all_time">${_t('quality.analytics.qday.period_all_time', 'За всё время')}</option>
                 </select>
             </div>
 
             <div class="flex gap-2">
                 <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm">
-                    Отмена
+                    ${_t('quality.analytics.btn.cancel', 'Отмена')}
                 </button>
                 <button onclick="closeModal(); rbi_executeQualityDayReport('${taskId}')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">
-                    🚀 Сгенерировать
+                    🚀 ${_t('quality.analytics.qday.generate', 'Сгенерировать')}
                 </button>
             </div>
         `;
@@ -1244,7 +1262,7 @@ export const AnalyticsActions = {
     async rbi_executeQualityDayReport(taskId) {
         var _allInspections = _inspections();
         if (!_getSetting('aiEnabled')) {
-            return showToast("⚠️ Для формирования отчета требуется включить DeepSeek AI в настройках!");
+            return showToast(_t('quality.analytics.toast.qday_ai_required', '⚠️ Для формирования отчета требуется включить DeepSeek AI в настройках!'));
         }
 
         const periodValue = document.getElementById('qday-period-select').value;
@@ -1252,14 +1270,14 @@ export const AnalyticsActions = {
         // Показываем лоадер
         const modal = document.getElementById('modal-overlay');
         document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200 animate-pulse">🤖</div>`;
-        document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Сборка Дня Качества</div>`;
+        document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.analytics.qday.building_title', 'Сборка Дня Качества')}</div>`;
         document.getElementById('modal-body').innerHTML = `
             <div class="flex flex-col items-center justify-center py-4">
                 <div class="text-[11px] font-bold text-slate-500 text-center space-y-2">
-                    <div>📥 Агрегируем метрики подрядчиков...</div>
-                    <div>📊 Рассчитываем Impact Score команды...</div>
-                    <div>🏆 Выбираем лучшие практики...</div>
-                    <div class="text-indigo-600 font-black mt-2">DeepSeek пишет управленческое резюме...</div>
+                    <div>📥 ${_t('quality.analytics.qday.step_aggregate', 'Агрегируем метрики подрядчиков...')}</div>
+                    <div>📊 ${_t('quality.analytics.qday.step_impact', 'Рассчитываем Impact Score команды...')}</div>
+                    <div>🏆 ${_t('quality.analytics.qday.step_practices', 'Выбираем лучшие практики...')}</div>
+                    <div class="text-indigo-600 font-black mt-2">${_t('quality.analytics.qday.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
                 </div>
             </div>
         `;
@@ -1294,7 +1312,7 @@ export const AnalyticsActions = {
 
             if (currentData.length === 0) {
                 closeModal();
-                return showToast("⚠️ За выбранный период нет данных для отчета!");
+                return showToast(_t('quality.analytics.toast.qday_no_data', '⚠️ За выбранный период нет данных для отчета!'));
             }
 
             let currAvgUrk = 0;
@@ -1393,7 +1411,7 @@ export const AnalyticsActions = {
                 <!-- БЛОК 1: AI-РЕЗЮМЕ -->
                 <div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 14pt; text-transform: uppercase;">🧠 УПРАВЛЕНЧЕСКОЕ РЕЗЮМЕ (DEEPSEEK AI)</h2>
-                    <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-weight: 500;">${aiSummary}</div>
+                    <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; font-weight: 500;">${meetingRichToSafeHtml(aiSummary)}</div>
                 </div>
 
                 <!-- БЛОК 2: МАКРОПОКАЗАТЕЛИ -->
@@ -1444,18 +1462,18 @@ export const AnalyticsActions = {
                 const task = _getTasks().find(t => t.id === taskId);
                 if (task) {
                     task.status = 'done';
-                    task.resultComment = 'Отчет сгенерирован';
+                    task.resultComment = _t('quality.analytics.qday.task_done', 'Отчет сгенерирован');
                     await _storage().put(_storage().stores().TASKS, task);
                     rbi_renderTasksList(); // Обновляем списки задач на экране
                 }
             }
 
             // Запускаем печать. Передаем "browser", чтобы открылось системное окно печати/сохранения PDF
-            printPdfShell(`День Качества`, pdfContent, "A4", "landscape", "browser");
+            printPdfShell(_t('quality.analytics.qday.print_title', 'День Качества'), pdfContent, "A4", "landscape", "browser");
 
         } catch (e) {
             closeModal();
-            showToast("❌ Ошибка сборки отчета: " + e.message);
+            showToast(_t('quality.analytics.toast.qday_build_fail', '❌ Ошибка сборки отчета: {msg}', { msg: e.message }));
         }
     }
 };

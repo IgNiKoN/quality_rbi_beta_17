@@ -96,15 +96,18 @@ function bindAuditActionDelegation() {
     if (el) dispatch(el, e);
   }, true);
 
-  // Нативный <select> с почти нулевой opacity иногда не открывает picker
-  // по клику на части устройств — явный showPicker/focus.
+  // Нативный <select> с почти нулевой opacity часто не открывает picker —
+  // в т.ч. когда клик уже попал в сам select (декор с pointer-events-none,
+  // hit-target = select). Раньше при e.target===sel делали early-return и
+  // полагались на native — из‑за этого «Начать проверку» молчала. Всегда
+  // форсируем showPicker/focus для кликов внутри wrap.
   document.addEventListener('click', function (e) {
     var wrap = e.target && e.target.closest
       ? e.target.closest('#start-checklist-wrap, #header-checklist-container')
       : null;
     if (!wrap) return;
     var sel = wrap.querySelector('select');
-    if (!sel || e.target === sel) return;
+    if (!sel) return;
     if (typeof sel.showPicker === 'function') {
       try { sel.showPicker(); return; } catch (_) { /* fall through */ }
     }
@@ -145,6 +148,16 @@ var AuditModule = {
       updatePinIndicator();
     } catch (e) {
       console.warn('[AuditModule] quality-plan-pin mount failed', e);
+    }
+
+    // Catch-up: bootstrap:selectorReady / checklistReady могут уйти на DCL
+    // до loadModule('quality') — listeners выше остаются, плюс идемпотентный
+    // повтор здесь (как knowledge missed-DCL).
+    if (window.AuditRender && typeof window.AuditRender.renderSelector === 'function') {
+      window.AuditRender.renderSelector();
+    }
+    if (window.currentTemplateKey && window.AuditRender && typeof window.AuditRender.render === 'function') {
+      window.AuditRender.render();
     }
 
     // sync:completed → автосохранение сеанса
@@ -231,4 +244,5 @@ window.AuditModule = AuditModule;
   }
 }());
 
+export { AuditModule };
 export default AuditModule;

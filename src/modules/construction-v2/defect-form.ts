@@ -45,8 +45,115 @@ export type DefectFormChangeStatusInput = {
 };
 
 type ContractorOpt = { id: string; label: string };
-type TmplItem = { id: string; n: string; t?: string; w?: number };
+type TmplItem = { id: string; n: string; t?: string; w?: number; ndId?: string | null };
 type TmplGroup = { items?: TmplItem[] };
+
+type KnowledgeHelpSvc = {
+  openItemHelp?: (
+    itemId: string | number,
+    ev?: Event,
+    ctx?: { templateKey?: string; checklist?: unknown }
+  ) => void;
+  findAndOpenND?: (normText: string) => void;
+  openDocViewer?: (id: string) => void;
+};
+
+function _knowledgeSvc(): KnowledgeHelpSvc | undefined {
+  return window.RBI?.services?.knowledge as KnowledgeHelpSvc | undefined;
+}
+
+function _helpButtonsHtml(): string {
+  return `<div class="flex gap-2 mt-2" data-c2-help-actions>
+      <button type="button" data-c2-item-help
+        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+        ${_escape(_t('construction.form.btn_help', 'Справка'))}
+      </button>
+      <button type="button" data-c2-item-norm
+        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600">
+        ${_escape(_t('construction.form.btn_norm', 'Норматив'))}
+      </button>
+    </div>`;
+}
+
+function _openDefectItemHelp(panel: HTMLElement, event?: Event): void {
+  const itemId =
+    (panel.querySelector('[data-c2-item-id]') as HTMLInputElement)?.value?.trim() || '';
+  if (!itemId) {
+    window.showToast?.(
+      _t('construction.form.toast_select_item_help', 'Выберите пункт чек-листа')
+    );
+    return;
+  }
+  const templateKey =
+    (panel.querySelector('[data-c2-template]') as HTMLSelectElement)?.value || '';
+  const groups = _resolveTemplateGroups(templateKey);
+  const helpCtx = { templateKey: templateKey || undefined, checklist: groups };
+  const svc = _knowledgeSvc();
+  if (svc && typeof svc.openItemHelp === 'function') {
+    svc.openItemHelp(itemId, event, helpCtx);
+    return;
+  }
+  const openMenu = (
+    window as unknown as {
+      openItemHelpMenu?: (
+        itemId: string | number,
+        ev?: Event,
+        ctx?: { templateKey?: string; checklist?: unknown }
+      ) => void;
+    }
+  ).openItemHelpMenu;
+  if (typeof openMenu === 'function') {
+    openMenu(itemId, event, helpCtx);
+    return;
+  }
+  window.showToast?.(
+    _t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна')
+  );
+}
+
+function _openDefectNorm(panel: HTMLElement): void {
+  const templateKey =
+    (panel.querySelector('[data-c2-template]') as HTMLSelectElement)?.value || '';
+  const itemId =
+    (panel.querySelector('[data-c2-item-id]') as HTMLInputElement)?.value?.trim() || '';
+  const normText =
+    (panel.querySelector('[data-c2-norm-text]') as HTMLElement)?.textContent?.trim() || '';
+  const flat = _flatItems(_resolveTemplateGroups(templateKey));
+  const item = flat.find((i) => String(i.id) === String(itemId));
+  const ndId = item?.ndId ? String(item.ndId) : '';
+  const svc = _knowledgeSvc();
+  if (ndId && svc && typeof svc.openDocViewer === 'function') {
+    svc.openDocViewer(ndId);
+    return;
+  }
+  if (!normText) {
+    window.showToast?.(
+      _t('construction.form.toast_no_norm', 'Норматив не указан')
+    );
+    return;
+  }
+  if (svc && typeof svc.findAndOpenND === 'function') {
+    svc.findAndOpenND(normText);
+    return;
+  }
+  const findNd = (window as unknown as { findAndOpenND?: (t: string) => void }).findAndOpenND;
+  if (typeof findNd === 'function') {
+    findNd(normText);
+    return;
+  }
+  window.showToast?.(
+    _t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна')
+  );
+}
+
+function _bindHelpActions(panel: HTMLElement): void {
+  panel.querySelector('[data-c2-item-help]')?.addEventListener('click', (ev) => {
+    _openDefectItemHelp(panel, ev);
+  });
+  panel.querySelector('[data-c2-item-norm]')?.addEventListener('click', () => {
+    _openDefectNorm(panel);
+  });
+}
 
 function _t(key: string, fallback: string, vars?: Record<string, string | number>): string {
   try {
@@ -72,6 +179,42 @@ function _escape(s: string) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Срок по умолчанию при выдаче: сегодня + 14 дней (локальная дата). Инженер может изменить. */
+function _defaultDeadline(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** formatNorms() даёт HTML — в textarea/описании нужны только текст (как legacy ConstDefectForm). */
+function _stripHtml(html: string): string {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _setNormDisplay(el: HTMLElement | null, raw: string): void {
+  if (!el) return;
+  const s = String(raw || '');
+  if (/<[a-z][\s\S]*>/i.test(s)) el.innerHTML = s;
+  else el.textContent = s;
+}
+
+function _autoDescription(name: string, normRaw: string): string {
+  let auto = _t('construction.form.violation_prefix', 'Нарушение: {name}.', { name });
+  const cleanNorm = _stripHtml(normRaw);
+  const noNorm = _t('construction.form.no_norm', 'Без норматива');
+  if (cleanNorm && cleanNorm !== noNorm) {
+    auto += _t('construction.form.requirements_prefix', ' Требования: {norm}', { norm: cleanNorm });
+  }
+  return auto;
 }
 
 function _contractors(): ContractorOpt[] {
@@ -387,17 +530,11 @@ function _bindItemSearch(panel: HTMLElement) {
         if (itemIdEl) itemIdEl.value = id;
         if (itemNameEl) itemNameEl.value = name;
         if (search) search.value = name;
-        if (norm && normText && normBlock) {
-          normText.textContent = norm;
+        if (normBlock) {
+          _setNormDisplay(normText, norm || '');
           normBlock.classList.remove('hidden');
-        } else {
-          normBlock?.classList.add('hidden');
         }
-        if (desc) {
-          let auto = _t('construction.form.violation_prefix', 'Нарушение: {name}.', { name });
-          if (norm && norm !== 'Без норматива') auto += _t('construction.form.requirements_prefix', ' Требования: {norm}', { norm });
-          desc.value = auto;
-        }
+        if (desc) desc.value = _autoDescription(name, norm || '');
         if (cat) {
           if (w === 1) cat.value = 'B1';
           else if (w === 3) cat.value = 'B3';
@@ -429,10 +566,10 @@ function _readCommonFields(panel: HTMLElement) {
     (panel.querySelector('[data-c2-item-name]') as HTMLInputElement)?.value ||
     (panel.querySelector('[data-c2-item-search]') as HTMLInputElement)?.value ||
     '';
-  const norm_text =
-    (panel.querySelector('[data-c2-norm-text]') as HTMLElement)?.textContent?.trim() || '';
+  const normEl = panel.querySelector('[data-c2-norm-text]') as HTMLElement | null;
+  const norm_text = _stripHtml(normEl?.textContent || normEl?.innerHTML || '');
   return {
-    description,
+    description: _stripHtml(description) || description,
     category,
     contractorId: contractorId || null,
     deadline: deadlineRaw || null,
@@ -495,6 +632,14 @@ export function openCreateDefectForm(
   const catOpts = DEFECT_CATEGORIES_V2.map(
     (c) => `<option value="${c}"${c === 'B2' ? ' selected' : ''}>${_escape(_catLabel(c))}</option>`
   ).join('');
+  const deadlineDefault = _defaultDeadline();
+  const prefillNormRaw = prefill?.norm_text || '';
+  const prefillDesc =
+    prefill?.description != null && String(prefill.description).trim()
+      ? _stripHtml(String(prefill.description))
+      : prefill?.item_name
+        ? _autoDescription(String(prefill.item_name), prefillNormRaw)
+        : '';
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
@@ -515,9 +660,10 @@ export function openCreateDefectForm(
       <input type="hidden" data-c2-item-name value="${_escape(prefill?.item_name || '')}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${prefill?.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${prefillNormRaw || prefill?.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(prefill?.norm_text || '')}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -528,7 +674,7 @@ export function openCreateDefectForm(
       </div>
       <div>
         <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
-        <input type="date" data-c2-defect-deadline
+        <input type="date" data-c2-defect-deadline value="${_escape(deadlineDefault)}"
           class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
       </div>
     </div>
@@ -538,7 +684,7 @@ export function openCreateDefectForm(
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape(prefill?.description || prefill?.item_name || '')}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape(prefillDesc)}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
@@ -554,7 +700,12 @@ export function openCreateDefectForm(
   root.classList.remove('hidden');
   root.classList.add('flex');
 
+  if (prefillNormRaw) {
+    _setNormDisplay(panel.querySelector('[data-c2-norm-text]') as HTMLElement | null, prefillNormRaw);
+  }
+
   _bindItemSearch(panel);
+  _bindHelpActions(panel);
   _bindGallery(panel, photosRef, () => {});
   panel.querySelector('[data-c2-photo-add]')?.addEventListener('click', () => {
     (panel.querySelector('[data-c2-photo-input]') as HTMLInputElement)?.click();
@@ -694,9 +845,10 @@ export function openViewDefectForm(
       <input type="hidden" data-c2-item-name value="${_escape(defect.item_name || '')}" />
       <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${defect.norm_text ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
+    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
       <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium">${_escape(defect.norm_text || '')}</div>
+      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+      ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -717,7 +869,7 @@ export function openViewDefectForm(
     </select>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape(defect.description)}</textarea>
+      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape(_stripHtml(String(defect.description || '')))}</textarea>
     <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${
@@ -736,6 +888,12 @@ export function openViewDefectForm(
 
   root.classList.remove('hidden');
   root.classList.add('flex');
+
+  if (defect.norm_text) {
+    _setNormDisplay(panel.querySelector('[data-c2-norm-text]') as HTMLElement | null, String(defect.norm_text));
+  }
+
+  _bindHelpActions(panel);
 
   if (canEditFields) {
     _bindItemSearch(panel);

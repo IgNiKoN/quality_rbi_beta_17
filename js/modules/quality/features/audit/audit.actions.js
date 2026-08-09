@@ -407,9 +407,13 @@ function _t(key, fallback, vars) {
         } catch (_e) { /* ignore */ }
 
         switchTab('tab-audit');
-        document.getElementById('empty-checklist-state').style.display = 'block';
-        document.getElementById('audit-items').style.display = 'none';
-        document.getElementById('audit-actions').style.display = 'none';
+        if (window.AuditRender && typeof window.AuditRender.syncPaneVisibility === 'function') {
+          window.AuditRender.syncPaneVisibility();
+        } else {
+          document.getElementById('empty-checklist-state').style.display = 'block';
+          document.getElementById('audit-items').style.display = 'none';
+          document.getElementById('audit-actions').style.display = 'none';
+        }
 
         var nav = document.getElementById('audit-group-nav');
         if (nav) { nav.innerHTML = ''; nav.classList.add('hidden'); }
@@ -446,9 +450,13 @@ function _t(key, fallback, vars) {
       }
       window.updateDataSummary();
 
-      document.getElementById('empty-checklist-state').style.display = 'none';
-      document.getElementById('audit-items').style.display = 'block';
-      document.getElementById('audit-actions').style.display = 'grid';
+      if (window.AuditRender && typeof window.AuditRender.syncPaneVisibility === 'function') {
+        window.AuditRender.syncPaneVisibility();
+      } else {
+        document.getElementById('empty-checklist-state').style.display = 'none';
+        document.getElementById('audit-items').style.display = 'block';
+        document.getElementById('audit-actions').style.display = 'grid';
+      }
 
       if (document.getElementById('tab-audit').classList.contains('active')) { window.render(); window.updateUI(); }
       { var o2 = _objects(); if (o2 && typeof o2.initUI === 'function') o2.initUI(); }

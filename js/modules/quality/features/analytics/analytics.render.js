@@ -11,6 +11,45 @@
 
 import { AnalyticsState } from './analytics.state.js';
 
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+function _reportDocKindLabel(kind) {
+  var map = {
+    'Протокол совещания': 'quality.analytics.report.kind_protocol',
+    'Практика': 'quality.analytics.report.kind_practice',
+    'Воркшоп': 'quality.analytics.report.kind_workshop',
+    'Инструктаж': 'quality.analytics.report.kind_briefing',
+    'КС-2': 'quality.analytics.report.kind_ks2',
+    'Акт-эталон': 'quality.analytics.report.kind_act_etalon',
+    'Дашборд СК': 'quality.analytics.report.kind_sk_dash',
+    'График СМР': 'quality.analytics.report.kind_smr',
+    'День качества': 'quality.analytics.report.kind_qday',
+    'Плакат качества': 'quality.analytics.report.kind_poster',
+    'Отчёт по подрядчику': 'quality.analytics.report.kind_contractor',
+    'Сводный отчёт': 'quality.analytics.report.kind_summary',
+    'Прочее': 'quality.analytics.report.kind_other',
+    'FMEA': 'quality.analytics.report.kind_fmea',
+    'TWI': 'quality.analytics.report.kind_twi'
+  };
+  var key = map[kind];
+  return key ? _t(key, kind) : kind;
+}
+
+
 function _getSetting(key) {
     return window.RBI.services.settings.get(key);
 }
@@ -657,7 +696,7 @@ function _collectAnalyticsGalleryPhotos(data) {
                 ? (window.normalizeItemPhotos ? window.normalizeItemPhotos(i.photos[id]) : [].concat(i.photos[id]))
                 : [];
             if (!photosArr.length) return;
-            let defName = 'Дефект';
+            let defName = _t('quality.analytics.fallback.defect', 'Дефект');
             const tType = i.templateKey ? i.templateKey.split('_')[0] : '';
             const tKey = i.templateKey ? i.templateKey.replace(tType + '_', '') : '';
             const cl = tType === 'sys' && _getSystemTemplates()[tKey]
@@ -726,12 +765,12 @@ function rbiEnsureDetailPhotoGalleries(ev) {
     if (slotB3) {
         slotB3.outerHTML = allPhotosB3.length > 0
             ? AnalyticsRender.initPhotoGallery('det_b3', allPhotosB3, true)
-            : '<div class="text-xs text-slate-400">Нет фото B3</div>';
+            : '<div class="text-xs text-slate-400">' + _t('quality.analytics.gallery.no_b3', 'Нет фото B3') + '</div>';
     }
     if (slotB2) {
         slotB2.outerHTML = allPhotosB2.length > 0
             ? AnalyticsRender.initPhotoGallery('det_b2', allPhotosB2, false)
-            : '<div class="text-xs text-slate-400">Нет фото B2</div>';
+            : '<div class="text-xs text-slate-400">' + _t('quality.analytics.gallery.no_b2', 'Нет фото B2') + '</div>';
     }
     if (slotOk) {
         slotOk.outerHTML = allPhotosOK.length > 0
@@ -739,7 +778,7 @@ function rbiEnsureDetailPhotoGalleries(ev) {
                 'det_ok', allPhotosOK, false,
                 'text-green-700 bg-green-100 border-green-200', 'OK'
             )
-            : '<div class="text-xs text-slate-400">Нет фото эталонов</div>';
+            : '<div class="text-xs text-slate-400">' + _t('quality.analytics.gallery.no_ok', 'Нет фото эталонов') + '</div>';
     }
 }
 
@@ -822,7 +861,7 @@ function _loadMorePhotosImpl(galleryId) {
     entry.shown = nextShown;
     const remaining = photosArray.length - nextShown;
     if (remaining > 0) {
-        if (btn) btn.querySelector('span:last-child').textContent = `Ещё (${remaining})`;
+        if (btn) btn.querySelector('span:last-child').textContent = _t('quality.analytics.gallery.more', 'Ещё ({n})', { n: remaining });
     } else if (btn) {
         btn.remove();
     }
@@ -844,8 +883,8 @@ function getSyncBadgeHtml(item) {
     const iconBlocked = `<svg class="w-2.5 h-2.5 inline-block mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
 
     if (syncStatus === 'blocked') {
-        const reason = item.syncBlockReason || item.sync_block_reason || 'Отправка запрещена';
-        return `<button onclick="event.stopPropagation(); showToast('Причина: ${String(reason).replace(/'/g, "\\'")}')" class="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">${iconBlocked}Заблок.</button>`;
+        const reason = item.syncBlockReason || item.sync_block_reason || _t('quality.analytics.sync.blocked_reason', 'Отправка запрещена');
+        return `<button onclick="event.stopPropagation(); showToast('${_t('quality.analytics.sync.reason_prefix', 'Причина:')} ${String(reason).replace(/'/g, "\\'")}')" class="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">${iconBlocked}${_t('quality.analytics.sync.blocked_short', 'Заблок.')}</button>`;
     }
     if (source === 'cloud' || syncStatus === 'synced') {
         return `<span class="px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">${iconCloud}</span>`;
@@ -954,7 +993,7 @@ export const AnalyticsRender = {
                     <span class="flex items-center gap-1 min-w-0 flex-1">
                         <span id="analytics-panel-toggle-icon"
                             style="display:inline-block; transition: transform 0.3s">▾</span>
-                        <span class="shrink-0">Глобальные фильтры</span>
+                        <span class="shrink-0">${_t('quality.analytics.filters.title', 'Глобальные фильтры')}</span>
                         <span data-panel-filter-summary
                             class="hidden normal-case font-bold text-indigo-500 truncate tracking-normal"></span>
                     </span>
@@ -970,23 +1009,23 @@ export const AnalyticsRender = {
 
                     <!-- СТРОКА 1: Объект, Подрядчик, Инспектор (Мультивыбор) -->
                     <div class="grid grid-cols-3 gap-2 mb-2">
-                        <button id="btn-ana-project" data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["project","Объекты","analytics"]'
+                        <button id="btn-ana-project" data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["project","${_t('quality.analytics.filter.projects', 'Объекты')}","analytics"]'
                             class="input-base text-[9px] min-[400px]:text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
-                                class="truncate">Все объекты</span><svg class="w-3 h-3 opacity-50 shrink-0" fill="none"
+                                class="truncate">${_t('quality.analytics.filter.all_projects', 'Все объекты')}</span><svg class="w-3 h-3 opacity-50 shrink-0" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                             </svg></button>
                         <button id="btn-ana-contractor"
-                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["contractor","Подрядчики","analytics"]'
+                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["contractor","${_t('quality.analytics.filter.contractors', 'Подрядчики')}","analytics"]'
                             class="input-base text-[9px] min-[400px]:text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
-                                class="truncate">Все подрядчики</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                class="truncate">${_t('quality.analytics.filter.all_contractors', 'Все подрядчики')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                             </svg></button>
                         <button id="btn-ana-inspector"
-                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["inspector","Инспекторы","analytics"]'
+                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["inspector","${_t('quality.analytics.filter.inspectors', 'Инспекторы')}","analytics"]'
                             class="input-base text-[9px] min-[400px]:text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
-                                class="truncate">Все инспекторы</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                class="truncate">${_t('quality.analytics.filter.all_inspectors', 'Все инспекторы')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                             </svg></button>
@@ -995,9 +1034,9 @@ export const AnalyticsRender = {
                     <!-- СТРОКА 2: Вид работ, Период и Источник данных -->
                     <div class="grid grid-cols-3 gap-2 mb-2">
                         <button id="btn-ana-template"
-                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["template","Виды работ","analytics"]'
+                            data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["template","${_t('quality.analytics.filter.templates', 'Виды работ')}","analytics"]'
                             class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm"><span
-                                class="truncate">Все виды работ</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                class="truncate">${_t('quality.analytics.filter.all_templates', 'Все виды работ')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                             </svg></button>
@@ -1006,17 +1045,17 @@ export const AnalyticsRender = {
                             <select id="global-filter-period"
                                 class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 data-analytics-action="toggleDateRange,scheduleRenderCurrentAnalyticsTab" data-action-event="change">
-                                <option value="D7">За 7 дней</option>
-                                <option value="D14">За 14 дней</option>
-                                <option value="D30" selected>За 30 дней</option>
-                                <option value="D90">За 90 дней</option>
-                                <option value="D180">За 180 дней</option>
-                                <option value="ALL">Всё время</option>
-                                <option value="CUSTOM">Свой период...</option>
+                                <option value="D7">${_t('quality.analytics.period.d7', 'За 7 дней')}</option>
+                                <option value="D14">${_t('quality.analytics.period.d14', 'За 14 дней')}</option>
+                                <option value="D30" selected>${_t('quality.analytics.period.d30', 'За 30 дней')}</option>
+                                <option value="D90">${_t('quality.analytics.period.d90', 'За 90 дней')}</option>
+                                <option value="D180">${_t('quality.analytics.period.d180', 'За 180 дней')}</option>
+                                <option value="ALL">${_t('quality.analytics.period.all', 'Всё время')}</option>
+                                <option value="CUSTOM">${_t('quality.analytics.period.custom', 'Свой период...')}</option>
                             </select>
                             <button id="btn-ana-period-label"
                                 class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm w-full"><span
-                                    class="truncate">За 30 дней</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    class="truncate">${_t('quality.analytics.period.d30', 'За 30 дней')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
@@ -1030,12 +1069,12 @@ export const AnalyticsRender = {
                     <div id="custom-date-range"
                         class="hidden grid-cols-2 gap-2 bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
                         <div class="flex items-center gap-1">
-                            <span class="text-[9px] font-bold text-slate-500 uppercase">С:</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase">${_t('quality.analytics.period.from', 'С:')}</span>
                             <input type="date" id="filter-date-from" class="input-base text-[10px] !py-1"
                                 data-analytics-action="scheduleRenderCurrentAnalyticsTab" data-action-event="change">
                         </div>
                         <div class="flex items-center gap-1">
-                            <span class="text-[9px] font-bold text-slate-500 uppercase">По:</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase">${_t('quality.analytics.period.to', 'По:')}</span>
                             <input type="date" id="filter-date-to" class="input-base text-[10px] !py-1"
                                 data-analytics-action="scheduleRenderCurrentAnalyticsTab" data-action-event="change">
                         </div>
@@ -1054,19 +1093,19 @@ export const AnalyticsRender = {
                     <div class="mb-3 flex gap-2 overflow-x-auto no-scrollbar pb-1"
                         id="contractors-chips-container">
                         <button data-analytics-action="filterContractorsList" data-action-arg="ALL" data-analytics-action-arg2-type="element"
-                            class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-sm active:scale-95 whitespace-nowrap transition-colors">Все</button>
+                            class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-sm active:scale-95 whitespace-nowrap transition-colors">${_t('quality.analytics.chip.all', 'Все')}</button>
                         <button data-analytics-action="filterContractorsList" data-action-arg="CRITICAL" data-analytics-action-arg2-type="element"
                             class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 active:scale-95 whitespace-nowrap transition-colors">🔴
-                            Критичные</button>
+                            ${_t('quality.analytics.chip.critical', 'Критичные')}</button>
                         <button data-analytics-action="filterContractorsList" data-action-arg="WARNING" data-analytics-action-arg2-type="element"
                             class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 active:scale-95 whitespace-nowrap transition-colors">🟡
-                            Внимания</button>
+                            ${_t('quality.analytics.chip.warning', 'Внимания')}</button>
                         <button data-analytics-action="filterContractorsList" data-action-arg="STABLE" data-analytics-action-arg2-type="element"
                             class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 active:scale-95 whitespace-nowrap transition-colors">🟢
-                            Стабильные</button>
+                            ${_t('quality.analytics.chip.stable', 'Стабильные')}</button>
                         <button data-analytics-action="filterContractorsList" data-action-arg="NEW" data-analytics-action-arg2-type="element"
                             class="contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 active:scale-95 whitespace-nowrap transition-colors">⚪
-                            Новые (Сбор)</button>
+                            ${_t('quality.analytics.chip.new', 'Новые (Сбор)')}</button>
                     </div>
 
                     <div id="contractors-list-container" class="pb-8 space-y-3"></div>
@@ -1081,10 +1120,10 @@ export const AnalyticsRender = {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 19l-7-7 7-7"></path>
-                            </svg> Назад
+                            </svg> ${_t('quality.analytics.btn.back', 'Назад')}
                         </button>
                         <div class="font-black text-[12px] uppercase text-indigo-600 dark:text-indigo-400 truncate max-w-[60%] text-right"
-                            id="detail-view-title">Подрядчик</div>
+                            id="detail-view-title">${_t('quality.analytics.detail.contractor', 'Подрядчик')}</div>
                     </div>
                     <div id="contractor-detail-content" class="pb-8 space-y-4"></div>
                 </div>
@@ -1104,7 +1143,7 @@ export const AnalyticsRender = {
                         <span
                             class="text-[11px] font-black text-[var(--text-muted)] uppercase tracking-wide flex items-center gap-1 cursor-pointer min-w-0 flex-1">
                             <span id="hist-panel-toggle-icon">▾</span>
-                            <span class="shrink-0">База и Отчеты</span>
+                            <span class="shrink-0">${_t('quality.analytics.hist.panel_title', 'База и Отчеты')}</span>
                             <span data-panel-filter-summary
                                 class="hidden normal-case font-bold text-indigo-500 truncate tracking-normal"></span>
                         </span>
@@ -1113,13 +1152,13 @@ export const AnalyticsRender = {
                             data-no-panel-toggle onclick="event.stopPropagation();">
                             <div id="btn-hist-checks" data-analytics-action="switchHistoryView" data-action-arg="checks"
                                 class="px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 bg-white dark:bg-slate-800 text-indigo-600 shadow-sm">
-                                Проверки</div>
+                                ${_t('quality.analytics.hist.checks', 'Проверки')}</div>
                             <div id="btn-hist-reports" data-analytics-action="switchHistoryView" data-action-arg="reports"
                                 class="px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 text-slate-500 dark:text-slate-400">
-                                Отчеты</div>
+                                ${_t('quality.analytics.hist.reports', 'Отчеты')}</div>
                             <div id="btn-hist-plans" data-analytics-action="switchHistoryView" data-action-arg="plans"
                                 class="px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 text-slate-500 dark:text-slate-400">
-                                Планы</div>
+                                ${_t('quality.analytics.hist.plans', 'Планы')}</div>
                         </div>
                     </div>
 
@@ -1135,36 +1174,36 @@ export const AnalyticsRender = {
                                 </svg>
                             </span>
                             <input type="text" id="hist-search-text" class="input-base pl-9 text-[11px]"
-                                placeholder="Поиск..." oninput="applyHistoryFilters()">
+                                placeholder="${_t('quality.analytics.hist.search', 'Поиск...')}" oninput="applyHistoryFilters()">
                         </div>
 
                         <!-- Мульти-фильтры: 2 ряда × 3 колонки -->
                         <div class="grid grid-cols-3 gap-2 mb-2">
                             <button id="btn-hist-project"
-                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["project","Объекты","history"]'
+                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["project","${_t('quality.analytics.filter.projects', 'Объекты')}","history"]'
                                 class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
-                                    class="truncate">Все объекты</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    class="truncate">${_t('quality.analytics.filter.all_projects', 'Все объекты')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
                             <button id="btn-hist-contractor"
-                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["contractor","Подрядчики","history"]'
+                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["contractor","${_t('quality.analytics.filter.contractors', 'Подрядчики')}","history"]'
                                 class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
-                                    class="truncate">Все подрядчики</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    class="truncate">${_t('quality.analytics.filter.all_contractors', 'Все подрядчики')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
                             <button id="btn-hist-template"
-                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["template","Виды работ","history"]'
+                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["template","${_t('quality.analytics.filter.templates', 'Виды работ')}","history"]'
                                 class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
-                                    class="truncate">Все виды работ</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    class="truncate">${_t('quality.analytics.filter.all_templates', 'Все виды работ')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
                             <button id="btn-hist-inspector"
-                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["inspector","Инспекторы","history"]'
+                                data-multifilter-action="openMultiFilterModal" data-multifilter-action-args='["inspector","${_t('quality.analytics.filter.inspectors', 'Инспекторы')}","history"]'
                                 class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm min-w-0"><span
-                                    class="truncate">Все инспекторы</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                    class="truncate">${_t('quality.analytics.filter.all_inspectors', 'Все инспекторы')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                 </svg></button>
@@ -1172,16 +1211,16 @@ export const AnalyticsRender = {
                                 <select id="hist-filter-period"
                                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     data-history-action="applyHistoryFilters" data-action-event="change">
-                                    <option value="D7">За 7 дней</option>
-                                    <option value="D14">За 14 дней</option>
-                                    <option value="D30" selected>За 30 дней</option>
-                                    <option value="D90">За 90 дней</option>
-                                    <option value="D180">За 180 дней</option>
-                                    <option value="ALL">Всё время</option>
+                                    <option value="D7">${_t('quality.analytics.period.d7', 'За 7 дней')}</option>
+                                    <option value="D14">${_t('quality.analytics.period.d14', 'За 14 дней')}</option>
+                                    <option value="D30" selected>${_t('quality.analytics.period.d30', 'За 30 дней')}</option>
+                                    <option value="D90">${_t('quality.analytics.period.d90', 'За 90 дней')}</option>
+                                    <option value="D180">${_t('quality.analytics.period.d180', 'За 180 дней')}</option>
+                                    <option value="ALL">${_t('quality.analytics.period.all', 'Всё время')}</option>
                                 </select>
                                 <button id="btn-hist-period-label"
                                     class="input-base text-[10px] !py-2 text-left flex justify-between items-center bg-white dark:bg-slate-800 shadow-sm w-full"><span
-                                        class="truncate">За 30 дней</span><svg class="w-3 h-3 opacity-50 shrink-0"
+                                        class="truncate">${_t('quality.analytics.period.d30', 'За 30 дней')}</span><svg class="w-3 h-3 opacity-50 shrink-0"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                                     </svg></button>
@@ -1195,42 +1234,42 @@ export const AnalyticsRender = {
                                 <label
                                     class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-muted)] cursor-pointer">
                                     <input type="checkbox" id="hist-filter-photo" class="accent-indigo-600 w-3.5 h-3.5"
-                                        data-history-action="applyHistoryFilters" data-action-event="change"> С фото
+                                        data-history-action="applyHistoryFilters" data-action-event="change"> ${_t('quality.analytics.hist.with_photo', 'С фото')}
                                 </label>
                                 <label
                                     class="flex items-center gap-1.5 text-[10px] font-bold text-red-500 cursor-pointer">
                                     <input type="checkbox" id="hist-filter-b3" class="accent-red-500 w-3.5 h-3.5"
-                                        data-history-action="applyHistoryFilters" data-action-event="change"> Только B3
+                                        data-history-action="applyHistoryFilters" data-action-event="change"> ${_t('quality.analytics.hist.only_b3', 'Только B3')}
                                 </label>
                                 <label
                                     class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-muted)] cursor-pointer">
                                     <input type="checkbox" id="hist-filter-plan" class="accent-indigo-600 w-3.5 h-3.5"
-                                        data-history-action="applyHistoryFilters" data-action-event="change"> С планом
+                                        data-history-action="applyHistoryFilters" data-action-event="change"> ${_t('quality.analytics.hist.with_plan', 'С планом')}
                                 </label>
                             </div>
                             <div class="flex items-center gap-2">
                                 <label
                                     class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 cursor-pointer">
                                     <input type="checkbox" id="hist-select-all" class="w-3.5 h-3.5 accent-indigo-600"
-                                        data-history-action="toggleAllHistory" data-history-action-val-type="element" data-action-event="change"> Все
+                                        data-history-action="toggleAllHistory" data-history-action-val-type="element" data-action-event="change"> ${_t('quality.analytics.chip.all', 'Все')}
                                 </label>
                                 <button data-history-action="exportSelectedCsv"
                                     class="text-green-600 bg-green-50 p-1.5 rounded-md active:scale-90"
-                                    title="Выгрузить CSV"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                    title="${_t('quality.analytics.hist.export_csv', 'Выгрузить CSV')}"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                     </svg></button>
                                 <button data-history-action="printSelectedInspectionActs"
                                     class="text-indigo-600 bg-indigo-50 p-1.5 rounded-md active:scale-90"
-                                    title="Печать актов осмотра (PDF)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                    title="${_t('quality.analytics.hist.print_acts', 'Печать актов осмотра (PDF)')}"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                                     </svg></button>
                                 <button data-history-action="deleteSelectedHistory"
                                     class="text-red-600 bg-red-50 p-1.5 rounded-md active:scale-90"
-                                    title="Удалить выбранные"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                    title="${_t('quality.analytics.hist.delete_selected', 'Удалить выбранные')}"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
@@ -1243,7 +1282,7 @@ export const AnalyticsRender = {
 
                 <!-- ВЬЮХА 1: КЛАССИЧЕСКАЯ ИСТОРИЯ ПРОВЕРОК -->
                 <div id="history-checks-view">
-                    <div id="hist-empty-msg" class="text-center py-8 text-sm text-[var(--text-muted)]">История пуста.
+                    <div id="hist-empty-msg" class="text-center py-8 text-sm text-[var(--text-muted)]">${_t('quality.analytics.hist.empty', 'История пуста.')}
                     </div>
                     <div id="history-list" class="min-w-0 max-w-full overflow-x-hidden"></div>
                 </div>
@@ -1253,12 +1292,12 @@ export const AnalyticsRender = {
                     <!-- ВСТАВКА: Панель массового удаления отчетов -->
                     <div id="hist-reports-actions-row" class="flex justify-between items-center px-1 pb-3 mb-3 border-b border-[var(--card-border)] gap-2">
                         <label class="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 cursor-pointer shrink-0">
-                            <input type="checkbox" id="reports-select-all" class="w-4 h-4 accent-indigo-600 rounded" data-analytics-action="toggleAllReports" data-analytics-action-val-type="element" data-action-event="change"> Выбрать всё
+                            <input type="checkbox" id="reports-select-all" class="w-4 h-4 accent-indigo-600 rounded" data-analytics-action="toggleAllReports" data-analytics-action-val-type="element" data-action-event="change"> ${_t('quality.analytics.reports.select_all', 'Выбрать всё')}
                         </label>
                         <div class="flex items-center gap-2 ml-auto">
                             <div id="reports-view-mode-toggle" class="shrink-0"></div>
                             <button data-analytics-action="deleteSelectedReports" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg active:scale-90 flex items-center gap-1 text-[10px] font-black uppercase border border-red-200 shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Удалить выбранные
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> ${_t('quality.analytics.hist.delete_selected', 'Удалить выбранные')}
                             </button>
                         </div>
                     </div>
@@ -1373,7 +1412,7 @@ export const AnalyticsRender = {
             const listEl = document.getElementById('contractors-list-container');
             if (activeTab === 'sub-contractors' && listEl && typeof window.rbiShowContentSkeleton === 'function') {
                 try {
-                    window.rbiShowContentSkeleton(listEl, { cards: 3, label: 'Обновление…' });
+                    window.rbiShowContentSkeleton(listEl, { cards: 3, label: _t('quality.analytics.updating', 'Обновление…') });
                 } catch (_) { /* ignore */ }
             }
         } else if (wasDirty) {
@@ -1455,7 +1494,7 @@ export const AnalyticsRender = {
             if (histDirty && !hasMem && window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
                 const histEl = document.getElementById('history-list');
                 if (histEl && typeof window.rbiShowContentSkeleton === 'function') {
-                    window.rbiShowContentSkeleton(histEl, { cards: 5, label: 'Загрузка…' });
+                    window.rbiShowContentSkeleton(histEl, { cards: 5, label: _t('quality.analytics.loading', 'Загрузка…') });
                 }
                 Promise.resolve(window.HistoryActions.loadRecords()).then(function () {
                     renderHistoryTab();
@@ -1506,13 +1545,13 @@ export const AnalyticsRender = {
         if (container) {
             const html = `
                 <div onclick="window.toggleAnalyticsMode()" class="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg flex p-0.5 shadow-sm cursor-pointer active:scale-95 transition-transform" style="height: 34px;">
-                    <div title="Данные с телефона" class="flex-1 rounded-md text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 pointer-events-none ${!isCloud ? 'bg-[var(--hover-bg)] text-indigo-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-400 opacity-70'}">
+                    <div title="${_t('quality.analytics.mode.device_title', 'Данные с телефона')}" class="flex-1 rounded-md text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 pointer-events-none ${!isCloud ? 'bg-[var(--hover-bg)] text-indigo-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-400 opacity-70'}">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"></path></svg>
-                        <span class="hidden min-[450px]:inline">Телефон</span>
+                        <span class="hidden min-[450px]:inline">${_t('quality.analytics.mode.phone', 'Телефон')}</span>
                     </div>
-                    <div title="Данные с сервера" class="flex-1 rounded-md text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 pointer-events-none ${isCloud ? 'bg-[var(--hover-bg)] text-indigo-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-400 opacity-70'}">
+                    <div title="${_t('quality.analytics.mode.cloud_title', 'Данные с сервера')}" class="flex-1 rounded-md text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 pointer-events-none ${isCloud ? 'bg-[var(--hover-bg)] text-indigo-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-400 opacity-70'}">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"></path></svg>
-                        <span class="hidden min-[450px]:inline">Облако</span>
+                        <span class="hidden min-[450px]:inline">${_t('quality.analytics.mode.cloud', 'Облако')}</span>
                     </div>
                 </div>
             `;
@@ -1536,7 +1575,7 @@ export const AnalyticsRender = {
                 iconHtml = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"></path></svg>`;
             }
 
-            headerIconContainer.innerHTML = `<div class="flex items-center ${iconClass} transition-colors duration-300" title="Источник: ${isCloud ? 'Облако' : 'Устройство'}">${iconHtml}</div>`;
+            headerIconContainer.innerHTML = `<div class="flex items-center ${iconClass} transition-colors duration-300" title="${_t('quality.analytics.mode.source', 'Источник: {src}', { src: isCloud ? _t('quality.analytics.mode.cloud', 'Облако') : _t('quality.analytics.mode.device', 'Устройство') })}">${iconHtml}</div>`;
         }
     },
 
@@ -1578,11 +1617,11 @@ export const AnalyticsRender = {
 
         var _allInspections = _inspections();
         const uniqueCs = [...new Set(_allInspections.map(i => i.contractorName).filter(Boolean))];
-        selectC.innerHTML = `<option value="ALL">Все подрядчики</option>` + uniqueCs.map(c => `<option value="${c}">${c}</option>`).join('');
+        selectC.innerHTML = `<option value="ALL">${_t('quality.analytics.filter.all_contractors', 'Все подрядчики')}</option>` + uniqueCs.map(c => `<option value="${c}">${c}</option>`).join('');
 
         const tmplSelect = document.getElementById('checklist-selector');
         if (tmplSelect) {
-            let opts = `<option value="ALL">Все виды работ</option>`;
+            let opts = `<option value="ALL">${_t('quality.analytics.filter.all_templates', 'Все виды работ')}</option>`;
             Array.from(tmplSelect.options).forEach(o => {
                 if (o.value && o.value !== "HOME" && o.value !== "UPLOAD") opts += `<option value="${o.value}">${o.text}</option>`;
             });
@@ -1602,7 +1641,7 @@ export const AnalyticsRender = {
         if (!topContainer) return;
 
         if (data.length === 0) {
-            topContainer.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 bg-[var(--card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm">Нет данных по выбранным фильтрам</div>`;
+            topContainer.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 bg-[var(--card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm">${_t('quality.analytics.empty.filtered', 'Нет данных по выбранным фильтрам')}</div>`;
             document.getElementById('contractors-list-container').innerHTML = '';
             document.getElementById('contractors-chips-container').style.display = 'none';
             return;
@@ -1623,7 +1662,7 @@ export const AnalyticsRender = {
                 sumB2 += Number(i.metrics.n_B2_fail) || 0;
                 sumB3 += Number(i.metrics.n_B3_fail) || 0;
             }
-            const projectLabel = i.project_display_name || i.projectName || i.project_canonical_key || 'Без объекта';
+            const projectLabel = i.project_display_name || i.projectName || i.project_canonical_key || _t('quality.analytics.fallback.no_project', 'Без объекта');
             const cKey = i.contractorName + ' [' + projectLabel + ']';
             groupedC[cKey] = groupedC[cKey] || [];
             groupedC[cKey].push(i);
@@ -1660,7 +1699,7 @@ export const AnalyticsRender = {
 
         const validContrCount = kpiRatings.relN || 0;
         const avgIntegralUrk = kpiRatings.avgReliability != null ? kpiRatings.avgReliability : 0;
-        if (defaultSmartText === '') defaultSmartText = 'Все подрядчики в зеленой зоне. Вмешательство не требуется.';
+        if (defaultSmartText === '') defaultSmartText = _t('quality.analytics.insight.all_green', 'Все подрядчики в зеленой зоне. Вмешательство не требуется.');
 
         const globalKey = 'global_main_analysis';
         const rawSmartText = _reports().getExpertConclusion(globalKey) || defaultSmartText;
@@ -1669,8 +1708,8 @@ export const AnalyticsRender = {
 
         const getSelectHtml = (type) => `
             <select onchange="updateTrendCharts('${type}', this.value)" class="text-[9px] font-semibold border border-indigo-200 text-indigo-700 bg-white rounded px-1 py-1 outline-none cursor-pointer shadow-sm">
-                <option value="WEEK" ${window.trendGroupings[type] === 'WEEK' ? 'selected' : ''}>Недели</option>
-                <option value="MONTH" ${window.trendGroupings[type] === 'MONTH' ? 'selected' : ''}>Месяцы</option>
+                <option value="WEEK" ${window.trendGroupings[type] === 'WEEK' ? 'selected' : ''}>${_t('quality.analytics.period.weeks', 'Недели')}</option>
+                <option value="MONTH" ${window.trendGroupings[type] === 'MONTH' ? 'selected' : ''}>${_t('quality.analytics.period.months', 'Месяцы')}</option>
             </select>
         `;
 
@@ -1683,34 +1722,34 @@ export const AnalyticsRender = {
         topContainer.innerHTML = `
             <div class="grid grid-cols-3 min-[500px]:grid-cols-5 gap-2 mb-2">
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний УрК подрядчиков (окно до 15 проверок, приоритет N≥7)">Ср. УрК</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.avg_urk_title', 'Средний УрК подрядчиков (окно до 15 проверок, приоритет N≥7)')}">${_t('quality.analytics.kpi.avg_urk', 'Ср. УрК')}</div>
                     <div class="text-lg font-bold leading-none ${avgUrkProd < 70 ? 'text-red-600' : (avgUrkProd < 85 ? 'text-orange-500' : 'text-green-600')}">${avgUrkProd}%</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний УрК документации подрядчиков (окно до 15)">Ср. УрК Докум.</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.avg_doc_title', 'Средний УрК документации подрядчиков (окно до 15)')}">${_t('quality.analytics.kpi.avg_doc', 'Ср. УрК Докум.')}</div>
                     <div class="text-lg font-bold leading-none ${avgDocProd === null ? 'text-slate-400' : (avgDocProd < 70 ? 'text-red-600' : (avgDocProd < 85 ? 'text-orange-500' : 'text-indigo-600'))}">${avgDocProd === null ? '—' : avgDocProd + '%'}</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="Средний Интегральный рейтинг подрядчиков">Надежность</div>
-                    <div class="text-lg font-bold leading-none ${avgIntegralUrk < 70 ? 'text-red-600' : (avgIntegralUrk < 85 ? 'text-orange-500' : 'text-indigo-600')}">${validContrCount > 0 ? avgIntegralUrk + '%' : 'СБОР'}</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.reliability_title', 'Средний Интегральный рейтинг подрядчиков')}">${_t('quality.analytics.kpi.reliability', 'Надежность')}</div>
+                    <div class="text-lg font-bold leading-none ${avgIntegralUrk < 70 ? 'text-red-600' : (avgIntegralUrk < 85 ? 'text-orange-500' : 'text-indigo-600')}">${validContrCount > 0 ? avgIntegralUrk + '%' : _t('quality.analytics.kpi.collecting', 'СБОР')}</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">Подрядчиков</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">${_t('quality.analytics.kpi.contractors', 'Подрядчиков')}</div>
                     <div class="text-lg font-bold leading-none text-slate-800 dark:text-white">${contrCount}</div>
                 </div>
                 <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">Проверок</div>
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">${_t('quality.analytics.kpi.checks', 'Проверок')}</div>
                     <div class="text-lg font-bold leading-none text-slate-800 dark:text-white">${data.length}</div>
                 </div>
             </div>
             <div class="mb-3">
                 ${docGapWarning}
                 <div class="bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-inner flex justify-around text-center">
-                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">Мелкие (B1)</span><span class="font-bold text-blue-600">${sumB1}</span></div>
+                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">${_t('quality.analytics.defect.b1', 'Мелкие (B1)')}</span><span class="font-bold text-blue-600">${sumB1}</span></div>
                     <div class="w-px bg-[var(--card-border)]"></div>
-                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">Значимые (B2)</span><span class="font-bold text-orange-500">${sumB2}</span></div>
+                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">${_t('quality.analytics.defect.b2', 'Значимые (B2)')}</span><span class="font-bold text-orange-500">${sumB2}</span></div>
                     <div class="w-px bg-[var(--card-border)]"></div>
-                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">Критичные (B3)</span><span class="font-bold text-red-600">${sumB3}</span></div>
+                    <div><span class="text-[9px] font-semibold text-slate-400 uppercase block">${_t('quality.analytics.defect.b3', 'Критичные (B3)')}</span><span class="font-bold text-red-600">${sumB3}</span></div>
                 </div>
             </div>
 
@@ -1718,7 +1757,7 @@ export const AnalyticsRender = {
                 <summary class="p-3 font-bold text-[11px] text-indigo-700 dark:text-indigo-400 uppercase tracking-widest cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 rounded-xl hover:bg-indigo-100 transition-colors">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        Анализ зон риска (AI)
+                        ${_t('quality.analytics.section.risk_zones', 'Анализ зон риска (AI)')}
                     </span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
@@ -1726,7 +1765,7 @@ export const AnalyticsRender = {
                     <button onclick="editExpertText('${globalKey}', 'hidden_global_analysis')" class="absolute top-3 right-3 text-[9px] font-semibold bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-1 rounded shadow-sm active:scale-95 text-slate-600 dark:text-slate-300 flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> Изменить
                     </button>
-                    <div class="text-[10px] text-slate-500 uppercase font-semibold mb-3 border-b border-slate-100 pb-2 pr-20">Статус выборки: проанализировано ${validContrCount} подрядчиков</div>
+                    <div class="text-[10px] text-slate-500 uppercase font-semibold mb-3 border-b border-slate-100 pb-2 pr-20">${_t('quality.analytics.section.sample_status', 'Статус выборки: проанализировано {n} подрядчиков', { n: validContrCount })}</div>
                     ${isCustomText ? `<div class="text-[9px] font-semibold text-yellow-700 uppercase mb-2 bg-yellow-100 w-fit px-2 py-0.5 rounded flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Скорректировано инженером</div>` : ''}
                     <div class="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                         ${uiSmartText}
@@ -1739,17 +1778,17 @@ export const AnalyticsRender = {
                 <summary class="p-3 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                        Динамика и Тренды
+                        ${_t('quality.analytics.section.dynamics', 'Динамика и Тренды')}
                     </span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30">
                     <div class="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm mb-3">
                         <div class="flex justify-between items-center mb-2">
-                            <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase">Динамика: Подрядчики (Топ-10)</div>
+                            <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase">${_t('quality.analytics.section.dynamics_contr', 'Динамика: Подрядчики (Топ-10)')}</div>
                             <div class="flex gap-1">
                                 <button onclick="openChartFilterModal('contrs')" class="text-[9px] font-semibold border border-slate-200 text-slate-600 bg-white rounded px-2 py-1 shadow-sm flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Линии
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> ${_t('quality.analytics.chart.lines', 'Линии')}
                                 </button>
                                 ${getSelectHtml('contrs')}
                             </div>
@@ -1763,17 +1802,17 @@ export const AnalyticsRender = {
                 <summary class="p-3 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        Причины и Сравнение
+                        ${_t('quality.analytics.section.causes_compare', 'Причины и Сравнение')}
                     </span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div class="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2">Коренные причины дефектов</div>
+                        <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2">${_t('quality.analytics.section.root_causes', 'Коренные причины дефектов')}</div>
                         <div style="height: 180px; position: relative;"><canvas id="chart_eng_causes"></canvas></div>
                     </div>
                     <div class="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2">Сравнение Подрядчиков (Интегр. УрК)</div>
+                        <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2">${_t('quality.analytics.section.compare_contr', 'Сравнение Подрядчиков (Интегр. УрК)')}</div>
                         <div style="height: 180px; position: relative;"><canvas id="chart_eng_compare"></canvas></div>
                     </div>
                 </div>
@@ -1783,22 +1822,22 @@ export const AnalyticsRender = {
                 <summary class="p-3 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
-                        Фотогалерея (Брак и Эталоны)
+                        ${_t('quality.analytics.section.gallery', 'Фотогалерея (Брак и Эталоны)')}
                     </span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 space-y-4">
                     <div>
-                        <h3 class="text-[10px] font-bold text-red-600 uppercase mb-2">Критический брак (B3)</h3>
-                        <div id="lazy-gallery-main_b3" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-bold text-red-600 uppercase mb-2">${_t('quality.analytics.gallery.b3_title', 'Критический брак (B3)')}</h3>
+                        <div id="lazy-gallery-main_b3" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                     <div>
-                        <h3 class="text-[10px] font-bold text-orange-600 uppercase mb-2">Значимые дефекты (B2)</h3>
-                        <div id="lazy-gallery-main_b2" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-bold text-orange-600 uppercase mb-2">${_t('quality.analytics.gallery.b2_title', 'Значимые дефекты (B2)')}</h3>
+                        <div id="lazy-gallery-main_b2" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                     <div>
-                        <h3 class="text-[10px] font-bold text-green-600 uppercase mb-2">Эталонные работы (OK)</h3>
-                        <div id="lazy-gallery-main_ok" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-bold text-green-600 uppercase mb-2">${_t('quality.analytics.gallery.ok_title', 'Эталонные работы (OK)')}</h3>
+                        <div id="lazy-gallery-main_ok" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                 </div>
             </details>
@@ -1825,7 +1864,7 @@ export const AnalyticsRender = {
             if (chartGen !== _analyticsRenderGen) return;
             let causesLabels = []; let causesData = [];
             Object.keys(causesCount).sort((a, b) => causesCount[b] - causesCount[a]).forEach(code => {
-                const name = _defectCauses().find(c => c.code === code)?.name || 'Иное';
+                const name = _defectCauses().find(c => c.code === code)?.name || _t('quality.analytics.fallback.other_cause', 'Иное');
                 causesLabels.push(name.substring(0, 15)); causesData.push(causesCount[code]);
             });
             const ctxCauses = document.getElementById('chart_eng_causes')?.getContext('2d');
@@ -1905,7 +1944,7 @@ export const AnalyticsRender = {
             const urkColor = _urkGradientColor(m.baseUrkContrPerc);
             const hasDoc = m.documentaryC !== null && m.documentaryC !== undefined;
             const docColor = hasDoc ? _urkGradientColor(m.documentaryC) : '';
-            const docGapWarn = (hasDoc && !isPrelim && Math.abs(m.baseUrkContrPerc - m.documentaryC) > 30) ? ` <span title="Большой разрыв между физикой и документацией (>30%)">⚠️</span>` : '';
+            const docGapWarn = (hasDoc && !isPrelim && Math.abs(m.baseUrkContrPerc - m.documentaryC) > 30) ? ` <span title="${_t('quality.analytics.warn.doc_gap', 'Большой разрыв между физикой и документацией (>30%)')}">⚠️</span>` : '';
 
             // Защита от поломки HTML из-за кавычек в названиях
             const safeName = c.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1920,21 +1959,21 @@ export const AnalyticsRender = {
 
                     <div class="grid grid-cols-2 gap-2 mb-2">
                         <div class="min-w-0 flex flex-col">
-                            <div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold truncate">Надежность</div>
+                            <div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold truncate">${_t('quality.analytics.kpi.reliability', 'Надежность')}</div>
                             <div class="text-xl sm:text-2xl font-black leading-none tabular-nums" style="color:${relColor}">${isPrelim ? '--' : m.finalC}<span class="text-xs sm:text-sm">%</span></div>
-                            <div class="text-[7px] sm:text-[8px] text-slate-400 font-bold mt-0.5 h-3 tabular-nums" title="Окно ≤15 в периоде">N ${m.count}</div>
+                            <div class="text-[7px] sm:text-[8px] text-slate-400 font-bold mt-0.5 h-3 tabular-nums" title="${_t('quality.analytics.kpi.window15_title', 'Окно ≤15 в периоде')}">N ${m.count}</div>
                         </div>
                         <div class="min-w-0 flex flex-col border-l border-[var(--card-border)] pl-2">
-                            <div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold truncate">Ур. качества</div>
+                            <div class="text-[7px] sm:text-[8px] uppercase text-slate-400 font-bold truncate">${_t('quality.analytics.kpi.quality_level', 'Ур. качества')}</div>
                             <div class="text-xl sm:text-2xl font-black leading-none tabular-nums" style="color:${urkColor}">${m.baseUrkContrPerc}<span class="text-xs sm:text-sm">%</span></div>
-                            <div class="text-[8px] sm:text-[10px] font-bold mt-0.5 h-3 truncate tabular-nums" style="color:${hasDoc ? docColor : 'transparent'}">${hasDoc ? `Док ${m.documentaryC}%${docGapWarn}` : '&nbsp;'}</div>
+                            <div class="text-[8px] sm:text-[10px] font-bold mt-0.5 h-3 truncate tabular-nums" style="color:${hasDoc ? docColor : 'transparent'}">${hasDoc ? `${_t('quality.analytics.kpi.doc_short', 'Док')} ${m.documentaryC}%${docGapWarn}` : '&nbsp;'}</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Информационная панель (Счетчики дефектов) -->
                 <div class="flex flex-wrap justify-between items-center gap-1 bg-[var(--hover-bg)] rounded-md px-1.5 py-1.5 mb-2 border border-[var(--card-border)]">
-                    <div class="text-[7px] sm:text-[8px] font-black text-slate-500 uppercase shrink-0">Деф.</div>
+                    <div class="text-[7px] sm:text-[8px] font-black text-slate-500 uppercase shrink-0">${_t('quality.analytics.kpi.def_abbr', 'Деф.')}</div>
                     <div class="flex flex-wrap justify-end gap-0.5 min-w-0">
                         <span class="text-[7px] sm:text-[8px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-1 rounded tabular-nums" title="B1">B1:${c.b1}</span>
                         <span class="text-[7px] sm:text-[8px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-1 rounded tabular-nums" title="B2">B2:${c.b2}</span>
@@ -1945,19 +1984,19 @@ export const AnalyticsRender = {
                 <!-- Информационная панель (Коэффициенты) -->
                 <div class="grid grid-cols-4 gap-0.5 pt-2 border-t border-[var(--card-border)] text-center">
                     <div class="min-w-0">
-                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="Выборка">Пров.</div>
+                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="${_t('quality.analytics.kpi.sample_title', 'Выборка')}">${_t('quality.analytics.table.checks', 'Пров.')}</div>
                         <div class="text-[9px] sm:text-[10px] font-black text-slate-800 dark:text-white tabular-nums">${m.count}</div>
                     </div>
                     <div class="min-w-0 border-l border-slate-200 dark:border-slate-700">
-                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="Стабильность">Стаб.</div>
+                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="${_t('quality.analytics.kpi.stability_title', 'Стабильность')}">${_t('quality.analytics.kpi.stab_abbr', 'Стаб.')}</div>
                         <div class="text-[9px] sm:text-[10px] font-black tabular-nums ${isPrelim ? 'text-slate-400' : m.stabColor}">${isPrelim ? '-' : m.stabilityIndex}</div>
                     </div>
                     <div class="min-w-0 border-l border-slate-200 dark:border-slate-700">
-                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="Системность (Ks)">Ks</div>
+                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="${_t('quality.analytics.kpi.ks_title', 'Системность (Ks)')}">Ks</div>
                         <div class="text-[9px] sm:text-[10px] font-black tabular-nums ${m.ks < 1 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}">${m.ks.toFixed(2)}</div>
                     </div>
                     <div class="min-w-0 border-l border-slate-200 dark:border-slate-700">
-                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="Критичность (Kcrit)">Kcrit</div>
+                        <div class="text-[6px] sm:text-[7px] text-slate-500 uppercase font-bold truncate" title="${_t('quality.analytics.kpi.kcrit_title', 'Критичность (Kcrit)')}">Kcrit</div>
                         <div class="text-[9px] sm:text-[10px] font-black tabular-nums ${m.kcritC < 1 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}">${m.kcritC.toFixed(2)}</div>
                     </div>
                 </div>
@@ -1983,7 +2022,7 @@ export const AnalyticsRender = {
             return AnalyticsRender.renderGlobalOnePager(data, container);
         }
         if (data.length === 0) {
-            container.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 border border-[var(--card-border)] rounded-xl bg-[var(--card-bg)] shadow-sm">Нет данных для анализа</div>`;
+            container.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 border border-[var(--card-border)] rounded-xl bg-[var(--card-bg)] shadow-sm">${_t('quality.analytics.empty.analysis', 'Нет данных для анализа')}</div>`;
             return;
         }
 
@@ -2011,7 +2050,7 @@ export const AnalyticsRender = {
         const currContractorsCount = Object.keys(groupedC).length;
 
         const currIntMetrics = _getObjectIntegralMetricsCached(data);
-        const mData = currIntMetrics || { redZonePerc: 0, IKO: "0.00", ikoStatus: "Мало данных", ikoColor: "text-slate-500" };
+        const mData = currIntMetrics || { redZonePerc: 0, IKO: "0.00", ikoStatus: _t('quality.analytics.kpi.low_data', 'Мало данных'), ikoColor: "text-slate-500" };
 
         const ratingData = [];
         for (let cName in groupedC) {
@@ -2037,7 +2076,7 @@ export const AnalyticsRender = {
         const selPeriod = document.getElementById('global-filter-period')?.value || 'D30';
         let prevData = [];
         const now = new Date();
-        let trendLabel = 'к пред. периоду';
+        let trendLabel = _t('quality.analytics.kpi.vs_prev', 'к пред. периоду');
         const prevBounds = typeof getAnalyticsPrevPeriodBounds === 'function'
             ? getAnalyticsPrevPeriodBounds(selPeriod, now)
             : null;
@@ -2048,12 +2087,12 @@ export const AnalyticsRender = {
             });
             trendLabel = prevBounds.trendLabel;
         } else if (selPeriod === 'CUSTOM') {
-            trendLabel = 'к пред. периоду';
+            trendLabel = _t('quality.analytics.kpi.vs_prev', 'к пред. периоду');
         } else {
             const half = Math.floor(data.length / 2);
             const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
             prevData = sortedData.slice(0, half);
-            trendLabel = 'к 1-й пол. базы';
+            trendLabel = _t('quality.analytics.kpi.vs_first_half', 'к 1-й пол. базы');
         }
 
         // Динамика рейтинга подрядчика к предыдущему периоду (та же база, что у KPI).
@@ -2088,7 +2127,7 @@ export const AnalyticsRender = {
         }
 
         const renderTrend = (curr, prev, label, inverse = false) => {
-            if (prev === undefined || prev === null || prev === "") return `<span class="text-slate-400 text-[8px] font-bold bg-slate-100 dark:bg-slate-700 px-1.5 rounded">Нет базы</span>`;
+            if (prev === undefined || prev === null || prev === "") return `<span class="text-slate-400 text-[8px] font-bold bg-slate-100 dark:bg-slate-700 px-1.5 rounded">${_t('quality.analytics.kpi.no_base', 'Нет базы')}</span>`;
             let diff = (parseFloat(curr) - parseFloat(prev));
             if (Math.abs(diff) < 0.01) return `<div class="text-right"><span class="text-slate-400 text-[10px] font-bold">▬ 0</span><div class="text-[7px] text-slate-400 mt-0.5 uppercase tracking-wider">${label}</div></div>`;
             const isGood = inverse ? diff < 0 : diff > 0;
@@ -2107,7 +2146,7 @@ export const AnalyticsRender = {
             const dStart = new Date(); dStart.setDate(now.getDate() - (i * 7) - 7);
             const dEnd = new Date(); dEnd.setDate(now.getDate() - (i * 7));
             const weekChecks = sparkBase.filter(c => { const d = new Date(c.date); return d >= dStart && d < dEnd; });
-            sparkLabels.push(`-${i}н`);
+            sparkLabels.push(`-${i}${_t('quality.analytics.period.week_letter', 'н')}`);
             sparkData.push(weekChecks.length > 0 && typeof window.avgContractorRatingsFromChecks === 'function'
                 ? window.avgContractorRatingsFromChecks(weekChecks).avgUrk
                 : null);
@@ -2131,7 +2170,7 @@ export const AnalyticsRender = {
             if (i.state && i.details && i.templateKey) {
                 Object.keys(i.state).forEach(id => {
                     const s = i.state[id];
-                    let defName = "Дефект";
+                    let defName = _t('quality.analytics.fallback.defect', 'Дефект');
                     const tType = i.templateKey.split('_')[0];
                     const tKey = i.templateKey.replace(tType + '_', '');
                     const cl = tType === 'sys' && _getSystemTemplates()[tKey] ? _getSystemTemplates()[tKey].groups : (_templates().getUserTemplates()[tKey] ? _templates().getUserTemplates()[tKey].groups : []);
@@ -2186,7 +2225,7 @@ export const AnalyticsRender = {
                             <div class="text-[9px] font-bold text-slate-800 dark:text-slate-200 leading-tight line-clamp-2 mb-1" title="${d.name}">${d.name}</div>
                             <div>
                                 <div class="text-[8px] text-[var(--text-muted)] mb-1 truncate w-full" title="${d.contr}">👤 ${d.contr}</div>
-                                <div class="flex justify-between items-center"><span class="${badgeColor} text-[8px] font-black px-1.5 rounded border">${badgeText}</span><span class="text-[9px] font-black text-[var(--text-muted)]">${d.count} шт</span></div>
+                                <div class="flex justify-between items-center"><span class="${badgeColor} text-[8px] font-black px-1.5 rounded border">${badgeText}</span><span class="text-[9px] font-black text-[var(--text-muted)]">${d.count} ${_t('quality.analytics.chart.pcs', 'шт')}</span></div>
                             </div>
                         </div>
                     </div>`;
@@ -2194,7 +2233,7 @@ export const AnalyticsRender = {
             </div>`;
         };
 
-        let periodText = document.getElementById('btn-ana-period-label')?.innerText.trim() || 'За 30 дней';
+        let periodText = document.getElementById('btn-ana-period-label')?.innerText.trim() || _t('quality.analytics.period.d30', 'За 30 дней');
         if (document.getElementById('global-filter-period')?.value === 'CUSTOM') {
             const dFrom = document.getElementById('filter-date-from')?.value;
             const dTo = document.getElementById('filter-date-to')?.value;
@@ -2247,7 +2286,7 @@ export const AnalyticsRender = {
             if (!check.metrics) return;
 
             // Бронебойная защита от отсутствия названия
-            const stage = check.templateTitle || check.templateKey || 'Неизвестный этап';
+            const stage = check.templateTitle || check.templateKey || _t('quality.analytics.fallback.unknown_stage', 'Неизвестный этап');
             const contr = check.contractorName || 'Неизвестно';
 
             contrCheckCounts[contr] = (contrCheckCounts[contr] || 0) + 1;
@@ -2270,7 +2309,7 @@ export const AnalyticsRender = {
             heatmapHtml = `<div class="overflow-x-auto custom-scrollbar pb-2 -mx-1 px-1"><table class="text-left border-collapse text-[10px] w-full" style="min-width: ${Math.max(400, 140 + 72 + topMatrixContrs.length * 96)}px;">
                 <thead class="bg-[var(--hover-bg)] text-[var(--text-muted)] uppercase"><tr>
                     <th class="p-2 border border-[var(--card-border)] font-black sticky left-0 z-10 bg-[var(--hover-bg)] min-w-[120px]">Вид работ / Подрядчик</th>
-                    <th class="p-2 border border-[var(--card-border)] text-center font-black sticky z-10 bg-[var(--hover-bg)] min-w-[72px] max-w-[88px] whitespace-normal leading-tight" style="left:120px" title="Сумма дефектов B2+B3 по этапу">Всего дефектов</th>`;
+                    <th class="p-2 border border-[var(--card-border)] text-center font-black sticky z-10 bg-[var(--hover-bg)] min-w-[72px] max-w-[88px] whitespace-normal leading-tight" style="left:120px" title="${_t('quality.analytics.heatmap.defects_sum_title', 'Сумма дефектов B2+B3 по этапу')}">${_t('quality.analytics.heatmap.total_defects', 'Всего дефектов')}</th>`;
 
             topMatrixContrs.forEach(c => heatmapHtml += `<th class="p-2 border border-[var(--card-border)] text-center font-bold min-w-[96px] max-w-[140px] whitespace-normal leading-tight" title="${c}">${c}</th>`);
             heatmapHtml += `</tr></thead><tbody>`;
@@ -2291,14 +2330,14 @@ export const AnalyticsRender = {
                         let bgColor = 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:border-green-800';
                         if (defectRate > 1.5) bgColor = 'bg-red-100 text-red-800 border-red-300 font-black dark:bg-red-900/40 dark:border-red-700';
                         else if (defectRate > 0.5) bgColor = 'bg-yellow-50 text-yellow-700 border-yellow-200 font-bold dark:bg-yellow-900/20 dark:border-yellow-800';
-                        heatmapHtml += `<td class="p-2 border border-[var(--card-border)] text-center ${bgColor}">${cell.defects} деф.</td>`;
+                        heatmapHtml += `<td class="p-2 border border-[var(--card-border)] text-center ${bgColor}">${cell.defects} ${_t('quality.analytics.heatmap.def_short', 'деф.')}</td>`;
                     }
                 });
                 heatmapHtml += `</tr>`;
             });
             heatmapHtml += `</tbody></table></div>`;
         } else {
-            heatmapHtml = `<div class="text-center text-slate-400 py-6 text-[10px] font-bold uppercase bg-[var(--hover-bg)] rounded-lg border border-dashed border-[var(--card-border)]">Недостаточно дефектов для карты</div>`;
+            heatmapHtml = `<div class="text-center text-slate-400 py-6 text-[10px] font-bold uppercase bg-[var(--hover-bg)] rounded-lg border border-dashed border-[var(--card-border)]">${_t('quality.analytics.heatmap.insufficient', 'Недостаточно дефектов для карты')}</div>`;
         }
 
         // --- ИНДЕКС ЗДОРОВЬЯ (ПУЛЬС) ---
@@ -2313,9 +2352,9 @@ export const AnalyticsRender = {
                 <div>
                     <h2 class="text-[12px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
                         <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        Сводный статус объекта
+                        ${_t('quality.analytics.onepager.object_status', 'Сводный статус объекта')}
                     </h2>
-                    <div class="text-[9px] font-bold text-[var(--text-muted)] mt-1">Охват: ${data.length} проверок &bull; Период: <span class="text-indigo-500">${periodText}</span></div>
+                    <div class="text-[9px] font-bold text-[var(--text-muted)] mt-1">${_t('quality.analytics.onepager.coverage', 'Охват: {n} проверок', { n: data.length })} &bull; ${_t('quality.analytics.onepager.period_label', 'Период:')} <span class="text-indigo-500">${periodText}</span></div>
                 </div>
             </div>
             
@@ -2326,7 +2365,7 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg>
-                            Статистика и Тренды
+                            ${_t('quality.analytics.onepager.stats_trends', 'Статистика и Тренды')}
                         </span>
                         <span class="transition-transform group-open:rotate-180">▼</span>
                     </summary>
@@ -2335,7 +2374,7 @@ export const AnalyticsRender = {
                         ${(currAvgDoc !== null && Math.abs(currAvgUrk - currAvgDoc) > 30) ? `<div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-2.5 shadow-sm text-center text-[10px] font-bold text-orange-700 dark:text-orange-400 flex items-center justify-center gap-1.5">⚠️ Разрыв между физикой (${currAvgUrk}%) и документацией (${currAvgDoc}%) по объекту — ${Math.abs(currAvgUrk - currAvgDoc)} п.п.</div>` : ''}
                         <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
                             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm flex flex-col justify-between">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Ур. качества (физика/докум.)</div>
+                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">${_t('quality.analytics.onepager.urk_phys_doc', 'Ур. качества (физика/докум.)')}</div>
                                 <div class="flex justify-between items-end">
                                     <span class="flex items-baseline gap-1.5">
                                         <span class="text-2xl font-black leading-none" style="color:${_urkGradientColor(currAvgUrk)}">${currAvgUrk}%</span>
@@ -2345,38 +2384,38 @@ export const AnalyticsRender = {
                                 </div>
                             </div>
                             <div class="bg-[var(--card-bg)] border ${parseFloat(mData.IKO) >= 0.6 ? 'border-red-300 bg-red-50/50' : 'border-[var(--card-border)]'} rounded-xl p-2.5 shadow-sm flex flex-col justify-between">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Индекс Риска (ИКО)</div>
+                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">${_t('quality.analytics.onepager.iko', 'Индекс Риска (ИКО)')}</div>
                                 <div class="flex justify-between items-end">
                                     <span class="text-2xl font-black ${mData.ikoColor} leading-none">${mData.IKO}</span>
                                     ${renderTrend(mData.IKO, prevIko, trendLabel, true)}
                                 </div>
                             </div>
                             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm flex flex-col justify-between">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Объем проверок</div>
+                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">${_t('quality.analytics.onepager.checks_volume', 'Объем проверок')}</div>
                                 <div class="flex justify-between items-end">
                                     <span class="text-2xl font-black text-slate-800 dark:text-white leading-none">${data.length}</span>
                                     ${renderTrend(data.length, prevChecks, trendLabel)}
                                 </div>
                             </div>
                             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm flex flex-col justify-between">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Акт. Подрядчиков</div>
+                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">${_t('quality.analytics.onepager.active_contr', 'Акт. Подрядчиков')}</div>
                                 <div class="flex justify-between items-end">
                                     <span class="text-2xl font-black text-slate-800 dark:text-white leading-none">${currContractorsCount}</span>
                                     ${renderTrend(currContractorsCount, prevContrsCount, trendLabel)}
                                 </div>
                             </div>
                             <div class="${redContrBorderCls} border rounded-xl p-2.5 shadow-sm flex flex-col justify-between">
-                                <div class="text-[9px] font-bold ${redContrCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500'} uppercase tracking-widest mb-1">Подрядчики с ИУрК&nbsp;&lt;&nbsp;70%</div>
+                                <div class="text-[9px] font-bold ${redContrCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500'} uppercase tracking-widest mb-1">${_t('quality.analytics.onepager.red_contr', 'Подрядчики с ИУрК < 70%')}</div>
                                 <div class="flex justify-between items-end gap-2">
                                     <span class="flex items-baseline gap-1.5 min-w-0">
                                         <span class="text-2xl font-black ${redContrColorCls} leading-none">${relN > 0 ? redContrCount : '—'}</span>
                                         ${relN > 0 ? `<span class="text-[13px] font-black ${redContrColorCls} leading-none">${redContrPerc}%</span>` : `<span class="text-[11px] font-bold text-slate-400">СБОР</span>`}
                                     </span>
-                                    <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 text-right leading-tight shrink-0">${relN > 0 ? `${redContrCount} из ${relN}<br>с надёжностью` : 'нужен N≥7'}</span>
+                                    <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 text-right leading-tight shrink-0">${relN > 0 ? _t('quality.analytics.onepager.red_contr_detail', '{a} из {b}<br>с надёжностью', { a: redContrCount, b: relN }) : _t('quality.analytics.onepager.need_n7', 'нужен N≥7')}</span>
                                 </div>
                             </div>
                             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm flex flex-col justify-between relative overflow-hidden">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 z-10">Тренд УрК (6 нед)</div>
+                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 z-10">${_t('quality.analytics.onepager.trend_6w', 'Тренд УрК (6 нед)')}</div>
                                 <div class="absolute bottom-0 left-0 right-0 h-[40px] opacity-70"><canvas id="op-sparkline-chart"></canvas></div>
                             </div>
                         </div>
@@ -2384,16 +2423,16 @@ export const AnalyticsRender = {
                         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm flex flex-col">
                             <div class="flex justify-between items-center mb-2 gap-2">
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase">Динамика уровня качества</div>
-                                    <div class="text-[8px] font-semibold text-slate-400 mt-0.5">${(window.AnalyticsActions && typeof window.AnalyticsActions.onePagerTrendWindowHint === 'function') ? window.AnalyticsActions.onePagerTrendWindowHint(window.trendGroupings.onepager || 'WEEK') : '12 нед. · вне фильтра периода'}</div>
+                                    <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase">${_t('quality.analytics.onepager.dynamics_urk', 'Динамика уровня качества')}</div>
+                                    <div class="text-[8px] font-semibold text-slate-400 mt-0.5">${(window.AnalyticsActions && typeof window.AnalyticsActions.onePagerTrendWindowHint === 'function') ? window.AnalyticsActions.onePagerTrendWindowHint(window.trendGroupings.onepager || 'WEEK') : _t('quality.analytics.trend.window_12w', '12 нед. · вне фильтра периода')}</div>
                                 </div>
                                 <div class="flex gap-1 shrink-0">
                                     <button onclick="openChartFilterModal('onepager')" class="text-[9px] font-bold border border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 rounded px-2 py-1 active:scale-95 shadow-sm flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Линии
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> ${_t('quality.analytics.chart.lines', 'Линии')}
                                     </button>
                                     <select onchange="updateTrendCharts('onepager', this.value)" class="text-[9px] font-semibold border border-indigo-200 text-indigo-700 bg-white dark:bg-slate-800 dark:text-indigo-300 rounded px-1 py-1 outline-none cursor-pointer shadow-sm">
-                                        <option value="WEEK" ${(window.trendGroupings.onepager || 'WEEK') === 'WEEK' ? 'selected' : ''}>Недели</option>
-                                        <option value="MONTH" ${window.trendGroupings.onepager === 'MONTH' ? 'selected' : ''}>Месяцы</option>
+                                        <option value="WEEK" ${(window.trendGroupings.onepager || 'WEEK') === 'WEEK' ? 'selected' : ''}>${_t('quality.analytics.period.weeks', 'Недели')}</option>
+                                        <option value="MONTH" ${window.trendGroupings.onepager === 'MONTH' ? 'selected' : ''}>${_t('quality.analytics.period.months', 'Месяцы')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -2403,7 +2442,7 @@ export const AnalyticsRender = {
                         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 shadow-sm flex flex-col">
                             <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-3 flex items-center gap-1.5">
                                 <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
-                                Рейтинг подрядчиков по надежности
+                                ${_t('quality.analytics.onepager.rating_reliability', 'Рейтинг подрядчиков по надежности')}
                             </div>
                             <div class="space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
                                 ${ratingData.map(r => {
@@ -2423,12 +2462,12 @@ export const AnalyticsRender = {
                                             <div class="h-full ${r.val < 70 ? 'bg-red-500' : (r.val < 85 ? 'bg-orange-500' : 'bg-green-500')}" style="width:${r.val}%"></div>
                                         </div>
                                         <div class="w-[68px] shrink-0 flex items-center justify-end gap-1 leading-none" title="${trendLabel}">
-                                            ${r.isPrelim ? '<span class="text-[7px] text-slate-400 font-bold border border-slate-300 rounded px-0.5" title="Предварительный рейтинг">СБОР</span>' : ''}
+                                            ${r.isPrelim ? `<span class="text-[7px] text-slate-400 font-bold border border-slate-300 rounded px-0.5" title="${_t('quality.analytics.kpi.prelim_title', 'Предварительный рейтинг')}">${_t('quality.analytics.kpi.collecting', 'СБОР')}</span>` : ''}
                                             <span class="text-[11px] font-black ${r.val < 70 ? 'text-red-500' : (r.val < 85 ? 'text-orange-500' : 'text-green-500')}">${r.val}%</span>
                                             ${deltaHtml}
                                         </div>
                                     </div>`;
-                                }).join('') || '<div class="text-[10px] text-[var(--text-muted)] text-center py-2">Недостаточно данных</div>'}
+                                }).join('') || `<div class="text-[10px] text-[var(--text-muted)] text-center py-2">${_t('quality.analytics.empty.insufficient', 'Недостаточно данных')}</div>`}
                             </div>
                         </div>
                     </div>
@@ -2440,7 +2479,7 @@ export const AnalyticsRender = {
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg> 
                             Пульс объекта (AI) 
-                            <button onclick="event.preventDefault(); showToast('Индекс Здоровья рассчитывается на основе Индекса Риска (ИКО), доли подрядчиков с ИУрК ниже 70% и аварий B3. ИИ анализирует эти данные и дает краткое заключение.')" class="text-indigo-400 hover:text-indigo-600 active:scale-95 transition-colors ml-1" title="Справка">
+                            <button onclick="event.preventDefault(); showToast(_t('quality.analytics.toast.health_help', 'Индекс Здоровья рассчитывается на основе Индекса Риска (ИКО), доли подрядчиков с ИУрК ниже 70% и аварий B3. ИИ анализирует эти данные и дает краткое заключение.'))" class="text-indigo-400 hover:text-indigo-600 active:scale-95 transition-colors ml-1" title="${_t('quality.analytics.help', 'Справка')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </button>
                         </span>
@@ -2448,11 +2487,11 @@ export const AnalyticsRender = {
                     </summary>
                     <div class="p-4 border-t border-indigo-100 dark:border-indigo-800 bg-white dark:bg-slate-800 rounded-b-2xl">
                         <div class="flex justify-between items-center mb-4">
-                            <div class="text-[10px] font-bold uppercase text-slate-400">Индекс Здоровья</div>
+                            <div class="text-[10px] font-bold uppercase text-slate-400">${_t('quality.analytics.onepager.health_index', 'Индекс Здоровья')}</div>
                             <div class="text-4xl font-black ${healthColor}">${healthIndex}<span class="text-lg text-slate-400">/100</span></div>
                         </div>
                         <div class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 font-medium" id="pulse-ai-text">
-                            ${_reports().getExpertConclusion('pulse_ai') || 'Нажмите кнопку ниже для генерации пульса.'}
+                            ${_reports().getExpertConclusion('pulse_ai') || _t('quality.analytics.onepager.pulse_placeholder', 'Нажмите кнопку ниже для генерации пульса.')}
                         </div>
                         <button onclick="window.RBI.services.ai.generatePulseAi()" class="mt-3 w-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest active:scale-95 shadow-sm flex items-center justify-center gap-1.5 transition-transform">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Обновить Пульс
@@ -2465,7 +2504,7 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                            Тепловая карта этапов
+                            ${_t('quality.analytics.onepager.heatmap', 'Тепловая карта этапов')}
                         </span>
                         <span class="transition-transform group-open:rotate-180">▼</span>
                     </summary>
@@ -2484,7 +2523,7 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg>
-                            ТОП-5 Дефектов и Эталонов
+                            ${_t('quality.analytics.onepager.top5', 'ТОП-5 Дефектов и Эталонов')}
                         </span>
                         <span class="transition-transform group-open:rotate-180">▼</span>
                     </summary>
@@ -2498,7 +2537,7 @@ export const AnalyticsRender = {
                             ${renderUIPhotoCards(topB2, false)}
                         </div>
                         <div class="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/50 rounded-xl p-3 shadow-sm flex flex-col">
-                            <h3 class="margin-0 mb-3 font-bold text-[10px] text-green-600 dark:text-green-400 uppercase border-b border-green-200 dark:border-green-800 pb-2 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Эталонные работы (OK)</h3>
+                            <h3 class="margin-0 mb-3 font-bold text-[10px] text-green-600 dark:text-green-400 uppercase border-b border-green-200 dark:border-green-800 pb-2 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ${_t('quality.analytics.gallery.ok_title', 'Эталонные работы (OK)')}</h3>
                             ${renderUIPhotoCards(topOK, false, true)}
                         </div>
                     </div>
@@ -2510,19 +2549,19 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[10px] sm:text-[11px] ${isGlobalDanger ? 'text-orange-800 dark:text-orange-500' : 'text-green-800 dark:text-green-500'} uppercase tracking-wide cursor-pointer flex justify-between items-center rounded-2xl transition-colors select-none gap-2">
                         <span class="flex items-center gap-2 min-w-0 leading-snug">
                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
-                            <span>Аналитика качества <span class="font-semibold normal-case tracking-normal opacity-80">(вывод и рекомендация инженера)</span></span>
+                            <span>${_t('quality.analytics.onepager.quality_analytics', 'Аналитика качества')} <span class="font-semibold normal-case tracking-normal opacity-80">${_t('quality.analytics.onepager.quality_analytics_hint', '(вывод и рекомендация инженера)')}</span></span>
                         </span>
                         <span class="transition-transform group-open:rotate-180 shrink-0">▼</span>
                     </summary>
                     <div class="p-4 border-t ${isGlobalDanger ? 'border-orange-200 dark:border-orange-800' : 'border-green-200 dark:border-green-800'} rounded-b-2xl">
                         <div class="flex justify-between items-center mb-3 gap-2">
-                            <div class="text-[10px] font-bold uppercase opacity-70">До ${OP_PDCA_MAX_CHARS} символов (печать A3)</div>
+                            <div class="text-[10px] font-bold uppercase opacity-70">${_t('quality.analytics.onepager.pdca_limit', 'До {n} символов (печать A3)', { n: OP_PDCA_MAX_CHARS })}</div>
                             <div class="flex gap-2 shrink-0">
                                 <button onclick="window.RBI.services.ai.generateOnePagerForecastAi('${pdcaKey}')" class="text-[9px] font-bold bg-white/70 dark:bg-black/30 border border-black/10 dark:border-white/10 px-2.5 py-1.5 rounded shadow-sm active:scale-95 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI-Анализ</button>
                                 <button onclick="editExpertText('${pdcaKey}', 'hidden_pdca_text')" class="text-[9px] font-bold bg-white/70 dark:bg-black/30 border border-black/10 dark:border-white/10 px-2.5 py-1.5 rounded shadow-sm active:scale-95 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> Изменить</button>
                             </div>
                         </div>
-                        ${pdcaWasClipped ? '<div class="text-[9px] font-bold text-amber-700 dark:text-amber-400 mb-2 uppercase">Текст обрезан до 500 символов для печати</div>' : ''}
+                        ${pdcaWasClipped ? `<div class="text-[9px] font-bold text-amber-700 dark:text-amber-400 mb-2 uppercase">${_t('quality.analytics.toast.expert_trimmed', 'Текст обрезан до 500 символов для печати')}</div>` : ''}
                         <textarea id="hidden_pdca_text" class="hidden" maxlength="${OP_PDCA_MAX_CHARS}">${rawPdcaText.replace(/</g, '&lt;')}</textarea>
                         <div class="text-[12px] leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium max-h-[220px] overflow-y-auto custom-scrollbar">${uiPdcaText}</div>
                     </div>
@@ -2567,7 +2606,7 @@ export const AnalyticsRender = {
                             legend: { position: 'right', labels: { boxWidth: 8, font: { size: 8 } } },
                             title: {
                                 display: isTruncatedForChart,
-                                text: 'Отображены до 10 подрядчиков (по рейтингу)',
+                                text: _t('quality.analytics.chart.top10_note', 'Отображены до 10 подрядчиков (по рейтингу)'),
                                 color: '#94a3b8',
                                 font: { size: 10, weight: 'bold' },
                                 padding: { bottom: 5 }
@@ -2586,11 +2625,11 @@ export const AnalyticsRender = {
     renderGlobalOnePager(data, container) {
         var _allInspections = _inspections();
         if (data.length === 0) {
-            container.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 border border-[var(--card-border)] rounded-xl bg-[var(--card-bg)] shadow-sm">Нет данных для анализа компании</div>`;
+            container.innerHTML = `<div class="text-center text-slate-500 text-sm py-10 border border-[var(--card-border)] rounded-xl bg-[var(--card-bg)] shadow-sm">${_t('quality.analytics.empty.company', 'Нет данных для анализа компании')}</div>`;
             return;
         }
 
-        let periodText = document.getElementById('btn-ana-period-label')?.innerText.trim() || 'За 30 дней';
+        let periodText = document.getElementById('btn-ana-period-label')?.innerText.trim() || _t('quality.analytics.period.d30', 'За 30 дней');
 
         // --- 1. РАСЧЕТ ПРЕДЫДУЩЕГО ПЕРИОДА ДЛЯ ТРЕНДОВ ---
         const selPeriod = document.getElementById('global-filter-period')?.value || 'D30';
@@ -2669,7 +2708,7 @@ export const AnalyticsRender = {
             const hasDoc = p.avgDoc !== null && p.avgDoc !== undefined;
             const docColor = hasDoc ? _urkGradientColor(p.avgDoc) : '';
             const docGap = hasDoc ? Math.abs(p.avgUrk - p.avgDoc) : 0;
-            const docGapWarn = (hasDoc && docGap > 30) ? ` <span title="Большой разрыв между физикой и документацией (>30%)">⚠️</span>` : '';
+            const docGapWarn = (hasDoc && docGap > 30) ? ` <span title="${_t('quality.analytics.warn.doc_gap', 'Большой разрыв между физикой и документацией (>30%)')}">⚠️</span>` : '';
 
             cardsHtml += `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2.5 sm:p-3 shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors cursor-pointer active:scale-[0.98] min-w-0" onclick="
@@ -2687,11 +2726,11 @@ export const AnalyticsRender = {
                 </div>
                 <div class="mt-auto pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
                     <div class="min-w-0">
-                        <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 truncate">Ур. качества</div>
+                        <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 truncate">${_t('quality.analytics.kpi.quality_level', 'Ур. качества')}</div>
                         <div class="text-xl sm:text-2xl font-black leading-none flex items-center tabular-nums" style="color:${urkColor}">
                             ${p.avgUrk}% ${formatTrendInline(p.avgUrk, p.prevAvgUrk, false)}
                         </div>
-                        <div class="text-[8px] sm:text-[10px] font-bold mt-0.5 truncate" style="color:${hasDoc ? docColor : 'transparent'}">${hasDoc ? `Док ${p.avgDoc}%${docGapWarn}` : '&nbsp;'}</div>
+                        <div class="text-[8px] sm:text-[10px] font-bold mt-0.5 truncate" style="color:${hasDoc ? docColor : 'transparent'}">${hasDoc ? `${_t('quality.analytics.kpi.doc_short', 'Док')} ${p.avgDoc}%${docGapWarn}` : '&nbsp;'}</div>
                     </div>
                     <div class="flex flex-wrap justify-between gap-1 text-[8px] sm:text-[9px] font-bold uppercase">
                         <span class="text-slate-500">Пров. ${p.count}</span>
@@ -2708,7 +2747,7 @@ export const AnalyticsRender = {
         if (skHrRecordsList.length > 0) {
             const engMap = {};
             skHrRecordsList.forEach(r => {
-                let baseName = r.inspector && r.inspector.trim() !== '' ? r.inspector.trim() : 'Не указан';
+                let baseName = r.inspector && r.inspector.trim() !== '' ? r.inspector.trim() : _t('quality.analytics.fallback.unspecified', 'Не указан');
                 if (!engMap[baseName]) engMap[baseName] = { total: 0, open: 0, overdue: 0, withCategory: 0 };
 
                 engMap[baseName].total++;
@@ -2735,7 +2774,7 @@ export const AnalyticsRender = {
                     <div class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black ${idx === 0 ? 'bg-orange-400 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'} shrink-0">${idx + 1}</div>
                     <div class="flex-1 min-w-0">
                         <div class="text-[11px] font-bold text-slate-800 dark:text-white truncate">${e.name}</div>
-                        <div class="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Выдано: ${e.total} | Просрочка: ${e.overduePerc}%</div>
+                        <div class="text-[8px] font-bold text-slate-400 uppercase mt-0.5">${_t('quality.analytics.onepager.sk_issued', 'Выдано: {total} | Просрочка: {pct}%', { total: e.total, pct: e.overduePerc })}</div>
                     </div>
                     <div class="text-right shrink-0">
                         <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">KPI</div>
@@ -2744,7 +2783,7 @@ export const AnalyticsRender = {
                 </div>
             `).join('');
         } else {
-            skHrHtml = '<div class="text-[10px] text-center text-slate-400 py-4">Данные Стройконтроля не загружены</div>';
+            skHrHtml = '<div class="text-[10px] text-center text-slate-400 py-4">' + _t('quality.analytics.sk.not_loaded', 'Данные Стройконтроля не загружены') + '</div>';
         }
 
         // --- 5. ГЛОБАЛЬНЫЕ РЕЙТИНГИ ПОДРЯДЧИКОВ И ИНЖЕНЕРОВ RBI ---
@@ -2788,9 +2827,9 @@ export const AnalyticsRender = {
                 <div>
                     <h2 class="text-[12px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
                         <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Глобальная сводка (Компания)
+                        ${_t('quality.analytics.onepager.global_summary', 'Глобальная сводка (Компания)')}
                     </h2>
-                    <div class="text-[9px] font-bold text-[var(--text-muted)] mt-1">Охват: ${data.length} проверок &bull; Период: <span class="text-indigo-500">${periodText}</span></div>
+                    <div class="text-[9px] font-bold text-[var(--text-muted)] mt-1">${_t('quality.analytics.onepager.coverage', 'Охват: {n} проверок', { n: data.length })} &bull; ${_t('quality.analytics.onepager.period_label', 'Период:')} <span class="text-indigo-500">${periodText}</span></div>
                 </div>
             </div>
 
@@ -2803,13 +2842,13 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[11px] text-indigo-700 dark:text-indigo-400 uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-indigo-100 transition-colors rounded-2xl select-none">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> 
-                            Анализ портфеля (AI)
+                            ${_t('quality.analytics.onepager.portfolio_ai', 'Анализ портфеля (AI)')}
                         </span>
                         <span class="transition-transform group-open:rotate-180">▼</span>
                     </summary>
                     <div class="p-4 border-t border-indigo-100 dark:border-indigo-800 bg-white dark:bg-slate-800 rounded-b-2xl">
                         <div id="global-ai-text" class="text-[12px] leading-relaxed text-slate-800 dark:text-slate-200 font-medium whitespace-pre-wrap">
-                            ${_reports().getExpertConclusion('global_portfolio_ai') || 'Нажмите кнопку ниже для генерации отчета по всей компании.'}
+                            ${_reports().getExpertConclusion('global_portfolio_ai') || _t('quality.analytics.onepager.company_placeholder', 'Нажмите кнопку ниже для генерации отчета по всей компании.')}
                         </div>
                         <button onclick="window.RBI.services.ai.rbi_generateGlobalAi()" class="mt-4 w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Сгенерировать резюме
@@ -2824,7 +2863,7 @@ export const AnalyticsRender = {
                         <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                             <span class="flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg> 
-                                Рейтинг Объектов (УрК)
+                                ${_t('quality.analytics.onepager.projects_rating', 'Рейтинг Объектов (УрК)')}
                             </span>
                             <span class="transition-transform group-open:rotate-180">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
@@ -2856,7 +2895,7 @@ export const AnalyticsRender = {
                         <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                             <span class="flex items-center gap-2">
                                 <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> 
-                                Антирейтинг (ИКО)
+                                ${_t('quality.analytics.onepager.antiratings', 'Антирейтинг (ИКО)')}
                             </span>
                             <span class="transition-transform group-open:rotate-180">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
@@ -2868,7 +2907,7 @@ export const AnalyticsRender = {
                                     <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
                                         <div class="flex-1 min-w-0 pr-2">
                                             <div class="text-[11px] font-bold text-slate-800 dark:text-white truncate" title="${p.name}">${p.name}</div>
-                                            <div class="text-[8px] font-bold text-slate-400 mt-1 uppercase">Крит. деф. (B3): ${p.b3Found} шт.</div>
+                                            <div class="text-[8px] font-bold text-slate-400 mt-1 uppercase">${_t('quality.analytics.onepager.crit_defects', 'Крит. деф. (B3): {n} шт.', { n: p.b3Found })}</div>
                                         </div>
                                         <div class="text-right shrink-0 flex flex-col items-end justify-center">
                                             <div class="text-[14px] font-black leading-none ${parseFloat(p.IKO) >= 0.6 ? 'text-red-500' : (parseFloat(p.IKO) >= 0.3 ? 'text-orange-500' : 'text-green-500')}">${p.IKO}</div>
@@ -2886,7 +2925,7 @@ export const AnalyticsRender = {
                     <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> 
-                            Глобальные Подрядчики (ИУрК)
+                            ${_t('quality.analytics.onepager.global_contr', 'Глобальные Подрядчики (ИУрК)')}
                         </span>
                         <span class="transition-transform group-open:rotate-180">▼</span>
                     </summary>
@@ -2900,7 +2939,7 @@ export const AnalyticsRender = {
                                     </div>
                                     <div class="w-10 text-right text-[11px] font-black ${r.val < 70 ? 'text-red-500' : (r.val < 85 ? 'text-orange-500' : 'text-green-500')}">${r.val}%</div>
                                 </div>
-                            `).join('') || '<div class="text-[10px] text-center text-slate-400">Нет данных</div>'}
+                            `).join('') || ('<div class="text-[10px] text-center text-slate-400">' + _t('quality.analytics.empty.generic', 'Нет данных') + '</div>')}
                         </div>
                     </div>
                 </details>
@@ -2913,12 +2952,12 @@ export const AnalyticsRender = {
                         <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                             <span class="flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> 
-                                Рейтинг Аудиторов RBI
+                                ${_t('quality.analytics.onepager.auditors', 'Рейтинг Аудиторов RBI')}
                             </span>
                             <span class="transition-transform group-open:rotate-180">▼</span>
                         </summary>
                         <div class="p-4 border-t border-[var(--card-border)] bg-white dark:bg-slate-800 rounded-b-2xl">
-                            ${hrHtml || '<div class="text-[10px] text-center text-slate-400">Нет данных по команде</div>'}
+                            ${hrHtml || ('<div class="text-[10px] text-center text-slate-400">' + _t('quality.analytics.empty.team', 'Нет данных по команде') + '</div>')}
                         </div>
                     </details>
 
@@ -2927,7 +2966,7 @@ export const AnalyticsRender = {
                         <summary class="p-3.5 font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-2xl select-none">
                             <span class="flex items-center gap-2">
                                 <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> 
-                                Рейтинг Инженеров (ПК СК)
+                                ${_t('quality.analytics.onepager.sk_engineers', 'Рейтинг Инженеров (ПК СК)')}
                             </span>
                             <span class="transition-transform group-open:rotate-180">▼</span>
                         </summary>
@@ -2959,7 +2998,7 @@ export const AnalyticsRender = {
             return c.contractorName + ' [' + projectLabel + ']' === contractorName;
         });
 
-        if (data.length === 0) { container.innerHTML = 'Ошибка данных'; return; }
+        if (data.length === 0) { container.innerHTML = _t('quality.analytics.error.data', 'Ошибка данных'); return; }
 
         const m = getContractorMetrics(data, _templates().getUserTemplates());
         // Исторический контур: все проверки подрядчика+объекта без фильтра периода и без окна 15.
@@ -2990,13 +3029,13 @@ export const AnalyticsRender = {
             if (unit.state) {
                 Object.keys(unit.state).forEach(id => {
                     const s = unit.state[id];
-                    let defName = "Дефект";
-                    let parentStage = 'Прочее'; // Дефолтное имя, если не найдем
+                    let defName = _t('quality.analytics.fallback.defect', 'Дефект');
+                    let parentStage = _t('quality.analytics.fallback.other', 'Прочее'); // Дефолтное имя, если не найдем
 
                     // Ищем реальную группу из чек-листа
                     clGroups.forEach(group => {
                         const found = group.items.find(x => String(x.id) === String(id));
-                        if (found) { defName = found.n; parentStage = group.group || group.title || 'Прочее'; }
+                        if (found) { defName = found.n; parentStage = group.group || group.title || _t('quality.analytics.fallback.other', 'Прочее'); }
                     });
 
                     if (!cStageData[parentStage]) {
@@ -3073,12 +3112,12 @@ export const AnalyticsRender = {
                     <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 pr-4 leading-snug">${d.name}</div>
                     <div class="flex items-center gap-2 shrink-0">
                         <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${d.type === 'B3' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}">${d.type}</span>
-                        <span class="text-[11px] font-black text-slate-500 w-8 text-right">${d.count} шт</span>
+                        <span class="text-[11px] font-black text-slate-500 w-8 text-right">${d.count} ${_t('quality.analytics.chart.pcs', 'шт')}</span>
                     </div>
                 </div>
             `).join('');
         } else {
-            defectsListHtml = '<div class="text-center text-slate-400 text-[10px] font-bold py-2">Дефектов B2 и B3 не зафиксировано</div>';
+            defectsListHtml = '<div class="text-center text-slate-400 text-[10px] font-bold py-2">' + _t('quality.analytics.detail.no_b2b3', 'Дефектов B2 и B3 не зафиксировано') + '</div>';
         }
         const totalDefects = sumB1 + sumB2 + sumB3;
         const pB1 = totalDefects > 0 ? Math.round((sumB1 / totalDefects) * 100) : 0;
@@ -3088,24 +3127,24 @@ export const AnalyticsRender = {
         const histAccordionHtml = mHist ? `
             <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">📚 История (все проверки)</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.history_all', '📚 История (все проверки)')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="border-t border-[var(--card-border)] p-3 space-y-3">
                     <p class="text-[10px] text-slate-500 font-bold leading-snug">За всё время по этому подрядчику на объекте, <b>без</b> скользящего окна ≤15 и <b>без</b> фильтра периода. Здесь — доверительный интервал и достоверность.</p>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="bg-[var(--hover-bg)] p-2.5 rounded-lg border border-[var(--card-border)]">
-                            <div class="text-[8px] text-slate-400 uppercase font-bold">Надёжность (история)</div>
+                            <div class="text-[8px] text-slate-400 uppercase font-bold">${_t('quality.analytics.detail.rel_history', 'Надёжность (история)')}</div>
                             <div class="text-2xl font-black ${mHist.finalC < 70 ? 'text-red-600' : (mHist.finalC < 85 ? 'text-orange-500' : 'text-green-600')}">${mHist.count < 7 ? '—' : mHist.finalC + '%'}</div>
                         </div>
                         <div class="bg-[var(--hover-bg)] p-2.5 rounded-lg border border-[var(--card-border)]">
-                            <div class="text-[8px] text-slate-400 uppercase font-bold">Ср. УрК (история)</div>
+                            <div class="text-[8px] text-slate-400 uppercase font-bold">${_t('quality.analytics.detail.avg_urk_history', 'Ср. УрК (история)')}</div>
                             <div class="text-2xl font-black text-slate-800 dark:text-white">${mHist.baseUrkContrPerc}%</div>
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-2 text-center">
                         <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]">
-                            <div class="text-[8px] text-slate-400 uppercase font-bold">N полное</div>
+                            <div class="text-[8px] text-slate-400 uppercase font-bold">${_t('quality.analytics.detail.n_full', 'N полное')}</div>
                             <div class="font-black text-sm">${mHist.count}</div>
                         </div>
                         <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]">
@@ -3113,11 +3152,11 @@ export const AnalyticsRender = {
                             <div class="font-black text-sm">${mHist.count >= 2 ? ('±' + mHist.ci95_margin.toFixed(1) + '%') : '—'}</div>
                         </div>
                         <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]">
-                            <div class="text-[8px] text-slate-400 uppercase font-bold">Достоверность</div>
+                            <div class="text-[8px] text-slate-400 uppercase font-bold">${_t('quality.analytics.detail.credibility', 'Достоверность')}</div>
                             <div class="text-[9px] font-black uppercase mt-0.5 ${mHist.confCls}">${mHist.confStatus}</div>
                         </div>
                     </div>
-                    <div class="text-[10px] font-bold text-slate-500">Стабильность: <span class="${mHist.stabColor}">${mHist.stabilityIndex} (${mHist.stabText})</span></div>
+                    <div class="text-[10px] font-bold text-slate-500">${_t('quality.analytics.kpi.stability', 'Стабильность:')} <span class="${mHist.stabColor}">${mHist.stabilityIndex} (${mHist.stabText})</span></div>
                 </div>
             </details>` : '';
 
@@ -3132,7 +3171,7 @@ export const AnalyticsRender = {
                     <li><span class="${m.ks < 1 ? 'text-red-500 font-bold' : 'text-green-600'}">Ks = ${m.ks.toFixed(2)}</span> (Системность). Отражает повторяемость одного и того же дефекта B2. В данном случае максимальная частота повтора: ${m.maxFailRate.toFixed(1)}%.</li>
                     <li><span class="${m.kcritC < 1 ? 'text-red-500 font-bold' : 'text-green-600'}">KB3 = ${m.kcritC.toFixed(2)}</span> (Критичность). Отражает частоту появления аварийных дефектов B3. Доля проверок с B3: ${m.rateB3.toFixed(1)}%.</li>
                 </ul>
-                ${(m.ks < 1 || m.kcritC < 1) && m.finalC === 84 ? `<div class="bg-orange-50 text-orange-800 p-2 rounded mt-2 border border-orange-200">⚠️ Сработало правило "Стеклянного потолка" (Cap84). Из-за наличия системных или критических нарушений, итоговая оценка обрезана до 84%.</div>` : ''}
+                ${(m.ks < 1 || m.kcritC < 1) && m.finalC === 84 ? `<div class="bg-orange-50 text-orange-800 p-2 rounded mt-2 border border-orange-200">⚠️ ${_t('quality.analytics.detail.cap84', 'Сработало правило "Стеклянного потолка" (Cap84). Из-за наличия системных или критических нарушений, итоговая оценка обрезана до 84%.')}</div>` : ''}
                 <p class="mt-2 border-t pt-2 border-slate-200"><b>Вывод для инженера:</b> ${m.reason}</p>
             </div>
         `;
@@ -3163,18 +3202,18 @@ export const AnalyticsRender = {
                 const overdueColor = skOverdue > 3 ? 'text-red-600' : (skOverdue > 0 ? 'text-orange-500' : 'text-green-600');
                 skHtmlBlock = `
                     <div class="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-3 shadow-sm mb-4">
-                        <div class="text-[11px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">📑 Данные ПК Стройконтроль</div>
+                        <div class="text-[11px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">📑 ${_t('quality.analytics.detail.sk_data', 'Данные ПК Стройконтроль')}</div>
                         <div class="flex justify-between items-center bg-white dark:bg-slate-800 rounded-lg p-2 border border-blue-100 dark:border-blue-800">
                             <div class="text-center flex-1 border-r border-slate-100">
-                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Всего замеч.</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">${_t('quality.analytics.detail.sk_total', 'Всего замеч.')}</div>
                                 <div class="text-xl font-black text-slate-700 dark:text-slate-300">${skTotal}</div>
                             </div>
                             <div class="text-center flex-1 border-r border-slate-100">
-                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Открыто</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">${_t('quality.analytics.detail.sk_open', 'Открыто')}</div>
                                 <div class="text-xl font-black ${skOpen > 0 ? 'text-red-500' : 'text-green-500'}">${skOpen}</div>
                             </div>
                             <div class="text-center flex-1">
-                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Просрочено</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">${_t('quality.analytics.detail.sk_overdue', 'Просрочено')}</div>
                                 <div class="text-xl font-black ${overdueColor}">${skOverdue}</div>
                             </div>
                         </div>
@@ -3190,26 +3229,26 @@ export const AnalyticsRender = {
             </button>
 
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-4 shadow-sm mb-4">
-                <div class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mb-2">Оперативно · период + окно ≤15</div>
+                <div class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mb-2">${_t('quality.analytics.detail.ops_window', 'Оперативно · период + окно ≤15')}</div>
                 <div class="flex justify-between items-start mb-3 border-b border-[var(--card-border)] pb-3">
                     <div class="bg-[var(--hover-bg)] p-2 rounded-xl border border-[var(--card-border)] shadow-sm flex flex-col justify-center min-h-[70px]">
-                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">Надежность (ИУрК)</div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">${_t('quality.analytics.detail.reliability_iurk', 'Надежность (ИУрК)')}</div>
                         ${m.count < 7
-                ? `<div class="text-[12px] font-black text-slate-500 uppercase leading-tight">Проведите минимум 7 проверок<br><span class="text-indigo-500">Собрано: ${m.count} из 7</span></div>`
+                ? `<div class="text-[12px] font-black text-slate-500 uppercase leading-tight">${_t('quality.analytics.detail.min_checks', 'Проведите минимум 7 проверок')}<br><span class="text-indigo-500">${_t('quality.analytics.detail.collected', 'Собрано: {n} из 7', { n: m.count })}</span></div>`
                 : `<div class="text-5xl font-black leading-none ${m.finalC < 70 ? 'text-red-600' : (m.finalC < 85 ? 'text-orange-500' : 'text-green-600')}">${m.finalC}%</div>`
             }
                     </div>
                     <div class="text-right">
-                        <span class="text-[12px] font-black text-slate-700 dark:text-slate-300 block">Ср. УрК Изд: ${m.baseUrkContrPerc}%</span>
-                        ${(m.documentaryC !== null && m.documentaryC !== undefined) ? `<span class="text-[12px] font-black text-indigo-500 block">УрК Докум: ${m.documentaryC}%</span>` : ''}
+                        <span class="text-[12px] font-black text-slate-700 dark:text-slate-300 block">${_t('quality.analytics.detail.avg_urk_units', 'Ср. УрК Изд:')} ${m.baseUrkContrPerc}%</span>
+                        ${(m.documentaryC !== null && m.documentaryC !== undefined) ? `<span class="text-[12px] font-black text-indigo-500 block">${_t('quality.analytics.kpi.doc_urk', 'УрК Докум:')} ${m.documentaryC}%</span>` : ''}
                         <div class="text-[10px] font-bold text-slate-500 mt-1">N в окне: ${m.count}</div>
                     </div>
                 </div>
                 ${(m.count >= 7 && m.documentaryC !== null && m.documentaryC !== undefined && Math.abs(m.finalC - m.documentaryC) > 30) ? `<div class="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 text-[10px] font-bold p-2 rounded-lg border border-orange-200 dark:border-orange-800 mb-3 flex items-center gap-1.5">⚠️ Разрыв между физикой (${m.finalC}%) и документацией (${m.documentaryC}%) — ${Math.abs(m.finalC - m.documentaryC)} п.п.</div>` : ''}
                 
                 <div class="grid grid-cols-4 gap-2 mb-3 text-center">
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold" title="Последние до 15 в периоде">Окно</div><div class="font-black text-sm">${m.count}</div></div>
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold">Стаб-ть</div><div class="font-black text-sm ${m.stabColor}">${m.stabilityIndex}</div></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold" title="${_t('quality.analytics.kpi.window_hint', 'Последние до 15 в периоде')}">${_t('quality.analytics.kpi.window', 'Окно')}</div><div class="font-black text-sm">${m.count}</div></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold">${_t('quality.analytics.kpi.stab_short', 'Стаб-ть')}</div><div class="font-black text-sm ${m.stabColor}">${m.stabilityIndex}</div></div>
                     <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold">Ks</div><div class="font-black text-sm ${m.ks < 1 ? 'text-red-500' : 'text-slate-700'}">${m.ks.toFixed(2)}</div></div>
                     <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]"><div class="text-[8px] text-slate-400 uppercase font-bold">Kcrit</div><div class="font-black text-sm ${m.kcritC < 1 ? 'text-red-500' : 'text-slate-700'}">${m.kcritC.toFixed(2)}</div></div>
                 </div>
@@ -3231,7 +3270,7 @@ export const AnalyticsRender = {
             <!-- НОВЫЙ БЛОК: ПРЕДИКТИВНЫЙ ИИ ПРОГНОЗ -->
             <details class="bg-[var(--card-bg)] border-2 border-indigo-200 dark:border-indigo-800 rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-indigo-700 dark:text-indigo-400 uppercase tracking-widest cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 rounded-xl hover:bg-indigo-100 transition-colors">
-                    <span class="flex items-center gap-2">🔮 Предиктивный прогноз (AI)</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.forecast', '🔮 Предиктивный прогноз (AI)')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="border-t border-indigo-100 dark:border-indigo-800 p-4 bg-white dark:bg-slate-800">
@@ -3243,7 +3282,7 @@ export const AnalyticsRender = {
 
             <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">📝 Классическое заключение (PDCA)</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.pdca', '📝 Классическое заключение (PDCA)')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="border-t border-[var(--card-border)] p-1">
@@ -3253,20 +3292,20 @@ export const AnalyticsRender = {
             
             <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">🏅 Культура качества (AI)</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.culture', '🏅 Культура качества (AI)')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30">
                     <button onclick="window.RBI.services.ai.generateCultureAi('${safeContractorNameForHtml}')" class="w-full bg-white border border-indigo-200 text-indigo-700 py-2.5 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 mb-2">🤖 Оценить вовлеченность</button>
                     <div id="culture-ai-text" class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
-                        ${_reports().getExpertConclusion(`culture_${contractorName}`) || 'Нажмите кнопку для генерации оценки вовлеченности подрядчика.'}
+                        ${_reports().getExpertConclusion(`culture_${contractorName}`) || _t('quality.analytics.detail.culture_placeholder', 'Нажмите кнопку для генерации оценки вовлеченности подрядчика.')}
                     </div>
                 </div>
             </details>
 
             <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">⚙️ Разбор оценки от Системы</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.system_breakdown', '⚙️ Разбор оценки от Системы')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30">
@@ -3277,7 +3316,7 @@ export const AnalyticsRender = {
             <div class="flex flex-col gap-4 mb-4">
                 <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
                     <summary class="p-3 font-black text-[10px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                        <span>📉 Динамика по проверкам</span><span>▼</span>
+                        <span>${_t('quality.analytics.detail.checks_dynamics', '📉 Динамика по проверкам')}</span><span>▼</span>
                     </summary>
                     <div class="p-3 border-t border-[var(--card-border)]">
                         <div style="height: 160px; position: relative;"><canvas id="chart_detail_line"></canvas></div>
@@ -3286,12 +3325,12 @@ export const AnalyticsRender = {
                 
                 <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm group [&_summary::-webkit-details-marker]:hidden">
                     <summary class="p-3 font-black text-[10px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                        <span>📑 Качество по этапам СМР</span><span>▼</span>
+                        <span>${_t('quality.analytics.detail.stages_smr', '📑 Качество по этапам СМР')}</span><span>▼</span>
                     </summary>
                     <div class="overflow-x-auto border-t border-[var(--card-border)]">
                         <table class="w-full text-left whitespace-nowrap">
                             <thead class="bg-slate-50 dark:bg-slate-900/50 text-[9px] text-[var(--text-muted)] border-b border-[var(--card-border)] uppercase tracking-wider">
-                                <tr><th class="p-2 pl-3">Этап</th><th class="p-2 text-center">Пров.</th><th class="p-2 text-center">УрК</th><th class="p-2 text-center text-green-600">OK</th><th class="p-2 text-center text-orange-500">B2</th><th class="p-2 text-center text-red-600">B3</th></tr>
+                                <tr><th class="p-2 pl-3">${_t('quality.analytics.table.stage', 'Этап')}</th><th class="p-2 text-center">${_t('quality.analytics.table.checks', 'Пров.')}</th><th class="p-2 text-center">УрК</th><th class="p-2 text-center text-green-600">OK</th><th class="p-2 text-center text-orange-500">B2</th><th class="p-2 text-center text-red-600">B3</th></tr>
                             </thead>
                             <tbody class="divide-y divide-[var(--card-border)]">${stagesUIHtml}</tbody>
                         </table>
@@ -3300,7 +3339,7 @@ export const AnalyticsRender = {
             </div>
             <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">📋 Реестр частых дефектов</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.defect_registry', '📋 Реестр частых дефектов')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30">
@@ -3309,21 +3348,21 @@ export const AnalyticsRender = {
             </details>
             <details id="contractor-detail-photos" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm mb-4 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 font-black text-[11px] text-[var(--text-muted)] uppercase tracking-widest cursor-pointer flex justify-between items-center hover:bg-[var(--hover-bg)] transition-colors rounded-xl">
-                    <span class="flex items-center gap-2">📸 Фотогалереи (Брак и Эталоны)</span>
+                    <span class="flex items-center gap-2">${_t('quality.analytics.detail.photo_galleries', '📸 Фотогалереи (Брак и Эталоны)')}</span>
                     <span class="transition-transform group-open:rotate-180">▼</span>
                 </summary>
                 <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 space-y-4">
                     <div>
-                        <h3 class="text-[10px] font-black text-red-600 uppercase mb-2">Критический брак (B3)</h3>
-                        <div id="lazy-gallery-det_b3" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-black text-red-600 uppercase mb-2">${_t('quality.analytics.gallery.b3_title', 'Критический брак (B3)')}</h3>
+                        <div id="lazy-gallery-det_b3" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                     <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
-                        <h3 class="text-[10px] font-black text-orange-600 uppercase mb-2">Значимые дефекты (B2)</h3>
-                        <div id="lazy-gallery-det_b2" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-black text-orange-600 uppercase mb-2">${_t('quality.analytics.gallery.b2_title', 'Значимые дефекты (B2)')}</h3>
+                        <div id="lazy-gallery-det_b2" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                     <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
-                        <h3 class="text-[10px] font-black text-green-600 uppercase mb-2">Эталонные работы (OK)</h3>
-                        <div id="lazy-gallery-det_ok" class="text-xs text-slate-400">Откройте блок, чтобы загрузить фото…</div>
+                        <h3 class="text-[10px] font-black text-green-600 uppercase mb-2">${_t('quality.analytics.gallery.ok_title', 'Эталонные работы (OK)')}</h3>
+                        <div id="lazy-gallery-det_ok" class="text-xs text-slate-400">${_t('quality.analytics.gallery.open_to_load', 'Откройте блок, чтобы загрузить фото…')}</div>
                     </div>
                 </div>
             </details>
@@ -3392,7 +3431,7 @@ export const AnalyticsRender = {
         emptyMsg.style.display = 'none';
 
         const grouped = {};
-        data.forEach(item => { const cName = item.contractorName || 'Не указан'; if (!grouped[cName]) grouped[cName] = []; grouped[cName].push(item); });
+        data.forEach(item => { const cName = item.contractorName || _t('quality.analytics.fallback.unspecified', 'Не указан'); if (!grouped[cName]) grouped[cName] = []; grouped[cName].push(item); });
 
         const ratingData = [];
         for (let cName in grouped) {
@@ -3401,7 +3440,7 @@ export const AnalyticsRender = {
         }
 
         if (ratingData.length === 0) {
-            listDiv.innerHTML = '<p class="text-sm text-[var(--text-muted)] text-center bg-[var(--card-bg)] border border-[var(--card-border)] p-6 rounded-xl shadow-sm">Недостаточно данных. Для рейтинга нужно минимум 3 проверки по одному виду работ.</p>';
+            listDiv.innerHTML = '<p class="text-sm text-[var(--text-muted)] text-center bg-[var(--card-bg)] border border-[var(--card-border)] p-6 rounded-xl shadow-sm">' + _t('quality.analytics.empty.rating_min', 'Недостаточно данных. Для рейтинга нужно минимум 3 проверки по одному виду работ.') + '</p>';
             return;
         }
 
@@ -3417,12 +3456,12 @@ export const AnalyticsRender = {
 
             return `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-4 mb-4 shadow-sm relative overflow-hidden">
-                ${isGold ? '<div class="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[8px] font-black px-3 py-1 rounded-bl-lg uppercase shadow-sm z-10">🏆 Лидер</div>' : ''}
+                ${isGold ? `<div class="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[8px] font-black px-3 py-1 rounded-bl-lg uppercase shadow-sm z-10">🏆 ${_t('quality.analytics.rating.leader', 'Лидер')}</div>` : ''}
                 <div class="flex items-start gap-3 border-b border-[var(--card-border)] pb-3 mb-3">
                     <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-inner shrink-0 border ${rankClass}">${index + 1}</div>
                     <div class="flex-1 min-w-0">
                         <div class="text-[14px] font-black leading-tight truncate text-slate-800 dark:text-white">${r.name}</div>
-                        <span class="mt-1 inline-block px-1.5 py-0.5 rounded border border-[var(--card-border)] text-[8px] uppercase tracking-wide text-slate-500 font-bold">Окно N=${r.metrics.count}</span>
+                        <span class="mt-1 inline-block px-1.5 py-0.5 rounded border border-[var(--card-border)] text-[8px] uppercase tracking-wide text-slate-500 font-bold">${_t('quality.analytics.rating.window_n', 'Окно N={n}', { n: r.metrics.count })}</span>
                     </div>
                     <div class="text-right shrink-0">
                         <div class="text-3xl font-black leading-none ${r.metrics.finalC < 70 ? 'text-red-600' : (r.metrics.finalC < 85 ? 'text-orange-500' : 'text-green-600')}">${r.metrics.finalC}%</div>
@@ -3431,13 +3470,13 @@ export const AnalyticsRender = {
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[10px] font-bold mb-3 pb-3 border-b border-[var(--card-border)]">
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">Доля B3:</span> <span class="${r.metrics.rateB3 > 0 ? 'text-red-600' : 'text-green-600'}">${r.metrics.rateB3.toFixed(1)}%</span></div>
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">Повтор B2:</span> <span class="${r.metrics.maxFailRate >= 20 ? 'text-orange-600' : 'text-slate-700 dark:text-slate-300'}">${r.metrics.maxFailRate.toFixed(1)}%</span></div>
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center cursor-help" title="${r.metrics.stabDesc}"><span class="text-[var(--text-muted)] border-b border-dashed border-slate-300">Индекс стаб.:</span> <span class="font-black ${r.metrics.stabColor}">${r.metrics.stabilityIndex} <span class="text-[8px] uppercase font-bold">(${r.metrics.stabText})</span></span></div>
-                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">Волатильность:</span> <span class="${r.metrics.volatility > 15 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}">${r.metrics.volatility.toFixed(1)}</span></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">${_t('quality.analytics.rating.share_b3', 'Доля B3:')}</span> <span class="${r.metrics.rateB3 > 0 ? 'text-red-600' : 'text-green-600'}">${r.metrics.rateB3.toFixed(1)}%</span></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">${_t('quality.analytics.rating.repeat_b2', 'Повтор B2:')}</span> <span class="${r.metrics.maxFailRate >= 20 ? 'text-orange-600' : 'text-slate-700 dark:text-slate-300'}">${r.metrics.maxFailRate.toFixed(1)}%</span></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center cursor-help" title="${r.metrics.stabDesc}"><span class="text-[var(--text-muted)] border-b border-dashed border-slate-300">${_t('quality.analytics.rating.stab_index', 'Индекс стаб.:')}</span> <span class="font-black ${r.metrics.stabColor}">${r.metrics.stabilityIndex} <span class="text-[8px] uppercase font-bold">(${r.metrics.stabText})</span></span></div>
+                    <div class="bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] flex justify-between items-center"><span class="text-[var(--text-muted)]">${_t('quality.analytics.rating.volatility', 'Волатильность:')}</span> <span class="${r.metrics.volatility > 15 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}">${r.metrics.volatility.toFixed(1)}</span></div>
                 </div>
                 <div class="text-[10px] font-bold ${r.metrics.finalC < 70 || r.metrics.n_изделий_с_B3 > 0 ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20' : (r.metrics.finalC < 85 ? 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-900/20' : 'bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20')} p-2.5 rounded-lg border shadow-sm leading-snug">
-                    <span class="uppercase text-[9px] block mb-0.5 opacity-70">Основание:</span> ${r.metrics.reason}
+                    <span class="uppercase text-[9px] block mb-0.5 opacity-70">${_t('quality.analytics.rating.basis', 'Основание:')}</span> ${r.metrics.reason}
                 </div>
             </div>`;
         }).join('');
@@ -3448,7 +3487,7 @@ export const AnalyticsRender = {
     // (горизонтальная лента с поддержкой ОК).
     // =========================================================================
     initPhotoGallery(galleryId, photosArray, isCrit, customBadgeClass = null, customBadgeText = null) {
-        if (!photosArray || photosArray.length === 0) return '<div class="text-xs text-slate-400">Нет фото</div>';
+        if (!photosArray || photosArray.length === 0) return '<div class="text-xs text-slate-400">' + _t('quality.analytics.gallery.none', 'Нет фото') + '</div>';
 
         const badgeColor = customBadgeClass ? customBadgeClass : (isCrit ? 'text-red-700 bg-red-100 border-red-200' : 'text-orange-700 bg-orange-100 border-orange-200');
         const badgeText = customBadgeText ? customBadgeText : (isCrit ? 'B3' : 'B2');
@@ -3465,7 +3504,7 @@ export const AnalyticsRender = {
         const loadMoreBtnHtml = remaining > 0
             ? `<button type="button" data-analytics-action="loadMorePhotos" data-action-arg="${galleryId}" class="shrink-0 snap-start self-center w-24 h-24 sm:h-32 flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--card-border)] bg-[var(--hover-bg)] text-[10px] font-bold text-[var(--text-muted)] active:scale-95">
                 <span class="text-lg">＋</span>
-                <span>Ещё (${remaining})</span>
+                <span>${_t('quality.analytics.gallery.more', 'Ещё ({n})', { n: remaining })}</span>
             </button>`
             : '';
 
@@ -3507,7 +3546,7 @@ export const AnalyticsRender = {
         }
 
         if (_reports().getAllSync().length === 0) {
-            listDiv.innerHTML = `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">Сохраненных отчетов пока нет.</div>`;
+            listDiv.innerHTML = `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.analytics.reports.empty', 'Сохраненных отчетов пока нет.')}</div>`;
             return;
         }
 
@@ -3589,7 +3628,7 @@ export const AnalyticsRender = {
         }
 
         if (filteredArr.length === 0) {
-            listDiv.innerHTML = chipsHtml + `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">По выбранным фильтрам отчетов не найдено.</div>`;
+            listDiv.innerHTML = chipsHtml + `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.analytics.reports.empty_filtered', 'По выбранным фильтрам отчетов не найдено.')}</div>`;
             return;
         }
 
@@ -3600,7 +3639,7 @@ export const AnalyticsRender = {
         // см. history.render.js) — один уровень, без вложенного подрядчика.
         const grouped = {};
         sorted.forEach(r => {
-            const pName = r.metadata?.project || 'Сводный Отчет';
+            const pName = r.metadata?.project || _t('quality.analytics.reports.summary_default', 'Сводный Отчет');
             if (!grouped[pName]) grouped[pName] = [];
             grouped[pName].push(r);
         });
@@ -3649,7 +3688,7 @@ export const AnalyticsRender = {
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0 pl-1">
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${items.length} шт</span>
+                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${items.length} ${_t('quality.analytics.chart.pcs', 'шт')}</span>
                         <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                 </div>
@@ -3685,7 +3724,7 @@ export const AnalyticsRender = {
 
         const allActive = _reportsActiveDocKindFilter === 'ALL';
         let html = `<div class="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1" style="scrollbar-width: none;">`;
-        html += chip('Все', 'ALL', totalCount, allActive);
+        html += chip(_t('quality.analytics.chip.all', 'Все'), 'ALL', totalCount, allActive);
         kinds.forEach(k => {
             html += chip(k, k, docKindCounts.get(k), _reportsActiveDocKindFilter === k);
         });
@@ -3699,17 +3738,17 @@ export const AnalyticsRender = {
     },
 
     _reportCardAuthor(r) {
-        return String(r.created_by || r.engineer_name || r.metadata?.author || 'Инженер').trim() || 'Инженер';
+        return String(r.created_by || r.engineer_name || r.metadata?.author || _t('quality.analytics.fallback.engineer', 'Инженер')).trim() || _t('quality.analytics.fallback.engineer', 'Инженер');
     },
 
     _reportCardPeriod(r) {
         const raw = r.metadata?.period || r.metadata?.periodLabel || '';
-        return String(raw).trim() || 'Период не указан';
+        return String(raw).trim() || _t('quality.analytics.reports.period_unknown', 'Период не указан');
     },
 
     _renderReportCard(r, isListView) {
         const syncBadge = getSyncBadgeHtml(r);
-        const isOwner = !r.created_by || r.created_by === (_getSetting('engineerName') || 'Инженер');
+        const isOwner = !r.created_by || r.created_by === (_getSetting('engineerName') || _t('quality.analytics.fallback.engineer', 'Инженер'));
         const docKind = _reportDocKind(r);
         const safeTitle = String(r.title || '').replace(/'/g, "\\'");
         const dateStr = new Date(r.generated_at).toLocaleDateString('ru-RU');
@@ -3730,8 +3769,8 @@ export const AnalyticsRender = {
                 <div class="w-9 h-9 rounded-lg shrink-0 bg-slate-50 dark:bg-slate-900 border border-[var(--card-border)] flex items-center justify-center"><span class="text-[7px] font-black ${fileTypeColor}">${fileTypeLabel}</span></div>
                 <div class="min-w-0 flex-1">
                     <div class="text-[12px] font-black text-slate-800 dark:text-white truncate">${r.title}</div>
-                    <div class="text-[9px] font-bold text-slate-400 truncate mt-0.5">${docKind !== 'Прочее' ? docKind + ' · ' : ''}Автор: ${author} · ${dateStr}</div>
-                    <div class="text-[9px] font-bold text-slate-500 truncate">Период: ${period}</div>
+                    <div class="text-[9px] font-bold text-slate-400 truncate mt-0.5">${docKind !== 'Прочее' ? _reportDocKindLabel(docKind) + ' · ' : ''}${_t('quality.analytics.reports.author', 'Автор:')} ${author} · ${dateStr}</div>
+                    <div class="text-[9px] font-bold text-slate-500 truncate">${_t('quality.analytics.reports.period', 'Период:')} ${period}</div>
                 </div>
                 <div class="shrink-0">${syncBadge}</div>
                 <button onclick="event.stopPropagation(); openUniversalActionSheet('${r.id}', 'report', '${safeTitle}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-400 hover:bg-[var(--hover-bg)] active:scale-90">
@@ -3740,7 +3779,7 @@ export const AnalyticsRender = {
             </div>`;
         }
 
-        const docKindTag = docKind !== 'Прочее' ? `<div class="text-[8px] font-bold text-slate-400 truncate mb-0.5">${docKind}</div>` : '';
+        const docKindTag = docKind !== 'Прочее' ? `<div class="text-[8px] font-bold text-slate-400 truncate mb-0.5">${_reportDocKindLabel(docKind)}</div>` : '';
         return `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col active:scale-[0.98] transition-transform relative cursor-pointer" onclick="openReport('${r.id}')">
                 <input type="checkbox" class="report-checkbox absolute top-2 left-2 w-5 h-5 accent-indigo-600 rounded cursor-pointer z-10" value="${r.id}" onclick="event.stopPropagation()">
@@ -3760,8 +3799,8 @@ export const AnalyticsRender = {
                 <div class="p-3 flex flex-col flex-1 min-w-0">
                     ${docKindTag}
                     <div class="text-[12px] font-black text-slate-800 dark:text-white leading-tight mb-2 line-clamp-2">${r.title}</div>
-                    <div class="text-[9px] font-bold text-slate-500 truncate mb-0.5">Автор: ${author}</div>
-                    <div class="text-[9px] font-bold text-slate-500 truncate mb-1">Период: ${period}</div>
+                    <div class="text-[9px] font-bold text-slate-500 truncate mb-0.5">${_t('quality.analytics.reports.author', 'Автор:')} ${author}</div>
+                    <div class="text-[9px] font-bold text-slate-500 truncate mb-1">${_t('quality.analytics.reports.period', 'Период:')} ${period}</div>
                     <div class="mt-auto pt-2 flex justify-between items-center gap-2">
                         <div class="flex items-center gap-1 text-[9px] font-bold text-slate-400 min-w-0">${sizeStr} ${syncBadge}</div>
                         <div class="text-[9px] font-black text-slate-400 shrink-0">${dateStr}</div>
@@ -3810,5 +3849,82 @@ if (typeof window !== 'undefined') {
     window.loadMorePhotos = AnalyticsRender.loadMorePhotos.bind(AnalyticsRender);
     window.renderReportsList = AnalyticsRender.renderReportsList.bind(AnalyticsRender);
 }
+
+
+function refreshAnalyticsStaticChromeI18n() {
+  function setOpt(sel, value, label) {
+    if (!sel) return;
+    var o = sel.querySelector('option[value="' + value + '"]');
+    if (o) o.textContent = label;
+  }
+  function setBtnLabel(id, text) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    var span = btn.querySelector('.truncate') || btn.querySelector('span');
+    if (span) span.textContent = text;
+  }
+  var period = document.getElementById('global-filter-period');
+  setOpt(period, 'D7', _t('quality.analytics.period.d7', 'За 7 дней'));
+  setOpt(period, 'D14', _t('quality.analytics.period.d14', 'За 14 дней'));
+  setOpt(period, 'D30', _t('quality.analytics.period.d30', 'За 30 дней'));
+  setOpt(period, 'D90', _t('quality.analytics.period.d90', 'За 90 дней'));
+  setOpt(period, 'D180', _t('quality.analytics.period.d180', 'За 180 дней'));
+  setOpt(period, 'ALL', _t('quality.analytics.period.all', 'Всё время'));
+  setOpt(period, 'CUSTOM', _t('quality.analytics.period.custom', 'Свой период...'));
+  var histPeriod = document.getElementById('hist-filter-period');
+  setOpt(histPeriod, 'D7', _t('quality.analytics.period.d7', 'За 7 дней'));
+  setOpt(histPeriod, 'D14', _t('quality.analytics.period.d14', 'За 14 дней'));
+  setOpt(histPeriod, 'D30', _t('quality.analytics.period.d30', 'За 30 дней'));
+  setOpt(histPeriod, 'D90', _t('quality.analytics.period.d90', 'За 90 дней'));
+  setOpt(histPeriod, 'D180', _t('quality.analytics.period.d180', 'За 180 дней'));
+  setOpt(histPeriod, 'ALL', _t('quality.analytics.period.all', 'Всё время'));
+  if (period && period.selectedIndex >= 0) {
+    setBtnLabel('btn-ana-period-label', period.options[period.selectedIndex].text);
+  }
+  if (histPeriod && histPeriod.selectedIndex >= 0) {
+    setBtnLabel('btn-hist-period-label', histPeriod.options[histPeriod.selectedIndex].text);
+  }
+  setBtnLabel('btn-ana-project', _t('quality.analytics.filter.all_projects', 'Все объекты'));
+  setBtnLabel('btn-ana-contractor', _t('quality.analytics.filter.all_contractors', 'Все подрядчики'));
+  setBtnLabel('btn-ana-inspector', _t('quality.analytics.filter.all_inspectors', 'Все инспекторы'));
+  setBtnLabel('btn-ana-template', _t('quality.analytics.filter.all_templates', 'Все виды работ'));
+  setBtnLabel('btn-hist-project', _t('quality.analytics.filter.all_projects', 'Все объекты'));
+  setBtnLabel('btn-hist-contractor', _t('quality.analytics.filter.all_contractors', 'Все подрядчики'));
+  setBtnLabel('btn-hist-inspector', _t('quality.analytics.filter.all_inspectors', 'Все инспекторы'));
+  setBtnLabel('btn-hist-template', _t('quality.analytics.filter.all_templates', 'Все виды работ'));
+  var chips = document.getElementById('contractors-chips-container');
+  if (chips) {
+    var map = { ALL: _t('quality.analytics.chip.all', 'Все'), CRITICAL: '🔴 ' + _t('quality.analytics.chip.critical', 'Критичные'), WARNING: '🟡 ' + _t('quality.analytics.chip.warning', 'Внимания'), STABLE: '🟢 ' + _t('quality.analytics.chip.stable', 'Стабильные'), NEW: '⚪ ' + _t('quality.analytics.chip.new', 'Новые (Сбор)') };
+    chips.querySelectorAll('.contr-chip[data-action-arg]').forEach(function (btn) {
+      var k = btn.getAttribute('data-action-arg');
+      if (map[k]) btn.textContent = map[k];
+    });
+  }
+  var hc = document.getElementById('btn-hist-checks');
+  var hr = document.getElementById('btn-hist-reports');
+  var hp = document.getElementById('btn-hist-plans');
+  if (hc) hc.textContent = _t('quality.analytics.hist.checks', 'Проверки');
+  if (hr) hr.textContent = _t('quality.analytics.hist.reports', 'Отчеты');
+  if (hp) hp.textContent = _t('quality.analytics.hist.plans', 'Планы');
+}
+
+(function bindAnalyticsI18n() {
+  if (window.__rbiAnalyticsI18nBound) return;
+  if (!(window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function')) return;
+  window.__rbiAnalyticsI18nBound = true;
+  window.RBI.events.on('i18n:localeChanged', function () {
+    try {
+      var tab = document.getElementById('tab-analytics');
+      if (!tab) return;
+      if (window.RBI.services && window.RBI.services.i18n && typeof window.RBI.services.i18n.applyDom === 'function') {
+        window.RBI.services.i18n.applyDom(tab);
+      }
+      refreshAnalyticsStaticChromeI18n();
+      if (!tab.classList.contains('hidden') && typeof window.renderCurrentAnalyticsTab === 'function') {
+        window.renderCurrentAnalyticsTab();
+      }
+    } catch (_e) { /* ignore */ }
+  });
+})();
 
 console.log('[AnalyticsRender] analytics.render.js loaded (owner-module: full render logic)');

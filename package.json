@@ -13,7 +13,9 @@
     "build:modules": "npm run build:locations && npm run build:construction-defects && npm run build:construction-acceptance && npm run build:construction-units && npm run build:construction-v2",
     "check:ts": "tsc --noEmit",
     "check:boundaries": "bash _ai/scripts/check-module-boundaries.sh",
-    "test:unit": "node --test js/shared/__tests__/*.test.js"
+    "test:unit": "node --test js/shared/__tests__/*.test.js js/modules/knowledge/__tests__/*.test.js",
+    "smoke:knowledge": "node _ai/scripts/smoke-knowledge.mjs --reload",
+    "smoke:construction-knowledge": "node _ai/scripts/smoke-construction-knowledge.mjs --reload"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

@@ -11,6 +11,7 @@ import {
   generateAiTutorAdvice, generateAiHintForDefect, extractTextFromPdf, rbi_normalizeFeedbackAi,
   openAiDocChat, closeAiDocChat, askAiDocQuestion, copyAiDocAnswer, applyAiDocChip, rbi_generateMeetingMemo,
   rbi_generatePracticeTitleAi, rbi_beautifyPracticeAi, rbi_fillFmeaWithAi, generateDefectRemediationTexts, rbi_generateWorkshop,
+  openWorkshopAiModal, closeWorkshopAiModal, copyWorkshopAiText, reopenWorkshopAiModal,
   rbi_generateIntroBriefing, rbi_generateFinalAcceptance, sk_aiMapColumns, sk_autoMapCategories,
   sk_generateContractorAiSummary, sk_predictRisksAi, rbi_generateGlobalAi, runSelfLearningAi,
   sk_auditTemplatesAi, openSkTutorAiModal, closeSkTutorAiModal, copySkTutorAiText, reopenSkTutorAiModal,
@@ -52,6 +53,10 @@ window.rbi_beautifyPracticeAi = rbi_beautifyPracticeAi;
 window.rbi_fillFmeaWithAi = rbi_fillFmeaWithAi;
 window.generateDefectRemediationTexts = generateDefectRemediationTexts;
 window.rbi_generateWorkshop = rbi_generateWorkshop;
+window.openWorkshopAiModal = openWorkshopAiModal;
+window.closeWorkshopAiModal = closeWorkshopAiModal;
+window.copyWorkshopAiText = copyWorkshopAiText;
+window.reopenWorkshopAiModal = reopenWorkshopAiModal;
 window.rbi_generateIntroBriefing = rbi_generateIntroBriefing;
 window.rbi_generateFinalAcceptance = rbi_generateFinalAcceptance;
 window.sk_aiMapColumns = sk_aiMapColumns;
@@ -67,6 +72,22 @@ window.copySkTutorAiText = copySkTutorAiText;
 window.reopenSkTutorAiModal = reopenSkTutorAiModal;
 window.gameAddContractorAliasInline = gameAddContractorAliasInline;
 window.gameGenerateContractorSynonymsAI = gameGenerateContractorSynonymsAI;
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
 
 // =========================================================================
 // Full-screen «База знаний (AI)» — паттерн TWI-конструктора.
@@ -85,24 +106,24 @@ function mountAiDocChatView() {
                 class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
-                </svg> Назад
+                </svg> ${_t('quality.ai.btn.back', 'Назад')}
             </button>
             <div class="min-w-0 flex-1">
-                <div class="font-black text-[12px] uppercase tracking-tight text-slate-800 dark:text-white truncate">База знаний (AI)</div>
-                <div id="ai-doc-chat-status" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold truncate">Поиск по загруженным нормативам</div>
+                <div class="font-black text-[12px] uppercase tracking-tight text-slate-800 dark:text-white truncate">${_t('quality.ai.title.doc_chat', 'База знаний (AI)')}</div>
+                <div id="ai-doc-chat-status" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold truncate">${_t('quality.ai.status.search_norms', 'Поиск по загруженным нормативам')}</div>
             </div>
         </div>
         <div class="px-3 pt-2 shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-                <label class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block mb-1">Вид работ (чек-лист)</label>
+                <label class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block mb-1">${_t('quality.ai.label.work_type', 'Вид работ (чек-лист)')}</label>
                 <select id="ai-doc-template-filter" class="input-base text-[11px] w-full !py-2.5">
-                    <option value="">Все виды работ</option>
+                    <option value="">${_t('quality.ai.option.all_work_types', 'Все виды работ')}</option>
                 </select>
             </div>
             <div>
-                <label class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block mb-1">Документ PDF</label>
+                <label class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block mb-1">${_t('quality.ai.label.pdf_doc', 'Документ PDF')}</label>
                 <select id="ai-doc-filter" class="input-base text-[11px] w-full !py-2.5">
-                    <option value="">Все документы</option>
+                    <option value="">${_t('quality.ai.option.all_docs', 'Все документы')}</option>
                 </select>
             </div>
         </div>
@@ -112,7 +133,7 @@ function mountAiDocChatView() {
             <div class="flex gap-2 w-full max-w-[95%]">
                 <div class="w-7 h-7 bg-indigo-200 dark:bg-indigo-800 rounded-full flex items-center justify-center text-[11px] shrink-0">🤖</div>
                 <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-2xl rounded-tl-none text-[13px] text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed">
-                    Можно простым языком: «стены кривые по монолиту», «сколько мм можно». Сначала чек-листы, потом PDF; ниже ответа — источники.
+                    ${_t('quality.ai.welcome.doc_chat', 'Можно простым языком: «стены кривые по монолиту», «сколько мм можно». Сначала чек-листы, потом PDF; ниже ответа — источники.')}
                 </div>
             </div>
         </div>
@@ -120,7 +141,7 @@ function mountAiDocChatView() {
             style="padding-bottom: max(12px, env(safe-area-inset-bottom));">
             <textarea id="ai-chat-input"
                 class="flex-1 bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[13px] outline-none resize-none min-h-[64px] max-h-32 text-slate-800 dark:text-white"
-                placeholder="Например: стены кривые по монолиту…"
+                placeholder="${_t('quality.ai.placeholder.chat', 'Например: стены кривые по монолиту…')}"
                 rows="2"></textarea>
             <button type="button" data-action="askAiDocQuestion" id="ai-chat-send-btn"
                 class="w-12 min-h-[64px] bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-95 shrink-0 self-end">
@@ -205,6 +226,23 @@ const AIModule = {
 
     mountAiDocChatView();
     bindAiActionDelegation();
+
+    if (!window.__aiLocaleChangedBound && ctx.events && typeof ctx.events.on === 'function') {
+      window.__aiLocaleChangedBound = true;
+      ctx.events.on('i18n:localeChanged', function () {
+        var el = document.getElementById('ai-doc-chat-view');
+        var wasHidden = el && el.classList.contains('hidden');
+        if (el) el.remove();
+        // Remount scenario modals so chrome picks up new locale next open
+        ['heatmap-ai-modal', 'workshop-ai-modal', 'sk-tutor-ai-modal'].forEach(function (id) {
+          var m = document.getElementById(id);
+          if (m) m.remove();
+        });
+        mountAiDocChatView();
+        var neu = document.getElementById('ai-doc-chat-view');
+        if (neu && !wasHidden) neu.classList.remove('hidden');
+      });
+    }
 
     document.addEventListener('settings:changed', (e) => {
       if (e.detail?.key === 'aiEnabled' || e.detail?.key === 'aiAuthMode') {

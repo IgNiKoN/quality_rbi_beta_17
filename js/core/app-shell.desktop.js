@@ -69,7 +69,7 @@
       // Desktop: short KB → full "Knowledge base" via i18n key (no RU-only regex)
       var kbFull = _t('nav.bottom.knowledge_full', 'База знаний');
       var kbItems = nav2.querySelectorAll(
-        '[data-path="#/quality/reference"] .app-nav2-text, [data-path="#/construction/reference"] .app-nav2-text'
+        '[data-path="#/quality/reference"] .app-nav2-text, [data-path="#/construction/reference"] .app-nav2-text, [data-path="#/knowledge"] .app-nav2-text'
       );
       for (var i = 0; i < kbItems.length; i++) {
         kbItems[i].textContent = kbFull;

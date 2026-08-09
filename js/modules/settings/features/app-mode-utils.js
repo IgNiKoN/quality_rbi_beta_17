@@ -53,6 +53,7 @@ function _modeLabelText(modeId) {
     var map = {
         quality: ['nav.quality', 'Качество'],
         construction: ['nav.construction', 'Стройконтроль'],
+        knowledge: ['nav.knowledge', 'База знаний'],
         'construction-v2': ['nav.construction_v2', 'Стройконтроль в2 (тест)'],
         safety: ['nav.safety', 'Безопасность'],
         warranty: ['nav.warranty', 'Гарантия'],
@@ -416,11 +417,30 @@ async function openNodeAttachmentPdf(url, name, size) {
 // ============================================================================
 
 function isValidBusinessMode(mode) {
-    return mode === 'quality' || mode === 'construction';
+    return mode === 'quality' || mode === 'construction' || mode === 'knowledge';
 }
 
 function isConstructionV2TestMode(mode) {
     return mode === 'construction-v2';
+}
+
+/** knowledge ∈ availableModules (enabled ∩ role). Default true if context missing. */
+function isKnowledgeAvailable() {
+    try {
+        var uc = window.RBI && window.RBI.services && window.RBI.services.userContext;
+        if (uc && typeof uc.getUserContext === 'function') {
+            var snap = uc.getUserContext();
+            if (snap && Array.isArray(snap.availableModules)) {
+                return snap.availableModules.indexOf('knowledge') !== -1;
+            }
+        }
+        var company = window.RBI && window.RBI.services && window.RBI.services.company;
+        if (company && typeof company.getCompany === 'function') {
+            var em = company.getCompany().enabledModules;
+            if (Array.isArray(em)) return em.indexOf('knowledge') !== -1;
+        }
+    } catch (_e) { /* ignore */ }
+    return true;
 }
 
 const AppModeManager = {
@@ -494,6 +514,9 @@ const AppModeManager = {
                 case 'construction':
                     window.AppRouter.navigate('#/construction/defects', true);
                     break;
+                case 'knowledge':
+                    window.AppRouter.navigate('#/knowledge', true);
+                    break;
                 case 'construction-v2':
                     window.AppRouter.navigate('#/construction-v2', true);
                     break;
@@ -545,6 +568,10 @@ const AppModeManager = {
                 document.getElementById('construction-warning-banner').style.display = 'flex';
                 window.AppRouter.navigate('#/construction/defects', true);
                 break;
+            case 'knowledge':
+                document.getElementById('construction-warning-banner').style.display = 'none';
+                window.AppRouter.navigate('#/knowledge', true);
+                break;
             case 'construction-v2':
                 document.getElementById('construction-warning-banner').style.display = 'none';
                 window.AppRouter.navigate('#/construction-v2', true);
@@ -559,6 +586,15 @@ const AppModeManager = {
                 window.AppRouter.navigate('#/uk/placeholder', true);
                 break;
         }
+
+        try {
+            if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') {
+                window.RBI.events.emit('appMode:changed', {
+                    mode: newMode,
+                    previousMode: this.previousMode
+                });
+            }
+        } catch (_) { /* ignore */ }
     },
 
     revertToPrevious() {
@@ -631,10 +667,10 @@ const AppModeManager = {
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     <span class="nav-text">${L.analytics}</span>
                 </div>
-                <div class="nav-item" data-path="#/quality/reference">
+                ${isKnowledgeAvailable() ? `<div class="nav-item" data-path="#/quality/reference">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     <span class="nav-text">${L.knowledge}</span>
-                </div>
+                </div>` : ''}
                 <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">${L.settings}</span>
@@ -655,16 +691,27 @@ const AppModeManager = {
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                     <span class="nav-text">${L.transfer}</span>
                 </div>
-                 <!-- База Знаний в Стройконтроле -->
-                <div class="nav-item" data-path="#/construction/reference">
+                ${isKnowledgeAvailable() ? `<div class="nav-item" data-path="#/construction/reference">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     <span class="nav-text">${L.knowledge}</span>
-                </div>
+                </div>` : ''}
                 <div class="nav-item" data-path="#/construction/reports">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg>
                     <span class="nav-text">${L.reportsSk}</span>
                 </div>
                  <div class="nav-item" data-path="#/settings">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span class="nav-text">${L.settings}</span>
+                </div>
+            `;
+            nav.style.display = 'flex';
+        } else if (this.currentMode === 'knowledge') {
+            html = `
+                <div class="nav-item" data-path="#/knowledge">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span class="nav-text">${L.knowledge}</span>
+                </div>
+                <div class="nav-item" data-path="#/settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="nav-text">${L.settings}</span>
                 </div>

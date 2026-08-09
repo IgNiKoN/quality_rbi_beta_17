@@ -3057,6 +3057,27 @@ body {
 [data-theme="rbi-dark-v3"] .bg-emerald-50 {
     background-color: rgba(95, 127, 109, 0.14) !important;
 }
+
+/* blue-50 не был в remap → input-base (--text-main светлый) на pastel blue = нечитаемо (FMEA Fix) */
+[data-theme="rbi-dark-v3"] .bg-blue-50,
+[data-theme="rbi-dark-v3"] .bg-blue-100 {
+    background-color: rgba(76, 114, 136, 0.22) !important;
+}
+[data-theme="rbi-dark-v3"] .text-purple-700,
+[data-theme="rbi-dark-v3"] .text-purple-600 {
+    color: #c4b5fd !important;
+}
+[data-theme="rbi-dark-v3"] #manager-dev-list .bg-white,
+[data-theme="rbi-dark-v3"] #manager-roadmap-list .bg-white,
+[data-theme="rbi-dark-v3"] #fmea-workspace .bg-white,
+[data-theme="rbi-dark-v3"] #meeting-preview-body.bg-white,
+[data-theme="rbi-dark-v3"] #tab-reference .item-weight-select.bg-white,
+[data-theme="rbi-dark-v3"] #tab-reference .item-nd-select.bg-white,
+[data-theme="rbi-dark-v3"] #modal-overlay .item-weight-select.bg-white,
+[data-theme="rbi-dark-v3"] #modal-overlay .item-nd-select.bg-white {
+    background-color: var(--card-bg) !important;
+    color: var(--text-main) !important;
+}
 [data-theme="rbi-light-v3"] .bg-green-500,
 [data-theme="rbi-light-v3"] .bg-green-600,
 [data-theme="rbi-dark-v3"] .bg-green-500,

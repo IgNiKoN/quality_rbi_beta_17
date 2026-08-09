@@ -50,6 +50,11 @@ import { mountProjectIdBackfillUI, ProjectIdBackfillUI } from './features/projec
 import { mountCloudDeletedPurgeUI, CloudDeletedPurgeUI } from './features/cloud-deleted-purge-ui.js';
 import { mountCloudOrphanUrlsUI, CloudOrphanUrlsUI } from './features/cloud-orphan-urls-ui.js';
 import { mountRoleMatrixUI, RoleMatrixUI } from './features/role-matrix-ui.js';
+import { mountEnabledModulesUI, EnabledModulesUI } from './features/enabled-modules-ui.js';
+// Side-effect: window.* из feature/render (раньше — статичные <script> в index.html)
+import './features/tutorial.js';
+import './settings.render.js';
+import './settings.desktop.render.js';
 
 // Публикация имён 3 features-файлов на window.* — единственная точка модуля settings,
 // имеющая право на это (см. _ai/ARCHITECTURE_BRIEF.md, «Публичная граница модуля»).
@@ -175,6 +180,7 @@ export const SettingsModule = {
     CloudDeletedPurgeUI,
     CloudOrphanUrlsUI,
     RoleMatrixUI,
+    EnabledModulesUI,
 
     /**
      * Инициализация: подписка на события платформы.

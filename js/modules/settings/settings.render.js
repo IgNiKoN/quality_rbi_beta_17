@@ -15,6 +15,7 @@ import { mountProjectIdBackfillUI } from './features/project-id-backfill-ui.js';
 import { mountCloudDeletedPurgeUI } from './features/cloud-deleted-purge-ui.js';
 import { mountCloudOrphanUrlsUI } from './features/cloud-orphan-urls-ui.js';
 import { mountRoleMatrixUI } from './features/role-matrix-ui.js';
+import { mountEnabledModulesUI } from './features/enabled-modules-ui.js';
 
 var SettingsRender = {
     // =====================================================================
@@ -96,6 +97,24 @@ var SettingsRender = {
                         <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
                     </summary>
                     <div id="sync-settings-block"></div>
+                </details>
+
+                <!-- МОДУЛИ ПЛАТФОРМЫ (§37.2 Block 3) — admin-only -->
+                <details id="settings-enabled-modules-section"
+                    class="bg-[var(--card-bg)] border border-indigo-200 dark:border-indigo-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-indigo-700 dark:text-indigo-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 transition-colors select-none group-open:border-b border-indigo-200 dark:border-indigo-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                </path>
+                            </svg>
+                            <span data-i18n="settings.accordion.enabled_modules">Модули платформы</span>
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-indigo-400">▼</span>
+                    </summary>
+                    <div id="settings-enabled-modules-root"></div>
                 </details>
 
                 <!-- AI АССИСТЕНТ -->
@@ -1713,6 +1732,9 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (typeof mountRoleMatrixUI === 'function') {
             mountRoleMatrixUI().catch(function () {});
         }
+        if (typeof mountEnabledModulesUI === 'function') {
+            mountEnabledModulesUI().catch(function () {});
+        }
     }
 
     function _getSettingsSubsection() {
@@ -1832,7 +1854,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
             _mountAdminOpsContent();
         }
         // 1. Базовые селекторы оформления
-        if (document.getElementById('set-theme')) document.getElementById('set-theme').value = _getSetting('theme') || 'auto';
+        if (document.getElementById('set-theme')) document.getElementById('set-theme').value = _getSetting('theme') || 'rbi-auto-v3';
         var localeSelect = document.getElementById('set-locale');
         if (localeSelect) {
             var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
@@ -2012,6 +2034,11 @@ console.log('[SettingsRender] settings.render.js markup mounted');
                 console.warn('[settings] role-matrix UI:', e);
             });
         }
+        if (typeof mountEnabledModulesUI === 'function') {
+            mountEnabledModulesUI().catch(function (e) {
+                console.warn('[settings] enabled-modules UI:', e);
+            });
+        }
 
         var brandControls = document.getElementById('corp-branding-controls');
         if (brandControls) {
@@ -2115,7 +2142,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
     }
 
     function _applySettingsToUI() {
-        var theme = _getSetting('theme') || 'auto';
+        var theme = _getSetting('theme') || 'rbi-auto-v3';
         var prefersDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
         if (theme === 'auto') {
@@ -2207,8 +2234,8 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         }
 
         var themeSelect = document.getElementById('set-theme');
-        if (themeSelect && themeSelect.value !== (_getSetting('theme') || 'auto')) {
-            themeSelect.value = _getSetting('theme') || 'auto';
+        if (themeSelect && themeSelect.value !== (_getSetting('theme') || 'rbi-auto-v3')) {
+            themeSelect.value = _getSetting('theme') || 'rbi-auto-v3';
         }
     }
 
@@ -2235,7 +2262,7 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         try {
             var _schemeMq = window.matchMedia('(prefers-color-scheme: dark)');
             var _onSchemeChange = function () {
-                var t = _getSetting('theme') || 'auto';
+                var t = _getSetting('theme') || 'rbi-auto-v3';
                 if (t === 'auto' || t === 'rbi-auto-v2' || t === 'rbi-auto-v3') {
                     _applySettingsToUI();
                 }

@@ -11,8 +11,11 @@
  *   3. Вызвать loadModule/init только для разрешённых ключей (порядок MODULE_KEYS)
  *   4. Зарегистрировать себя как window.RBI.entry
  *
- * Platform runtime independence · столп A Фаза A: фильтр init; статичные
- * <script> модулей пока остаются (следующая фаза).
+ * Platform runtime independence · столп A DoD (Фаза A + C): фильтр init;
+ * static <script> business-модулей сняты; orphan feature-of / construction-v2 /
+ * settings не входят в allowSet «голыми» из availableModules — только через
+ * BUNDLES родителя или ALWAYS_INIT. knowledge — сквозной peer: бандл
+ * quality и construction (+ можно knowledge-only в enabledModules).
  */
 (function () {
     'use strict';
@@ -28,14 +31,28 @@
         'module.ai',
     ];
 
-    /** Feature-of бандлы: бизнес-id → дополнительные ключи init. */
+    /** Feature-of / сквозные бандлы: бизнес-id → дополнительные ключи init. */
     var BUNDLES = {
         quality: ['sk', 'knowledge', 'game', 'ai'],
-        construction: ['construction-v2']
+        construction: ['construction-v2', 'knowledge']
     };
 
     /** Platform chrome — всегда в init, даже если нет в availableModules. */
     var ALWAYS_INIT = ['settings'];
+
+    /**
+     * Orphan feature-of / construction-v2 / settings — не peer business-id.
+     * Голые id из availableModules игнорируются; попадание в allowSet только
+     * через BUNDLES родителя или ALWAYS_INIT.
+     * knowledge — peer (можно knowledge-only) и сквозной бандл Q/C.
+     */
+    var ORPHAN_DIRECT = {
+        sk: true,
+        game: true,
+        ai: true,
+        'construction-v2': true,
+        settings: true
+    };
 
     /** Извлекает id манифеста ('quality', 'sk', ...) из registry-ключа ('module.quality'). */
     function shortIdFromKey(key) {
@@ -75,7 +92,7 @@
 
     /**
      * Expand availableModules + бандлы + ALWAYS_INIT → Set shortId.
-     * Порядок init сохраняется через MODULE_KEYS.
+     * Orphan/chrome id «голыми» не добавляются; порядок init — MODULE_KEYS.
      */
     function resolveInitShortIds(availableModules) {
         var allow = Object.create(null);
@@ -83,6 +100,7 @@
 
         for (i = 0; i < availableModules.length; i++) {
             id = availableModules[i];
+            if (ORPHAN_DIRECT[id]) continue;
             allow[id] = true;
             extras = BUNDLES[id];
             if (extras) {
@@ -164,6 +182,20 @@
         }
 
         console.log('[app.entry] \u041c\u043e\u0434\u0443\u043b\u0438 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b: ' + initedCount + '/' + MODULE_KEYS.length);
+
+        // SW Cache allowlist (столп A): shortIds → gate cache.put + purge чужих business-путей
+        try {
+            var allowMsg = { type: 'RBI_SW_ALLOWLIST', modules: Object.keys(allowSet) };
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage(allowMsg);
+            } else if (navigator.serviceWorker) {
+                navigator.serviceWorker.ready.then(function (reg) {
+                    if (reg.active) reg.active.postMessage(allowMsg);
+                });
+            }
+        } catch (eSw) {
+            console.warn('[app.entry] SW allowlist post failed:', eSw);
+        }
 
         // i18n: quality/settings markup mounts during module init (after bootstrap applyDom).
         // Re-apply + notify desk chrome so first paint is not stuck on RU fallbacks.

@@ -55,6 +55,14 @@ function _escape(s: string) {
     .replace(/"/g, '&quot;');
 }
 
+function _stripHtml(html: string): string {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function _statusLabel(s: string): string {
   const map: Record<string, [string, string]> = {
     issued: ['construction.status.issued', 'Выдано'],
@@ -169,7 +177,9 @@ export function renderDefectsRegistry(
       : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered
             .map((d, i) => {
-              const desc = String(d.description || d.item_name || d.text || _t('construction.v2.no_description', 'Без описания')).slice(0, 140);
+              const desc = _stripHtml(
+                String(d.description || d.item_name || d.text || _t('construction.v2.no_description', 'Без описания'))
+              ).slice(0, 140);
               const dl = _deadlineMeta(d);
               const openDays = daysOpen(d);
               const daysBadge =

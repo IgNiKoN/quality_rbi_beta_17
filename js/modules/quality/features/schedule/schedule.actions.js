@@ -10,6 +10,22 @@
 
 (function () {
 
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
   /**
    * Безопасный вызов legacy-функции.
    * Если функция недоступна — выводит предупреждение.
@@ -117,7 +133,7 @@
 
   // Мягкое удаление одной строки
   window.rbi_deleteScheduleRow = async function (id) {
-    if (!confirm("Удалить эту строку?")) return;
+    if (!confirm(_t('quality.schedule.confirm.delete_row', 'Удалить эту строку?'))) return;
     let item = window.rbi_scheduleData.find(s => s.id === id);
     if (item) {
         item._deleted = true;
@@ -131,7 +147,7 @@
 
   // Мягкое удаление всего графика
   window.rbi_clearSchedule = async function () {
-    if (!confirm("Удалить ВЕСЬ график? Это действие необратимо.")) return;
+    if (!confirm(_t('quality.schedule.confirm.clear_all', 'Удалить ВЕСЬ график? Это действие необратимо.'))) return;
     for (let s of window.rbi_scheduleData) {
         s._deleted = true;
         s.updatedAt = new Date().toISOString();
@@ -140,12 +156,12 @@
     localStorage.setItem('rbi_cloud_dirty', '1');
     _scheduleSync('silent');
     rbi_renderScheduleTab(true);
-    showToast("🗑️ График полностью очищен");
+    showToast(_t('quality.schedule.toast.cleared', '🗑️ График полностью очищен'));
   };
 
   // Сохранение графика (Только при реальных изменениях)
   window.rbi_saveSchedule = async function () {
-    if (_isDemoMode()) return showToast("В демо-режиме сохранение отключено");
+    if (_isDemoMode()) return showToast(_t('quality.schedule.toast.demo_save_disabled', 'В демо-режиме сохранение отключено'));
 
     const rows = document.querySelectorAll('.sched-row');
     const validIds = new Set();
@@ -204,7 +220,7 @@
     });
 
     if (!hasRealChanges) {
-        return showToast("Нет изменений для сохранения.");
+        return showToast(_t('quality.schedule.toast.no_changes', 'Нет изменений для сохранения.'));
     }
 
     // Сохраняем в БД
@@ -215,7 +231,7 @@
     localStorage.setItem('rbi_cloud_dirty', '1');
     _scheduleSync('silent');
 
-    showToast("✅ График СМР обновлен!");
+    showToast(_t('quality.schedule.toast.saved', '✅ График СМР обновлен!'));
 
     // СНАЧАЛА пересчитываем задачи, А ПОТОМ перерисовываем график (чтобы задачи уже встали на новые места)
     if (typeof window.rbi_generateAutoTasks === 'function') {
@@ -230,7 +246,7 @@
     const file = event.target.files[0];
     if (!file) return;
 
-    showToast("⚙️ Читаем Excel файл...");
+    showToast(_t('quality.schedule.toast.reading_excel', '⚙️ Читаем Excel файл...'));
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -240,7 +256,7 @@
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            if (rows.length < 2) throw new Error("Файл пуст или не содержит данных");
+            if (rows.length < 2) throw new Error(_t('quality.schedule.error.empty_file', 'Файл пуст или не содержит данных'));
 
             let added = 0;
             for (let i = 1; i < rows.length; i++) {
@@ -275,7 +291,7 @@
             localStorage.setItem('rbi_cloud_dirty', '1');
             _scheduleSync('silent');
 
-            showToast(`✅ Загружено этапов: ${added}`);
+            showToast(_t('quality.schedule.toast.loaded_stages', '✅ Загружено этапов: {n}', { n: added }));
             rbi_renderScheduleTab(true);
 
             // ВЫЗЫВАЕМ ГЕНЕРАТОР ЗАДАЧ ПОСЛЕ ИМПОРТА EXCEL
@@ -283,7 +299,7 @@
 
         } catch (err) {
             console.error(err);
-            alert("Ошибка чтения Excel: " + err.message);
+            alert(_t('quality.schedule.error.read_excel', 'Ошибка чтения Excel: {msg}', { msg: err.message }));
         }
     };
     reader.readAsArrayBuffer(file);

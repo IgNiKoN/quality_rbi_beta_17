@@ -1,14 +1,12 @@
 /**
  * knowledge.manifest.js
- * Декларативный манифест модуля «База знаний» (БЗ). Метаданные для будущего
- * modules.manifest.js + module-loader. Не подключается никуда — см.
- * js/modules/knowledge/knowledge.module.js для реального контракта платформы.
+ * Декларативный манифест top-level platform module «База знаний» (БЗ).
+ * Путь: js/modules/knowledge/ — peer business-модуль (не feature-of quality).
  */
 
 export const KnowledgeManifest = {
     id: 'knowledge',
-    role: 'feature-of',
-    parentModule: 'quality',
+    role: 'module',
     title: 'База знаний',
     icon: 'book-open',
     version: '1.0.0',

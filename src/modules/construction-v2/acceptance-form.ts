@@ -154,6 +154,23 @@ function _escape(s: string) {
     .replace(/"/g, '&quot;');
 }
 
+function _defaultDeadline(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function _stripHtml(html: string): string {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/?[a-zA-Z][a-zA-Z0-9]*\b[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function _roleInfo() {
   const perms = window.RBI?.services?.permissions as
     | {
@@ -670,11 +687,11 @@ export function openAcceptanceDetails(
           description: c.name || c.id,
           category: c.category,
           contractorId: latest.contractorId || null,
-          deadline: null,
+          deadline: _defaultDeadline(),
           template_key: latest.template_key || null,
           item_id: c.id,
           item_name: c.name || null,
-          norm_text: c.norm || null,
+          norm_text: _stripHtml(c.norm || '') || null,
           photos: [],
           status: 'issued'
         });
@@ -847,6 +864,21 @@ export function openAcceptanceDetails(
         });
       },
       onHelp: (id, event, itemMeta) => {
+        const helpCtx = { templateKey: tmplKey, checklist: groups };
+        const svc = window.RBI?.services?.knowledge as
+          | {
+              openItemHelp?: (
+                itemId: string | number,
+                ev?: Event,
+                ctx?: { templateKey?: string; checklist?: unknown }
+              ) => void;
+            }
+          | undefined;
+        if (svc && typeof svc.openItemHelp === 'function') {
+          svc.openItemHelp(id, event, helpCtx);
+          void itemMeta;
+          return;
+        }
         const openMenu = (
           window as unknown as {
             openItemHelpMenu?: (
@@ -857,14 +889,8 @@ export function openAcceptanceDetails(
           }
         ).openItemHelpMenu;
         if (typeof openMenu === 'function') {
-          openMenu(id, event, { templateKey: tmplKey, checklist: groups });
-          return;
-        }
-        const svc = window.RBI?.services?.knowledge as
-          | { openItemHelp?: (itemId: string | number, ev?: Event) => void }
-          | undefined;
-        if (svc?.openItemHelp) {
-          svc.openItemHelp(id, event);
+          openMenu(id, event, helpCtx);
+          void itemMeta;
           return;
         }
         window.showToast?.(_t('construction.v2.acc.knowledge_unavailable', 'База знаний недоступна'));

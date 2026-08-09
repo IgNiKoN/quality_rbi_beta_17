@@ -14,6 +14,38 @@ import {
 } from './game.state.js';
 import { gameRenderDashboard, rbi_renderFmeaRegistry, rbi_addManualFmeaRow, gameRenderAssignedProjectChips } from './game.render.js';
 
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+function _tTrend(trend) {
+  var map = {
+    'Сбор базы (нужно 10)': 'quality.game.trend.collecting',
+    'Ошибка расчета': 'quality.game.trend.error',
+    'Стабильно': 'quality.game.trend.stable',
+    'Улучшение': 'quality.game.trend.improve',
+    'Ухудшение': 'quality.game.trend.worsen',
+    'Недостаточно данных': 'quality.game.trend.insufficient'
+  };
+  var k = map[trend];
+  return k ? _t(k, trend) : trend;
+}
+
+import { meetingRichToSafeHtml } from '../meetings/meetings.protocol.js';
+
 /** Module-scope: id FMEA, открытого в #fmea-workspace для редактирования. */
 let currentEditingFmeaId = null;
 
@@ -547,7 +579,7 @@ function emit(eventName, detail) {
   function gameToggleAbsence() {
     const engineerAbsence = window.engineerAbsence;
     if (engineerAbsence.isActive) {
-      if (confirm("Прервать период отсутствия и вернуться к работе? План будет пересчитан.")) {
+      if (confirm(_t('quality.game.confirm.end_absence', 'Прервать период отсутствия и вернуться к работе? План будет пересчитан.'))) {
         engineerAbsence.isActive = false; engineerAbsence.endDate = null; saveWeeklyPlan();
         var _tasksSvc1 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
         _tasksSvc1.generateWeeklyPlan(true); gameRenderDashboard();
@@ -568,15 +600,15 @@ function emit(eventName, detail) {
     const start = document.getElementById('abs-start').value;
     const end = document.getElementById('abs-end').value;
 
-    if (!start || !end) return showToast("Укажите даты!");
-    if (new Date(end) < new Date(start)) return showToast("Дата окончания не может быть раньше начала!");
+    if (!start || !end) return showToast(_t('quality.game.toast.dates_required', 'Укажите даты!'));
+    if (new Date(end) < new Date(start)) return showToast(_t('quality.game.toast.end_before_start', 'Дата окончания не может быть раньше начала!'));
 
     engineerAbsence.isActive = true; engineerAbsence.reason = reason; engineerAbsence.startDate = start;
     const endDateObj = new Date(end); endDateObj.setHours(23, 59, 59, 999); engineerAbsence.endDate = endDateObj.toISOString();
 
     saveWeeklyPlan();
     document.getElementById('absence-modal-overlay').style.display = 'none';
-    showToast("Статус обновлен. План приостановлен.");
+    showToast(_t('quality.game.toast.status_paused', 'Статус обновлен. План приостановлен.'));
     gameRenderDashboard();
   };
 
@@ -586,7 +618,7 @@ function emit(eventName, detail) {
     if (engineerAbsence.isActive && engineerAbsence.endDate && new Date() > new Date(engineerAbsence.endDate)) {
       engineerAbsence.isActive = false; engineerAbsence.endDate = null; saveWeeklyPlan();
       var _tasksSvc2 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
-      _tasksSvc2.generateWeeklyPlan(true); showToast("С возвращением! План работы возобновлен.");
+      _tasksSvc2.generateWeeklyPlan(true); showToast(_t('quality.game.toast.welcome_back', 'С возвращением! План работы возобновлен.'));
     }
   };
 
@@ -594,7 +626,7 @@ function emit(eventName, detail) {
   // Перенесено из js/game.js (строка 979).
   function saveEngineerNameForce(name) {
     const cleanName = name.trim();
-    if (!cleanName) return showToast("⚠️ Имя не может быть пустым!");
+    if (!cleanName) return showToast(_t('quality.game.toast.name_empty', '⚠️ Имя не может быть пустым!'));
 
     _setSetting('engineerName', cleanName);
     localStorage.setItem('force_eng_name', cleanName); // Жесткий бэкап
@@ -610,7 +642,7 @@ function emit(eventName, detail) {
     document.getElementById('profile-name-edit-container').classList.add('hidden');
     document.getElementById('profile-title-text').classList.remove('hidden');
 
-    showToast("✅ Имя зафиксировано!");
+    showToast(_t('quality.game.toast.name_saved', '✅ Имя зафиксировано!'));
     gameRenderDashboard();
   };
 
@@ -686,7 +718,7 @@ function emit(eventName, detail) {
     if (hashString(pin) === MANAGER_PIN_HASH) {
       gameCompleteAdminGate();
     } else {
-      showToast('❌ Неверный ПИН-код');
+      showToast(_t('quality.game.toast.bad_pin', '❌ Неверный ПИН-код'));
     }
   };
 
@@ -696,7 +728,7 @@ function emit(eventName, detail) {
 
   // Перенесено из js/game.js (строка 1452).
   function gameGenerateAuditPlan() {
-    showToast("⚙️ Нейросеть анализирует аномалии (протыкивания, завышения)...");
+    showToast(_t('quality.game.toast.analyzing', '⚙️ Нейросеть анализирует аномалии (протыкивания, завышения)...'));
     setTimeout(() => {
       const _allInspections = _getAllInspections();
       const now = new Date();
@@ -707,7 +739,7 @@ function emit(eventName, detail) {
       const recentChecks = _allInspections.filter(c => new Date(c.date) >= lastMonth);
 
       if (recentChecks.length === 0) {
-        document.getElementById('manager-audit-list').innerHTML = `<div class="text-center py-10 text-slate-500 font-bold text-xs uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200">Проверок не найдено</div>`;
+        document.getElementById('manager-audit-list').innerHTML = `<div class="text-center py-10 text-slate-500 font-bold text-xs uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200">${_t('quality.game.toast.no_checks', 'Проверок не найдено')}</div>`;
         return;
       }
 
@@ -725,7 +757,7 @@ function emit(eventName, detail) {
         if (curr.inspectorName === prev.inspectorName && curr.location !== prev.location) {
           const timeDiff = (new Date(curr.date) - new Date(prev.date)) / 1000; // в секундах
           if (timeDiff > 0 && timeDiff < 60 && curr.metrics.final >= 85) {
-            anomalies.push({ check: curr, type: '⚠️ Быстрое заполнение (<60 сек)', color: 'bg-purple-100 text-purple-800 border-purple-200' });
+            anomalies.push({ check: curr, type: _t('quality.game.anomaly.fast', '⚠️ Быстрое заполнение (<60 сек)'), color: 'bg-purple-100 text-purple-800 border-purple-200' });
             checkedInspectors.add(curr.inspectorName);
           }
         }
@@ -737,7 +769,7 @@ function emit(eventName, detail) {
         const contrAll = recentChecks.filter(x => x.contractorName === c.contractorName);
         const avg = contrAll.reduce((sum, x) => sum + (x.metrics ? (Number(x.metrics.final) || 0) : 0), 0) / contrAll.length;
         if (avg < 75) {
-          anomalies.push({ check: c, type: 'Завышение (Подрядчик в красной зоне)', color: 'bg-orange-100 text-orange-800 border-orange-200' });
+          anomalies.push({ check: c, type: _t('quality.game.anomaly.inflate', 'Завышение (Подрядчик в красной зоне)'), color: 'bg-orange-100 text-orange-800 border-orange-200' });
           checkedInspectors.add(c.inspectorName);
         }
       });
@@ -753,7 +785,7 @@ function emit(eventName, detail) {
             });
           }
           if (!hasPhotoOrComment) {
-            anomalies.push({ check: c, type: 'B3 без фото и комментария', color: 'bg-red-100 text-red-800 border-red-200' });
+            anomalies.push({ check: c, type: _t('quality.game.anomaly.b3', 'B3 без фото и комментария'), color: 'bg-red-100 text-red-800 border-red-200' });
             checkedInspectors.add(c.inspectorName);
           }
         }
@@ -766,7 +798,7 @@ function emit(eventName, detail) {
           const inspChecks = recentChecks.filter(c => c.inspectorName === insp);
           if (inspChecks.length > 0) {
             const randCheck = inspChecks[Math.floor(Math.random() * inspChecks.length)];
-            anomalies.push({ check: randCheck, type: 'Плановый перекрёстный аудит', color: 'bg-slate-100 text-slate-700 border-slate-300' });
+            anomalies.push({ check: randCheck, type: _t('quality.game.anomaly.cross', 'Плановый перекрёстный аудит'), color: 'bg-slate-100 text-slate-700 border-slate-300' });
           }
         }
       });
@@ -790,20 +822,20 @@ function emit(eventName, detail) {
                 
                 <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-2.5 border border-slate-100 dark:border-slate-800 flex justify-between items-center mt-auto mb-3">
                     <div>
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Кого проверяем:</div>
-                        <div class="text-[12px] font-black text-slate-700 dark:text-slate-300">${c.inspectorName || 'Неизвестно'}</div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">${_t('quality.game.audit.who', 'Кого проверяем:')}</div>
+                        <div class="text-[12px] font-black text-slate-700 dark:text-slate-300">${c.inspectorName || _t('quality.game.audit.unknown', 'Неизвестно')}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Оценка инженера:</div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">${_t('quality.game.audit.score', 'Оценка инженера:')}</div>
                         <div class="text-[16px] font-black ${c.metrics.final < 70 ? 'text-red-500' : (c.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${c.metrics.final}%</div>
                     </div>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="closeManagerPanel(); showHistoryDetail('${c.id}');" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-95 border border-slate-200">
-                        👁️ Открыть Акт
+                        ${_t('quality.game.audit.open_act', '👁️ Открыть Акт')}
                     </button>
                     <button onclick="closeManagerPanel(); startInspectionWithValues('${c.contractorName.replace(/'/g, "\\'")}', '${c.templateKey}', null, '${c.projectName.replace(/'/g, "\\'")}', ${c.id});" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-md">
-    ⚖️ Провести аудит
+    ${_t('quality.game.audit.do_audit', '⚖️ Провести аудит')}
 </button>
                 </div>
             </div>`;
@@ -811,7 +843,7 @@ function emit(eventName, detail) {
 
       html += `</div>`;
       document.getElementById('manager-audit-list').innerHTML = html;
-      showToast("✅ План аудита сформирован! Найдены аномалии.");
+      showToast(_t('quality.game.toast.audit_ready', '✅ План аудита сформирован! Найдены аномалии.'));
     }, 800);
   };
 
@@ -866,7 +898,7 @@ function emit(eventName, detail) {
               window.state = JSON.parse(JSON.stringify(lastCheck.state));
               window.details = JSON.parse(JSON.stringify(lastCheck.details || {}));
               window.photos = JSON.parse(JSON.stringify(lastCheck.photos || {}));
-              showToast("📥 Предзагружены данные прошлого обхода этого этапа");
+              showToast(_t('quality.game.toast.preload', '📥 Предзагружены данные прошлого обхода этого этапа'));
             }
           }
         }
@@ -877,7 +909,7 @@ function emit(eventName, detail) {
           const pastFailCheck = _allInspections.find(c => c.contractorName === contractor && c.templateKey === templateKey && c.metrics && c.metrics.n_B3_fail > 0);
           if (pastFailCheck) {
             window.auditOriginalData = { isEtalonCompare: true, photos: pastFailCheck.photos, state: pastFailCheck.state };
-            showToast("🔍 Режим Эталона: Подгружены старые фото брака для сравнения 'Было/Стало'");
+            showToast(_t('quality.game.toast.etalon_mode', "🔍 Режим Эталона: Подгружены старые фото брака для сравнения 'Было/Стало'"));
           }
         }
       }
@@ -900,7 +932,7 @@ function emit(eventName, detail) {
           });
           updateLocationFromStructured();
 
-          showToast(`⚖️ Режим Аудита: Вы проверяете работу инспектора ${originalCheck.inspectorName}`);
+          showToast(_t('quality.game.toast.audit_mode', '⚖️ Режим Аудита: Вы проверяете работу инспектора {name}', { name: originalCheck.inspectorName }));
         }
       }
 
@@ -925,7 +957,7 @@ function emit(eventName, detail) {
       var _tasksSvc3 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
       _tasksSvc3.generateWeeklyPlan(true); // Принудительный пересчет плана без этой задачи
       gameRenderDashboard();
-      showToast(`Статус изменен на: ${newStatus}`);
+      showToast(_t('quality.game.toast.status_changed', 'Статус изменен на: {status}', { status: newStatus }));
     }
     document.getElementById('task-status-modal').style.display = 'none';
   };
@@ -942,7 +974,7 @@ function emit(eventName, detail) {
   // Перенесено из js/game.js (строка 2148).
   function gameUpdateEngineerName(newName) {
     const cleanName = newName.trim();
-    if (!cleanName) return showToast("⚠️ Имя не может быть пустым!");
+    if (!cleanName) return showToast(_t('quality.game.toast.name_empty', '⚠️ Имя не может быть пустым!'));
 
     // Сохраняем глобально
     if (typeof appSettings !== 'undefined') {
@@ -959,7 +991,7 @@ function emit(eventName, detail) {
       localStorage.setItem('rbi_sync_config', JSON.stringify(window.syncConfig));
     }
 
-    showToast("✅ Профиль обновлен!");
+    showToast(_t('quality.game.toast.profile_updated', '✅ Профиль обновлен!'));
 
     // Перерисовываем дашборд, чтобы обновилась аватарка (буква имени)
     setTimeout(() => { gameRenderDashboard(); }, 200);
@@ -971,7 +1003,7 @@ function emit(eventName, detail) {
   // Перенесено из js/game.js (строка 2212).
   async function rbi_executeQualityDayReport(taskId) {
     if (!_getSetting('aiEnabled')) {
-      return showToast("⚠️ Для формирования отчета требуется включить DeepSeek AI в настройках!");
+      return showToast(_t('quality.game.toast.need_deepseek', '⚠️ Для формирования отчета требуется включить DeepSeek AI в настройках!'));
     }
 
     const periodValue = document.getElementById('qday-period-select').value;
@@ -979,14 +1011,14 @@ function emit(eventName, detail) {
     // Показываем лоадер
     const modal = document.getElementById('modal-overlay');
     document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200 animate-pulse">🤖</div>`;
-    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Сборка Дня Качества</div>`;
+    document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.qd.building_title', 'Сборка Дня Качества')}</div>`;
     document.getElementById('modal-body').innerHTML = `
         <div class="flex flex-col items-center justify-center py-4">
             <div class="text-[11px] font-bold text-slate-500 text-center space-y-2">
-                <div>📥 Агрегируем метрики подрядчиков...</div>
-                <div>📊 Рассчитываем Impact Score команды...</div>
-                <div>🏆 Выбираем лучшие практики...</div>
-                <div class="text-indigo-600 font-black mt-2">DeepSeek пишет управленческое резюме...</div>
+                <div>${_t('quality.game.qd.step_metrics', '📥 Агрегируем метрики подрядчиков...')}</div>
+                <div>${_t('quality.game.qd.step_impact', '📊 Рассчитываем Impact Score команды...')}</div>
+                <div>${_t('quality.game.qd.step_practices', '🏆 Выбираем лучшие практики...')}</div>
+                <div class="text-indigo-600 font-black mt-2">${_t('quality.game.qd.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
             </div>
         </div>
     `;
@@ -1002,19 +1034,19 @@ function emit(eventName, detail) {
       if (periodValue === 'current_month') {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        periodTitle = `ИТОГИ: ${now.toLocaleString('ru-RU', { month: 'long', year: 'numeric' })}`;
+        periodTitle = _t('quality.game.qd.period_month', 'ИТОГИ: {month}', { month: now.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }) });
       } else if (periodValue === 'last_month') {
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-        periodTitle = `ИТОГИ: ${startDate.toLocaleString('ru-RU', { month: 'long', year: 'numeric' })}`;
+        periodTitle = _t('quality.game.qd.period_month', 'ИТОГИ: {month}', { month: startDate.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }) });
       } else if (periodValue === 'quarter') {
         startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
         endDate = new Date();
-        periodTitle = `КВАРТАЛЬНЫЙ ОТЧЕТ`;
+        periodTitle = _t('quality.game.qd.period_quarter', 'КВАРТАЛЬНЫЙ ОТЧЕТ');
       } else {
         startDate = new Date(2000, 1, 1);
         endDate = new Date();
-        periodTitle = `ОТЧЕТ ЗА ВСЁ ВРЕМЯ`;
+        periodTitle = _t('quality.game.qd.period_all', 'ОТЧЕТ ЗА ВСЁ ВРЕМЯ');
       }
 
       // 1. БАЗА ПРОВЕРОК
@@ -1022,7 +1054,7 @@ function emit(eventName, detail) {
 
       if (currentData.length === 0) {
         closeModal();
-        return showToast("⚠️ За выбранный период нет данных для отчета!");
+        return showToast(_t('quality.game.toast.no_period_data', '⚠️ За выбранный период нет данных для отчета!'));
       }
 
       let currAvgUrk = 0;
@@ -1043,10 +1075,10 @@ function emit(eventName, detail) {
       let totalImpact = 0;
       hrStats.forEach(h => { totalImpact += h.avgImpact; });
       const avgTeamImpact = hrStats.length > 0 ? (totalImpact / hrStats.length) : 0;
-      const bestEng = hrStats.length > 0 ? hrStats.sort((a, b) => b.pi - a.pi)[0] : { name: "Нет данных", checks: 0 };
+      const bestEng = hrStats.length > 0 ? hrStats.sort((a, b) => b.pi - a.pi)[0] : { name: _t('quality.game.qd.no_data', 'Нет данных'), checks: 0 };
 
       // 3. ТОП ПРАКТИК
-      let topPracticesHtml = `<div style="color:#64748b; font-size:10px;">Практик в этом периоде не публиковалось.</div>`;
+      let topPracticesHtml = `<div style="color:#64748b; font-size:10px;">${_t('quality.game.qd.no_practices', 'Практик в этом периоде не публиковалось.')}</div>`;
       if (_getPractices().length > 0) {
         const topPrac = [..._getPractices()].filter(p => new Date(p.date) >= startDate && new Date(p.date) <= endDate).sort((a, b) => b.deltaUrk - a.deltaUrk).slice(0, 2);
         if (topPrac.length > 0) {
@@ -1054,17 +1086,17 @@ function emit(eventName, detail) {
                     <div style="border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px; border-radius:6px; margin-bottom:10px; background:white; page-break-inside: avoid;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                             <strong style="font-size:12px; color:#0f172a;">${p.title}</strong>
-                            <span style="color:#16a34a; font-weight:900;">+${p.deltaUrk}% УрК</span>
+                            <span style="color:#16a34a; font-weight:900;">${_t('quality.game.delta_urk', '+{n}% УрК', { n: p.deltaUrk })}</span>
                         </div>
-                        <div style="font-size:10px; color:#64748b; margin-bottom:5px;">Автор: ${p.author} | ${p.templateTitle}</div>
+                        <div style="font-size:10px; color:#64748b; margin-bottom:5px;">${_t('quality.game.qd.author', 'Автор: {author} | {title}', { author: p.author, title: p.templateTitle })}</div>
                         <table style="width:100%; border-collapse:collapse; font-size:10px;">
                             <tr>
                                 <td style="width:50%; vertical-align:top; padding-right:5px;">
-                                    <div style="color:#dc2626; font-weight:bold; margin-bottom:2px;">❌ Проблема:</div>
+                                    <div style="color:#dc2626; font-weight:bold; margin-bottom:2px;">${_t('quality.game.qd.problem', '❌ Проблема:')}</div>
                                     <div style="color:#1e293b;">${p.problem}</div>
                                 </td>
                                 <td style="width:50%; vertical-align:top; padding-left:5px;">
-                                    <div style="color:#16a34a; font-weight:bold; margin-bottom:2px;">✅ Решение:</div>
+                                    <div style="color:#16a34a; font-weight:bold; margin-bottom:2px;">${_t('quality.game.qd.solution', '✅ Решение:')}</div>
                                     <div style="color:#1e293b;">${p.solution}</div>
                                 </td>
                             </tr>
@@ -1091,14 +1123,14 @@ function emit(eventName, detail) {
       const sortedCauses = Object.keys(causes).sort((a, b) => causes[b] - causes[a]).slice(0, 5);
       if (sortedCauses.length > 0) {
         causesHtml = sortedCauses.map(code => {
-          const cName = (_defectCauses().find(x => x.code === code)?.name) || 'Иное';
+          const cName = (_defectCauses().find(x => x.code === code)?.name) || _t('quality.game.other', 'Иное');
           return `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding:6px 0; font-size:11px;">
                     <span style="color:#334155;">${cName}</span>
-                    <span style="font-weight:bold; color:#0f172a;">${causes[code]} шт.</span>
+                    <span style="font-weight:bold; color:#0f172a;">${_t('quality.game.qd.pcs', '{n} шт.', { n: causes[code] })}</span>
                 </div>`;
         }).join('');
       } else {
-        causesHtml = `<div style="color:#64748b; font-size:10px;">Дефектов не выявлено.</div>`;
+        causesHtml = `<div style="color:#64748b; font-size:10px;">${_t('quality.game.qd.no_defects', 'Дефектов не выявлено.')}</div>`;
       }
 
       // 5. DEEPSEEK - АНАЛИЗ ДЛЯ РЕЗЮМЕ
@@ -1115,29 +1147,29 @@ function emit(eventName, detail) {
       // 6. СБОРКА HTML ДЛЯ ПЕЧАТИ
       const pdfContent = `
             <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="font-size: 24pt; text-transform: uppercase; color: #0f172a; margin: 0; font-weight:900;">КОНСОЛИДИРОВАННЫЙ ОТЧЕТ КО ДНЮ КАЧЕСТВА</h1>
+                <h1 style="font-size: 24pt; text-transform: uppercase; color: #0f172a; margin: 0; font-weight:900;">${_t('quality.game.qd.pdf_title', 'КОНСОЛИДИРОВАННЫЙ ОТЧЕТ КО ДНЮ КАЧЕСТВА')}</h1>
                 <div style="font-size: 14pt; color: #4f46e5; font-weight: 900; margin-top: 5px; text-transform:uppercase;">${periodTitle}</div>
             </div>
 
             <!-- БЛОК 1: AI-РЕЗЮМЕ -->
             <div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 14pt; text-transform: uppercase;">🧠 УПРАВЛЕНЧЕСКОЕ РЕЗЮМЕ (DEEPSEEK AI)</h2>
-                <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-weight: 500;">${aiSummary}</div>
+                <h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 14pt; text-transform: uppercase;">${_t('quality.game.qd.pdf_resume', '🧠 УПРАВЛЕНЧЕСКОЕ РЕЗЮМЕ (DEEPSEEK AI)')}</h2>
+                <div style="font-size: 11pt; line-height: 1.6; color: #1e293b; font-weight: 500;">${meetingRichToSafeHtml(aiSummary)}</div>
             </div>
 
             <!-- БЛОК 2: МАКРОПОКАЗАТЕЛИ -->
             <table style="width: 100%; border-spacing: 15px 0; border-collapse: separate; table-layout: fixed; margin-left: -15px; margin-bottom: 20px;">
                 <tr>
                     <td style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:12px; padding:15px; text-align:center;">
-                        <div style="font-size:9pt; color:#64748b; text-transform:uppercase; font-weight:bold;">Индекс Риска (ИКО)</div>
+                        <div style="font-size:9pt; color:#64748b; text-transform:uppercase; font-weight:bold;">${_t('quality.game.qd.pdf_iko', 'Индекс Риска (ИКО)')}</div>
                         <div style="font-size:28pt; font-weight:900; color:${parseFloat(IKO) >= 0.6 ? '#dc2626' : '#16a34a'};">${IKO}</div>
                     </td>
                     <td style="background:#fef2f2; border:2px solid #fca5a5; border-radius:12px; padding:15px; text-align:center;">
-                        <div style="font-size:9pt; color:#991b1b; text-transform:uppercase; font-weight:bold;">Объем Красной Зоны</div>
+                        <div style="font-size:9pt; color:#991b1b; text-transform:uppercase; font-weight:bold;">${_t('quality.game.qd.pdf_red', 'Объем Красной Зоны')}</div>
                         <div style="font-size:28pt; font-weight:900; color:#dc2626;">${redZone}%</div>
                     </td>
                     <td style="background:#f0fdf4; border:2px solid #bbf7d0; border-radius:12px; padding:15px; text-align:center;">
-                        <div style="font-size:9pt; color:#166534; text-transform:uppercase; font-weight:bold;">Impact Score Команды</div>
+                        <div style="font-size:9pt; color:#166534; text-transform:uppercase; font-weight:bold;">${_t('quality.game.qd.pdf_impact', 'Impact Score Команды')}</div>
                         <div style="font-size:28pt; font-weight:900; color:#16a34a;">${avgTeamImpact > 0 ? '+' : ''}${avgTeamImpact.toFixed(2)}</div>
                     </td>
                 </tr>
@@ -1149,18 +1181,18 @@ function emit(eventName, detail) {
             <table style="width: 100%; border-spacing: 20px 0; border-collapse: separate; table-layout: fixed; margin-left: -20px; margin-bottom: 20px;">
                 <tr>
                     <td style="width: 50%; vertical-align: top;">
-                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">🏆 Лучшие практики периода</h2>
+                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">${_t('quality.game.qd.pdf_practices', '🏆 Лучшие практики периода')}</h2>
                         ${topPracticesHtml}
                     </td>
                     <td style="width: 50%; vertical-align: top;">
-                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">🔍 Топ причин брака (Парето)</h2>
+                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">${_t('quality.game.qd.pdf_pareto', '🔍 Топ причин брака (Парето)')}</h2>
                         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px;">
                             ${causesHtml}
                         </div>
                         
-                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px;">👤 Рейтинг Инженеров</h2>
+                        <h2 style="font-size: 14pt; color: #0f172a; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px;">${_t('quality.game.qd.pdf_eng', '👤 Рейтинг Инженеров')}</h2>
                         <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px;">
-                            <div style="font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 5px;">Лучший по Опыту (XP): <span style="color:#4f46e5;">${bestEng.name}</span></div>
+                            <div style="font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 5px;">${_t('quality.game.qd.pdf_best', 'Лучший по Опыту (XP):')} <span style="color:#4f46e5;">${bestEng.name}</span></div>
                             <div style="font-size: 9pt; color: #64748b;">Проверок: ${bestEng.checks} | Строгость: ${bestEng.strictness > 0 ? '+' + bestEng.strictness.toFixed(1) : bestEng.strictness?.toFixed(1)}</div>
                         </div>
                     </td>
@@ -1180,11 +1212,11 @@ function emit(eventName, detail) {
       }
 
       // Запускаем печать. Передаем "browser", чтобы открылось системное окно печати/сохранения PDF
-      printPdfShell(`День Качества`, pdfContent, "A4", "landscape", "browser");
+      printPdfShell(_t('quality.game.qd.print_name', 'День Качества'), pdfContent, "A4", "landscape", "browser");
 
     } catch (e) {
       closeModal();
-      showToast("❌ Ошибка сборки отчета: " + e.message);
+      showToast(_t('quality.game.toast.report_error', '❌ Ошибка сборки отчета: {msg}', { msg: e.message }));
     }
   };
 
@@ -1196,9 +1228,9 @@ function emit(eventName, detail) {
   async function rbi_deleteFmea(id) {
     const record = _getFmea().find(m => String(m.id) === String(id));
     var _permSvc1 = (GameActions._ctx && GameActions._ctx.permissions) || window.RBI.services.permissions;
-    if (record && !_permSvc1.canDelete(record.author)) return showToast("⚠️ Нет прав на удаление чужого FMEA отчета!");
+    if (record && !_permSvc1.canDelete(record.author)) return showToast(_t('quality.game.toast.fmea_no_delete', '⚠️ Нет прав на удаление чужого FMEA отчета!'));
 
-    if (!confirm("Удалить этот FMEA отчет?")) return;
+    if (!confirm(_t('quality.game.confirm.delete_fmea', 'Удалить этот FMEA отчет?'))) return;
     if (record) {
       record._deleted = true;
       record.is_deleted = true; // <-- ДЛЯ ОБЛАКА
@@ -1219,7 +1251,7 @@ function emit(eventName, detail) {
     }
     var _tasksSvc4 = (GameActions._ctx && GameActions._ctx.tasks) || window.RBI.services.tasks;
     _tasksSvc4.generateWeeklyPlan(true); // Пересчет задач
-    showToast("🗑️ Отчет удален");
+    showToast(_t('quality.game.toast.fmea_deleted', '🗑️ Отчет удален'));
   };
 
   // Перенесено из js/game.js (строка 2632). Загрузка FMEA в черновик для
@@ -1244,7 +1276,7 @@ function emit(eventName, detail) {
       } else {
         photoHtml = `
             <div class="mt-2 w-16">
-                <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">Нет фото</div>
+                <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
                 <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
             </div>`;
       }
@@ -1260,29 +1292,29 @@ function emit(eventName, detail) {
                 <div class="text-[9px] font-bold text-slate-400 uppercase leading-tight mb-0.5">${def.workTitle}</div>
                 <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight mb-1">${def.contractor}</div>
                 <div class="text-[10px] text-slate-600 dark:text-slate-300 font-medium leading-snug">
-                    <b>${def.defectName}</b> (${def.count} раз)
+                    <b>${def.defectName}</b> ${_t('quality.game.fmea.times', '({n} раз)', { n: def.count })}
                 </div>
                 ${photoHtml}
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[120px]">
                 <select class="f-stage input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50 dark:bg-slate-900 dark:text-slate-200">
-                    <option value="Ошибки СМР" ${def.stage === 'Ошибки СМР' ? 'selected' : ''}>Ошибки СМР</option>
-                    <option value="Проект" ${def.stage === 'Проект' ? 'selected' : ''}>Проектная ошибка</option>
-                    <option value="Материалы" ${def.stage === 'Материалы' ? 'selected' : ''}>Материалы / Завод</option>
-                    <option value="Условия" ${def.stage === 'Условия' ? 'selected' : ''}>Внешние условия</option>
+                    <option value="Ошибки СМР" ${def.stage === 'Ошибки СМР' ? 'selected' : ''}>${_t('quality.game.fmea.stage.smr', 'Ошибки СМР')}</option>
+                    <option value="Проект" ${def.stage === 'Проект' ? 'selected' : ''}>${_t('quality.game.fmea.stage.project', 'Проектная ошибка')}</option>
+                    <option value="Материалы" ${def.stage === 'Материалы' ? 'selected' : ''}>${_t('quality.game.fmea.stage.materials', 'Материалы / Завод')}</option>
+                    <option value="Условия" ${def.stage === 'Условия' ? 'selected' : ''}>${_t('quality.game.fmea.stage.conditions', 'Внешние условия')}</option>
                 </select>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="Коренная причина...">${def.cause || ''}</textarea>
+                <textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.cause', 'Коренная причина...')}">${def.cause || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="Последствия (Риски)...">${def.effect || ''}</textarea>
+                <textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.effect', 'Последствия (Риски)...')}">${def.effect || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="Как устранить сейчас...">${def.fix || ''}</textarea>
+                <textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="${_t('quality.game.fmea.ph.fix', 'Как устранить сейчас...')}">${def.fix || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="Системное предотвращение...">${def.prevent || ''}</textarea>
+                <textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="${_t('quality.game.fmea.ph.prevent', 'Системное предотвращение...')}">${def.prevent || ''}</textarea>
             </td>
             <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[80px]">
                 <div class="text-center">
@@ -1295,33 +1327,33 @@ function emit(eventName, detail) {
 
     const workspace = document.getElementById('fmea-workspace');
     workspace.innerHTML = `
-        <div class="bg-white border border-purple-300 rounded-2xl shadow-sm p-4 mb-4">
+        <div class="bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4">
             <div class="flex justify-between items-center mb-3">
-                <div class="text-[11px] font-black text-purple-700 uppercase tracking-widest">
-                    Редактирование: ${record.title}
+                <div class="text-[11px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                    ${_t('quality.game.fmea.edit_title', 'Редактирование: {title}', { title: record.title })}
                 </div>
             </div>
-            <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+            <div class="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100 text-slate-500 uppercase text-[9px] font-bold">
-                            <th class="p-2 border border-slate-200">1. Подрядчик / Проблема</th>
-                            <th class="p-2 border border-slate-200">2. Этап возникновения</th>
-                            <th class="p-2 border border-slate-200">3. Коренная причина</th>
-                            <th class="p-2 border border-slate-200">4. Последствия</th>
-                            <th class="p-2 border border-slate-200 text-blue-600">5. Устранение (Fix)</th>
-                            <th class="p-2 border border-slate-200 text-green-600">6. Предотвращение</th>
-                            <th class="p-2 border border-slate-200 text-purple-600 text-center">7. RPN</th>
+                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase text-[9px] font-bold">
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>
-             <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 active:scale-95 transition-colors flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Добавить строку
+             <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 dark:border-slate-600 active:scale-95 transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.game.fmea.add_row_short', 'Добавить строку')}
             </button>
             <button onclick="rbi_saveFmea('${record ? record.periodName : 'Ручной ввод'}')" class="w-full mt-3 bg-purple-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Сохранить отчет в Систему
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> ${_t('quality.game.fmea.save_report', '💾 Сохранить отчет в Систему')}
             </button>
         </div>
     `;
@@ -1336,7 +1368,7 @@ function emit(eventName, detail) {
       rbi_renderFmeaRegistry();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast("Отчет открыт для редактирования");
+    showToast(_t('quality.game.toast.fmea_opened', 'Отчет открыт для редактирования'));
   };
 
   function _rbiCollectFmeaNewDraft() {
@@ -1412,7 +1444,7 @@ function emit(eventName, detail) {
 
   // Перенесено из js/game.js (строка 2918).
   async function rbi_saveFmea(periodName) {
-    if (_isDemoMode()) return showToast("В демо-режиме сохранение отключено");
+    if (_isDemoMode()) return showToast(_t('quality.game.fmea.toast.demo', 'В демо-режиме сохранение отключено'));
 
     const wasNewFmea = !currentEditingFmeaId;
     const rows = document.querySelectorAll('.fmea-row');
@@ -1511,7 +1543,7 @@ function emit(eventName, detail) {
       }
     }
 
-    showToast("💾 FMEA Отчет сохранен! Задача выполнена.");
+    showToast(_t('quality.game.toast.fmea_saved', '💾 FMEA Отчет сохранен! Задача выполнена.'));
     if (typeof window.rbi_renderFmeaRegistry === 'function') {
       window.rbi_renderFmeaRegistry();
     } else {
@@ -1529,7 +1561,7 @@ function emit(eventName, detail) {
     const file = event.target.files[0];
     if (!file || window.currentFmeaRowIdx === undefined) return;
 
-    showToast("⚙️ Загрузка фото FMEA...");
+    showToast(_t('quality.game.toast.fmea_photo', '⚙️ Загрузка фото FMEA...'));
     window.compressImageToBase64(file, 1000, 0.8, async (base64) => {
       // Сохраняем в кэш IndexedDB
       const localUrl = await PhotoManager.saveLocal(base64, 'fmea');
@@ -1564,7 +1596,7 @@ function emit(eventName, detail) {
     const idx = row.dataset.idx;
     targetDiv.outerHTML = `
         <div class="mt-2 w-16">
-            <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">Нет фото</div>
+            <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
             <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
         </div>`;
   };
@@ -1577,27 +1609,27 @@ function emit(eventName, detail) {
     currentEditingFmeaId = null; // Сбрасываем ID, чтобы сохранился как новый
 
     workspace.innerHTML = `
-        <div class="bg-white border border-purple-300 rounded-2xl shadow-sm p-4 mb-4 animate-fadeIn">
+        <div class="bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4 animate-fadeIn">
             <div class="flex justify-between items-center mb-3">
-                <div class="text-[11px] font-black text-purple-700 uppercase tracking-widest">
-                    Новый ручной FMEA-Анализ
+                <div class="text-[11px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                    ${_t('quality.game.fmea.new_manual', 'Новый ручной FMEA-Анализ')}
                 </div>
-                <button onclick="window.RBI.services.ai.rbi_fillFmeaWithAi()" id="btn-fmea-ai" class="bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Автозаполнение (ИИ)
+                <button onclick="window.RBI.services.ai.rbi_fillFmeaWithAi()" id="btn-fmea-ai" class="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200 border border-purple-200 dark:border-purple-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.game.fmea.autofill', 'Автозаполнение (ИИ)')}
             </button>
             </div>
             
-            <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+            <div class="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100 text-slate-500 uppercase text-[9px] font-bold tracking-wider">
-                            <th class="p-2 border border-slate-200">1. Подрядчик / Проблема</th>
-                            <th class="p-2 border border-slate-200">2. Этап возникновения</th>
-                            <th class="p-2 border border-slate-200">3. Коренная причина</th>
-                            <th class="p-2 border border-slate-200">4. Последствия (Риски)</th>
-                            <th class="p-2 border border-slate-200 text-blue-600">5. Устранение (Fix)</th>
-                            <th class="p-2 border border-slate-200 text-green-600">6. Предотвращение</th>
-                            <th class="p-2 border border-slate-200 text-purple-600 text-center">7. RPN</th>
+                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase text-[9px] font-bold tracking-wider">
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
+                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1605,11 +1637,11 @@ function emit(eventName, detail) {
                     </tbody>
                 </table>
             </div>
-            <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 active:scale-95 transition-colors flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Добавить строку вручную
+            <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 dark:border-slate-600 active:scale-95 transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.game.fmea.add_row', '➕ Добавить строку вручную')}
             </button>
             <button onclick="rbi_saveFmea('Ручной ввод')" class="w-full mt-4 bg-purple-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Сохранить отчет в Систему
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> ${_t('quality.game.fmea.save_report', '💾 Сохранить отчет в Систему')}
             </button>
         </div>
     `;
@@ -1676,8 +1708,8 @@ function emit(eventName, detail) {
                         </div>
                     </div>
                     <div class="flex gap-1.5 shrink-0">
-                        <button onclick="gameEditContractor('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">Изменить</button>
-                        <button onclick="gameDeleteContractor('${esc(c.canonical_key)}')" class="bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/30 dark:border-red-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">Удалить</button>
+                        <button onclick="gameEditContractor('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
+                        <button onclick="gameDeleteContractor('${esc(c.canonical_key)}')" class="bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/30 dark:border-red-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
                     </div>
                 </div>
                 
@@ -1712,7 +1744,7 @@ function emit(eventName, detail) {
     const newName = prompt('Введите новое корректное название подрядчика:', currentName);
     if (!newName || newName.trim() === '' || newName === currentName) return;
 
-    showToast('⏳ Обновление справочника...');
+    showToast(_t('quality.game.toast.dir_updating', '⏳ Обновление справочника...'));
 
     try {
       const pCode = window.syncConfig?.projectCode || 'RBI';
@@ -1731,7 +1763,7 @@ function emit(eventName, detail) {
         }
       }
 
-      showToast('✏️ Название подрядчика успешно обновлено');
+      showToast(_t('quality.game.toast.contr_updated', '✏️ Название подрядчика успешно обновлено'));
       gameLoadContractorDirectory();
 
       var contrEditSvc = _contractors();
@@ -1742,15 +1774,15 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error('[gameEditContractor]', e);
-      showToast('❌ Ошибка при обновлении названия');
+      showToast(_t('quality.game.toast.contr_update_err', '❌ Ошибка при обновлении названия'));
     }
   };
 
   // Перенесено из js/game.js (строка 3269).
   async function gameDeleteContractor(canonicalKey) {
-    if (!confirm('Вы уверены, что хотите удалить подрядчика из справочника?\n\nНовые заявки от него снова будут падать в очередь на подтверждение.')) return;
+    if (!confirm(_t('quality.game.confirm.delete_contr', 'Вы уверены, что хотите удалить подрядчика из справочника?\n\nНовые заявки от него снова будут падать в очередь на подтверждение.'))) return;
 
-    showToast('⏳ Удаление из справочника...');
+    showToast(_t('quality.game.toast.contr_deleting', '⏳ Удаление из справочника...'));
 
     try {
       const pCode = window.syncConfig?.projectCode || 'RBI';
@@ -1770,7 +1802,7 @@ function emit(eventName, detail) {
         }
       }
 
-      showToast('🗑️ Подрядчик удален из справочника');
+      showToast(_t('quality.game.toast.contr_deleted', '🗑️ Подрядчик удален из справочника'));
       gameLoadContractorDirectory();
 
       var contrEditSvc = _contractors();
@@ -1781,7 +1813,7 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error('[gameDeleteContractor]', e);
-      showToast('❌ Ошибка при удалении подрядчика');
+      showToast(_t('quality.game.toast.contr_delete_err', '❌ Ошибка при удалении подрядчика'));
     }
   };
 
@@ -1868,7 +1900,7 @@ function emit(eventName, detail) {
 
   // Перенесено из js/game.js (строка 3391).
   async function gameResolveContractorRequest(requestId) {
-    if (!window.supabaseClient) return showToast('❌ Облако не подключено');
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
     const selectEl = document.getElementById(`contr_req_action_${requestId}`);
     if (!selectEl) return;
@@ -1878,7 +1910,7 @@ function emit(eventName, detail) {
     const currentUser = window.syncConfig?.engineerName || 'Админ';
     const nowIso = new Date().toISOString();
 
-    showToast('⏳ Обработка заявки...');
+    showToast(_t('quality.game.toast.processing_req', '⏳ Обработка заявки...'));
 
     try {
       // Получаем данные заявки
@@ -1889,10 +1921,10 @@ function emit(eventName, detail) {
         .single();
 
       if (reqErr) throw reqErr;
-      if (!req) return showToast('⚠️ Заявка не найдена');
+      if (!req) return showToast(_t('quality.game.toast.req_not_found', '⚠️ Заявка не найдена'));
 
       const rawName = String(req.raw_name || '').trim();
-      if (!rawName) return showToast('⚠️ В заявке нет названия');
+      if (!rawName) return showToast(_t('quality.game.toast.req_no_name', '⚠️ В заявке нет названия'));
 
       // Логика: СОЗДАТЬ НОВОГО
       if (action === 'create') {
@@ -1925,7 +1957,7 @@ function emit(eventName, detail) {
           status: 'linked', suggested_canonical_key: canonicalKey, admin_comment: 'Создан новый подрядчик', updated_at: nowIso
         }).eq('id', requestId);
 
-        showToast('✅ Создан новый подрядчик');
+        showToast(_t('quality.game.toast.contr_created', '✅ Создан новый подрядчик'));
       }
       // Логика: СВЯЗАТЬ С СУЩЕСТВУЮЩИМ (Алиас)
       else if (action.startsWith('link_')) {
@@ -1940,14 +1972,14 @@ function emit(eventName, detail) {
           status: 'linked', suggested_canonical_key: targetCanonicalKey, admin_comment: 'Связан со справочником', updated_at: nowIso
         }).eq('id', requestId);
 
-        showToast('🔗 Заявка связана со справочником');
+        showToast(_t('quality.game.toast.req_linked', '🔗 Заявка связана со справочником'));
       }
       // Логика: ОТКЛОНИТЬ
       else if (action === 'reject') {
         await window.supabaseClient.from('contractor_normalization_queue').update({
           status: 'rejected', admin_comment: 'Отклонено руководителем', updated_at: nowIso
         }).eq('id', requestId);
-        showToast('❌ Заявка отклонена');
+        showToast(_t('quality.game.toast.req_rejected', '❌ Заявка отклонена'));
       }
 
       // Обновляем исторические проверки и базу Стройконтроля в облаке (чтобы везде поменялось имя)
@@ -1971,15 +2003,15 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error('[gameResolveContractorRequest]', e);
-      showToast('❌ Ошибка при обработке заявки');
+      showToast(_t('quality.game.toast.req_err', '❌ Ошибка при обработке заявки'));
     }
   };
 
   // Перенесено из js/game.js (строка 3497).
   async function gameDeleteContractorRequest(requestId) {
-    if (!window.supabaseClient) return showToast('❌ Облако не подключено');
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
-    if (!confirm('Удалить заявку подрядчика из очереди?')) return;
+    if (!confirm(_t('quality.game.confirm.delete_req', 'Удалить заявку подрядчика из очереди?'))) return;
 
     try {
       const { error } = await window.supabaseClient
@@ -1989,13 +2021,13 @@ function emit(eventName, detail) {
 
       if (error) throw error;
 
-      showToast('🗑️ Заявка подрядчика удалена');
+      showToast(_t('quality.game.toast.req_deleted', '🗑️ Заявка подрядчика удалена'));
       if (typeof gameLoadContractorRequests === 'function') gameLoadContractorRequests();
       if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') window.RBI.events.emit('sk:renderRequested', { view: 'banner' });
 
     } catch (e) {
       console.error('[gameDeleteContractorRequest]', e);
-      showToast('❌ Не удалось удалить заявку');
+      showToast(_t('quality.game.toast.req_delete_fail', '❌ Не удалось удалить заявку'));
     }
   };
 
@@ -2057,7 +2089,7 @@ function emit(eventName, detail) {
 
   // Перенесено из js/game.js (строка 3582).
   async function gameLoadRoles() {
-    if (!window.supabaseClient) return showToast("Облако не подключено");
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off_plain', 'Облако не подключено'));
 
     const pCode = window.syncConfig?.projectCode || 'RBI';
 
@@ -2068,11 +2100,11 @@ function emit(eventName, detail) {
     if (!accessContainer && !teamContainer) return;
 
     if (accessContainer) {
-      accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">Загрузка заявок...</div>';
+      accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">' + _t('quality.game.roles.loading_req', 'Загрузка заявок...') + '</div>';
     }
 
     if (teamContainer && teamContainer !== accessContainer) {
-      teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">Загрузка команды...</div>';
+      teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">' + _t('quality.game.roles.loading_team', 'Загрузка команды...') + '</div>';
     }
 
     if (oldContainer && oldContainer !== accessContainer && oldContainer !== teamContainer) {
@@ -2125,8 +2157,8 @@ function emit(eventName, detail) {
       const users = Array.isArray(data) ? data : [];
 
       if (users.length === 0) {
-        if (accessContainer) accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">Заявок на доступ нет</div>';
-        if (teamContainer) teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">Активных пользователей нет</div>';
+        if (accessContainer) accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">' + _t('quality.game.roles.no_req', 'Заявок на доступ нет') + '</div>';
+        if (teamContainer) teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">' + _t('quality.game.roles.no_users', 'Активных пользователей нет') + '</div>';
         return;
       }
 
@@ -2171,11 +2203,11 @@ function emit(eventName, detail) {
 
         let statusBadge = '';
         if (cloudStatus === 'pending') {
-          statusBadge = '<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">Ожидает</span>';
+          statusBadge = '<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.pending', 'Ожидает') + '</span>';
         } else if (cloudStatus === 'approved') {
-          statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">Активен</span>';
+          statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.active', 'Активен') + '</span>';
         } else {
-          statusBadge = '<span class="bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">Заблок.</span>';
+          statusBadge = '<span class="bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.blocked', 'Заблок.') + '</span>';
         }
 
         var _permSvc2 = (GameActions._ctx && GameActions._ctx.permissions) || window.RBI.services.permissions;
@@ -2265,7 +2297,7 @@ function emit(eventName, detail) {
                         <!-- Селекты (в ряд) -->
                         <div class="grid grid-cols-2 gap-2 mb-2">
                             <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] shadow-sm">
-                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">Роль сотрудника</label>
+                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">${_t('quality.game.roles.role_label', 'Роль сотрудника')}</label>
                                 <select id="role_select_${domId}" class="input-base !py-1 !px-1.5 !text-[10px] font-bold" onchange="
                                     const r = this.value;
                                     const objBlock = document.getElementById('obj_block_${domId}');
@@ -2286,34 +2318,34 @@ function emit(eventName, detail) {
                             </div>
 
                             <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] shadow-sm">
-                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">Доступ к облаку</label>
+                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">${_t('quality.game.roles.cloud_access', 'Доступ к облаку')}</label>
                                 <select id="status_select_${domId}" class="input-base !py-1 !px-1.5 !text-[10px] font-bold">
-                                    <option value="pending" ${cloudStatus === 'pending' ? 'selected' : ''}>Ожидает</option>
-                                    <option value="approved" ${cloudStatus === 'approved' ? 'selected' : ''}>Разрешён</option>
-                                    <option value="blocked" ${cloudStatus === 'blocked' ? 'selected' : ''}>Заблокирован</option>
+                                    <option value="pending" ${cloudStatus === 'pending' ? 'selected' : ''}>${_t('quality.game.roles.opt.pending', 'Ожидает')}</option>
+                                    <option value="approved" ${cloudStatus === 'approved' ? 'selected' : ''}>${_t('quality.game.roles.opt.approved', 'Разрешён')}</option>
+                                    <option value="blocked" ${cloudStatus === 'blocked' ? 'selected' : ''}>${_t('quality.game.roles.opt.blocked', 'Заблокирован')}</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] mb-2 shadow-sm">
                             <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">
-                                <span>Привязка к подрядчику</span>
-                                <span class="text-[7px] text-slate-400 font-normal lowercase">(для роли "Подрядчик")</span>
+                                <span>${_t('quality.game.roles.contr_bind', 'Привязка к подрядчику')}</span>
+                                <span class="text-[7px] text-slate-400 font-normal lowercase">${_t('quality.game.roles.contr_hint', '(для роли "Подрядчик")')}</span>
                             </label>
                             <select id="contr_input_${domId}" class="input-base !py-1.5 !text-[10px]">
-                                <option value="">— Не назначен —</option>
+                                <option value="">${_t('quality.game.roles.unassigned', '— Не назначен —')}</option>
                                 ${contractorDirectory.map(c => `<option value="${esc(c.canonical_key)}" data-display="${esc(c.display_name)}" ${contrName === c.canonical_key || contrName === c.display_name ? 'selected' : ''}>${esc(c.display_name)}</option>`).join('')}
                             </select>
                         </div>
 
                         <div id="obj_block_${domId}" style="display: ${displayObjects};" class="bg-indigo-50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800/50 mb-2 shadow-sm">
                             <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-[8px] font-black text-indigo-700 dark:text-indigo-400 uppercase block">Закреплённые объекты</label>
-                                <button onclick="document.getElementById('proj_input_${domId}').value=''; gameRenderAssignedProjectChips('${domId}')" class="text-[8px] text-red-500 font-bold hover:underline">Очистить всё</button>
+                                <label class="text-[8px] font-black text-indigo-700 dark:text-indigo-400 uppercase block">${_t('quality.game.roles.assigned_objs', 'Закреплённые объекты')}</label>
+                                <button onclick="document.getElementById('proj_input_${domId}').value=''; gameRenderAssignedProjectChips('${domId}')" class="text-[8px] text-red-500 font-bold hover:underline">${_t('quality.game.roles.clear_all', 'Очистить всё')}</button>
                             </div>
                             <input type="hidden" id="proj_input_${domId}" value="${projectsJsonStr}">
                             <select class="input-base !py-1.5 !text-[10px] mb-2 bg-white dark:bg-slate-800" onchange="gameAddAssignedProjectFromSelect('${domId}', this.value); this.value='';">
-                                <option value="">+ Добавить объект из справочника</option>
+                                <option value="">${_t('quality.game.roles.add_obj', '+ Добавить объект из справочника')}</option>
                                 ${projectObjects.map(o => `<option value="${esc(o.id || o.canonical_key)}">${esc(o.display_name)}</option>`).join('')}
                             </select>
                             <div id="proj_chips_${domId}" class="flex flex-wrap gap-1"></div>
@@ -2406,18 +2438,18 @@ function emit(eventName, detail) {
       console.error('[gameLoadRoles]', e);
 
       if (accessContainer) {
-        accessContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">Ошибка загрузки заявок</div>';
+        accessContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">' + _t('quality.game.roles.err_req', 'Ошибка загрузки заявок') + '</div>';
       }
 
       if (teamContainer && teamContainer !== accessContainer) {
-        teamContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">Ошибка загрузки команды</div>';
+        teamContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">' + _t('quality.game.roles.err_team', 'Ошибка загрузки команды') + '</div>';
       }
     }
   };
 
   // Перенесено из js/game.js (строка 3869).
   async function gameHandleUserAccessRemove(inspectorId, engineerName, cloudStatus, role) {
-    if (!window.supabaseClient) return showToast("❌ Облако не подключено");
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
     const status = String(cloudStatus || '').toLowerCase();
     const userRole = String(role || '').toLowerCase();
@@ -2434,9 +2466,9 @@ function emit(eventName, detail) {
 
   // Перенесено из js/game.js (строка 3885).
   async function gameBlockUserAccess(inspectorId, engineerName) {
-    if (!window.supabaseClient) return showToast("❌ Облако не подключено");
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
-    if (!confirm(`Заблокировать доступ пользователя "${engineerName}"? Пользователь останется в базе, но не сможет получать рабочие данные.`)) return;
+    if (!confirm(_t('quality.game.confirm.block_user', 'Заблокировать доступ пользователя "{name}"? Пользователь останется в базе, но не сможет получать рабочие данные.', { name: engineerName }))) return;
 
     try {
       const nowIso = new Date().toISOString();
@@ -2464,22 +2496,22 @@ function emit(eventName, detail) {
 
       if (error) throw error;
 
-      showToast('⛔ Пользователь заблокирован');
+      showToast(_t('quality.game.toast.user_blocked', '⛔ Пользователь заблокирован'));
 
       if (typeof gameLoadRoles === 'function') {
         gameLoadRoles();
       }
     } catch (e) {
       console.error('[gameBlockUserAccess]', e);
-      showToast('❌ Не удалось заблокировать пользователя');
+      showToast(_t('quality.game.toast.block_fail', '❌ Не удалось заблокировать пользователя'));
     }
   };
 
   // Перенесено из js/game.js (строка 3938).
   async function gameDeleteUserAccess(inspectorId, engineerName) {
-    if (!window.supabaseClient) return showToast("❌ Облако не подключено");
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
-    if (!confirm(`Удалить заявку/профиль "${engineerName}" из списка? Если пользователь снова войдёт в приложение, заявка создастся заново.`)) return;
+    if (!confirm(_t('quality.game.confirm.delete_user', 'Удалить заявку/профиль "{name}" из списка? Если пользователь снова войдёт в приложение, заявка создастся заново.', { name: engineerName }))) return;
 
     try {
       const { error } = await window.supabaseClient
@@ -2489,20 +2521,20 @@ function emit(eventName, detail) {
 
       if (error) throw error;
 
-      showToast('🗑️ Заявка удалена');
+      showToast(_t('quality.game.toast.user_req_deleted', '🗑️ Заявка удалена'));
 
       if (typeof gameLoadRoles === 'function') {
         gameLoadRoles();
       }
     } catch (e) {
       console.error('[gameDeleteUserAccess]', e);
-      showToast('❌ Не удалось удалить заявку');
+      showToast(_t('quality.game.toast.req_delete_fail', '❌ Не удалось удалить заявку'));
     }
   };
 
   // Перенесено из js/game.js (строка 3964).
   async function gameSaveUserAccess(inspectorId, engineerName) {
-    if (!window.supabaseClient) return showToast("❌ Облако не подключено");
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
     const domId = gameDomIdFromInspectorId(inspectorId);
 
@@ -2528,10 +2560,10 @@ function emit(eventName, detail) {
     if (isNoObjectsRole) projectsArray = [];
 
     if (role === 'contractor' && !contr) {
-      return showToast('⚠️ Для подрядчика обязательно укажите организацию!');
+      return showToast(_t('quality.game.toast.contr_org_required', '⚠️ Для подрядчика обязательно укажите организацию!'));
     }
 
-    showToast('⏳ Сохранение в облако...');
+    showToast(_t('quality.game.toast.saving_cloud', '⏳ Сохранение в облако...'));
 
     try {
       const { data: userData, error: userError } = await window.supabaseClient
@@ -2700,7 +2732,7 @@ function emit(eventName, detail) {
         console.warn('[gameSaveUserAccess] purge', purgeErr);
       }
 
-      showToast(`✅ Права успешно сохранены!`);
+      showToast(_t('quality.game.toast.rights_saved', '✅ Права успешно сохранены!'));
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
       if (typeof gameLoadRoles === 'function') {
@@ -2709,7 +2741,7 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error('[gameSaveUserAccess]', e);
-      showToast('❌ Ошибка сохранения прав');
+      showToast(_t('quality.game.toast.rights_err', '❌ Ошибка сохранения прав'));
     }
   };
 
@@ -2736,7 +2768,7 @@ function emit(eventName, detail) {
       }
 
       if (activeItems.length === 0) {
-        container.innerHTML = '<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">База знаний пуста или ничего не найдено</div>';
+        container.innerHTML = '<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">' + _t('quality.game.aikb.empty', 'База знаний пуста или ничего не найдено') + '</div>';
         return;
       }
 
@@ -2751,8 +2783,8 @@ function emit(eventName, detail) {
                 <div class="flex justify-between items-start mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
                     <div class="font-black text-[12px] text-slate-800 dark:text-white leading-tight pr-2 flex-1">📌 ${item.question}</div>
                     <div class="flex gap-1.5 shrink-0">
-                        <button onclick="gameOpenAiKbModal('${item.id}')" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 active:scale-95 shadow-sm">Изменить</button>
-                        <button onclick="gameDeleteAiKb('${item.id}')" class="text-[9px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 active:scale-95 shadow-sm">Удалить</button>
+                        <button onclick="gameOpenAiKbModal('${item.id}')" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 active:scale-95 shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
+                        <button onclick="gameDeleteAiKb('${item.id}')" class="text-[9px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 active:scale-95 shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
                     </div>
                 </div>
                 <div class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">${shortAnswer}</div>
@@ -2761,7 +2793,7 @@ function emit(eventName, detail) {
             `;
       }).join('');
     } catch (e) {
-      container.innerHTML = '<div class="text-center py-4 text-red-500 font-bold text-xs">Ошибка загрузки базы</div>';
+      container.innerHTML = '<div class="text-center py-4 text-red-500 font-bold text-xs">' + _t('quality.game.aikb.load_err', 'Ошибка загрузки базы') + '</div>';
     }
   };
 
@@ -2771,7 +2803,7 @@ function emit(eventName, detail) {
     const a = document.getElementById('ai-kb-a').value.trim();
     const tagsStr = document.getElementById('ai-kb-tags').value.trim();
 
-    if (!q || !a) return showToast('⚠️ Заполните вопрос и ответ!');
+    if (!q || !a) return showToast(_t('quality.game.toast.aikb_fill', '⚠️ Заполните вопрос и ответ!'));
 
     const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
 
@@ -2796,13 +2828,13 @@ function emit(eventName, detail) {
     _triggerSync('silent');
 
     document.getElementById('ai-kb-modal').remove();
-    showToast('✅ База знаний обновлена');
+    showToast(_t('quality.game.toast.aikb_updated', '✅ База знаний обновлена'));
     gameLoadAiKb();
   };
 
   // Перенесено из js/game.js (строка 4252).
   async function gameDeleteAiKb(id) {
-    if (!confirm('Удалить эту запись из базы ИИ?')) return;
+    if (!confirm(_t('quality.game.confirm.aikb_delete', 'Удалить эту запись из базы ИИ?'))) return;
 
     const record = await _storage().get('app_assistant_kb', id);
     if (record) {
@@ -2815,7 +2847,7 @@ function emit(eventName, detail) {
       localStorage.setItem('rbi_cloud_dirty', '1');
       _triggerSync('silent');
 
-      showToast('🗑️ Запись удалена');
+      showToast(_t('quality.game.toast.aikb_deleted', '🗑️ Запись удалена'));
       gameLoadAiKb();
     }
   };
@@ -2823,9 +2855,9 @@ function emit(eventName, detail) {
   // === ПАНЕЛЬ РУКОВОДИТЕЛЯ: Умный поиск дубликатов подрядчиков ===
   // Перенесено из js/game.js (строка 4272).
   async function gameFindContractorDuplicates() {
-    if (!window.supabaseClient) return showToast('❌ Облако не подключено');
+    if (!window.supabaseClient) return showToast(_t('quality.game.toast.cloud_off', '❌ Облако не подключено'));
 
-    showToast('⏳ Нейросеть ищет дубликаты...');
+    showToast(_t('quality.game.toast.searching_dups', '⏳ Нейросеть ищет дубликаты...'));
 
     try {
       const pCode = window.syncConfig?.projectCode || 'RBI';
@@ -2840,7 +2872,7 @@ function emit(eventName, detail) {
       if (error) throw error;
 
       if (!directory || directory.length < 2) {
-        return showToast('В справочнике слишком мало записей для поиска дублей');
+        return showToast(_t('quality.game.toast.too_few_for_dups', 'В справочнике слишком мало записей для поиска дублей'));
       }
 
       // 2. Функция расчета схожести (Левенштейн)
@@ -2886,7 +2918,7 @@ function emit(eventName, detail) {
       }
 
       if (duplicates.length === 0) {
-        return showToast('✅ Дубликатов не найдено! База чистая.');
+        return showToast(_t('quality.game.toast.no_dups', '✅ Дубликатов не найдено! База чистая.'));
       }
 
       // 4. Отрисовываем модалку с результатами
@@ -2897,7 +2929,7 @@ function emit(eventName, detail) {
 
         return `
             <div id="dup-row-${idx}" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl mb-3 shadow-sm">
-                <div class="text-[10px] text-center font-black text-indigo-500 uppercase mb-2">Совпадение: ${d.score}%</div>
+                <div class="text-[10px] text-center font-black text-indigo-500 uppercase mb-2">${_t('quality.game.dups.match', 'Совпадение: {n}%', { n: d.score })}</div>
                 <div class="flex items-center gap-2 mb-3">
                     <div class="flex-1 bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                         <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight">${d.c1.display_name}</div>
@@ -2919,12 +2951,12 @@ function emit(eventName, detail) {
             <div id="dup-modal-overlay" class="fixed inset-0 bg-slate-900/80 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
                 <div class="bg-[var(--card-bg)] w-full max-w-md rounded-2xl shadow-2xl border border-[var(--card-border)] overflow-hidden flex flex-col max-h-[85vh]">
                     <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)] shrink-0">
-                        <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">🤖 Слияние дубликатов</h3>
+                        <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">${_t('quality.game.dups.title', '🤖 Слияние дубликатов')}</h3>
                         <button onclick="document.getElementById('dup-modal-overlay').remove(); document.body.classList.remove('modal-open');" class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-700">✕</button>
                     </div>
                     <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-slate-50 dark:bg-slate-900/50">
                         <div class="text-[10px] text-slate-500 mb-4 text-center leading-relaxed">
-                            Выберите, какое название правильное. Неправильное будет удалено, а его имя добавится как синоним к правильному. История объединится автоматически.
+                            ${_t('quality.game.dups.desc', 'Выберите, какое название правильное. Неправильное будет удалено, а его имя добавится как синоним к правильному. История объединится автоматически.')}
                         </div>
                         ${html}
                     </div>
@@ -2936,16 +2968,16 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error(e);
-      showToast('❌ Ошибка при поиске дубликатов');
+      showToast(_t('quality.game.toast.dups_err', '❌ Ошибка при поиске дубликатов'));
     }
   };
 
   // === Логика объединения двух записей ===
   // Перенесено из js/game.js (строка 4391).
   async function gameExecuteContractorMerge(primaryKey, secondaryKey, secondaryName, rowId) {
-    if (!confirm(`Точно объединить?\n\nПодрядчик "${secondaryName}" исчезнет, став синонимом. Это необратимо.`)) return;
+    if (!confirm(_t('quality.game.confirm.merge', 'Точно объединить?\n\nПодрядчик "{name}" исчезнет, став синонимом. Это необратимо.', { name: secondaryName }))) return;
 
-    showToast('⏳ Слияние баз данных...');
+    showToast(_t('quality.game.toast.merging', '⏳ Слияние баз данных...'));
     try {
       const pCode = window.syncConfig?.projectCode || 'RBI';
       const currentUser = window.syncConfig?.engineerName || 'Админ';
@@ -2986,7 +3018,7 @@ function emit(eventName, detail) {
         .update({ contractor_name: primaryData.display_name, contractor_canonical_key: primaryKey, contractor_normalization_status: 'matched', updated_at: nowIso })
         .eq('project_code', pCode).eq('contractor_canonical_key', secondaryKey);
 
-      showToast('✅ Успешно объединено!');
+      showToast(_t('quality.game.toast.merged', '✅ Успешно объединено!'));
 
       // Скрываем блок в модалке
       document.getElementById(rowId).style.display = 'none';
@@ -3003,16 +3035,16 @@ function emit(eventName, detail) {
 
     } catch (e) {
       console.error(e);
-      showToast('❌ Ошибка при слиянии');
+      showToast(_t('quality.game.toast.merge_err', '❌ Ошибка при слиянии'));
     }
   };
 
   // Перенесено из js/game.js (строка 4456).
   function rbi_exportFmeaExcel(fmeaId) {
     const record = _getFmea().find(f => f.id === fmeaId);
-    if (!record) return showToast("Запись не найдена");
+    if (!record) return showToast(_t('quality.game.fmea.not_found', 'Запись не найдена'));
 
-    showToast("⏳ Формируем Excel файл...");
+    showToast(_t('quality.game.toast.excel_building', '⏳ Формируем Excel файл...'));
 
     const dataToExport = record.defects.map((d, index) => ({
       "№ п/п": index + 1,
@@ -3034,10 +3066,10 @@ function emit(eventName, detail) {
       XLSX.utils.book_append_sheet(workbook, worksheet, "FMEA Анализ");
 
       XLSX.writeFile(workbook, `FMEA_${record.periodName}_${new Date().toLocaleDateString('ru-RU')}.xlsx`);
-      showToast("✅ FMEA успешно выгружен в Excel!");
+      showToast(_t('quality.game.toast.excel_ok', '✅ FMEA успешно выгружен в Excel!'));
     } catch (e) {
       console.error(e);
-      showToast("❌ Ошибка при формировании Excel");
+      showToast(_t('quality.game.toast.excel_err', '❌ Ошибка при формировании Excel'));
     }
   };
 
@@ -3113,7 +3145,7 @@ function emit(eventName, detail) {
             onclick="event.stopPropagation()">
             <div
                 class="font-black text-[13px] uppercase tracking-tight mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 text-slate-800 dark:text-white flex justify-between items-center">
-                ⚙️ Статус подрядчика
+                ${_t('quality.game.contr.status_title', '⚙️ Статус подрядчика')}
                 <button onclick="document.getElementById('task-status-modal').style.display='none'"
                     class="text-slate-400 font-black px-2">✕</button>
             </div>

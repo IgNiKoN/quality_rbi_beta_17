@@ -157,8 +157,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, 1500);
         }
 
-        await loadSettings();
-        applySettingsToUI();
+        // Settings: раньше статичные теги до DCL; теперь early loadModule + guards
+        if (typeof window.loadSettings !== 'function') {
+            var _ml = window.RBI && window.RBI.moduleLoader;
+            if (_ml && typeof _ml.loadModule === 'function') {
+                var _ctx = (window.RBI.createContext && window.RBI.createContext()) || {};
+                await _ml.loadModule('settings', _ctx);
+            }
+        }
+        if (typeof window.loadSettings === 'function') {
+            await window.loadSettings();
+        } else if (
+            window.RBI && window.RBI.services && window.RBI.services.settings &&
+            typeof window.RBI.services.settings.load === 'function'
+        ) {
+            await window.RBI.services.settings.load();
+        }
+        if (typeof window.applySettingsToUI === 'function') {
+            window.applySettingsToUI();
+        }
 
         // После init AppMode / renderBottomNav — снова применить i18n к chrome
         var i18nLate = window.RBI && window.RBI.services && window.RBI.services.i18n;
@@ -238,14 +255,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (storedFb) window.rbi_feedbackData = storedFb.filter(f => !f._deleted);
         if (typeof rbi_renderFeedbackTab === 'function') rbi_renderFeedbackTab();
 
+        // DOM аудита монтируется при loadModule('quality') — на DCL узлов может не быть.
+        var emptyStateEl = document.getElementById('empty-checklist-state');
+        var auditItemsEl = document.getElementById('audit-items');
+        var auditActionsEl = document.getElementById('audit-actions');
         if (!window.currentTemplateKey) {
-            document.getElementById('empty-checklist-state').style.display = 'block';
-            document.getElementById('audit-items').style.display = 'none';
-            document.getElementById('audit-actions').style.display = 'none';
+            if (emptyStateEl) emptyStateEl.style.display = 'block';
+            if (auditItemsEl) auditItemsEl.style.display = 'none';
+            if (auditActionsEl) auditActionsEl.style.display = 'none';
         } else {
-            document.getElementById('empty-checklist-state').style.display = 'none';
-            document.getElementById('audit-items').style.display = 'block';
-            document.getElementById('audit-actions').style.display = 'grid';
+            if (emptyStateEl) emptyStateEl.style.display = 'none';
+            if (auditItemsEl) auditItemsEl.style.display = 'block';
+            if (auditActionsEl) auditActionsEl.style.display = 'grid';
             document.dispatchEvent(new CustomEvent('bootstrap:checklistReady'));
         }
 

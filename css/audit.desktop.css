@@ -23,12 +23,18 @@ body.rbi-audit-desktop-wide.has-desk-topbar #app-content {
   margin-top: 0 !important;
 }
 
+/* Shell виден только под wide-gate — иначе orphan после гонки навигации
+   остаётся display:flex поверх Настроек/других вкладок. */
 #audit-desktop-shell {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
   min-width: 0;
+}
+
+body.rbi-audit-desktop-wide #audit-desktop-shell {
+  display: flex;
 }
 
 /* ===== CHROME — как subtabs у аналитики/БЗ: sticky full-bleed под desk topbar ===== */

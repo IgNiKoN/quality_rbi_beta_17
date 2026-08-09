@@ -6,6 +6,25 @@
 
 import { buildMeetingProtocolHtml } from '../meetings/meetings.protocol.js';
 
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+let _engineerDeskI18nBound = false;
+
 const DESKTOP_MIN = 1280;
 const WIDE_CLASS = 'rbi-engineer-desktop-wide';
 const CSS_HREF = './css/engineer.desktop.css';
@@ -52,7 +71,9 @@ function isQualityMode() {
 function isEngineerActive() {
   if (!isQualityMode()) return false;
   const hash = String(location.hash || '');
-  if (hash && !/#\/quality\/engineer/i.test(hash)) return false;
+  if (hash && hash !== '#') {
+    return /#\/quality\/engineer(\/|$|\?)/i.test(hash) || /^#\/quality\/engineer$/i.test(hash);
+  }
   const tab = document.getElementById(TAB_ID);
   return !!(tab && tab.classList.contains('active'));
 }
@@ -170,7 +191,7 @@ function ensureSplitShell(host, accent) {
   const viewer = document.createElement('div');
   viewer.className = 'eng-desk-viewer';
   viewer.innerHTML =
-    '<div class="eng-desk-viewer-empty">Выберите элемент слева для просмотра</div>';
+    '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.select_left', 'Выберите элемент слева для просмотра') + '</div>';
   split.appendChild(rail);
   split.appendChild(viewer);
   host.appendChild(split);
@@ -195,7 +216,7 @@ function setViewerContent(viewer, htmlOrNode, title) {
   if (typeof htmlOrNode === 'string') body.innerHTML = htmlOrNode;
   else if (htmlOrNode) body.appendChild(htmlOrNode);
   else {
-    body.innerHTML = '<div class="eng-desk-viewer-empty">Пусто</div>';
+    body.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.blank', 'Пусто') + '</div>';
   }
   viewer.appendChild(body);
 }
@@ -214,7 +235,7 @@ function findTaskById(taskId) {
 function taskRailLabel(task, card) {
   if (task) {
     return {
-      title: task.taskType || task.title || 'Задача',
+      title: task.taskType || task.title || _t('quality.engineer.desk.task', 'Задача'),
       sub: task.workTitle || task.templateTitle || task.contractor || '',
       critical: !!(task.priorityLvl === 4 || (card && card.getAttribute('data-critical') === '1'))
     };
@@ -222,7 +243,7 @@ function taskRailLabel(task, card) {
   const titleEl = card && card.querySelector('.text-\\[11px\\].font-black, .font-black');
   const subEl = card && card.querySelector('.text-\\[8px\\], .text-\\[9px\\]');
   return {
-    title: (titleEl && titleEl.textContent.trim()) || 'Задача',
+    title: (titleEl && titleEl.textContent.trim()) || _t('quality.engineer.desk.task', 'Задача'),
     sub: (subEl && subEl.textContent.trim()) || '',
     critical: !!(card && card.getAttribute('data-critical') === '1')
   };
@@ -239,7 +260,7 @@ function buildCardsGrid(cards) {
   const wrap = document.createElement('div');
   wrap.className = 'eng-desk-task-cards';
   if (!cards.length) {
-    wrap.innerHTML = '<div class="eng-desk-viewer-empty">Нет задач</div>';
+    wrap.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.no_tasks', 'Нет задач') + '</div>';
     return wrap;
   }
   cards.forEach(function (card) {
@@ -265,7 +286,7 @@ function stealTaskModalIntoViewer(viewer, taskId) {
     document.body.classList.remove('modal-open');
   }
   const task = findTaskById(taskId);
-  const title = (task && (task.contractor || task.taskType || task.title)) || 'Задача';
+  const title = (task && (task.contractor || task.taskType || task.title)) || _t('quality.engineer.desk.task', 'Задача');
   const subtitle =
     (task && (task.templateTitle || task.workTitle || task.taskType || '')) || '';
 
@@ -275,7 +296,7 @@ function stealTaskModalIntoViewer(viewer, taskId) {
   const head = document.createElement('div');
   head.className = 'eng-desk-viewer-head eng-desk-task-detail-head';
   head.innerHTML =
-    '<div class="eng-desk-task-detail-kicker">Задача</div>' +
+    '<div class="eng-desk-task-detail-kicker">' + _t('quality.engineer.desk.task', 'Задача') + '</div>' +
     '<div class="eng-desk-task-detail-title">' +
     escapeHtml(title) +
     '</div>' +
@@ -304,22 +325,22 @@ function stealTaskModalIntoViewer(viewer, taskId) {
       }
       const section = document.createElement('section');
       section.className = 'eng-desk-td-section';
-      let label = 'Сведения';
+      let label = _t('quality.engineer.desk.info', 'Сведения');
       const cls = String(node.className || '');
       const text = (node.textContent || '').slice(0, 200).toLowerCase();
       if (/суть/.test(text)) {
-        label = 'Описание';
+        label = _t('quality.engineer.desk.description', 'Описание');
         section.classList.add('eng-desk-td-section--brief');
       } else if (/прогресс/.test(text) && /дедлайн/.test(text)) {
-        label = 'Сроки и прогресс';
+        label = _t('quality.engineer.desk.deadlines', 'Сроки и прогресс');
         section.classList.add('eng-desk-td-section--meta');
       } else if (
         /зона|системн|риск|стабильн|сбор данных|желт|зелен|красн|профилактич/.test(text)
       ) {
-        label = 'Контекст';
+        label = _t('quality.engineer.desk.context', 'Контекст');
         section.classList.add('eng-desk-td-section--context');
       } else if (/flex/.test(cls) && /gap-2/.test(cls)) {
-        label = 'Сроки и прогресс';
+        label = _t('quality.engineer.desk.deadlines', 'Сроки и прогресс');
         section.classList.add('eng-desk-td-section--meta');
       }
       const lab = document.createElement('div');
@@ -337,13 +358,13 @@ function stealTaskModalIntoViewer(viewer, taskId) {
   if (footer) {
     const primary = document.createElement('section');
     primary.className = 'eng-desk-td-section eng-desk-td-section--actions';
-    primary.innerHTML = '<div class="eng-desk-td-label">Действия</div>';
+    primary.innerHTML = '<div class="eng-desk-td-label">' + _t('quality.engineer.desk.actions', 'Действия') + '</div>';
     const primaryCard = document.createElement('div');
     primaryCard.className = 'eng-desk-td-card eng-desk-task-detail-actions';
 
     const utils = document.createElement('section');
     utils.className = 'eng-desk-td-section eng-desk-td-section--utils';
-    utils.innerHTML = '<div class="eng-desk-td-label">Управление</div>';
+    utils.innerHTML = '<div class="eng-desk-td-label">' + _t('quality.engineer.desk.manage', 'Управление') + '</div>';
     const utilsCard = document.createElement('div');
     utilsCard.className = 'eng-desk-td-card eng-desk-task-detail-utils-wrap';
 
@@ -435,7 +456,7 @@ function ensureTasksDeskChrome(container) {
 }
 
 function contractorTitleFromGroup(g) {
-  if (!g) return 'Группа';
+  if (!g) return _t('quality.engineer.desk.group', 'Группа');
   // Mobile summary puts "Крит."/"Регламент" badge first with .font-black — skip it
   const titleEl = g.querySelector('summary .min-w-0 > div.font-black');
   let title = titleEl && titleEl.textContent.trim();
@@ -444,11 +465,11 @@ function contractorTitleFromGroup(g) {
   const card = g.querySelector('.task-card-item');
   const task = card && findTaskById(card.getAttribute('data-task-id'));
   if (task && task.contractor) {
-    if (task.contractor === 'Системная') return 'Еженедельные';
-    if (task.contractor === 'Поручение') return 'Поручения';
+    if (task.contractor === 'Системная') return _t('quality.engineer.desk.weekly', 'Еженедельные');
+    if (task.contractor === 'Поручение') return _t('quality.engineer.desk.assignments', 'Поручения');
     return task.contractor;
   }
-  return 'Группа';
+  return _t('quality.engineer.desk.group', 'Группа');
 }
 
 function paintTasksChrome() {
@@ -550,7 +571,7 @@ function paintTasksChrome() {
           null
         );
         viewer.innerHTML =
-          '<div class="eng-desk-viewer-empty">Выберите период или подрядчика слева</div>';
+          '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.pick_period', 'Выберите период или подрядчика слева') + '</div>';
         return;
       }
       rail.querySelectorAll('.eng-desk-tree-folder.is-open').forEach(function (f) {
@@ -754,7 +775,7 @@ function buildRatingRowsHtml() {
   let sorted = [];
   const myName =
     (document.getElementById('inp-inspector') && document.getElementById('inp-inspector').value.trim()) ||
-    'Неизвестный инспектор';
+    _t('quality.engineer.desk.unknown_inspector', 'Неизвестный инспектор');
 
   if (window.serverGlobalRating && Array.isArray(window.serverGlobalRating)) {
     sorted = window.serverGlobalRating.slice().sort(function (a, b) {
@@ -766,7 +787,7 @@ function buildRatingRowsHtml() {
     });
   }
   if (!sorted.length) {
-    return '<div class="eng-desk-rating-empty">Нет данных рейтинга</div>';
+    return '<div class="eng-desk-rating-empty">' + _t('quality.engineer.desk.empty.no_rating', 'Нет данных рейтинга') + '</div>';
   }
 
   const comps = window.COMPETENCIES || [];
@@ -792,7 +813,7 @@ function buildRatingRowsHtml() {
           .slice(0, 3)
           .map(function (b) {
             return (
-              '<div class="eng-desk-rating-badge" title="Тир ' +
+              '<div class="eng-desk-rating-badge" title="' + _t('quality.engineer.desk.tier', 'Тир') + ' ' +
               b.tier +
               '">' +
               getSvg(b.id, b.tier, 'w-5 h-5') +
@@ -811,7 +832,7 @@ function buildRatingRowsHtml() {
         '<div class="eng-desk-rating-meta">' +
         '<div class="eng-desk-rating-name">' +
         escapeHtml(p.name) +
-        (isMe ? ' (Вы)' : '') +
+        (isMe ? _t('quality.engineer.desk.you', ' (Вы)') : '') +
         '</div>' +
         '<div class="eng-desk-rating-sub">' +
         '<span class="eng-desk-rating-lvl">' +
@@ -828,7 +849,7 @@ function buildRatingRowsHtml() {
     })
     .join('');
 
-  const source = window.serverGlobalRating ? 'Глобальный рейтинг' : 'Локальный рейтинг';
+  const source = window.serverGlobalRating ? _t('quality.engineer.desk.rating_global', 'Глобальный рейтинг') : _t('quality.engineer.desk.rating_local', 'Локальный рейтинг');
   return (
     '<div class="eng-desk-rating-head">' +
     source +
@@ -865,7 +886,7 @@ function paintProfileChrome() {
   ratingPanel = dash.querySelector('.eng-desk-rating-panel');
   if (ratingPanel) {
     ratingPanel.innerHTML =
-      '<div class="eng-desk-rating-title">Рейтинг инженеров</div>' + buildRatingRowsHtml();
+      '<div class="eng-desk-rating-title">' + _t('quality.engineer.desk.rating_title', 'Рейтинг инженеров') + '</div>' + buildRatingRowsHtml();
   }
 
   // Restructure once per render into primary (radar+rating) / secondary (impact+activity)
@@ -894,7 +915,7 @@ function paintProfileChrome() {
       radarWrap.className = 'eng-desk-prof-tile eng-desk-prof-radar-tile';
       const radarLabel = document.createElement('div');
       radarLabel.className = 'eng-desk-prof-tile-label';
-      radarLabel.textContent = 'Компетенции';
+      radarLabel.textContent = _t('quality.engineer.desk.competencies', 'Компетенции');
       radarWrap.appendChild(radarLabel);
       radarWrap.appendChild(radarTile);
       radarTile.classList.add('eng-desk-prof-radar-inner');
@@ -932,7 +953,7 @@ function paintProfileChrome() {
     }
   } else if (ratingPanel) {
     ratingPanel.innerHTML =
-      '<div class="eng-desk-rating-title">Рейтинг инженеров</div>' + buildRatingRowsHtml();
+      '<div class="eng-desk-rating-title">' + _t('quality.engineer.desk.rating_title', 'Рейтинг инженеров') + '</div>' + buildRatingRowsHtml();
   }
 
   const badges = document.getElementById('badges-section');
@@ -998,9 +1019,9 @@ function meetingPeriodLabel(meet) {
   const text = String(meet.periodText || meet.periodLabel || '').trim();
   if (text) return text;
   const code = String(meet.period || meet.setupPeriod || '').toUpperCase();
-  if (code === 'MONTH' || code === '30') return '30 дней';
-  if (code === 'ALL') return 'Всё время';
-  if (code === 'WEEK' || code === '7') return '7 дней';
+  if (code === 'MONTH' || code === '30') return _t('quality.engineer.period.30d', '30 дней');
+  if (code === 'ALL') return _t('quality.engineer.period.all', 'Всё время');
+  if (code === 'WEEK' || code === '7') return _t('quality.engineer.period.7d', '7 дней');
   return '';
 }
 
@@ -1013,11 +1034,11 @@ function meetingRailMeta(meet, card) {
     const date = formatMeetingDate(meet.date);
     const period = meetingPeriodLabel(meet);
     const lines = [];
-    if (date) lines.push('Проведено: ' + date);
-    if (period) lines.push('Разбор за: ' + period);
-    if (agenda.length) lines.push(done + '/' + agenda.length + ' вопр.');
+    if (date) lines.push(_t('quality.engineer.meta.held', 'Проведено: {date}', { date: date }));
+    if (period) lines.push(_t('quality.engineer.meta.review_for', 'Разбор за: {period}', { period: period }));
+    if (agenda.length) lines.push(_t('quality.engineer.meta.questions_short', '{done}/{total} вопр.', { done: done, total: agenda.length }));
     return {
-      title: meet.title || 'Протокол',
+      title: meet.title || _t('quality.engineer.desk.protocol', 'Протокол'),
       lines: lines,
       date: date
     };
@@ -1025,7 +1046,7 @@ function meetingRailMeta(meet, card) {
   const titleEl = card && card.querySelector('.font-black, .font-bold');
   const subEl = card && card.querySelector('.text-\\[9px\\]');
   return {
-    title: (titleEl && titleEl.textContent.trim()) || 'Протокол',
+    title: (titleEl && titleEl.textContent.trim()) || _t('quality.engineer.desk.protocol', 'Протокол'),
     lines: subEl && subEl.textContent.trim() ? [subEl.textContent.trim()] : [],
     date: ''
   };
@@ -1057,7 +1078,7 @@ function buildMeetingCardsGrid(cards) {
     window.getKnowledgeViewMode('meetings') === 'list';
   wrap.className = 'eng-desk-meet-cards' + (isList ? ' is-list' : '');
   if (!cards.length) {
-    wrap.innerHTML = '<div class="eng-desk-viewer-empty">Нет протоколов</div>';
+    wrap.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.no_protocols', 'Нет протоколов') + '</div>';
     return wrap;
   }
   cards.forEach(function (card) {
@@ -1094,8 +1115,8 @@ function paintMeetingPreviewIntoViewer(viewer, meetingId) {
   if (!meet) {
     setViewerContent(
       viewer,
-      '<div class="eng-desk-viewer-empty">Протокол не найден</div>',
-      'Протокол'
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.protocol_missing', 'Протокол не найден') + '</div>',
+      _t('quality.engineer.desk.protocol', 'Протокол')
     );
     return;
   }
@@ -1103,7 +1124,7 @@ function paintMeetingPreviewIntoViewer(viewer, meetingId) {
   _meetingsDeskSel.meetingId = meetingId;
   markMeetingRailActive(meetingId);
 
-  const title = meet.title || 'Протокол';
+  const title = meet.title || _t('quality.engineer.desk.protocol', 'Протокол');
   const project = String(
     meet.projectName || meet.project || meet.project_display_name || ''
   ).trim();
@@ -1119,22 +1140,22 @@ function paintMeetingPreviewIntoViewer(viewer, meetingId) {
     '<div class="eng-desk-meet-detail-top">' +
     '<button type="button" class="eng-desk-meet-back" data-eng-meet-back="1">' +
     '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>' +
-    'К списку</button>' +
+    _t('quality.engineer.desk.back_list', 'К списку') + '</button>' +
     '<div class="eng-desk-meet-detail-actions">' +
-    '<button type="button" class="eng-desk-meet-act eng-desk-meet-act--edit" data-eng-meet-edit="1">Редактировать</button>' +
+    '<button type="button" class="eng-desk-meet-act eng-desk-meet-act--edit" data-eng-meet-edit="1">' + _t('quality.engineer.desk.edit', 'Редактировать') + '</button>' +
     '<button type="button" onclick="typeof rbi_printMeetingPdf===\'function\'&&rbi_printMeetingPdf(\'' +
     safeId +
     '\',\'script\')" class="eng-desk-meet-act eng-desk-meet-act--indigo">PDF</button>' +
     '<button type="button" onclick="typeof rbi_printMeetingPdf===\'function\'&&rbi_printMeetingPdf(\'' +
     safeId +
-    '\',\'browser\')" class="eng-desk-meet-act">Печать</button>' +
+    '\',\'browser\')" class="eng-desk-meet-act">' + _t('quality.engineer.desk.print', 'Печать') + '</button>' +
     '<button type="button" onclick="(typeof rbi_exportMeetingDocx===\'function\'&&rbi_exportMeetingDocx(\'' +
     safeId +
     '\'))||(typeof exportMeetingDocx===\'function\'&&exportMeetingDocx(\'' +
     safeId +
     '\'))" class="eng-desk-meet-act eng-desk-meet-act--sky">Word</button>' +
     '</div></div>' +
-    '<div class="eng-desk-meet-detail-kicker">Предпросмотр протокола</div>' +
+    '<div class="eng-desk-meet-detail-kicker">' + _t('quality.engineer.desk.protocol_preview', 'Предпросмотр протокола') + '</div>' +
     '<div class="eng-desk-meet-detail-title">' +
     escapeHtml(title) +
     '</div>' +
@@ -1156,21 +1177,21 @@ function paintMeetingPreviewIntoViewer(viewer, meetingId) {
   pane.className = 'eng-desk-viewer-body eng-desk-meet-detail eng-desk-meet-preview';
   const paper = document.createElement('div');
   paper.className = 'eng-desk-meet-preview-paper';
-  paper.innerHTML = '<div class="eng-desk-viewer-empty">Формируем документ…</div>';
+  paper.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.building_doc', 'Формируем документ…') + '</div>';
   pane.appendChild(paper);
   viewer.appendChild(pane);
 
   Promise.resolve(buildMeetingProtocolHtml(meet))
     .then(function (html) {
       if (_meetingsDeskSel.meetingId !== meetingId) return;
-      paper.innerHTML = html || '<div class="eng-desk-viewer-empty">Пустой протокол</div>';
+      paper.innerHTML = html || '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.protocol', 'Пустой протокол') + '</div>';
       if (typeof window.rbiHydrateLocalImages === 'function') {
         window.rbiHydrateLocalImages(paper);
       }
     })
     .catch(function () {
       paper.innerHTML =
-        '<div class="eng-desk-viewer-empty">Не удалось сформировать предпросмотр</div>';
+        '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.preview_fail', 'Не удалось сформировать предпросмотр') + '</div>';
     });
 }
 
@@ -1195,7 +1216,7 @@ function backFromMeetingDetail(viewer) {
   if (viewer) {
     viewer.classList.remove('eng-desk-viewer--meeting');
     viewer.innerHTML =
-      '<div class="eng-desk-viewer-empty">Выберите объект или протокол слева</div>';
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.pick_meeting', 'Выберите объект или протокол слева') + '</div>';
   }
 }
 
@@ -1238,8 +1259,8 @@ function paintMeetingsChrome() {
   if (!mobileGroups.length) {
     setViewerContent(
       viewer,
-      '<div class="eng-desk-viewer-empty">Активных протоколов нет</div>',
-      'Совещания'
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.no_active_protocols', 'Активных протоколов нет') + '</div>',
+      _t('quality.engineer.desk.meetings', 'Совещания')
     );
     return;
   }
@@ -1253,7 +1274,7 @@ function paintMeetingsChrome() {
 
   mobileGroups.forEach(function (groupEl) {
     const titleEl = groupEl.querySelector('.font-black');
-    const pName = (titleEl && titleEl.textContent.trim()) || 'Объект';
+    const pName = (titleEl && titleEl.textContent.trim()) || _t('quality.engineer.desk.project', 'Объект');
     const cards = Array.from(
       groupEl.querySelectorAll('[onclick*="rbi_openSavedMeeting"]')
     ).filter(function (el) {
@@ -1288,7 +1309,7 @@ function paintMeetingsChrome() {
         _meetingsDeskSel = { project: null, meetingId: null };
         viewer.classList.remove('eng-desk-viewer--meeting');
         viewer.innerHTML =
-          '<div class="eng-desk-viewer-empty">Выберите объект или протокол слева</div>';
+          '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.pick_meeting', 'Выберите объект или протокол слева') + '</div>';
         return;
       }
       rail.querySelectorAll('.eng-desk-tree-folder.is-open').forEach(function (f) {
@@ -1369,7 +1390,7 @@ function fmeaGroupLabels(f) {
     return [...new Set(f.projectNames.map(function (n) { return String(n).trim(); }).filter(Boolean))];
   }
   const raw = String(f.project_display_name || f.projectName || f.project_canonical_key || f.project || '').trim();
-  if (!raw) return ['Без объекта'];
+  if (!raw) return [_t('quality.engineer.desk.no_project', 'Без объекта')];
   if (raw === 'Все объекты') return [raw];
   if (raw.includes(',')) {
     const parts = raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -1415,9 +1436,9 @@ function fmeaRailMeta(f, card) {
     const date = formatMeetingDate(f.date);
     const period = String(f.periodName || f.periodText || '').trim();
     const lines = [];
-    if (date) lines.push('Проведено: ' + date);
-    if (period) lines.push('Разбор за: ' + period);
-    if (defectN) lines.push(defectN + ' деф.');
+    if (date) lines.push(_t('quality.engineer.meta.held', 'Проведено: {date}', { date: date }));
+    if (period) lines.push(_t('quality.engineer.meta.review_for', 'Разбор за: {period}', { period: period }));
+    if (defectN) lines.push(_t('quality.engineer.meta.defects_short', '{n} деф.', { n: defectN }));
     return { title: f.title || 'FMEA', lines: lines };
   }
   const titleEl = card && card.querySelector('.font-bold, .font-black');
@@ -1435,7 +1456,7 @@ function buildFmeaCardsGrid(cards) {
     window.getKnowledgeViewMode('fmea') === 'list';
   wrap.className = 'eng-desk-fmea-cards' + (isList ? ' is-list' : '');
   if (!cards.length) {
-    wrap.innerHTML = '<div class="eng-desk-viewer-empty">Нет записей</div>';
+    wrap.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.no_records', 'Нет записей') + '</div>';
     return wrap;
   }
   cards.forEach(function (card) {
@@ -1480,7 +1501,7 @@ async function buildFmeaPreviewHtml(record) {
     if ((d.rpn || 0) >= 600) rpnColor = 'text-red-600 bg-red-50 border-red-200';
 
     let photoHtml =
-      '<div class="text-[9px] text-slate-400 italic border border-dashed border-slate-300 p-2 rounded text-center">Нет фото</div>';
+      '<div class="text-[9px] text-slate-400 italic border border-dashed border-slate-300 p-2 rounded text-center">' + _t('quality.engineer.desk.empty.no_photo', 'Нет фото') + '</div>';
     if (d.photo) {
       let realSrc = '';
       try {
@@ -1516,7 +1537,7 @@ async function buildFmeaPreviewHtml(record) {
         '</div>' +
         '<div class="eng-desk-fmea-defect-name">' +
         escapeHtml(d.defectName || '') +
-        ' (повторов: ' +
+        ' (' + _t('quality.engineer.fmea.repeats', 'повторов') + ': ' +
         escapeHtml(String(d.count || 0)) +
         ')</div>' +
         '</div>' +
@@ -1526,18 +1547,18 @@ async function buildFmeaPreviewHtml(record) {
         escapeHtml(String(d.rpn || 0)) +
         '</div></div></div>' +
         '<div class="eng-desk-fmea-defect-grid">' +
-        '<div><span>Причина (' +
+        '<div><span>' + _t('quality.engineer.fmea.cause', 'Причина') + ' (' +
         escapeHtml(d.stage || '-') +
         '):</span>' +
         escapeHtml(d.cause || '-') +
         '</div>' +
-        '<div><span>Последствия:</span>' +
+        '<div><span>' + _t('quality.engineer.fmea.effects', 'Последствия:') + '</span>' +
         escapeHtml(d.effect || '-') +
         '</div>' +
-        '<div class="is-fix"><span>Устранение:</span>' +
+        '<div class="is-fix"><span>' + _t('quality.engineer.fmea.fix', 'Устранение:') + '</span>' +
         escapeHtml(d.fix || '-') +
         '</div>' +
-        '<div class="is-prevent"><span>Предотвращение:</span>' +
+        '<div class="is-prevent"><span>' + _t('quality.engineer.fmea.prevent', 'Предотвращение:') + '</span>' +
         escapeHtml(d.prevent || '-') +
         '</div>' +
         '</div></div>'
@@ -1547,28 +1568,28 @@ async function buildFmeaPreviewHtml(record) {
   const projectLabel =
     String(
       record.project_display_name || record.projectName || record.project || ''
-    ).trim() || 'Без объекта';
+    ).trim() || _t('quality.engineer.desk.no_project', 'Без объекта');
   const dateLabel = formatMeetingDate(record.date);
   const period = String(record.periodName || record.periodText || '—').trim();
 
   return (
     '<div class="eng-desk-fmea-preview-meta">' +
-    '<div><span>Инженер</span><b>' +
+    '<div><span>' + _t('quality.engineer.fmea.engineer', 'Инженер') + '</span><b>' +
     escapeHtml(record.author || '—') +
     '</b></div>' +
-    '<div><span>Проведено</span><b>' +
+    '<div><span>' + _t('quality.engineer.fmea.held', 'Проведено') + '</span><b>' +
     escapeHtml(dateLabel || '—') +
     '</b></div>' +
-    '<div><span>Разбор за</span><b>' +
+    '<div><span>' + _t('quality.engineer.fmea.review_for', 'Разбор за') + '</span><b>' +
     escapeHtml(period) +
     '</b></div>' +
-    '<div><span>Объект</span><b>' +
+    '<div><span>' + _t('quality.engineer.desk.project', 'Объект') + '</span><b>' +
     escapeHtml(projectLabel) +
     '</b></div>' +
     '</div>' +
     (rows.length
       ? rows.join('')
-      : '<div class="eng-desk-viewer-empty">Дефекты не заполнены</div>')
+      : '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.no_defects', 'Дефекты не заполнены') + '</div>')
   );
 }
 
@@ -1578,7 +1599,7 @@ function paintFmeaPreviewIntoViewer(viewer, fmeaId) {
   if (!record) {
     setViewerContent(
       viewer,
-      '<div class="eng-desk-viewer-empty">Запись не найдена</div>',
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.record_missing', 'Запись не найдена') + '</div>',
       'FMEA'
     );
     return;
@@ -1606,9 +1627,9 @@ function paintFmeaPreviewIntoViewer(viewer, fmeaId) {
     '<div class="eng-desk-fmea-detail-top">' +
     '<button type="button" class="eng-desk-fmea-back" data-eng-fmea-back="1">' +
     '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>' +
-    'К списку</button>' +
+    _t('quality.engineer.desk.back_list', 'К списку') + '</button>' +
     '<div class="eng-desk-fmea-detail-actions">' +
-    '<button type="button" class="eng-desk-fmea-act eng-desk-fmea-act--edit" data-eng-fmea-edit="1">Редактировать</button>' +
+    '<button type="button" class="eng-desk-fmea-act eng-desk-fmea-act--edit" data-eng-fmea-edit="1">' + _t('quality.engineer.desk.edit', 'Редактировать') + '</button>' +
     '<button type="button" onclick="typeof rbi_exportFmeaExcel===\'function\'&&rbi_exportFmeaExcel(\'' +
     safeId +
     '\')" class="eng-desk-fmea-act eng-desk-fmea-act--green">Excel</button>' +
@@ -1617,9 +1638,9 @@ function paintFmeaPreviewIntoViewer(viewer, fmeaId) {
     '\',\'script\')" class="eng-desk-fmea-act eng-desk-fmea-act--indigo">PDF</button>' +
     '<button type="button" onclick="typeof rbi_printFmeaPdf===\'function\'&&rbi_printFmeaPdf(\'' +
     safeId +
-    '\',\'browser\')" class="eng-desk-fmea-act">Печать</button>' +
+    '\',\'browser\')" class="eng-desk-fmea-act">' + _t('quality.engineer.desk.print', 'Печать') + '</button>' +
     '</div></div>' +
-    '<div class="eng-desk-fmea-detail-kicker">Предпросмотр FMEA</div>' +
+    '<div class="eng-desk-fmea-detail-kicker">' + _t('quality.engineer.desk.fmea_preview', 'Предпросмотр FMEA') + '</div>' +
     '<div class="eng-desk-fmea-detail-title">' +
     escapeHtml(title) +
     '</div>' +
@@ -1639,21 +1660,21 @@ function paintFmeaPreviewIntoViewer(viewer, fmeaId) {
   pane.className = 'eng-desk-viewer-body eng-desk-fmea-detail eng-desk-fmea-preview';
   const paper = document.createElement('div');
   paper.className = 'eng-desk-fmea-preview-paper';
-  paper.innerHTML = '<div class="eng-desk-viewer-empty">Формируем отчёт…</div>';
+  paper.innerHTML = '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.building_report', 'Формируем отчёт…') + '</div>';
   pane.appendChild(paper);
   viewer.appendChild(pane);
 
   Promise.resolve(buildFmeaPreviewHtml(record))
     .then(function (html) {
       if (_fmeaDeskSel.fmeaId !== fmeaId || _fmeaDeskSel.editing) return;
-      paper.innerHTML = html || '<div class="eng-desk-viewer-empty">Пустой отчёт</div>';
+      paper.innerHTML = html || '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.report', 'Пустой отчёт') + '</div>';
       if (typeof window.rbiHydrateLocalImages === 'function') {
         window.rbiHydrateLocalImages(paper);
       }
     })
     .catch(function () {
       paper.innerHTML =
-        '<div class="eng-desk-viewer-empty">Не удалось сформировать предпросмотр</div>';
+        '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.preview_fail', 'Не удалось сформировать предпросмотр') + '</div>';
     });
 }
 
@@ -1750,7 +1771,7 @@ function stealFmeaWorkspaceIntoViewer(viewer, fmeaId) {
   markFmeaRailActive(_fmeaDeskSel.fmeaId);
 
   const record = findFmeaById(_fmeaDeskSel.fmeaId);
-  const title = (record && record.title) || 'Редактирование FMEA';
+  const title = (record && record.title) || _t('quality.engineer.desk.fmea_edit_title', 'Редактирование FMEA');
 
   // Park outside viewer BEFORE clearing — otherwise viewer.innerHTML destroys #fmea-workspace
   if (root && (workspace.parentElement === viewer || viewer.contains(workspace))) {
@@ -1766,9 +1787,9 @@ function stealFmeaWorkspaceIntoViewer(viewer, fmeaId) {
     '<div class="eng-desk-fmea-detail-top">' +
     '<button type="button" class="eng-desk-fmea-back" data-eng-fmea-back="1">' +
     '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>' +
-    'К предпросмотру</button>' +
+    _t('quality.engineer.desk.back_preview', 'К предпросмотру') + '</button>' +
     '</div>' +
-    '<div class="eng-desk-fmea-detail-kicker">Редактирование</div>' +
+    '<div class="eng-desk-fmea-detail-kicker">' + _t('quality.engineer.desk.editing', 'Редактирование') + '</div>' +
     '<div class="eng-desk-fmea-detail-title">' +
     escapeHtml(title) +
     '</div>';
@@ -1849,7 +1870,7 @@ function backFromFmeaDetail(viewer) {
   if (viewer) {
     viewer.classList.remove('eng-desk-viewer--fmea', 'eng-desk-viewer--fmea-edit');
     viewer.innerHTML =
-      '<div class="eng-desk-viewer-empty">Выберите объект или запись слева</div>';
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.pick_fmea', 'Выберите объект или запись слева') + '</div>';
   }
 }
 
@@ -1905,7 +1926,7 @@ function paintFmeaChrome() {
   if (!mobileGroups.length) {
     setViewerContent(
       viewer,
-      '<div class="eng-desk-viewer-empty">Архив пуст — сформируйте анализ сверху</div>',
+      '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.fmea_archive', 'Архив пуст — сформируйте анализ сверху') + '</div>',
       'FMEA'
     );
     // New draft in workspace?
@@ -1927,7 +1948,7 @@ function paintFmeaChrome() {
 
   mobileGroups.forEach(function (groupEl) {
     const titleEl = groupEl.querySelector('.font-black');
-    const pName = (titleEl && titleEl.textContent.trim()) || 'Объект';
+    const pName = (titleEl && titleEl.textContent.trim()) || _t('quality.engineer.desk.project', 'Объект');
     const cards = Array.from(
       groupEl.querySelectorAll('[onclick*="rbi_viewFmea"]')
     ).filter(function (el) {
@@ -1961,7 +1982,7 @@ function paintFmeaChrome() {
         _fmeaDeskSel = { project: null, fmeaId: null, editing: false };
         viewer.classList.remove('eng-desk-viewer--fmea', 'eng-desk-viewer--fmea-edit');
         viewer.innerHTML =
-          '<div class="eng-desk-viewer-empty">Выберите объект или запись слева</div>';
+          '<div class="eng-desk-viewer-empty">' + _t('quality.engineer.desk.empty.pick_fmea', 'Выберите объект или запись слева') + '</div>';
         return;
       }
       rail.querySelectorAll('.eng-desk-tree-folder.is-open').forEach(function (f) {
@@ -2454,6 +2475,16 @@ function wrapEngineerFns() {
 function bindHooks() {
   if (_hooksBound) return;
   _hooksBound = true;
+
+  if (!_engineerDeskI18nBound && window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    _engineerDeskI18nBound = true;
+    window.RBI.events.on('i18n:localeChanged', function () {
+      try {
+        if (!isEngineerActive() || !_shellApplied) return;
+        afterSubPaint(currentSubId());
+      } catch (_e) { /* ignore */ }
+    });
+  }
   wrapEngineerFns();
   setTimeout(wrapEngineerFns, 0);
   setTimeout(wrapEngineerFns, 500);

@@ -321,18 +321,20 @@
 
         reloadReferenceMemory: function () {
             if (typeof window.rbi_reloadReferenceMemory !== 'function') {
-                console.warn('[RBI Knowledge Service] window.rbi_reloadReferenceMemory недоступен');
-                return;
+                // Вызывают с .then() — не возвращать undefined
+                return Promise.resolve();
             }
-            return window.rbi_reloadReferenceMemory();
+            return Promise.resolve(window.rbi_reloadReferenceMemory());
         },
 
         getMagicTwiCandidates: function () {
+            // До loadModule('knowledge') window.* ещё нет (фаза 1 без статичного тега).
+            // Контракт: всегда массив — иначе tasks weekly plan падает на .length.
             if (typeof window.getMagicTwiCandidates !== 'function') {
-                console.warn('[RBI Knowledge Service] window.getMagicTwiCandidates недоступен');
-                return;
+                return [];
             }
-            return window.getMagicTwiCandidates();
+            var list = window.getMagicTwiCandidates();
+            return Array.isArray(list) ? list : [];
         },
 
         populateTwiItemSelect: function (itemId) {
@@ -383,12 +385,24 @@
             return window.cycleTwiConstructorPhoto(side);
         },
 
-        openItemHelp: function (id, event) {
+        openItemHelp: function (id, event, ctx) {
             if (typeof window.openItemHelpMenu !== 'function') {
                 console.warn('[RBI Knowledge Service] window.openItemHelpMenu недоступен');
                 return;
             }
-            return window.openItemHelpMenu(id, event);
+            return window.openItemHelpMenu(id, event, ctx);
+        },
+
+        findAndOpenND: function (normText) {
+            if (typeof window.findAndOpenND !== 'function') {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('База знаний недоступна');
+                } else {
+                    console.warn('[RBI Knowledge Service] window.findAndOpenND недоступен');
+                }
+                return;
+            }
+            return window.findAndOpenND(normText);
         },
 
         requireEditRight: function () {

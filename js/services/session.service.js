@@ -203,7 +203,10 @@
           }
         } catch (_pinUi) { /* ignore */ }
 
-        window.applySmartLocks(); // Применяем замки после загрузки сессии
+        // applySmartLocks — audit.actions (quality). На DCL / без quality модуля — no-op.
+        if (typeof window.applySmartLocks === 'function') {
+          window.applySmartLocks();
+        }
 
         if (typeof updateDataSummary === 'function') window.updateDataSummary();
 
@@ -215,8 +218,10 @@
       } catch (e) {
         console.error('Ошибка восстановления:', e);
       }
-      // Принудительный сброс фильтров удален, чтобы у админа всегда было "Все объекты"
-      window.updateAllDynamicFilters();
+      // updateAllDynamicFilters — history.render (quality). То же: DCL / stub без quality.
+      if (typeof window.updateAllDynamicFilters === 'function') {
+        window.updateAllDynamicFilters();
+      }
       setTimeout(() => {
         if (typeof checkScheduledBackups === 'function') checkScheduledBackups();
         if (typeof checkAutoReports === 'function') checkAutoReports(); // <-- ДОБАВИЛИ

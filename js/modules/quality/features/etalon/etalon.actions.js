@@ -9,6 +9,30 @@
 (function () {
   'use strict';
 
+  var DEVIATIONS_DEFAULT_RU = 'Отклонений не выявлено';
+
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
+  function _isDefaultDeviations(val) {
+    if (!val) return true;
+    return val === DEVIATIONS_DEFAULT_RU ||
+      val === _t('quality.etalon.placeholder.deviations', DEVIATIONS_DEFAULT_RU);
+  }
+
   function emit(eventName, detail) {
     document.dispatchEvent(new CustomEvent(eventName, { detail: detail || {} }));
     var events = EtalonActions._ctx && EtalonActions._ctx.events;
@@ -140,6 +164,34 @@
     _ctx: null,
     bindCtx: function (ctx) { this._ctx = ctx; },
 
+    _getOpenContext: function () {
+      return {
+        contractor: _context.contractor,
+        templateKey: _context.templateKey,
+        templateTitle: _context.templateTitle,
+        projectName: _context.projectName,
+        statusKey: _context.statusKey
+      };
+    },
+
+    remountViewModalChrome: function () {
+      var modal = document.getElementById('etalon-view-modal');
+      if (!modal) return;
+      var wasOpen = modal.style.display === 'flex';
+      var actId = null;
+      if (wasOpen) {
+        var editBtn = modal.querySelector('[onclick*="editEtalonAct"]');
+        if (editBtn) {
+          var m = editBtn.getAttribute('onclick').match(/editEtalonAct\('([^']+)'\)/);
+          if (m) actId = m[1];
+        }
+      }
+      modal.outerHTML = renderEtalonViewModalMarkup();
+      if (wasOpen && actId) {
+        EtalonActions.openViewer(actId);
+      }
+    },
+
     // =====================================================================
     // ОТКРЫТИЕ КОНСТРУКТОРА АКТА-ЭТАЛОНА
     // Перенесено из etalon.js (было window.openEtalonConstructor, строка 39).
@@ -256,16 +308,16 @@
       document.getElementById('etalon-title-text').innerText = `${projectName} | ${contractor} | ${templateTitle}`;
       // === Заполняем выпадающий список видов работ ===
       const tmplSelect = document.getElementById('etalon-template');
-      let tmplOpts = '<option value="" disabled selected>-- Выберите вид работ --</option>';
+      let tmplOpts = '<option value="" disabled selected>' + _t('quality.etalon.select.template', '-- Выберите вид работ --') + '</option>';
 
       const _st = _templates().getSystemTemplates();
       const sysKeys = Object.keys(_st).sort((a, b) => _st[a].title.localeCompare(_st[b].title));
-      sysKeys.forEach(k => tmplOpts += `<option value="sys_${k}">[СИС] ${_st[k].title}</option>`);
+      sysKeys.forEach(k => tmplOpts += `<option value="sys_${k}">[${_t('quality.etalon.tag.system', 'СИС')}] ${_st[k].title}</option>`);
 
       const _ut = _templates().getUserTemplates();
       if (Object.keys(_ut).length > 0) {
         const userKeys = Object.keys(_ut).sort((a, b) => _ut[a].title.localeCompare(_ut[b].title));
-        userKeys.forEach(k => tmplOpts += `<option value="user_${k}">[МОЙ] ${_ut[k].title}</option>`);
+        userKeys.forEach(k => tmplOpts += `<option value="user_${k}">[${_t('quality.etalon.tag.user', 'МОЙ')}] ${_ut[k].title}</option>`);
       }
       tmplSelect.innerHTML = tmplOpts;
 
@@ -280,16 +332,16 @@
       }
 
       if (contractor && templateTitle) {
-        document.getElementById('etalon-title-text').innerText = `${projectName || 'Объект'} | ${contractor}`;
+        document.getElementById('etalon-title-text').innerText = `${projectName || _t('quality.etalon.title.project_fallback', 'Объект')} | ${contractor}`;
       } else {
-        document.getElementById('etalon-title-text').innerText = `Новый Акт-Эталон`;
+        document.getElementById('etalon-title-text').innerText = _t('quality.etalon.title.new_act', 'Новый Акт-Эталон');
       }
       // Добавляем первый пустой элемент по умолчанию
       EtalonActions.addElement();
       // === ДОБАВЛЯЕМ КНОПКУ ЗАГРУЗКИ PDF ===
       const pdfBlockHtml = `
         <div id="etalon-pdf-wrap" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">Готовый PDF-Акт (Опционально)</div>
+            <div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">${_t('quality.etalon.section.pdf_optional', 'Готовый PDF-Акт (Опционально)')}</div>
             <div id="etalon-pdf-preview" data-pdf="" class="hidden mb-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center">
                 <div class="min-w-0 pr-3">
                     <div class="text-[11px] font-black text-slate-800 dark:text-white truncate" id="etalon-pdf-name">doc.pdf</div>
@@ -297,22 +349,25 @@
                 <button onclick="window.removeEtalonPdf()" class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-red-500 font-black shadow-sm border border-slate-200 active:scale-90 shrink-0">✕</button>
             </div>
             <button id="etalon-pdf-upload-btn" onclick="document.getElementById('etalon-pdf-input').click()" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
-                📄 Прикрепить готовый PDF
+                📄 ${_t('quality.etalon.btn.attach_pdf', 'Прикрепить готовый PDF')}
             </button>
             <input type="file" id="etalon-pdf-input" accept="application/pdf" class="hidden" onchange="window.handleEtalonPdfUpload(event)">
         </div>
       `;
       document.getElementById('etalon-elements-container').insertAdjacentHTML('afterend', pdfBlockHtml);
       // Динамически внедряем кнопки "Сохранить" и "Печать"
+      const headerTitle = (contractor && templateTitle)
+        ? `${projectName || _t('quality.etalon.title.project_fallback', 'Объект')} | ${contractor}`
+        : _t('quality.etalon.title.new_act', 'Новый Акт-Эталон');
       const headerContainer = document.getElementById('etalon-title-text').parentElement;
       headerContainer.innerHTML = `
         <button onclick="closeEtalonConstructor()" class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg transition-colors shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> Назад
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg> ${_t('quality.etalon.btn.back', 'Назад')}
         </button>
-        <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest text-center flex-1 truncate px-2" id="etalon-title-text">${projectName} | ${contractor} | ${templateTitle}</div>
+        <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest text-center flex-1 truncate px-2" id="etalon-title-text">${headerTitle}</div>
         <div class="flex gap-1.5 shrink-0">
-            <button onclick="saveEtalonAct(false)" class="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-2 rounded-lg active:scale-95 shadow-sm transition-colors">Сохранить</button>
-            <button onclick="saveEtalonAct(true)" class="text-[10px] font-bold text-white bg-indigo-600 px-3 py-2 rounded-lg active:scale-95 shadow-md transition-colors flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Печать</button>
+            <button onclick="saveEtalonAct(false)" class="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-2 rounded-lg active:scale-95 shadow-sm transition-colors">${_t('quality.etalon.btn.save', 'Сохранить')}</button>
+            <button onclick="saveEtalonAct(true)" class="text-[10px] font-bold text-white bg-indigo-600 px-3 py-2 rounded-lg active:scale-95 shadow-md transition-colors flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> ${_t('quality.etalon.btn.print', 'Печать')}</button>
         </div>
       `;
       const view = document.getElementById('etalon-constructor-view');
@@ -321,7 +376,7 @@
       view.scrollTo(0, 0);
 
       if (!skipDraft && FD) {
-        const decision = FD.askRestore(FD.KEYS.ETALON_NEW, 'Акт-Эталон');
+        const decision = FD.askRestore(FD.KEYS.ETALON_NEW, _t('quality.etalon.title.act', 'Акт-Эталон'));
         if (decision === 'continue') {
           const d = FD.get(FD.KEYS.ETALON_NEW);
           if (d && d.payload) {
@@ -390,7 +445,7 @@
       if (!list.length) {
         container.innerHTML = `
         <button type="button" onclick="triggerEtalonPhotoUpload('${elId}')" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
-            📸 Прикрепить фото узла
+            📸 ${_t('quality.etalon.btn.attach_photo', 'Прикрепить фото узла')}
         </button>`;
         return;
       }
@@ -402,7 +457,7 @@
         thumbs += `
         <div class="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 aspect-[4/3]">
             <img src="${displayUrl}" class="w-full h-full object-cover cursor-pointer" onclick="setTimeout(() => openPhotoViewer('${ref}'), 100)" alt="">
-            <button type="button" onclick="event.stopPropagation();removeEtalonPhoto('${elId}', ${i})" class="absolute top-1.5 right-1.5 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shadow-md active:scale-90" aria-label="Удалить фото">✕</button>
+            <button type="button" onclick="event.stopPropagation();removeEtalonPhoto('${elId}', ${i})" class="absolute top-1.5 right-1.5 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shadow-md active:scale-90" aria-label="${_t('quality.etalon.aria.remove_photo', 'Удалить фото')}">✕</button>
             <div class="absolute bottom-1 left-1.5 text-[9px] font-black text-white bg-slate-900/60 px-1.5 py-0.5 rounded">${i + 1}/${list.length}</div>
         </div>`;
       }
@@ -410,7 +465,7 @@
       container.innerHTML = `
         <div class="grid grid-cols-2 gap-2 mt-1">${thumbs}</div>
         <button type="button" onclick="triggerEtalonPhotoUpload('${elId}')" class="mt-2 w-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 py-2.5 rounded-lg border border-dashed border-indigo-300 dark:border-indigo-700 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
-            + Ещё фото к узлу
+            + ${_t('quality.etalon.btn.add_more_photo', 'Ещё фото к узлу')}
         </button>`;
     },
 
@@ -425,14 +480,14 @@
       const html = `
         <div id="${elId}" class="etalon-item bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm relative mb-3">
             <button onclick="document.getElementById('${elId}').remove()" class="absolute top-2 right-2 text-red-400 active:scale-90 font-black text-sm px-2">✕</button>
-            <div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">Элемент эталона</div>
+            <div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">${_t('quality.etalon.label.element', 'Элемент эталона')}</div>
             
-            <input type="text" class="etalon-el-name input-base text-[12px] mb-2 font-bold" placeholder="Название (напр: Устройство швов)">
-            <textarea class="etalon-el-desc input-base text-[11px] h-12 resize-none mb-2" placeholder="Описание выполнения..."></textarea>
+            <input type="text" class="etalon-el-name input-base text-[12px] mb-2 font-bold" placeholder="${_t('quality.etalon.placeholder.element_name', 'Название (напр: Устройство швов)')}">
+            <textarea class="etalon-el-desc input-base text-[11px] h-12 resize-none mb-2" placeholder="${_t('quality.etalon.placeholder.element_desc', 'Описание выполнения...')}"></textarea>
             
             <div class="etalon-photo-container" data-photo="" data-photos="[]">
                 <button type="button" onclick="triggerEtalonPhotoUpload('${elId}')" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
-                    📸 Прикрепить фото узла
+                    📸 ${_t('quality.etalon.btn.attach_photo', 'Прикрепить фото узла')}
                 </button>
             </div>
         </div>
@@ -457,7 +512,7 @@
       if (!window.editorCanvas || !_uploadId) return;
 
       const base64 = window.editorCanvas.toDataURL('image/jpeg', 0.85);
-      showToast("⚙️ Сохранение фото в базу...");
+      showToast(_t('quality.etalon.toast.saving_photo', '⚙️ Сохранение фото в базу...'));
 
       const localUrl = await PhotoManager.saveLocal(base64, 'etalon');
       const container = document.getElementById(_uploadId).querySelector('.etalon-photo-container');
@@ -465,7 +520,7 @@
       list.push(localUrl);
       await this._renderElementPhotos(_uploadId, list);
 
-      showToast("📸 Фото эталона сохранено (" + list.length + ")");
+      showToast(_t('quality.etalon.toast.photo_saved', '📸 Фото эталона сохранено ({count})', { count: list.length }));
       cancelPhotoEditor();
       if (window.RBIFormDraft && !window.currentEditingEtalonId) {
         window.RBIFormDraft.saveNow(window.RBIFormDraft.KEYS.ETALON_NEW, function () {
@@ -535,11 +590,11 @@
 
       const location = document.getElementById('etalon-location').value.trim();
       const participants = document.getElementById('etalon-participants').value.trim();
-      const deviations = document.getElementById('etalon-deviations').value.trim() || 'Отклонений не выявлено';
+      const deviations = document.getElementById('etalon-deviations').value.trim() || DEVIATIONS_DEFAULT_RU;
       const myName = _getSetting('engineerName') || 'Инженер';
 
-      if (!selProject || !selContractor || !selTemplateKey) return showToast("⚠️ Укажите Объект, Подрядчика и Вид работ!");
-      if (!location || !participants) return showToast("⚠️ Заполните локацию и участников!");
+      if (!selProject || !selContractor || !selTemplateKey) return showToast(_t('quality.etalon.toast.required_fields', '⚠️ Укажите Объект, Подрядчика и Вид работ!'));
+      if (!location || !participants) return showToast(_t('quality.etalon.toast.required_location', '⚠️ Заполните локацию и участников!'));
 
       const elements = [];
       document.querySelectorAll('.etalon-item').forEach(el => {
@@ -556,7 +611,7 @@
         }
       });
 
-      if (elements.length === 0) return showToast("⚠️ Добавьте хотя бы один элемент эталона!");
+      if (elements.length === 0) return showToast(_t('quality.etalon.toast.required_element', '⚠️ Добавьте хотя бы один элемент эталона!'));
 
       let etalonId = window.currentEditingEtalonId || String(Date.now() + Math.floor(Math.random() * 1000));
 
@@ -643,7 +698,7 @@
           rbi_renderTasksList();
         }
       }
-      showToast("✅ Акт-Эталон успешно сохранен!");
+      showToast(_t('quality.etalon.toast.saved', '✅ Акт-Эталон успешно сохранен!'));
       localStorage.setItem('rbi_cloud_dirty', '1');
       // RBI FIX (гонка "PDF/фото Акта-Эталона не синхронизируется"): раньше здесь был
       // фиксированный setTimeout(800ms) "на удачу" — на медленном устройстве или при
@@ -696,7 +751,7 @@
       if (!record) {
         record = etalonActs2.find(c => String(c.id) === String(id));
         if (!record) {
-          showToast("❌ Ошибка: Эталон не найден в базе данных");
+          showToast(_t('quality.etalon.toast.not_found', '❌ Ошибка: Эталон не найден в базе данных'));
           return;
         }
       }
@@ -729,7 +784,7 @@
         const photoRefs = EtalonActions._photosFromElementData(el);
         let photoHtml = '';
         if (!photoRefs.length) {
-          photoHtml = '<div class="text-xs text-slate-400 mt-2">Нет фото</div>';
+          photoHtml = '<div class="text-xs text-slate-400 mt-2">' + _t('quality.etalon.viewer.no_photo', 'Нет фото') + '</div>';
         } else {
           photoHtml = '<div class="grid grid-cols-2 gap-2 mt-2">';
           for (let p = 0; p < photoRefs.length; p++) {
@@ -744,8 +799,8 @@
 
         elementsHtml += `
             <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 mb-3">
-                <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase mb-1">${i + 1}. ${_escapeHtml(el.name || 'Без названия')}</div>
-                <div class="text-[11px] text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-medium">${_escapeHtml(el.desc || 'Нет описания')}</div>
+                <div class="font-black text-[12px] text-slate-800 dark:text-white uppercase mb-1">${i + 1}. ${_escapeHtml(el.name || _t('quality.etalon.viewer.no_name', 'Без названия'))}</div>
+                <div class="text-[11px] text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-medium">${_escapeHtml(el.desc || _t('quality.etalon.viewer.no_desc', 'Нет описания'))}</div>
                 ${photoHtml}
             </div>
         `;
@@ -753,7 +808,7 @@
 
       const bodyHtml = `
         <div class="text-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-            <div class="text-[12px] font-bold text-slate-500 uppercase leading-tight mb-0.5">${_escapeHtml(record.projectName || 'Без проекта')}</div>
+            <div class="text-[12px] font-bold text-slate-500 uppercase leading-tight mb-0.5">${_escapeHtml(record.projectName || _t('quality.etalon.viewer.no_project', 'Без проекта'))}</div>
             <div class="text-[14px] font-black text-slate-800 dark:text-white uppercase leading-tight mb-1">${_escapeHtml(record.contractorName)}</div>
             <div class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">${_escapeHtml(record.templateTitle)}</div>
             <div class="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">${new Date(record.date).toLocaleString('ru-RU')}</div>
@@ -761,21 +816,21 @@
 
         <div class="grid grid-cols-2 gap-2 mb-4">
             <div class="bg-white dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Локация</div>
+                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${_t('quality.etalon.viewer.location', 'Локация')}</div>
                 <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-0.5">${_escapeHtml(record.location || '-')}</div>
             </div>
             <div class="bg-white dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Участники</div>
+                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${_t('quality.etalon.viewer.participants', 'Участники')}</div>
                 <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">${_escapeHtml(d.participants || '-')}</div>
             </div>
         </div>
 
-        <div class="bg-${d.deviations !== 'Отклонений не выявлено' ? 'orange' : 'green'}-50 p-3 rounded-xl border border-${d.deviations !== 'Отклонений не выявлено' ? 'orange' : 'green'}-200 mb-4">
-            <div class="text-[10px] font-black uppercase text-${d.deviations !== 'Отклонений не выявлено' ? 'orange' : 'green'}-700 mb-1 tracking-widest">Отклонения и допущения:</div>
-            <div class="text-[11px] font-medium text-${d.deviations !== 'Отклонений не выявлено' ? 'orange' : 'green'}-900 whitespace-pre-wrap">${_escapeHtml(d.deviations)}</div>
+        <div class="bg-${!_isDefaultDeviations(d.deviations) ? 'orange' : 'green'}-50 p-3 rounded-xl border border-${!_isDefaultDeviations(d.deviations) ? 'orange' : 'green'}-200 mb-4">
+            <div class="text-[10px] font-black uppercase text-${!_isDefaultDeviations(d.deviations) ? 'orange' : 'green'}-700 mb-1 tracking-widest">${_t('quality.etalon.viewer.deviations_title', 'Отклонения и допущения:')}</div>
+            <div class="text-[11px] font-medium text-${!_isDefaultDeviations(d.deviations) ? 'orange' : 'green'}-900 whitespace-pre-wrap">${_escapeHtml(d.deviations)}</div>
         </div>
 
-        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 dark:border-slate-700 pb-2">Зафиксированные элементы</h3>
+        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 dark:border-slate-700 pb-2">${_t('quality.etalon.viewer.elements_title', 'Зафиксированные элементы')}</h3>
         ${elementsHtml}
       `;
 
@@ -788,10 +843,10 @@
                     <div class="w-10 h-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center font-black">PDF</div>
                     <div>
                         <div class="text-[11px] font-bold text-slate-800 dark:text-white">${d.pdfName}</div>
-                        <div class="text-[9px] text-slate-500">Внешний Акт-Эталон</div>
+                        <div class="text-[9px] text-slate-500">${_t('quality.etalon.viewer.external_act', 'Внешний Акт-Эталон')}</div>
                     </div>
                 </div>
-                <span class="text-[10px] font-bold text-red-600 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-red-200">Открыть</span>
+                <span class="text-[10px] font-bold text-red-600 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-red-200">${_t('quality.etalon.btn.open', 'Открыть')}</span>
             </div>
         `;
         document.getElementById('etalon-view-body').insertAdjacentHTML('beforeend', pdfBtnHtml);
@@ -802,9 +857,9 @@
       if (footerDiv) {
         footerDiv.innerHTML = `
             <div class="flex gap-2 w-full flex-wrap">
-                <button onclick="editEtalonAct('${id}')" class="flex-1 min-w-[100px] bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95">✏️ Изменить</button>
-                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); printEtalonAct('${id}');" class="flex-1 min-w-[90px] bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">🖨️ PDF</button>
-                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); if(window.rbi_exportEtalonDocx) rbi_exportEtalonDocx('${id}');" class="flex-1 min-w-[90px] bg-sky-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">Word</button>
+                <button onclick="editEtalonAct('${id}')" class="flex-1 min-w-[100px] bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95">✏️ ${_t('quality.etalon.btn.edit', 'Изменить')}</button>
+                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); printEtalonAct('${id}');" class="flex-1 min-w-[90px] bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">🖨️ ${_t('quality.etalon.btn.pdf', 'PDF')}</button>
+                <button onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open'); if(window.rbi_exportEtalonDocx) rbi_exportEtalonDocx('${id}');" class="flex-1 min-w-[90px] bg-sky-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95">${_t('quality.etalon.btn.word', 'Word')}</button>
                 <button onclick="deleteEtalonAct('${id}')" class="bg-red-50 text-red-600 border border-red-200 px-4 py-3.5 rounded-xl font-black text-lg active:scale-95 shadow-sm">🗑️</button>
             </div>
         `;
@@ -824,9 +879,9 @@
       const record = etalonActs3.find(c => String(c.id) === String(id));
       // Проверяем права по owner или по inspectorName
       var permSvc = (EtalonActions._ctx && EtalonActions._ctx.permissions) || (window.RBI && window.RBI.services && window.RBI.services.permissions);
-      if (record && permSvc && !permSvc.canDelete(record.owner || record.inspectorName)) return showToast("⚠️ Нет прав на удаление чужого эталона!");
+      if (record && permSvc && !permSvc.canDelete(record.owner || record.inspectorName)) return showToast(_t('quality.etalon.toast.no_delete_permission', '⚠️ Нет прав на удаление чужого эталона!'));
 
-      if (!confirm("Удалить этот Акт-Эталон?")) return;
+      if (!confirm(_t('quality.etalon.confirm.delete', 'Удалить этот Акт-Эталон?'))) return;
       if (record) {
         record._deleted = true;
         record.is_deleted = true; // ЖЕСТКИЙ ФЛАГ ДЛЯ ОБЛАКА
@@ -852,7 +907,7 @@
       }
       document.getElementById('etalon-view-modal').style.display = 'none';
       document.body.classList.remove('modal-open');
-      showToast("🗑️ Эталон удален");
+      showToast(_t('quality.etalon.toast.deleted', '🗑️ Эталон удален'));
 
       // Обновляем экраны (Теперь эталоны живут в Практиках)
       if (typeof rbi_renderPracticesTab === 'function') rbi_renderPracticesTab();
@@ -904,9 +959,9 @@
     handlePdfUpload: function (event) {
       const file = event.target.files[0];
       if (!file) return;
-      if (file.size > 15 * 1024 * 1024) { event.target.value = ''; return showToast("Файл слишком большой! Максимум 15 МБ."); }
+      if (file.size > 15 * 1024 * 1024) { event.target.value = ''; return showToast(_t('quality.etalon.toast.file_too_large', 'Файл слишком большой! Максимум 15 МБ.')); }
 
-      showToast("⚙️ Сохранение PDF...");
+      showToast(_t('quality.etalon.toast.saving_pdf', '⚙️ Сохранение PDF...'));
       const reader = new FileReader();
       reader.onload = async function (e) {
         const localUrl = await PhotoManager.saveLocal(e.target.result, 'etalon_pdf');
@@ -972,7 +1027,7 @@
                             d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
                         </path>
                     </svg>
-                    Акт-Эталон
+                    ${_t('quality.etalon.title.act', 'Акт-Эталон')}
                 </div>
                 <button
                     onclick="document.getElementById('etalon-view-modal').style.display='none'; document.body.classList.remove('modal-open');"
@@ -989,7 +1044,7 @@
                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
                         </path>
                     </svg>
-                    Скачать / Распечатать (PDF)
+                    ${_t('quality.etalon.btn.download_print', 'Скачать / Распечатать (PDF)')}
                 </button>
             </div>
         </div>

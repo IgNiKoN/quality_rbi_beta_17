@@ -54,15 +54,15 @@ const _deskCharts = {};
 
 function _t(key, fallback, vars) {
   try {
-    const i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
     if (i18n && typeof i18n.t === 'function') {
-      const s = i18n.t(key, vars);
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
       if (s && s !== key) return s;
     }
-  } catch (_) { /* ignore */ }
-  if (vars && typeof fallback === 'string') {
-    return fallback.replace(/\{(\w+)\}/g, function (_, name) {
-      return vars[name] != null ? String(vars[name]) : '{' + name + '}';
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
     });
   }
   return fallback;
@@ -345,7 +345,7 @@ function buildPulseModel(data) {
     if (r.metrics.finalC < 70 && !badName) badName = r.name.split(' [')[0];
   });
 
-  let insight = 'Все подрядчики в зелёной зоне. Вмешательство не требуется.';
+  let insight = _t('quality.analytics.insight.all_green', 'Все подрядчики в зелёной зоне. Вмешательство не требуется.');
   try {
     const reports = window.RBI && window.RBI.services && window.RBI.services.reports;
     const saved = reports && typeof reports.getExpertConclusion === 'function'
@@ -353,9 +353,10 @@ function buildPulseModel(data) {
       : null;
     if (saved) insight = saved;
     else if (warnN > 0) {
-      insight = warnN + ' подрядчик(ов) вне зелёной зоны'
-        + (badName ? '; приоритет: «' + badName + '»' : '')
-        + ' — разбор в таблице ниже.';
+      insight = _t('quality.analytics.insight.warn_zone', '{n} подрядчик(ов) вне зелёной зоны{prio} — разбор в таблице ниже.', {
+        n: warnN,
+        prio: badName ? _t('quality.analytics.insight.priority', '; приоритет: «{name}»', { name: badName }) : ''
+      });
     }
   } catch (_) { /* ignore */ }
 
@@ -376,19 +377,20 @@ function buildPulseModel(data) {
 function buildKpiHtml(data) {
   const m = buildPulseModel(data);
   const gap = (m.avgDoc != null && Math.abs(m.avgUrk - m.avgDoc) > 30)
-    ? ('<div class="ana-desk-gap-warn">Разрыв физика ' + m.avgUrk + '% / документация ' + m.avgDoc
-      + '% — ' + Math.abs(m.avgUrk - m.avgDoc) + ' п.п.</div>')
+    ? ('<div class="ana-desk-gap-warn">' + _t('quality.analytics.desk.gap_warn', 'Разрыв физика {phys}% / документация {doc}% — {gap} п.п.', {
+      phys: m.avgUrk, doc: m.avgDoc, gap: Math.abs(m.avgUrk - m.avgDoc)
+    }) + '</div>')
     : '';
 
   return ''
     + '<div class="ana-desk-kpi-strip">'
-    + '  <div><div class="k">Ср. УрК</div><div class="v ' + metricColorClass(m.avgUrk) + '">' + m.avgUrk + '%</div></div>'
-    + '  <div><div class="k">УрК док.</div><div class="v ' + (m.avgDoc == null ? 'text-slate-400' : metricColorClass(m.avgDoc)) + '">'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.avg_urk', 'Ср. УрК') + '</div><div class="v ' + metricColorClass(m.avgUrk) + '">' + m.avgUrk + '%</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.desk.kpi_doc', 'УрК док.') + '</div><div class="v ' + (m.avgDoc == null ? 'text-slate-400' : metricColorClass(m.avgDoc)) + '">'
     + (m.avgDoc == null ? '—' : m.avgDoc + '%') + '</div></div>'
-    + '  <div><div class="k">Надёжность</div><div class="v ' + (m.relN > 0 ? metricColorClass(m.avgRel) : 'text-slate-400') + '">'
-    + (m.relN > 0 ? m.avgRel + '%' : 'СБОР') + '</div></div>'
-    + '  <div><div class="k">Подрядчики</div><div class="v text-slate-800 dark:text-white">' + m.contrCount + '</div></div>'
-    + '  <div><div class="k">Проверок</div><div class="v text-slate-800 dark:text-white">' + m.checks + '</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.reliability', 'Надёжность') + '</div><div class="v ' + (m.relN > 0 ? metricColorClass(m.avgRel) : 'text-slate-400') + '">'
+    + (m.relN > 0 ? m.avgRel + '%' : _t('quality.analytics.kpi.collecting', 'СБОР')) + '</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.contractors', 'Подрядчики') + '</div><div class="v text-slate-800 dark:text-white">' + m.contrCount + '</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.checks', 'Проверок') + '</div><div class="v text-slate-800 dark:text-white">' + m.checks + '</div></div>'
     + '</div>'
     + gap
     + '<div class="ana-desk-sev-strip">'
@@ -396,7 +398,7 @@ function buildKpiHtml(data) {
     + '  <div><div class="k">B2</div><div class="v text-orange-500">' + m.sumB2 + '</div></div>'
     + '  <div><div class="k">B3</div><div class="v text-red-600">' + m.sumB3 + '</div></div>'
     + '</div>'
-    + '<div class="ana-desk-insight"><strong>Сигнал:</strong> ' + escapeAttr(m.insight).replace(/\n/g, ' ') + '</div>';
+    + '<div class="ana-desk-insight"><strong>' + _t('quality.analytics.desk.signal', 'Сигнал:') + '</strong> ' + escapeAttr(m.insight).replace(/\n/g, ' ') + '</div>';
 }
 
 function ensureContextZones() {
@@ -431,29 +433,29 @@ function paintContextZones() {
 
   zoneC.innerHTML = ''
     + '<div class="ana-desk-secondary">'
-    + '  <div class="ana-desk-panel"><h3>Анализ зон риска</h3>'
-    + '    <div class="meta">По выборке · подрядчиков: ' + model.contrCount + '</div>'
+    + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.section.risk_zones', 'Анализ зон риска') + '</h3>'
+    + '    <div class="meta">' + _t('quality.analytics.desk.meta_sample', 'По выборке · подрядчиков: {n}', { n: model.contrCount }) + '</div>'
     + '    <p>' + escapeAttr(model.insight).replace(/\n/g, '<br>') + '</p></div>'
-    + '  <div class="ana-desk-panel"><h3>Динамика УрК</h3>'
-    + '    <div class="meta">Средний УрК по неделям, %</div>'
+    + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.desk.dynamics_urk', 'Динамика УрК') + '</h3>'
+    + '    <div class="meta">' + _t('quality.analytics.desk.meta_weekly_urk', 'Средний УрК по неделям, %') + '</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-trend"></canvas></div></div>'
     + '</div>'
     + '<div class="ana-desk-secondary">'
-    + '  <div class="ana-desk-panel"><h3>Коренные причины</h3>'
-    + '    <div class="meta">Число дефектов с причиной</div>'
+    + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.section.root_causes', 'Коренные причины') + '</h3>'
+    + '    <div class="meta">' + _t('quality.analytics.desk.meta_causes', 'Число дефектов с причиной') + '</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-causes"></canvas></div></div>'
-    + '  <div class="ana-desk-panel"><h3>Сравнение подрядчиков</h3>'
-    + '    <div class="meta">Интегральный УрК (надёжность), %</div>'
+    + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.desk.compare_contr', 'Сравнение подрядчиков') + '</h3>'
+    + '    <div class="meta">' + _t('quality.analytics.desk.meta_integral', 'Интегральный УрК (надёжность), %') + '</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-compare"></canvas></div></div>'
     + '</div>';
 
   zoneD.innerHTML = ''
     + '<details class="ana-desk-evidence" id="analytics-photos-details-desk">'
-    + '  <summary>Фотогалерея B3 / B2 / OK — раскрыть</summary>'
+    + '  <summary>' + _t('quality.analytics.desk.gallery_summary', 'Фотогалерея B3 / B2 / OK — раскрыть') + '</summary>'
     + '  <div class="ana-desk-evidence-body">'
-    + '    <div class="ev-h b3">Критический брак (B3)</div><div id="lazy-gallery-desk_b3" class="text-xs text-slate-400">Откройте блок…</div>'
-    + '    <div class="ev-h b2">Значимые (B2)</div><div id="lazy-gallery-desk_b2" class="text-xs text-slate-400">Откройте блок…</div>'
-    + '    <div class="ev-h ok">Эталон (OK)</div><div id="lazy-gallery-desk_ok" class="text-xs text-slate-400">Откройте блок…</div>'
+    + '    <div class="ev-h b3">' + _t('quality.analytics.gallery.b3_title', 'Критический брак (B3)') + '</div><div id="lazy-gallery-desk_b3" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
+    + '    <div class="ev-h b2">' + _t('quality.analytics.defect.b2', 'Значимые (B2)') + '</div><div id="lazy-gallery-desk_b2" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
+    + '    <div class="ev-h ok">' + _t('quality.analytics.desk.gallery_ok', 'Эталон (OK)') + '</div><div id="lazy-gallery-desk_ok" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
     + '  </div>'
     + '</details>';
 
@@ -498,7 +500,7 @@ function collectDesktopGalleryPhotos(data) {
         : [];
       if (!photosArr.length) return;
 
-      let defName = 'Дефект';
+      let defName = _t('quality.analytics.fallback.defect', 'Дефект');
       let foundItem = null;
       const tType = i.templateKey ? i.templateKey.split('_')[0] : '';
       const tKey = i.templateKey ? i.templateKey.replace(tType + '_', '') : '';
@@ -678,24 +680,25 @@ function paintContractorsTable() {
 
   const rows = buildContractorRows(getFilteredData());
   if (!rows.length) {
-    list.innerHTML = '<div class="ana-desk-empty">В этой категории никого нет</div>';
+    list.innerHTML = '<div class="ana-desk-empty">' + _t('quality.analytics.desk.empty_category', 'В этой категории никого нет') + '</div>';
     return;
   }
 
   const th = (key, label) => {
     const on = _deskContractorSort.key === key ? ' is-on' : '';
-    return '<th class="ana-desk-th-sort' + on + '" data-ana-desk-c-sort="' + key + '" scope="col" title="Сортировать">'
+    return '<th class="ana-desk-th-sort' + on + '" data-ana-desk-c-sort="' + key + '" scope="col" title="'
+      + _t('quality.analytics.desk.sort', 'Сортировать') + '">'
       + label + contractorSortMark(key) + '</th>';
   };
 
   let html = '<div class="ana-desk-table-wrap"><table class="ana-desk-table"><thead><tr>'
-    + th('name', 'Подрядчик')
-    + th('urk', 'УрК')
-    + th('doc', 'Док')
-    + th('rel', 'Надёжн.')
+    + th('name', _t('quality.analytics.desk.col_contractor', 'Подрядчик'))
+    + th('urk', _t('quality.analytics.desk.col_urk', 'УрК'))
+    + th('doc', _t('quality.analytics.desk.col_doc', 'Док'))
+    + th('rel', _t('quality.analytics.desk.col_rel', 'Надёжн.'))
     + th('n', 'N')
     + th('defects', 'B1/B2/B3')
-    + th('stab', 'Стаб.')
+    + th('stab', _t('quality.analytics.desk.col_stab', 'Стаб.'))
     + '</tr></thead><tbody>';
 
   rows.forEach((c) => {
@@ -709,7 +712,7 @@ function paintContractorsTable() {
     html += '<tr class="' + selected.trim() + '" data-ana-desk-contractor="' + escapeAttr(c.name) + '">'
       + '<td><div class="ana-desk-name">' + escapeAttr(c.name) + '</div>'
       + '<span class="ana-desk-work">' + escapeAttr(c.workType)
-      + (isPrelim ? ' · сбор' : '') + '</span></td>'
+      + (isPrelim ? ' · ' + _t('quality.analytics.desk.collecting_suffix', 'сбор') : '') + '</span></td>'
       + '<td><span class="ana-desk-metric ' + metricColorClass(urk) + '">' + urk + '%</span></td>'
       + '<td><span class="ana-desk-metric ' + (doc == null ? 'text-slate-400' : metricColorClass(doc)) + '">'
       + (doc == null ? '—' : doc + '%') + '</span></td>'
@@ -786,7 +789,7 @@ function flattenDetailsToBlock(detailsEl) {
   const title = ((summary && summary.textContent) || '')
     .replace(/[▼▲🔮📝🏅⚙️📉📑📋📸📚]/g, '')
     .replace(/\s+/g, ' ')
-    .trim() || 'Раздел';
+    .trim() || _t('quality.analytics.desk.section', 'Раздел');
   const section = document.createElement('section');
   section.className = 'ana-desk-block';
   section.setAttribute('data-title', title);
@@ -829,7 +832,7 @@ function normalizeDesktopDetailContent() {
   const exportBtn = content.querySelector('button[onclick*="exportPersonalContractorReport"]');
   if (exportBtn) {
     exportBtn.classList.add('ana-desk-export-btn');
-    exportBtn.textContent = 'Скачать отчёт для планерки (A3)';
+    exportBtn.textContent = _t('quality.analytics.desk.download_a3', 'Скачать отчёт для планерки (A3)');
   }
 
   Array.prototype.some.call(content.children, (el) => {
@@ -902,7 +905,7 @@ function restyleDesktopDetailHeader(contractorName) {
   header.className = 'ana-desk-detail-head';
   header.removeAttribute('style');
   header.innerHTML = ''
-    + '<button type="button" class="ana-desk-detail-close" id="ana-desk-detail-close">← Закрыть</button>'
+    + '<button type="button" class="ana-desk-detail-close" id="ana-desk-detail-close">' + _t('quality.analytics.desk.close', '← Закрыть') + '</button>'
     + '<div class="ana-desk-detail-title" id="detail-view-title"></div>';
   const title = document.getElementById('detail-view-title');
   if (title) title.textContent = contractorName || '';
@@ -938,7 +941,7 @@ function updateFallbackNote(tabId) {
   }
   note.classList.remove('hidden');
   note.innerHTML = '<div class="mb-3 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-[12px] text-amber-800 dark:text-amber-200 font-medium">'
-    + 'Подвкладка на ПК пока в mobile-рендере внутри широкой оболочки. Отдельный desktop — в следующих блоках.'
+    + _t('quality.analytics.desk.mobile_fallback_note', 'Подвкладка на ПК пока в mobile-рендере внутри широкой оболочки. Отдельный desktop — в следующих блоках.')
     + '</div>';
 }
 
@@ -1418,9 +1421,9 @@ function ensureOnepagerModeToggle() {
     el.id = OP_TOGGLE_ID;
     el.className = 'ana-desk-op-toggle hidden';
     el.innerHTML = ''
-      + '<div class="ana-desk-op-toggle-pills" role="group" aria-label="Режим сводки">'
-      + '  <button type="button" data-op-mode="local" class="ana-desk-op-pill">Объект</button>'
-      + '  <button type="button" data-op-mode="global" class="ana-desk-op-pill">Компания</button>'
+      + '<div class="ana-desk-op-toggle-pills" role="group" aria-label="' + _t('quality.analytics.desk.op_mode_aria', 'Режим сводки') + '">'
+      + '  <button type="button" data-op-mode="local" class="ana-desk-op-pill">' + _t('quality.analytics.desk.op_object', 'Объект') + '</button>'
+      + '  <button type="button" data-op-mode="global" class="ana-desk-op-pill">' + _t('quality.analytics.desk.op_company', 'Компания') + '</button>'
       + '</div>';
     el.addEventListener('click', (e) => {
       const btn = e.target && e.target.closest ? e.target.closest('[data-op-mode]') : null;
@@ -1559,7 +1562,7 @@ function colorHeatmapWorkTypeCells(root, data) {
   const stages = {};
   data.forEach((check) => {
     if (!check || !check.metrics) return;
-    const stage = check.templateTitle || check.templateKey || 'Неизвестный этап';
+    const stage = check.templateTitle || check.templateKey || _t('quality.analytics.fallback.unknown_stage', 'Неизвестный этап');
     if (!stages[stage]) stages[stage] = { checks: 0, defects: 0 };
     stages[stage].checks += 1;
     stages[stage].defects += (Number(check.metrics.n_B2_fail) || 0)
@@ -1648,21 +1651,21 @@ function layoutLocalExecutive(container) {
   insightRow.className = 'ana-desk-op-row-2';
   if (pulse) {
     const body = opSectionBody(pulse);
-    if (body) insightRow.appendChild(wrapAsPanel(opFlatTitleText(pulse) || 'Пульс объекта', body, 'ana-desk-op-panel-pulse'));
+    if (body) insightRow.appendChild(wrapAsPanel(opFlatTitleText(pulse) || _t('quality.analytics.desk.pulse_object', 'Пульс объекта'), body, 'ana-desk-op-panel-pulse'));
   }
   if (pdca) {
     const body = opSectionBody(pdca);
-    if (body) insightRow.appendChild(wrapAsPanel(opFlatTitleText(pdca) || 'Аналитика качества', body, 'ana-desk-op-panel-pdca'));
+    if (body) insightRow.appendChild(wrapAsPanel(opFlatTitleText(pdca) || _t('quality.analytics.onepager.quality_analytics', 'Аналитика качества'), body, 'ana-desk-op-panel-pdca'));
   }
   if (insightRow.childNodes.length) exec.appendChild(insightRow);
 
   if (heat) {
     const body = opSectionBody(heat);
-    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(heat) || 'Тепловая карта этапов', body, 'ana-desk-op-panel-heat'));
+    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(heat) || _t('quality.analytics.onepager.heatmap', 'Тепловая карта этапов'), body, 'ana-desk-op-panel-heat'));
   }
   if (photos) {
     const body = opSectionBody(photos);
-    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(photos) || 'ТОП дефектов и эталонов', body, 'ana-desk-op-panel-photos'));
+    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(photos) || _t('quality.analytics.desk.top_defects', 'ТОП дефектов и эталонов'), body, 'ana-desk-op-panel-photos'));
   }
 
   // Clear old accordion stack and mount exec
@@ -1700,7 +1703,7 @@ function layoutGlobalExecutive(container) {
     wrap.className = 'ana-desk-op-portfolio';
     const h = document.createElement('h3');
     h.className = 'ana-desk-op-panel-title';
-    h.textContent = 'Объекты портфеля';
+    h.textContent = _t('quality.analytics.desk.portfolio_projects', 'Объекты портфеля');
     wrap.appendChild(h);
     cardsGrid.classList.add('ana-desk-op-cards-native');
     Array.prototype.slice.call(cardsGrid.children).forEach((c) => c.classList.add('ana-desk-op-card-native'));
@@ -1711,7 +1714,7 @@ function layoutGlobalExecutive(container) {
   const ai = sections.find((s) => s.querySelector('#global-ai-text') || /анализ портфеля|портфел/i.test(opFlatTitleText(s)));
   if (ai) {
     const body = opSectionBody(ai);
-    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(ai) || 'Анализ портфеля', body, 'ana-desk-op-panel-ai'));
+    if (body) exec.appendChild(wrapAsPanel(opFlatTitleText(ai) || _t('quality.analytics.desk.portfolio_analysis', 'Анализ портфеля'), body, 'ana-desk-op-panel-ai'));
   }
 
   const rankSections = sections.filter((s) => s !== ai);
@@ -1721,7 +1724,7 @@ function layoutGlobalExecutive(container) {
     rankSections.forEach((s) => {
       const body = opSectionBody(s);
       if (!body) return;
-      grid.appendChild(wrapAsPanel(opFlatTitleText(s) || 'Рейтинг', body));
+      grid.appendChild(wrapAsPanel(opFlatTitleText(s) || _t('quality.analytics.desk.rating', 'Рейтинг'), body));
     });
     exec.appendChild(grid);
   }
@@ -2286,7 +2289,27 @@ function bindLocale() {
   _localeBound = true;
   if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
     window.RBI.events.on('i18n:localeChanged', function () {
-      try { refreshAnalyticsDeskChromeI18n(); } catch (_) { /* ignore */ }
+      try {
+        refreshAnalyticsDeskChromeI18n();
+        if (!_shellApplied || !isDesktopViewport()) return;
+        const tab = (window.AnalyticsState && window.AnalyticsState.activeSubTab)
+          || window.currentActiveAnalyticsTab
+          || '';
+        if (tab === 'sub-contractors') {
+          try { paintContextZones(); } catch (_) { /* ignore */ }
+          const kpi = document.getElementById(KPI_ID);
+          if (kpi) {
+            try { kpi.innerHTML = buildKpiHtml(getFilteredData()); } catch (_) { /* ignore */ }
+          }
+          try { deskRepaintContractors(); } catch (_) { /* ignore */ }
+        }
+        if (tab === 'sub-sk') {
+          try { paintSkDesktop(); } catch (_) { /* ignore */ }
+        }
+        if (typeof window.renderCurrentAnalyticsTab === 'function') {
+          window.renderCurrentAnalyticsTab();
+        }
+      } catch (_) { /* ignore */ }
     });
   }
 }

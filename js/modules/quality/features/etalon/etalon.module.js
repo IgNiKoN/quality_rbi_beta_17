@@ -47,6 +47,29 @@ function bindEtalonActionDelegation() {
   }, true);
 }
 
+function bindEtalonI18n() {
+  if (window.__etalonI18nBound) return;
+  window.__etalonI18nBound = true;
+  var events = window.RBI && window.RBI.events;
+  if (!(events && typeof events.on === 'function')) return;
+  events.on('i18n:localeChanged', function () {
+    try {
+      if (window.EtalonRender && typeof window.EtalonRender.remountConstructorChrome === 'function') {
+        window.EtalonRender.remountConstructorChrome();
+      }
+      if (window.EtalonActions && typeof window.EtalonActions.remountViewModalChrome === 'function') {
+        window.EtalonActions.remountViewModalChrome();
+      }
+      if (window.EtalonV18Render && typeof window.EtalonV18Render.remountIfOpen === 'function') {
+        window.EtalonV18Render.remountIfOpen();
+      }
+      if (window.EtalonV18BRender && typeof window.EtalonV18BRender.remountShellIfOpen === 'function') {
+        window.EtalonV18BRender.remountShellIfOpen();
+      }
+    } catch (_e) { /* ignore */ }
+  });
+}
+
 export const EtalonModule = {
   id: 'etalon',
   routes: ['/etalon', '/etalon/:id'],
@@ -66,6 +89,7 @@ export const EtalonModule = {
     if (window.EtalonActions) window.EtalonActions.bindCtx(ctx);
 
     bindEtalonActionDelegation();
+    bindEtalonI18n();
 
     if (window.EtalonState) window.EtalonState.syncFromLegacy();
 

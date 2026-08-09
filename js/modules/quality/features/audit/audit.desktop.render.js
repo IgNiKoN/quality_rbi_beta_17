@@ -61,7 +61,12 @@ function isQualityMode() {
 function isAuditActive() {
   if (!isQualityMode()) return false;
   const hash = String(location.hash || '');
-  if (hash && !/#\/quality\/audit/i.test(hash)) return false;
+  // Hash — источник истины. Fallthrough на stale #tab-audit.active
+  // (markup монтируется с active по умолчанию / до AppRouter) захватывал
+  // shell поверх Инженера/Аналитики после F5.
+  if (hash && hash !== '#') {
+    return /#\/quality\/audit(\/|$|\?)/i.test(hash) || /^#\/quality\/audit$/i.test(hash);
+  }
   const tab = document.getElementById('tab-audit');
   return !!(tab && tab.classList.contains('active'));
 }
@@ -580,22 +585,32 @@ export function showAuditDesktop() {
 
 export function teardownAuditDesktop() {
   _previewToken += 1;
-  const wasApplied = _shellApplied;
+  const auditStill = isAuditActive();
+
   if (_shellApplied) {
     restoreTabAudit();
     _shellApplied = false;
+  } else {
+    // Orphan shell после гонки (show до снятия .active) — убрать без wide.
+    const shell = document.getElementById(SHELL_ID);
+    if (shell && !auditStill) {
+      try { restoreHeaderPieces(); } catch (_) { /* ignore */ }
+      const appRoot = document.getElementById('app-root');
+      const tab = document.getElementById('tab-audit');
+      if (appRoot && tab && tab.parentElement !== appRoot) {
+        appRoot.insertBefore(tab, shell);
+      }
+      shell.remove();
+    }
   }
+
   setWideLayout(false);
+
   // Вернуть мобильную шапку только если Осмотр ещё активен (mobile / уход с desk)
-  if (wasApplied && isAuditActive() && !isDesktopViewport()) {
-    setMobileAuditHeaderVisible(true);
-  } else if (wasApplied && isAuditActive() && isDesktopViewport()) {
-    // stay desk — no-op
-  } else if (wasApplied && !isAuditActive()) {
-    // другая вкладка сама управляет header через switchViewNode
-  } else if (!isDesktopViewport() && isAuditActive()) {
+  if (auditStill && !isDesktopViewport()) {
     setMobileAuditHeaderVisible(true);
   }
+  // desktop+active → showAuditDesktop вернёт wide; другая вкладка → switchViewNode
 }
 
 function syncAuditDesktop() {
@@ -761,6 +776,20 @@ function boot() {
   }
   syncAuditDesktop();
   setTimeout(syncAuditDesktop, 400);
+  setTimeout(syncAuditDesktop, 1200);
+  // quality грузится на window.load после AppRouter — повторить после platform:ready
+  if (window.RBI && window.RBI.events && typeof window.RBI.events.on === 'function') {
+    window.RBI.events.on('platform:ready', function () {
+      queueMicrotask(function () {
+        setTimeout(syncAuditDesktop, 0);
+        setTimeout(syncAuditDesktop, 200);
+      });
+    });
+  }
+  window.addEventListener('load', function () {
+    setTimeout(syncAuditDesktop, 0);
+    setTimeout(syncAuditDesktop, 300);
+  });
 }
 
 if (document.readyState === 'loading') {
@@ -773,5 +802,7 @@ window.__auditDesktop = {
   show: showAuditDesktop,
   teardown: teardownAuditDesktop,
   sync: syncAuditDesktop,
-  paintPlan: paintPlanPanel
+  paintPlan: paintPlanPanel,
+  isDesktop: isDesktopViewport,
+  isShellApplied: function () { return !!_shellApplied; }
 };

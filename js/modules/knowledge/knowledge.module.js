@@ -20,6 +20,8 @@ import {
     bindCtx as bindFaqCtx
 } from './features/faq.js';
 import './twi.docx-export.js'; // side-effect: exportTwiDocx / rbi_exportTwiDocx
+import './knowledge.desktop.render.js'; // side-effect: desktop Pattern G (раньше — статичный <script>)
+import './features/reference.js'; // ownership shell #tab-reference (mount до UI)
 
 window.openFaqModal = openFaqModal;
 window.closeFaqModal = closeFaqModal;
@@ -521,11 +523,23 @@ window.rbi_migrateKnowledgePdfOffRam = async function () {
     return { docs: docsMigrated, twi: twiMigrated };
 };
 
-// Загрузка при старте приложения
-document.addEventListener("DOMContentLoaded", async () => {
-    await window.rbi_reloadReferenceMemory();
-    if (typeof window.renderTwiList === 'function') window.renderTwiList();
-});
+// Загрузка при старте. После фазы B++ модуль грузится через loadModule
+// уже после DOMContentLoaded — слушатель только на DCL никогда не сработает.
+async function _bootKnowledgeReferenceMemory() {
+    if (typeof window.rbi_reloadReferenceMemory === 'function') {
+        await window.rbi_reloadReferenceMemory();
+    }
+    if (typeof window.renderTwiList === 'function') {
+        try { window.renderTwiList(); } catch (_) { /* ignore */ }
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+        _bootKnowledgeReferenceMemory();
+    });
+} else {
+    _bootKnowledgeReferenceMemory();
+}
 
 // Анимация меню управления TWI
 function toggleTwiManagePanel() {
@@ -1333,8 +1347,8 @@ function toggleManagePanel() {
 
 let customNodes = window.customNodes || [];
 
-// Загрузка пользовательских узлов при старте
-document.addEventListener("DOMContentLoaded", async () => {
+// Загрузка пользовательских узлов при старте (тот же late-load паттерн, что TWI)
+async function _bootCustomNodesFromIdb() {
     const st = _storage();
     const stores = st.stores ? st.stores() : (typeof STORES !== 'undefined' ? STORES : {});
     try {
@@ -1344,7 +1358,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.customNodes = customNodes;
         }
     } catch (e) { console.error("Ошибка загрузки узлов", e); }
-});
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+        _bootCustomNodesFromIdb();
+    });
+} else {
+    _bootCustomNodesFromIdb();
+}
 
 // Анимация меню управления узлами
 function toggleNodeManagePanel() {
@@ -4827,8 +4848,14 @@ export const KnowledgeModule = {
     async init(ctx) {
         _ctx = ctx;
         bindFaqCtx(ctx);
+        // Ownership UI #tab-reference: делегирование data-reference-action
+        // (раньше вызывалось из quality.init — до loadModule knowledge ReferenceShared ещё нет).
+        if (window.ReferenceShared && typeof window.ReferenceShared.bindCtx === 'function') {
+            window.ReferenceShared.bindCtx(ctx);
+        }
         bindKnowledgeActionDelegation();
-        /* данные загружаются через DOMContentLoaded выше */
+        // Источник истины после динамической загрузки: не полагаться на DCL
+        await _bootKnowledgeReferenceMemory();
     },
     mount(container, ctx) { /* no-op */ },
     unmount() { /* no-op */ }

@@ -6,6 +6,25 @@
 (function () {
   var _ctx = null;
 
+  var _engineerI18nBound = false;
+
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
+
   var EngineerRender = {
 
     bindCtx: function (ctx) {
@@ -79,19 +98,19 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
                                 </path>
-                            </svg> НЕДЕЛЯ <span id="rbi-week-number">--</span>
+                            </svg> ${_t('quality.engineer.tasks.week', 'НЕДЕЛЯ')} <span id="rbi-week-number">--</span>
                         </div>
                         <div class="text-[9px] font-bold text-[var(--text-muted)]" id="rbi-week-dates">-- апр — -- мая
                             2026</div>
                     </div>
                     <div class="flex flex-col items-end gap-0.5">
-                        <div class="text-[9px] font-black uppercase text-[var(--text-muted)]">Прогресс: <span
+                        <div class="text-[9px] font-black uppercase text-[var(--text-muted)]">${_t('quality.engineer.tasks.progress', 'Прогресс')}: <span
                                 id="rbi-tasks-progress-text" class="text-indigo-600 dark:text-indigo-400">0/0</span>
                         </div>
                         <div class="text-[8px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">
-                            Откр. <span id="rbi-tasks-open" class="text-slate-800 dark:text-white">0</span>
-                            · <span class="text-red-500">Проср. <span id="rbi-tasks-overdue">0</span></span>
-                            · Закр. <span id="rbi-tasks-closed-week" class="text-emerald-600 dark:text-emerald-400">0</span>
+                            ${_t('quality.engineer.tasks.open_short', 'Откр.')} <span id="rbi-tasks-open" class="text-slate-800 dark:text-white">0</span>
+                            · <span class="text-red-500">${_t('quality.engineer.tasks.overdue_short', 'Проср.')} <span id="rbi-tasks-overdue">0</span></span>
+                            · ${_t('quality.engineer.tasks.closed_short', 'Закр.')} <span id="rbi-tasks-closed-week" class="text-emerald-600 dark:text-emerald-400">0</span>
                         </div>
                         <div class="w-28 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div id="rbi-tasks-progress-bar" class="h-full bg-indigo-500 transition-all"
@@ -116,22 +135,21 @@
                                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
                                 </path>
                             </svg>
-                            Совещания
+                            ${_t('quality.engineer.meetings.title', 'Совещания')}
                         </h2>
-                        <p class="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">Умные
-                            протоколы</p>
+                        <p class="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">${_t('quality.engineer.meetings.subtitle', 'Умные протоколы')}</p>
                     </div>
                     <button data-meetings-action="rbi_createMeeting"
                         class="bg-orange-500 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                        </svg> Новое
+                        </svg> ${_t('quality.engineer.meetings.new', 'Новое')}
                     </button>
                 </div>
                 <div id="rbi-meeting-container" class="space-y-3 pb-8">
                     <div
                         class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">
-                        Активных протоколов нет</div>
+                        ${_t('quality.engineer.meetings.empty', 'Активных протоколов нет')}</div>
                 </div>
             </div>
 
@@ -147,7 +165,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6">
                                 </path>
                             </svg>
-                            Эффективность
+                            ${_t('quality.engineer.impact.title', 'Эффективность')}
                         </h2>
                         <p class="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">Impact
                             Score</p>
@@ -156,7 +174,7 @@
                         class="bg-green-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"></path>
-                        </svg> Воздействие
+                        </svg> ${_t('quality.engineer.impact.action', 'Воздействие')}
                     </button>
                 </div>
                 <div id="rbi-impact-dashboard" class="space-y-3 pb-8">
@@ -182,7 +200,7 @@
                                     d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z">
                                 </path>
                             </svg>
-                            Профиль Инженера
+                            ${_t('quality.engineer.profile.title', 'Профиль Инженера')}
                         </div>
                         <button data-game-action="gameOpenManagerPanelAuth"
                             class="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full text-slate-500 active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700">
@@ -197,9 +215,8 @@
                     <div id="profile-name-edit-container" class="hidden mt-2 w-full">
                         <input type="text" id="profile-name-input"
                             class="input-base text-[12px] border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30"
-                            placeholder="Введите вашу Фамилию и И.О..." data-game-action="saveEngineerNameForce" data-game-action-val-type="value" data-action-event="change">
-                        <div class="text-[9px] text-[var(--text-muted)] mt-1 pl-1 font-bold">Имя привяжется ко всем
-                            актам навсегда.</div>
+                            placeholder="${_t('quality.engineer.profile.name_ph', 'Введите вашу Фамилию и И.О...')}" data-game-action="saveEngineerNameForce" data-game-action-val-type="value" data-action-event="change">
+                        <div class="text-[9px] text-[var(--text-muted)] mt-1 pl-1 font-bold">${_t('quality.engineer.profile.name_hint', 'Имя привяжется ко всем актам навсегда.')}</div>
                     </div>
                 </div>
                 <div id="game-dashboard-container"></div>
@@ -267,6 +284,40 @@
   };
 
   window.EngineerRender = EngineerRender;
+
+  function _bindEngineerI18n() {
+    if (_engineerI18nBound) return;
+    _engineerI18nBound = true;
+    var events = window.RBI && window.RBI.events;
+    if (!(events && typeof events.on === 'function')) return;
+    events.on('i18n:localeChanged', function () {
+      try {
+        var tab = document.getElementById('tab-engineer');
+        if (!tab) return;
+        // Remount static chrome from markup (keeps data-i18n subtabs via applyDom)
+        var host = tab.parentNode;
+        if (!host) return;
+        var markup = EngineerRender.renderMarkup();
+        var tmp = document.createElement('div');
+        tmp.innerHTML = markup;
+        var fresh = tmp.firstElementChild;
+        // preserve visible sub-section id
+        var visible = tab.querySelector('.eng-sub-section:not(.hidden)');
+        var visId = visible && visible.id;
+        tab.replaceWith(fresh);
+        if (visId) {
+          fresh.querySelectorAll('.eng-sub-section').forEach(function (s) {
+            s.classList.toggle('hidden', s.id !== visId);
+          });
+        }
+        if (window.RBI && window.RBI.services && window.RBI.services.i18n && typeof window.RBI.services.i18n.applyDom === 'function') {
+          window.RBI.services.i18n.applyDom(fresh);
+        }
+        if (typeof EngineerRender.render === 'function') EngineerRender.render(visId);
+      } catch (_e) { /* ignore */ }
+    });
+  }
+  _bindEngineerI18n();
 
   // =========================================================================
   // МОНТАЖ РАЗМЕТКИ ВКЛАДКИ «ИНЖЕНЕР» (перенос из index.html:437-617, Блок

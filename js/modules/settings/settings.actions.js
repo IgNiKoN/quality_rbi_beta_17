@@ -72,7 +72,7 @@
     }
 
     function _rbiSaveThemePreference(value) {
-        var theme = RBI_ALLOWED_THEMES_LOCAL.includes(value) ? value : 'auto';
+        var theme = RBI_ALLOWED_THEMES_LOCAL.includes(value) ? value : 'rbi-auto-v3';
         localStorage.setItem('rbi_theme_preference', theme);
         return theme;
     }
@@ -89,13 +89,13 @@
                 _rbiSaveThemePreference(window.appSettings.theme);
             } else {
                 var savedTheme = _rbiGetSavedThemePreference();
-                window.appSettings.theme = savedTheme || 'auto';
+                window.appSettings.theme = savedTheme || 'rbi-auto-v3';
                 _rbiSaveThemePreference(window.appSettings.theme);
             }
 
         } catch (e) {
             console.error('Ошибка загрузки настроек', e);
-            window.appSettings.theme = _rbiGetSavedThemePreference() || 'auto';
+            window.appSettings.theme = _rbiGetSavedThemePreference() || 'rbi-auto-v3';
         }
     }
 
@@ -184,7 +184,7 @@
         var defaults = (svc && typeof svc.getDefaults === 'function')
             ? svc.getDefaults()
             : {
-                theme: 'auto', fontSize: 'medium', navPosition: 'auto', dashboardMode: 'compact',
+                theme: 'rbi-auto-v3', fontSize: 'medium', navPosition: 'auto', dashboardMode: 'compact',
                 autoCollapseFilters: 'manual', uiMotionEnabled: true, swipeEnabled: false
             };
 
@@ -210,11 +210,11 @@
         // Мутируем существующий объект, чтобы не разрывать ссылку с app.js (let appSettings)
         Object.keys(window.appSettings).forEach(function (k) { delete window.appSettings[k]; });
         Object.assign(window.appSettings, defaults, preserved);
-        window.appSettings.theme = 'auto';
+        window.appSettings.theme = 'rbi-auto-v3';
         window.appSettings.settingsUpdatedAt = Date.now();
-        _rbiSaveThemePreference('auto');
+        _rbiSaveThemePreference('rbi-auto-v3');
 
-        _saveSettings('theme', 'auto');
+        _saveSettings('theme', 'rbi-auto-v3');
         if (typeof window.renderSettingsTab === 'function') window.renderSettingsTab();
         if (typeof window.applySettingsToUI === 'function') window.applySettingsToUI();
 

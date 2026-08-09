@@ -1,6 +1,13 @@
 // ─── construction.module.js — Фаза 15: контракт платформы для модуля Construction
-// ES-модуль. Зависит от construction.state.js / construction.actions.js / construction.render.js,
-// которые загружаются как обычные <script> до этого файла через construction.legacy.js.
+// ES-модуль. Features подтягиваются side-effect import (порядок = бывшие static теги).
+// state/actions/render — именованные import ниже.
+
+import './features/construction-core.js';
+import './features/defect-form.js';
+import './features/pdf-viewer.js';
+import './features/admin.js';
+import './features/acceptance.js';
+import './features/transfer.js';
 
 import { ConstructionState } from './construction.state.js';
 import { ConstructionActions } from './construction.actions.js';

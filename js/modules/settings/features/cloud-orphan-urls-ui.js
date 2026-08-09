@@ -1,7 +1,8 @@
 /**
  * cloud-orphan-urls-ui.js
- * Админ: скан живых записей на битые Storage URL (практики / доки / проверки)
- * → превью → обнуление выбранных ссылок в облаке. Blob не удаляем (его нет).
+ * Админ: скан живых записей на битые Storage URL
+ * (облако + локальный IndexedDB: FMEA / история / встречи / …)
+ * → превью → обнуление выбранных ссылок. Blob не удаляем (его нет).
  */
 function _t(key, fallback, vars) {
     try {
@@ -126,11 +127,9 @@ async function _urlExists(url) {
             if (t.includes('Object not found') || t.includes('"statusCode":"404"') || t.includes('"statusCode":404')) {
                 return false;
             }
-            // tiny JSON error bodies
             if (t.length < 200 && t.includes('not_found')) return false;
             return true;
         }
-        // consume body so connection can reuse
         await res.arrayBuffer();
         return true;
     } catch (_e) {
@@ -161,6 +160,83 @@ function _ownerOf(row) {
     ).trim();
 }
 
+/** Таблицы облака, где часто лежат Storage URL (раньше сканер их пропускал — FMEA и т.п.). */
+const EXTRA_CLOUD_TABLES = [
+    { name: 'project_fmea', kind: 'fmea', scoped: true },
+    { name: 'project_meetings', kind: 'meeting', scoped: true },
+    { name: 'project_interventions', kind: 'intervention', scoped: true },
+    { name: 'construction_defects', kind: 'const_defect', scoped: true },
+    { name: 'shared_etalons', kind: 'etalon', scoped: false },
+    { name: 'shared_twi_cards', kind: 'twi', scoped: false }
+];
+
+function _pushFound(candidates, found, meta) {
+    found.forEach((f) => {
+        candidates.push({
+            kind: meta.kind,
+            table: meta.table,
+            id: String(meta.id),
+            owner: meta.owner || '',
+            path: f.path,
+            url: f.url,
+            scoped: !!meta.scoped,
+            source: meta.source || 'cloud'
+        });
+    });
+}
+
+async function _collectLocalCandidates(candidates) {
+    const counts = { fmea: 0, history: 0, meetings: 0, interventions: 0, tasks: 0, etalon: 0, defects: 0 };
+    if (typeof dbGetAll !== 'function' || typeof STORES === 'undefined') return counts;
+
+    async function walkStore(storeKey, kind, pick) {
+        let rows = [];
+        try {
+            rows = (await dbGetAll(storeKey)) || [];
+        } catch (_e) {
+            return 0;
+        }
+        let n = 0;
+        rows.forEach((row) => {
+            if (!row || row._deleted || row.is_deleted) return;
+            const found = [];
+            const target = pick ? pick(row) : row;
+            _collectUrlPaths(target, '', found);
+            if (!found.length) return;
+            n += 1;
+            _pushFound(candidates, found, {
+                kind: 'local_' + kind,
+                table: 'local:' + storeKey,
+                id: row.id,
+                owner: _ownerOf(row) || String(row.author || row.engineerName || ''),
+                scoped: false,
+                source: 'local'
+            });
+        });
+        return n;
+    }
+
+    counts.fmea = await walkStore(STORES.FMEA, 'fmea');
+    counts.history = await walkStore(STORES.HISTORY, 'inspection', (row) => ({
+        photos: row.photos,
+        inspection_data: row.inspection_data || row.data
+    }));
+    counts.meetings = await walkStore(STORES.MEETINGS, 'meeting');
+    counts.interventions = await walkStore(STORES.INTERVENTIONS, 'intervention');
+    counts.tasks = await walkStore(STORES.TASKS, 'task', (row) => ({
+        completionPhoto: row.completionPhoto,
+        photo: row.photo
+    }));
+    counts.etalon = await walkStore(STORES.ETALON_ACTS, 'etalon');
+    if (STORES.CONST_DEFECTS) {
+        counts.defects = await walkStore(STORES.CONST_DEFECTS, 'const_defect', (row) => ({
+            photo: row.photo,
+            photos: row.photos
+        }));
+    }
+    return counts;
+}
+
 async function scanOrphanUrls() {
     if (!_cloudReady()) throw new Error(_t('settings.admin.orphan.need_cloud', 'Облако не подключено'));
 
@@ -170,16 +246,8 @@ async function scanOrphanUrls() {
     practices.forEach((row) => {
         const found = [];
         _collectUrlPaths(row, '', found);
-        found.forEach((f) => {
-            candidates.push({
-                kind: 'practice',
-                table: 'shared_practices',
-                id: String(row.id),
-                owner: _ownerOf(row),
-                path: f.path,
-                url: f.url,
-                scoped: false
-            });
+        _pushFound(candidates, found, {
+            kind: 'practice', table: 'shared_practices', id: row.id, owner: _ownerOf(row), scoped: false
         });
     });
 
@@ -187,16 +255,8 @@ async function scanOrphanUrls() {
     docs.forEach((row) => {
         const found = [];
         _collectUrlPaths(row, '', found);
-        found.forEach((f) => {
-            candidates.push({
-                kind: 'doc',
-                table: 'shared_docs',
-                id: String(row.id),
-                owner: _ownerOf(row),
-                path: f.path,
-                url: f.url,
-                scoped: false
-            });
+        _pushFound(candidates, found, {
+            kind: 'doc', table: 'shared_docs', id: row.id, owner: _ownerOf(row), scoped: false
         });
     });
 
@@ -205,16 +265,8 @@ async function scanOrphanUrls() {
         const found = [];
         _collectUrlPaths(row.photos, 'photos', found);
         _collectUrlPaths(row.inspection_data, 'inspection_data', found);
-        found.forEach((f) => {
-            candidates.push({
-                kind: 'inspection',
-                table: 'rbi_inspections',
-                id: String(row.id),
-                owner: _ownerOf(row),
-                path: f.path,
-                url: f.url,
-                scoped: true
-            });
+        _pushFound(candidates, found, {
+            kind: 'inspection', table: 'rbi_inspections', id: row.id, owner: _ownerOf(row), scoped: true
         });
     });
 
@@ -249,9 +301,36 @@ async function scanOrphanUrls() {
             path: 'public_url',
             url,
             scoped: true,
-            inspection_id: row.inspection_id
+            inspection_id: row.inspection_id,
+            source: 'cloud'
         });
     });
+
+    const extraCounts = {};
+    for (const spec of EXTRA_CLOUD_TABLES) {
+        let rows = [];
+        try {
+            rows = await _fetchAllLive(spec.name, spec.scoped);
+        } catch (e) {
+            console.warn('[orphan-urls] skip table', spec.name, e && e.message);
+            extraCounts[spec.kind] = 'skip';
+            continue;
+        }
+        extraCounts[spec.kind] = rows.length;
+        rows.forEach((row) => {
+            const found = [];
+            _collectUrlPaths(row, '', found);
+            _pushFound(candidates, found, {
+                kind: spec.kind,
+                table: spec.name,
+                id: row.id,
+                owner: _ownerOf(row),
+                scoped: spec.scoped
+            });
+        });
+    }
+
+    const localCounts = await _collectLocalCandidates(candidates);
 
     // unique by url+table+id+path
     const seen = new Set();
@@ -276,7 +355,9 @@ async function scanOrphanUrls() {
         practices: practices.length,
         docs: docs.length,
         inspections: inspections.length,
-        photoRows: photoRows.length
+        photoRows: photoRows.length,
+        extraCounts,
+        localCounts
     };
 }
 
@@ -289,12 +370,44 @@ async function clearOrphanHits(hits) {
     const byRow = new Map();
     (hits || []).forEach((h) => {
         const key = h.table + '::' + h.id;
-        if (!byRow.has(key)) byRow.set(key, { table: h.table, id: h.id, urls: [] });
+        if (!byRow.has(key)) byRow.set(key, { table: h.table, id: h.id, urls: [], source: h.source });
         byRow.get(key).urls.push(h.url);
     });
 
     for (const group of byRow.values()) {
         try {
+            if (String(group.table).startsWith('local:')) {
+                const storeName = String(group.table).slice('local:'.length);
+                if (typeof dbGet !== 'function' || typeof dbPut !== 'function') {
+                    throw new Error('IndexedDB API недоступен');
+                }
+                const row = await dbGet(storeName, group.id);
+                if (!row) throw new Error('local row not found ' + group.id);
+                let next = JSON.parse(JSON.stringify(row));
+                group.urls.forEach((url) => {
+                    next = _stripUrlDeep(next, url);
+                });
+                next.updatedAt = new Date().toISOString();
+                next.updated_at = next.updatedAt;
+                next.source = 'local';
+                next.syncStatus = 'not_synced';
+                next.sync_status = 'not_synced';
+                await dbPut(storeName, next);
+                // обновить in-memory зеркала
+                if (storeName === (STORES && STORES.FMEA) && Array.isArray(window.rbi_fmeaData)) {
+                    const ix = window.rbi_fmeaData.findIndex((x) => String(x && x.id) === String(group.id));
+                    if (ix >= 0) window.rbi_fmeaData[ix] = next;
+                }
+                localStorage.setItem('rbi_cloud_dirty', '1');
+                if (window.RBI && window.RBI.services && window.RBI.services.sync && typeof window.RBI.services.sync.trigger === 'function') {
+                    window.RBI.services.sync.trigger('silent');
+                } else if (typeof triggerSync === 'function') {
+                    triggerSync('silent');
+                }
+                cleared += group.urls.length;
+                continue;
+            }
+
             if (group.table === 'rbi_inspection_photos') {
                 for (const url of group.urls) {
                     const { error } = await client
@@ -333,7 +446,7 @@ async function clearOrphanHits(hits) {
                 patch.inspection_data = next.inspection_data;
             }
             // flat URL columns if any were stripped at top level
-            ['photoBefore', 'photoAfter', 'pdfData', 'file_url', 'public_url'].forEach((k) => {
+            ['photo', 'photoBefore', 'photoAfter', 'pdfData', 'file_url', 'public_url', 'pdf_url'].forEach((k) => {
                 if (Object.prototype.hasOwnProperty.call(row, k)) patch[k] = next[k];
             });
 
@@ -390,8 +503,15 @@ function _renderPreview(preview) {
                 { scanned: preview.scanned, dead: preview.dead }))}</div>
             <div class="text-[10px] text-[var(--text-muted)]">
                 ${_escapeHtml(_t('settings.admin.orphan.counts',
-                    'Практик: {p}, доков: {d}, проверок: {i}, photo-rows: {ph}',
-                    { p: preview.practices, d: preview.docs, i: preview.inspections, ph: preview.photoRows }))}
+                    'Практик: {p}, доков: {d}, проверок: {i}, photo-rows: {ph}; FMEA(cloud/local): {fc}/{fl}',
+                    {
+                        p: preview.practices,
+                        d: preview.docs,
+                        i: preview.inspections,
+                        ph: preview.photoRows,
+                        fc: (preview.extraCounts && preview.extraCounts.fmea) || 0,
+                        fl: (preview.localCounts && preview.localCounts.fmea) || 0
+                    }))}
             </div>
             <div class="max-h-64 overflow-y-auto rounded-xl border border-[var(--card-border)] px-2">
                 ${rows || '<div class="py-2 text-[var(--text-muted)]">' + _escapeHtml(_t('settings.admin.orphan.none', 'Битых ссылок не найдено.')) + '</div>'}
@@ -508,7 +628,7 @@ export function mountCloudOrphanUrlsUI() {
         <div class="space-y-3 p-4">
             <p class="text-[10px] text-[var(--text-muted)] leading-snug">
                 ${_escapeHtml(_t('settings.admin.orphan.intro',
-                    'Ищет у живых записей (практики, доки, проверки) ссылки на Storage, которых уже нет в бакете. Можно обнулить выбранные URL — сами записи не удаляются.'))}
+                    'Ищет у живых записей ссылки на Storage, которых уже нет в бакете: практики, доки, проверки, FMEA, встречи, эталоны, TWI + локальный IndexedDB. Можно обнулить выбранные URL — сами записи не удаляются.'))}
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button id="cloud-orphan-urls-scan" type="button"

@@ -49,7 +49,10 @@ function isDesktopViewport() {
 
 function isSettingsActive() {
   const hash = String(location.hash || '');
-  if (hash && !/#\/(?:quality\/)?settings/i.test(hash)) return false;
+  if (hash && hash !== '#') {
+    return /#\/(?:quality\/)?settings(\/|$|\?)/i.test(hash)
+      || /^#\/(?:quality\/)?settings$/i.test(hash);
+  }
   const tab = document.getElementById(TAB_ID);
   return !!(tab && tab.classList.contains('active'));
 }

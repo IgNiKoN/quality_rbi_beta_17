@@ -10,6 +10,25 @@
 (function () {
   'use strict';
 
+  var DEVIATIONS_DEFAULT_RU = 'Отклонений не выявлено';
+  var REMARKS_REF_RU = 'См. раздел «Замечания и корректировки»';
+
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
   function _storage() {
     if (window.RBI && window.RBI.services && window.RBI.services.storage) {
       return window.RBI.services.storage;
@@ -68,12 +87,37 @@
   };
 
   var ROW_PLACEHOLDERS = {
-    documentsTable: ['например: рабочая документация раздела АР', 'например: АР-15, лист 24 от 01.07.2026'],
-    solutionsTable: ['например: угловой стык стеклопакетов', 'например: согласованный внешний вид, конструкция и последовательность'],
-    materialsTable: ['например: стеклопакет', 'например: СПД 6Зак-16Ar-6', 'например: ООО «Производитель»', 'например: паспорт № 125', 'например: прозрачный, RAL 9005'],
-    testsTable: ['например: проверка герметичности', 'например: пролив водой 15 минут', 'например: протечек нет, протокол № 5'],
-    remarksTable: ['например: выровнять вертикальный шов', 'например: ООО «Подрядчик»', 'например: до 20.07.2026', 'например: устранено 19.07.2026'],
-    attachmentsTable: ['например: дополнительный чертёж узла', 'например: 2 листа / 4 файла', 'например: в электронном виде']
+    documentsTable: [
+      _t('quality.etalon.v18.ph.document', 'например: рабочая документация раздела АР'),
+      _t('quality.etalon.v18.ph.designation', 'например: АР-15, лист 24 от 01.07.2026')
+    ],
+    solutionsTable: [
+      _t('quality.etalon.v18.ph.solution_element', 'например: угловой стык стеклопакетов'),
+      _t('quality.etalon.v18.ph.solution_value', 'например: согласованный внешний вид, конструкция и последовательность')
+    ],
+    materialsTable: [
+      _t('quality.etalon.v18.ph.material_name', 'например: стеклопакет'),
+      _t('quality.etalon.v18.ph.material_mark', 'например: СПД 6Зак-16Ar-6'),
+      _t('quality.etalon.v18.ph.manufacturer', 'например: ООО «Производитель»'),
+      _t('quality.etalon.v18.ph.quality_doc', 'например: паспорт № 125'),
+      _t('quality.etalon.v18.ph.color', 'например: прозрачный, RAL 9005')
+    ],
+    testsTable: [
+      _t('quality.etalon.v18.ph.test_type', 'например: проверка герметичности'),
+      _t('quality.etalon.v18.ph.method', 'например: пролив водой 15 минут'),
+      _t('quality.etalon.v18.ph.test_result', 'например: протечек нет, протокол № 5')
+    ],
+    remarksTable: [
+      _t('quality.etalon.v18.ph.remark', 'например: выровнять вертикальный шов'),
+      _t('quality.etalon.v18.ph.responsible', 'например: ООО «Подрядчик»'),
+      _t('quality.etalon.v18.ph.deadline', 'например: до 20.07.2026'),
+      _t('quality.etalon.v18.ph.closure', 'например: устранено 19.07.2026')
+    ],
+    attachmentsTable: [
+      _t('quality.etalon.v18.ph.attachment_name', 'например: дополнительный чертёж узла'),
+      _t('quality.etalon.v18.ph.qty', 'например: 2 листа / 4 файла'),
+      _t('quality.etalon.v18.ph.note', 'например: в электронном виде')
+    ]
   };
 
   // Приватное состояние конструктора (аналог _context в etalon.actions.js).
@@ -141,9 +185,9 @@
     var v = values || {};
     return '<tr>' +
       '<td class="etv18-rownum center text-[10px] font-bold text-slate-400 px-2 py-2 text-center w-8"></td>' +
-      '<td contenteditable="true" data-p-field="organization" data-placeholder="например: ООО «Заказчик»">' + _escapeHtml(v.organization) + '</td>' +
-      '<td contenteditable="true" data-p-field="position" data-placeholder="например: руководитель проекта">' + _escapeHtml(v.position) + '</td>' +
-      '<td contenteditable="true" data-p-field="name" data-placeholder="например: Иванов И.И.">' + _escapeHtml(v.name) + '</td>' +
+      '<td contenteditable="true" data-p-field="organization" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_org', 'например: ООО «Заказчик»')) + '">' + _escapeHtml(v.organization) + '</td>' +
+      '<td contenteditable="true" data-p-field="position" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_position', 'например: руководитель проекта')) + '">' + _escapeHtml(v.position) + '</td>' +
+      '<td contenteditable="true" data-p-field="name" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_name', 'например: Иванов И.И.')) + '">' + _escapeHtml(v.name) + '</td>' +
       '</tr>';
   }
 
@@ -185,11 +229,11 @@
     }
     return '<tr>' +
       '<td class="etv18-rownum center text-[10px] font-bold text-slate-400 px-2 py-2 text-center w-8"></td>' +
-      '<td contenteditable="true" data-row-field="criterion" data-placeholder="например: ширина герметизирующего шва">' + _escapeHtml(v.criterion) + '</td>' +
-      '<td contenteditable="true" data-row-field="basis" data-placeholder="например: ГОСТ, СП, РД, пункт">' + _escapeHtml(v.basis) + '</td>' +
-      '<td contenteditable="true" data-row-field="requirement" data-placeholder="например: 15 ± 2 мм">' + _escapeHtml(v.requirement) + '</td>' +
-      '<td contenteditable="true" data-row-field="actual" data-placeholder="например: 14 мм">' + _escapeHtml(v.actual) + '</td>' +
-      '<td class="etv18-compliance flex flex-col gap-0.5 px-1 py-1">' + radio('yes', 'да') + radio('no', 'нет') + radio('na', 'н/п') + '</td>' +
+      '<td contenteditable="true" data-row-field="criterion" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.criterion', 'например: ширина герметизирующего шва')) + '">' + _escapeHtml(v.criterion) + '</td>' +
+      '<td contenteditable="true" data-row-field="basis" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.basis', 'например: ГОСТ, СП, РД, пункт')) + '">' + _escapeHtml(v.basis) + '</td>' +
+      '<td contenteditable="true" data-row-field="requirement" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.requirement', 'например: 15 ± 2 мм')) + '">' + _escapeHtml(v.requirement) + '</td>' +
+      '<td contenteditable="true" data-row-field="actual" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.actual', 'например: 14 мм')) + '">' + _escapeHtml(v.actual) + '</td>' +
+      '<td class="etv18-compliance flex flex-col gap-0.5 px-1 py-1">' + radio('yes', _t('quality.etalon.v18.compliance.yes', 'да')) + radio('no', _t('quality.etalon.v18.compliance.no', 'нет')) + radio('na', _t('quality.etalon.v18.compliance.na', 'н/п')) + '</td>' +
       '</tr>';
   }
 
@@ -231,14 +275,14 @@
     return '' +
       '<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm relative mb-3" data-photo-idx="' + idx + '">' +
       '<button onclick="window.rbi_etalonV18RemovePhoto(' + idx + ')" class="absolute top-2 right-2 text-red-400 active:scale-90 font-black text-sm px-2">✕</button>' +
-      '<div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">Фото ' + (idx + 1) + '</div>' +
+      '<div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">' + _t('quality.etalon.v18.label.photo_card', 'Фото {num}', { num: idx + 1 }) + '</div>' +
       '<div class="etv18-photo-preview" data-idx="' + idx + '">' +
       (p._displayUrl
         ? '<img src="' + p._displayUrl + '" class="w-full h-40 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 cursor-pointer" onclick="openPhotoViewer(\'' + p.photo + '\')">'
-        : '<button onclick="document.getElementById(\'etv18-photo-input-' + idx + '\').click()" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">📸 Прикрепить фото</button>') +
+        : '<button onclick="document.getElementById(\'etv18-photo-input-' + idx + '\').click()" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">📸 ' + _t('quality.etalon.btn.attach_photo', 'Прикрепить фото узла') + '</button>') +
       '</div>' +
       '<input type="file" id="etv18-photo-input-' + idx + '" accept="image/*" class="hidden" onchange="window.rbi_etalonV18UploadPhoto(event, ' + idx + ')">' +
-      '<input type="text" class="input-base text-[11px] mt-2" placeholder="Описание / контролируемый элемент" value="' + _escapeHtml(p.desc) + '" oninput="window.rbi_etalonV18UpdatePhotoDesc(' + idx + ', this.value)">' +
+      '<input type="text" class="input-base text-[11px] mt-2" placeholder="' + _escapeHtml(_t('quality.etalon.v18.placeholder.photo_desc', 'Описание / контролируемый элемент')) + '" value="' + _escapeHtml(p.desc) + '" oninput="window.rbi_etalonV18UpdatePhotoDesc(' + idx + ', this.value)">' +
       '</div>';
   }
 
@@ -271,6 +315,16 @@
   }
 
   var EtalonV18Actions = {
+
+    _getEditingId: function () { return _v18.editingId; },
+
+    _getOpenContext: function () {
+      return {
+        projectName: _v18OpenContext.projectName,
+        contractor: _v18OpenContext.contractor,
+        templateKey: _v18OpenContext.templateKey
+      };
+    },
 
     _collectNewDraft: function () {
       if (_v18.editingId || window._rbiEtalonV18SkipDraft) return null;
@@ -456,14 +510,14 @@
       document.getElementById('etv18-contractor').value = p.contractor || '';
 
       var tmplSelect = document.getElementById('etv18-template');
-      var tmplOpts = '<option value="" disabled selected>-- Выберите вид работ --</option>';
+      var tmplOpts = '<option value="" disabled selected>' + _t('quality.etalon.select.template', '-- Выберите вид работ --') + '</option>';
       var st = _templates().getSystemTemplates();
       var sysKeys = Object.keys(st).sort(function (a, b) { return st[a].title.localeCompare(st[b].title); });
-      sysKeys.forEach(function (k) { tmplOpts += '<option value="sys_' + k + '">[СИС] ' + st[k].title + '</option>'; });
+      sysKeys.forEach(function (k) { tmplOpts += '<option value="sys_' + k + '">[' + _t('quality.etalon.tag.system', 'СИС') + '] ' + st[k].title + '</option>'; });
       var ut = _templates().getUserTemplates();
       if (Object.keys(ut).length > 0) {
         var userKeys = Object.keys(ut).sort(function (a, b) { return ut[a].title.localeCompare(ut[b].title); });
-        userKeys.forEach(function (k) { tmplOpts += '<option value="user_' + k + '">[МОЙ] ' + ut[k].title + '</option>'; });
+        userKeys.forEach(function (k) { tmplOpts += '<option value="user_' + k + '">[' + _t('quality.etalon.tag.user', 'МОЙ') + '] ' + ut[k].title + '</option>'; });
       }
       tmplSelect.innerHTML = tmplOpts;
       if (p.templateKey) tmplSelect.value = p.templateKey;
@@ -503,7 +557,7 @@
       _renderPhotoGrid();
 
       var titleEl = document.getElementById('etv18-title-text');
-      if (titleEl) titleEl.innerText = (p.projectName || 'Новый Акт') + (p.contractor ? ' | ' + p.contractor : '');
+      if (titleEl) titleEl.innerText = (p.projectName || _t('quality.etalon.title.new_act_short', 'Новый Акт')) + (p.contractor ? ' | ' + p.contractor : '');
 
       _v18OpenContext = {
         projectName: p.projectName || (inpProject ? inpProject.value : '') || '',
@@ -519,7 +573,7 @@
       }
 
       if (!skipDraft && FD) {
-        var decision = FD.askRestore(FD.KEYS.ETALON_V18, 'Акт-Эталон (Бета)');
+        var decision = FD.askRestore(FD.KEYS.ETALON_V18, _t('quality.etalon.v18.title', 'Акт-Эталон (Бета)'));
         if (decision === 'continue') {
           var d = FD.get(FD.KEYS.ETALON_V18);
           if (d && d.payload) {
@@ -568,14 +622,14 @@
     uploadPhoto: function (event, idx) {
       var file = event.target.files[0];
       if (!file) return;
-      showToast('⚙️ Сохранение фото...');
+      showToast(_t('quality.etalon.toast.saving_photo', '⚙️ Сохранение фото...'));
       var reader = new FileReader();
       reader.onload = async function (e) {
         var localUrl = await PhotoManager.saveLocal(e.target.result, 'etalon_v18');
         _v18.photos[idx].photo = localUrl;
         _v18.photos[idx]._displayUrl = await PhotoManager.getAsyncUrl(localUrl) || window.getPhotoSrc(localUrl);
         _renderPhotoGrid();
-        showToast('📸 Фото сохранено!');
+        showToast(_t('quality.etalon.v18.toast.photo_saved', '📸 Фото сохранено!'));
         _draftNowV18();
       };
       reader.readAsDataURL(file);
@@ -598,11 +652,11 @@
       var selTemplateTitle = selectedOption ? selectedOption.text.replace(/\[.*?\]\s*/, '') : '';
       var location = document.getElementById('etv18-location').value.trim();
 
-      if (!selProject || !selContractor || !selTemplateKey) return showToast('⚠️ Укажите Объект, Подрядчика и Вид работ!');
-      if (!location) return showToast('⚠️ Заполните локацию (место устройства)!');
+      if (!selProject || !selContractor || !selTemplateKey) return showToast(_t('quality.etalon.toast.required_fields', '⚠️ Укажите Объект, Подрядчика и Вид работ!'));
+      if (!location) return showToast(_t('quality.etalon.v18.toast.required_location', '⚠️ Заполните локацию (место устройства)!'));
 
       var participants = _collectParticipants();
-      if (participants.length === 0) return showToast('⚠️ Укажите хотя бы одного участника рассмотрения!');
+      if (participants.length === 0) return showToast(_t('quality.etalon.v18.toast.required_participants', '⚠️ Укажите хотя бы одного участника рассмотрения!'));
 
       var actV18 = {
         header: {
@@ -664,7 +718,7 @@
           participants: participants.map(function (p) {
             return p.organization + (p.position ? ', ' + p.position : '') + (p.name ? ' — ' + p.name : '');
           }).join('; '),
-          deviations: (actV18.remarks && actV18.remarks.length) ? 'См. раздел «Замечания и корректировки»' : 'Отклонений не выявлено',
+          deviations: (actV18.remarks && actV18.remarks.length) ? REMARKS_REF_RU : DEVIATIONS_DEFAULT_RU,
           elements: [], // Совместимость со старым просмотрщиком/печатью (см. printEtalon) — пусто для act_v18.
           actV18: actV18
         },
@@ -692,7 +746,7 @@
       await _storage().put(_storage().stores().ETALON_ACTS, record);
       _v18.editingId = null;
 
-      showToast('✅ Акт-Эталон (Бета) успешно сохранён!');
+      showToast(_t('quality.etalon.v18.toast.saved', '✅ Акт-Эталон (Бета) успешно сохранён!'));
       localStorage.setItem('rbi_cloud_dirty', '1');
       setTimeout(function () { _triggerSync('silent'); }, 800);
 
@@ -723,7 +777,7 @@
      */
     editAct: async function (id) {
       var record = _etalonActs().find(function (a) { return String(a.id) === String(id); });
-      if (!record || !record.details || !record.details.actV18) return showToast('❌ Акт не найден');
+      if (!record || !record.details || !record.details.actV18) return showToast(_t('quality.etalon.v18.toast.not_found', '❌ Акт не найден'));
 
       window._rbiEtalonV18SkipDraft = true;
       EtalonV18Actions.openConstructor({
@@ -792,7 +846,7 @@
       await _hydratePhotoPreviews();
 
       var titleEl = document.getElementById('etv18-title-text');
-      if (titleEl) titleEl.innerText = (record.projectName || 'Акт') + ' | ' + record.contractorName;
+      if (titleEl) titleEl.innerText = (record.projectName || _t('quality.etalon.title.act_short', 'Акт')) + ' | ' + record.contractorName;
     }
   };
 

@@ -10,6 +10,8 @@
  * Бизнес-логику не меняет — перенос 1-в-1 из tasks.legacy.js.
  */
 
+import { meetingRichToPlain, meetingRichToSafeHtml } from '../meetings/meetings.protocol.js';
+
 // =========================================================================
 // ПРИВАТНЫЕ ХЕЛПЕРЫ (изоляция от прямых dbPut/STORES/triggerSync)
 // =========================================================================
@@ -281,6 +283,10 @@ function _taskSourceLabel(t) {
 function _findWorkshopCandidates(targetEngineer, allInspections, startOfThisWeek) {
     var startOfLastWeek = new Date(startOfThisWeek);
     startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+    var endOfLastWeek = new Date(startOfThisWeek);
+    endOfLastWeek.setDate(endOfLastWeek.getDate() - 1);
+    var endOfThisWeek = new Date(startOfThisWeek);
+    endOfThisWeek.setDate(endOfThisWeek.getDate() + 6);
     var map = {};
 
     function resolveItemName(c, itemId) {
@@ -303,6 +309,14 @@ function _findWorkshopCandidates(targetEngineer, allInspections, startOfThisWeek
         return item && item.n ? item.n : String(itemId);
     }
 
+    function fmtDate(d) {
+        try {
+            return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+        } catch (_) {
+            return '';
+        }
+    }
+
     (allInspections || []).forEach(function (c) {
         if (!c || c.inspectorName !== targetEngineer || !c.state || !c.contractorName) return;
         var d = new Date(c.date);
@@ -322,11 +336,19 @@ function _findWorkshopCandidates(targetEngineer, allInspections, startOfThisWeek
                     templateKey: c.templateKey || '',
                     templateTitle: c.templateTitle || '',
                     thisWeek: false,
-                    lastWeek: false
+                    lastWeek: false,
+                    thisWeekCount: 0,
+                    lastWeekCount: 0
                 };
             }
-            if (inThis) map[dKey].thisWeek = true;
-            if (inLast) map[dKey].lastWeek = true;
+            if (inThis) {
+                map[dKey].thisWeek = true;
+                map[dKey].thisWeekCount += 1;
+            }
+            if (inLast) {
+                map[dKey].lastWeek = true;
+                map[dKey].lastWeekCount += 1;
+            }
         });
     });
 
@@ -334,6 +356,12 @@ function _findWorkshopCandidates(targetEngineer, allInspections, startOfThisWeek
     Object.keys(map).forEach(function (k) {
         var row = map[k];
         if (!(row.thisWeek && row.lastWeek)) return;
+        row.periodLastLabel = fmtDate(startOfLastWeek) + '–' + fmtDate(endOfLastWeek);
+        row.periodThisLabel = fmtDate(startOfThisWeek) + '–' + fmtDate(endOfThisWeek);
+        row.promptText = 'Дефект «' + row.defectName + '»: '
+            + row.lastWeekCount + ' раз за прошлую неделю (' + row.periodLastLabel + '), '
+            + row.thisWeekCount + ' раз за эту неделю (' + row.periodThisLabel + '). '
+            + 'Проведите обучение на объекте.';
         if (!byContractor[row.contractor]) byContractor[row.contractor] = row;
     });
     return Object.keys(byContractor).map(function (k) { return byContractor[k]; });
@@ -855,7 +883,7 @@ async function _gameGenerateWeeklyPlan(force) {
                     'Воркшоп с бригадой',
                     wc.templateTitle || wc.defectName,
                     wc.contractor,
-                    'Дефект «' + wc.defectName + '» повторяется 2 недели подряд. Проведите обучение на объекте.',
+                    wc.promptText || ('Дефект «' + wc.defectName + '» повторяется 2 недели подряд. Проведите обучение на объекте.'),
                     3,
                     now,
                     wc.templateKey || '',
@@ -864,9 +892,9 @@ async function _gameGenerateWeeklyPlan(force) {
             });
 
             var _knowSvc1 = (_ctx && _ctx.knowledge) || window.RBI.services.knowledge;
-            if (targetEngineer === myName && typeof _knowSvc1.getMagicTwiCandidates === 'function') {
+            if (targetEngineer === myName && _knowSvc1 && typeof _knowSvc1.getMagicTwiCandidates === 'function') {
                 var magicCandidates = _knowSvc1.getMagicTwiCandidates();
-                if (magicCandidates.length > 0) {
+                if (Array.isArray(magicCandidates) && magicCandidates.length > 0) {
                     var existingMagicTask = window.rbi_tasksData.find(function(t){
                         return !t._deleted && _taskBelongsTo(t, targetEngRef) && t.taskType === 'Магия TWI' && t.status === 'pending';
                     });
@@ -1709,7 +1737,33 @@ async function _openTaskAction(taskId) {
         } else if (task.taskType === 'Финал') {
             actionButtonsHtml += '<div class="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">Справка для КС-2</div><button onclick="rbi_generateFinalAcceptance(\'' + task.id + '\')" id="btn-gen-final" class="bg-slate-700 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Анализ (AI)</button></div><div id="final-result-box" class="hidden"><textarea id="final-ai-text" class="w-full h-40 text-[11px] p-2 rounded-lg border border-slate-300 dark:border-slate-600 resize-none outline-none leading-relaxed text-slate-800 dark:text-white bg-white dark:bg-slate-900 shadow-inner mb-2" placeholder="Здесь будет справка..."></textarea><div class="flex gap-2"><button onclick="rbi_printFinalAcceptance(\'' + task.id + '\')" class="w-1/2 bg-white dark:bg-slate-700 text-slate-700 dark:text-white border border-slate-300 dark:border-slate-500 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Скачать</button><button onclick="rbi_saveFinalAndClose(\'' + task.id + '\')" class="w-1/2 bg-slate-800 text-white py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Сохранить</button></div></div></div>';
         } else if (task.taskType === 'Воркшоп') {
-            actionButtonsHtml += '<div class="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 p-3 rounded-xl mb-3"><div class="flex justify-between items-center mb-2"><div class="text-[10px] font-black text-purple-700 uppercase">AI-Сценарий Воркшопа</div><button onclick="window.RBI.services.ai.rbi_generateWorkshop(\'' + task.id + '\')" id="btn-gen-workshop" class="bg-purple-600 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase active:scale-95 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ' + _t('quality.tasks.action.generate', 'Сгенерировать') + '</button></div><textarea id="workshop-ai-scenario" class="hidden w-full min-h-[200px] max-h-[50vh] overflow-y-auto custom-scrollbar text-[11px] p-2 rounded-lg border border-purple-200 resize-none outline-none leading-relaxed text-slate-800 dark:text-white bg-white dark:bg-slate-800 shadow-inner mb-2" placeholder="..."></textarea><div id="workshop-actions" class="hidden"><div class="mb-3"><button onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';" class="w-full bg-white dark:bg-slate-800 border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg> Добавить фото (для отчета)</button><div id="task-photo-preview" class="hidden mt-2 relative w-full h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div></div><div class="flex gap-2"><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'script\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> PDF</button><button onclick="rbi_printWorkshop(\'' + task.id + '\', \'browser\')" class="w-1/2 bg-white text-purple-700 border border-purple-200 py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> ' + _t('quality.tasks.action.print', 'Печать') + '</button><button onclick="rbi_finishWorkshop(\'' + task.id + '\')" class="w-full bg-purple-600 text-white py-3.5 rounded-xl text-[11px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ' + _t('quality.tasks.action.finish', 'Завершить') + '</button></div></div></div>';
+            actionButtonsHtml += ''
+                + '<div class="workshop-ai-block bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 p-3 sm:p-4 rounded-xl mb-3 space-y-3">'
+                +   '<div class="text-[10px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">Разбор дефектов</div>'
+                +   '<button type="button" onclick="window.RBI.services.ai.rbi_generateWorkshop(\'' + task.id + '\')" id="btn-gen-workshop"'
+                +     ' class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3.5 rounded-xl text-[11px] sm:text-[12px] font-black uppercase tracking-widest active:scale-[0.99] shadow-md flex items-center justify-center gap-2">'
+                +     '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>'
+                +     ' ' + _t('quality.tasks.action.generate', 'Сгенерировать')
+                +   '</button>'
+                +   '<div id="workshop-ai-teaser" class="hidden"></div>'
+                +   '<textarea id="workshop-ai-scenario" class="hidden" aria-hidden="true"></textarea>'
+                +   '<div id="workshop-actions" class="hidden space-y-3">'
+                +     '<button type="button" onclick="document.getElementById(\'task-photo-upload\').click(); window.currentTaskPhotoId=\'' + task.id + '\';"'
+                +       ' class="w-full bg-white dark:bg-slate-800 border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2">'
+                +       '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>'
+                +       ' Добавить фото (для отчета)'
+                +     '</button>'
+                +     '<div id="task-photo-preview" class="hidden relative w-full h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div>'
+                +     '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">'
+                +       '<button type="button" onclick="rbi_printWorkshop(\'' + task.id + '\', \'script\')" class="w-full bg-white text-purple-700 border border-purple-200 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5">'
+                +         '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> PDF</button>'
+                +       '<button type="button" onclick="rbi_printWorkshop(\'' + task.id + '\', \'browser\')" class="w-full bg-white text-purple-700 border border-purple-200 py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-sm flex items-center justify-center gap-1.5">'
+                +         '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> ' + _t('quality.tasks.action.print', 'Печать') + '</button>'
+                +       '<button type="button" onclick="rbi_finishWorkshop(\'' + task.id + '\')" class="w-full bg-purple-600 text-white py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 shadow-md flex items-center justify-center gap-1.5">'
+                +         '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> ' + _t('quality.tasks.action.finish', 'Завершить') + '</button>'
+                +     '</div>'
+                +   '</div>'
+                + '</div>';
         } else if (task.taskType === 'Эталон') {
             actionButtonsHtml += '<button onclick="document.getElementById(\'task-details-modal\').style.display=\'none\'; document.body.classList.remove(\'modal-open\'); window.activeTaskId = \'' + task.id + '\'; openEtalonVersionChooserFromTask(\'' + task.id + '\');" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2 mb-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> ' + _t('quality.tasks.action.remove_etalon', 'Снять Эталон') + '</button>';
         } else if (task.taskType === 'Совещание' || task.title.includes('Еженедельный разбор')) {
@@ -1917,7 +1971,7 @@ async function _generateTaskScenario() {
     var promptSystem = 'Ты — старший инженер стройконтроля. Напиши сценарий для жесткой 5-минутной планерки с бригадой (toolbox talk) СТРОГО по виду работ "' + t.templateTitle + '". \n    ЗАПРЕЩЕНО писать про каски, СИЗ и ТБ! Говорим ТОЛЬКО про технологию работ и качество!\n    ЗАПРЕЩЕНО упоминать материалы, операции или инструменты, не относящиеся к виду работ "' + t.templateTitle + '" — весь текст должен быть привязан только к этому виду работ.\n    1. 🎯 Цель: [Обозначить проблему качества].\n    2. ⚠️ Суть ошибки: [Как они косячат технологически].\n    3. 🛠 Как правильно: [Допуски из ГОСТ/СНиП].\n    4. 💡 Итог: Мотивация.';
     try {
         var res = await _callAI([{ role: 'system', content: promptSystem }, { role: 'user', content: 'Подрядчик: ' + t.contractor + '. Работа: ' + t.templateTitle + '. ' + twiContext }], { temperature: 0.3, max_tokens: 500 });
-        txtArea.value = res;
+        txtArea.value = meetingRichToPlain(res);
     } catch (e) { txtArea.value = "❌ Ошибка ИИ."; }
 }
 
@@ -1926,7 +1980,7 @@ function _printTaskScenario() {
     if (!scenario || scenario.includes('⏳')) return showToast("Сгенерируйте сценарий!");
     var t = currentTaskContext;
     var relatedTwi = typeof customTwiCards !== 'undefined' ? _getTwiCards().find(function(c){ return c.checklistKey === t.templateKey; }) : null;
-    var content = '<div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;"><h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase;">Сценарий планерки (Toolbox Talk)</h2><div style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Подрядчик: ' + t.contractor + ' | Вид работ: ' + t.templateTitle + '</div><div style="font-size: 14px; line-height: 1.6; color: #1e293b; white-space: pre-wrap;">' + scenario.replace(/\n/g, '<br>') + '</div></div>';
+    var content = '<div style="background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;"><h2 style="color: #4f46e5; margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase;">Сценарий планерки (Toolbox Talk)</h2><div style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Подрядчик: ' + t.contractor + ' | Вид работ: ' + t.templateTitle + '</div><div style="font-size: 14px; line-height: 1.6; color: #1e293b;">' + meetingRichToSafeHtml(scenario) + '</div></div>';
     if (relatedTwi && relatedTwi.type === 'INSPECTOR') {
         content += '<div style="page-break-before: always; margin-top: 20px;"><h2 style="font-size: 18px; text-align: center; text-transform: uppercase; color: #0f172a; margin-bottom: 20px;">ВИЗУАЛЬНЫЙ СТАНДАРТ: ' + relatedTwi.title + '</h2><table class="no-break" style="width: 100%; border-spacing: 15px 0; border-collapse: separate; table-layout: fixed; margin-left: -15px; margin-bottom: 20px;"><tr><td style="width: 50%; border: 3px solid #22c55e; padding: 10px; border-radius: 12px; text-align: center; background: #f0fdf4; vertical-align: top;"><h2 style="color: #166534; font-size: 14px; text-transform: uppercase;">✅ ЭТАЛОН</h2>' + (relatedTwi.photoGood ? '<img src="' + window.getPhotoSrc(relatedTwi.photoGood) + '" style="width: 100%; height: 250px; object-fit: contain;">' : 'Нет фото') + '</td><td style="width: 50%; border: 3px solid #ef4444; padding: 10px; border-radius: 12px; text-align: center; background: #fef2f2; vertical-align: top;"><h2 style="color: #991b1b; font-size: 14px; text-transform: uppercase;">❌ БРАК</h2>' + (relatedTwi.photoBad ? '<img src="' + window.getPhotoSrc(relatedTwi.photoBad) + '" style="width: 100%; height: 250px; object-fit: contain;">' : 'Нет фото') + '</td></tr></table></div>';
     }

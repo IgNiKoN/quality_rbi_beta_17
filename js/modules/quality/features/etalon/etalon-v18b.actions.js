@@ -9,6 +9,25 @@
 (function () {
   'use strict';
 
+  var DEVIATIONS_DEFAULT_RU = 'Отклонений не выявлено';
+  var REMARKS_REF_RU = 'См. раздел «Замечания и корректировки»';
+
+  function _t(key, fallback, vars) {
+    try {
+      var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+      if (i18n && typeof i18n.t === 'function') {
+        var s = vars ? i18n.t(key, vars) : i18n.t(key);
+        if (s && s !== key) return s;
+      }
+    } catch (e) {}
+    if (vars && fallback) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+        return vars[k] != null ? String(vars[k]) : '';
+      });
+    }
+    return fallback;
+  }
+
   var FRAME_SRC = './js/modules/quality/features/etalon/etalon-v18b.frame.html';
   var _v18b = {
     editingId: null,
@@ -174,6 +193,50 @@
 
   var EtalonV18BActions = {
 
+    _getShellRemountState: function () {
+      return {
+        project: document.getElementById('etv18b-project') ? document.getElementById('etv18b-project').value : '',
+        contractor: document.getElementById('etv18b-contractor') ? document.getElementById('etv18b-contractor').value : '',
+        templateKey: document.getElementById('etv18b-template') ? document.getElementById('etv18b-template').value : '',
+        title: document.getElementById('etv18b-title-text') ? document.getElementById('etv18b-title-text').innerText : ''
+      };
+    },
+
+    _applyShellRemountState: function (state) {
+      if (!state) return;
+      this._populateTemplateSelect(state.templateKey || _v18b.openContext.templateKey || '');
+      if (state.project != null && document.getElementById('etv18b-project')) document.getElementById('etv18b-project').value = state.project;
+      if (state.contractor != null && document.getElementById('etv18b-contractor')) document.getElementById('etv18b-contractor').value = state.contractor;
+      if (state.templateKey && document.getElementById('etv18b-template')) document.getElementById('etv18b-template').value = state.templateKey;
+      var titleEl = document.getElementById('etv18b-title-text');
+      if (titleEl) {
+        if (state.title) {
+          titleEl.innerText = state.title;
+        } else if (state.project) {
+          titleEl.innerText = _t('quality.etalon.v18b.title_with_project', 'Акт-Эталон (Бета 2, ПК) — {project}', { project: state.project });
+        }
+      }
+    },
+
+    _populateTemplateSelect: function (selectedKey) {
+      var tmplSelect = document.getElementById('etv18b-template');
+      if (!tmplSelect) return;
+      var tmplOpts = '<option value="" disabled selected>' + _t('quality.etalon.select.template', '-- Выберите вид работ --') + '</option>';
+      var tmplSvc = (window.RBI && window.RBI.services && window.RBI.services.templates) ? window.RBI.services.templates : null;
+      var st = tmplSvc ? tmplSvc.getSystemTemplates() : (typeof window.SYSTEM_TEMPLATES !== 'undefined' ? window.SYSTEM_TEMPLATES : {});
+      var sysKeys = Object.keys(st).sort(function (a, b) { return st[a].title.localeCompare(st[b].title); });
+      sysKeys.forEach(function (k) { tmplOpts += '<option value="sys_' + k + '">[' + _t('quality.etalon.tag.system', 'СИС') + '] ' + st[k].title + '</option>'; });
+      var ut = tmplSvc ? tmplSvc.getUserTemplates() : (typeof window.userTemplates !== 'undefined' ? window.userTemplates : {});
+      if (ut && typeof ut === 'object') {
+        var userKeys = Object.keys(ut).filter(function (k) {
+          return ut[k] && !ut[k]._deleted && !ut[k].is_deleted;
+        }).sort(function (a, b) { return (ut[a].title || '').localeCompare(ut[b].title || '', 'ru'); });
+        userKeys.forEach(function (k) { tmplOpts += '<option value="user_' + k + '">[' + _t('quality.etalon.tag.user', 'МОЙ') + '] ' + ut[k].title + '</option>'; });
+      }
+      tmplSelect.innerHTML = tmplOpts;
+      if (selectedKey) tmplSelect.value = selectedKey;
+    },
+
     _collectShellDraft: function () {
       if (_v18b.editingId || window._rbiEtalonV18BSkipDraft) return null;
       var projectEl = document.getElementById('etv18b-project');
@@ -210,7 +273,7 @@
      */
     openConstructor: function (prefill) {
       if (!_isDesktop()) {
-        showToast('⚠️ «Акт-Эталон (Бета 2)» доступен только на ПК (ширина экрана ≥ 768px)');
+        showToast(_t('quality.etalon.v18b.toast.desktop_only', '⚠️ «Акт-Эталон (Бета 2)» доступен только на ПК (ширина экрана ≥ 768px)'));
         return;
       }
       var p = prefill || {};
@@ -238,21 +301,7 @@
       document.getElementById('etv18b-contractor').value = p.contractor || '';
 
       var tmplSelect = document.getElementById('etv18b-template');
-      var tmplOpts = '<option value="" disabled selected>-- Выберите вид работ --</option>';
-      var tmplSvc = (window.RBI && window.RBI.services && window.RBI.services.templates) ? window.RBI.services.templates : null;
-      var st = tmplSvc ? tmplSvc.getSystemTemplates() : (typeof window.SYSTEM_TEMPLATES !== 'undefined' ? window.SYSTEM_TEMPLATES : {});
-      var sysKeys = Object.keys(st).sort(function (a, b) { return st[a].title.localeCompare(st[b].title); });
-      sysKeys.forEach(function (k) { tmplOpts += '<option value="sys_' + k + '">[СИС] ' + st[k].title + '</option>'; });
-      // Как в etalon-v18 / классическом конструкторе — пользовательские чек-листы [МОЙ]
-      var ut = tmplSvc ? tmplSvc.getUserTemplates() : (typeof window.userTemplates !== 'undefined' ? window.userTemplates : {});
-      if (ut && typeof ut === 'object') {
-        var userKeys = Object.keys(ut).filter(function (k) {
-          return ut[k] && !ut[k]._deleted && !ut[k].is_deleted;
-        }).sort(function (a, b) { return (ut[a].title || '').localeCompare(ut[b].title || '', 'ru'); });
-        userKeys.forEach(function (k) { tmplOpts += '<option value="user_' + k + '">[МОЙ] ' + ut[k].title + '</option>'; });
-      }
-      tmplSelect.innerHTML = tmplOpts;
-      if (p.templateKey) tmplSelect.value = p.templateKey;
+      EtalonV18BActions._populateTemplateSelect(p.templateKey || '');
 
       if (typeof initSmartInput === 'function') {
         initSmartInput('etv18b-project', 'projectName');
@@ -260,7 +309,7 @@
       }
 
       var titleEl = document.getElementById('etv18b-title-text');
-      if (titleEl) titleEl.innerText = 'Акт-Эталон (Бета 2, ПК) — ' + (p.projectName || 'Новый Акт');
+      if (titleEl) titleEl.innerText = _t('quality.etalon.v18b.title_with_project', 'Акт-Эталон (Бета 2, ПК) — {project}', { project: p.projectName || _t('quality.etalon.title.new_act_short', 'Новый Акт') });
 
       _v18b.openContext = {
         project: p.projectName || (inpProject ? inpProject.value : '') || '',
@@ -275,7 +324,7 @@
       }
 
       if (!skipDraft && FD) {
-        var decision = FD.askRestore(FD.KEYS.ETALON_V18B, 'Акт-Эталон (Бета 2, ПК)');
+        var decision = FD.askRestore(FD.KEYS.ETALON_V18B, _t('quality.etalon.v18b.title', 'Акт-Эталон (Бета 2, ПК)'));
         if (decision === 'continue') {
           var d = FD.get(FD.KEYS.ETALON_V18B);
           if (d && d.payload) {
@@ -312,11 +361,11 @@
      */
     editAct: async function (id) {
       if (!_isDesktop()) {
-        showToast('⚠️ «Акт-Эталон (Бета 2)» доступен только на ПК (ширина экрана ≥ 768px)');
+        showToast(_t('quality.etalon.v18b.toast.desktop_only', '⚠️ «Акт-Эталон (Бета 2)» доступен только на ПК (ширина экрана ≥ 768px)'));
         return;
       }
       var record = _etalonActs().find(function (a) { return String(a.id) === String(id); });
-      if (!record || !record.details || !record.details.actV18b) return showToast('❌ Акт не найден');
+      if (!record || !record.details || !record.details.actV18b) return showToast(_t('quality.etalon.v18b.toast.not_found', '❌ Акт не найден'));
 
       window._rbiEtalonV18BSkipDraft = true;
       EtalonV18BActions.openConstructor({
@@ -339,7 +388,7 @@
       }
 
       var titleEl = document.getElementById('etv18b-title-text');
-      if (titleEl) titleEl.innerText = 'Акт-Эталон (Бета 2, ПК) — ' + record.projectName + ' | ' + record.contractorName;
+      if (titleEl) titleEl.innerText = _t('quality.etalon.v18b.title_with_details', 'Акт-Эталон (Бета 2, ПК) — {project} | {contractor}', { project: record.projectName, contractor: record.contractorName });
     },
 
     /**
@@ -373,10 +422,10 @@
       var fields = data.fields || {};
       var location = fields.location || '';
 
-      if (!selProject || !selContractor || !selTemplateKey) return showToast('⚠️ Укажите Объект, Подрядчика и Вид работ в верхней панели!');
-      if (!location) return showToast('⚠️ Заполните «Место устройства / установки» в разделе акта!');
+      if (!selProject || !selContractor || !selTemplateKey) return showToast(_t('quality.etalon.v18b.toast.required_shell', '⚠️ Укажите Объект, Подрядчика и Вид работ в верхней панели!'));
+      if (!location) return showToast(_t('quality.etalon.v18b.toast.required_location', '⚠️ Заполните «Место устройства / установки» в разделе акта!'));
 
-      showToast('⚙️ Сохранение фото...');
+      showToast(_t('quality.etalon.toast.saving_photo', '⚙️ Сохранение фото...'));
       var photos = await _persistPhotosFromBridge(data.photos);
 
       var actV18b = {
@@ -442,7 +491,7 @@
         source_kind: 'act_v18b',
         details: {
           participants: participantsSummary,
-          deviations: (actV18b.tables && actV18b.tables.remarksTable && actV18b.tables.remarksTable.length) ? 'См. раздел «Замечания и корректировки»' : 'Отклонений не выявлено',
+          deviations: (actV18b.tables && actV18b.tables.remarksTable && actV18b.tables.remarksTable.length) ? REMARKS_REF_RU : DEVIATIONS_DEFAULT_RU,
           elements: [], // Совместимость со старым просмотрщиком/печатью (см. printEtalon) — пусто для act_v18b.
           actV18b: actV18b
         },
@@ -469,7 +518,7 @@
 
       await _storage().put(_storage().stores().ETALON_ACTS, record);
       _v18b.editingId = etalonId;
-      showToast('✅ Акт-Эталон (Бета 2) успешно сохранён!');
+      showToast(_t('quality.etalon.v18b.toast.saved', '✅ Акт-Эталон (Бета 2) успешно сохранён!'));
       localStorage.setItem('rbi_cloud_dirty', '1');
       setTimeout(function () { _triggerSync('silent'); }, 800);
 

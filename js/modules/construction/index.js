@@ -4,6 +4,10 @@
  * Бизнес-логика — в construction.module.js.
  */
 
+import '../../dist/rbi-construction-defects.js';
+import '../../dist/rbi-construction-acceptance.js';
+import '../../dist/rbi-construction-units.js';
+
 import { ConstructionModule } from './construction.module.js';
 
 export async function init(ctx) {

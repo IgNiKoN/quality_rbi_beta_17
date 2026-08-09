@@ -209,7 +209,7 @@ import { AuditActions } from './audit.actions.js';
     // =====================================================================
     renderMarkup: function () {
       return `
-        <div id="tab-audit" class="view-section active">
+        <div id="tab-audit" class="view-section">
             <!-- Пустое состояние (Оригинальный дизайн, компактная версия) -->
             <div id="empty-checklist-state"
                 class="py-3 ios-panel border border-slate-200/50 dark:border-slate-700/50 rounded-[22px] shadow-sm mb-3 mt-1 overflow-hidden">
@@ -390,11 +390,28 @@ import { AuditActions } from './audit.actions.js';
     // РЕНДЕР ЧЕКЛИСТА
     // Перенесено из audit.legacy.js (было в app.js, строка 2866).
     // =====================================================================
+    /**
+     * Welcome vs чек-лист: после route-teardown remount даёт стартовый экран
+     * с display по умолчанию, а render() раньше только заполнял #audit-items —
+     * на ПК получался «старт поверх чек-листа». Единая точка видимости.
+     */
+    syncPaneVisibility: function () {
+      var has = !!(AuditState.currentTemplateKey && AuditState.currentTemplateKey !== 'HOME');
+      var empty = document.getElementById('empty-checklist-state');
+      var items = document.getElementById('audit-items');
+      var actions = document.getElementById('audit-actions');
+      if (empty) empty.style.display = has ? 'none' : 'block';
+      if (items) items.style.display = has ? 'block' : 'none';
+      if (actions) actions.style.display = has ? 'grid' : 'none';
+    },
+
     render: function () {
       if (!AuditState.currentTemplateKey) return;
       var root = document.getElementById('audit-items');
       var navRoot = document.getElementById('audit-group-nav');
       if (!root) return;
+
+      AuditRender.syncPaneVisibility();
 
       var html = ""; var navHtml = "";
 
@@ -905,12 +922,32 @@ import { AuditActions } from './audit.actions.js';
   }());
 
   window.ensureAuditMarkup = function () {
+    var tabBefore = document.getElementById('tab-audit');
+    var hadMarker = !!(tabBefore && tabBefore.querySelector('#empty-checklist-state'));
+    var ok;
     if (typeof window.rbiEnsureTabMarkup === 'function') {
-      return window.rbiEnsureTabMarkup('tab-audit', function () {
+      ok = window.rbiEnsureTabMarkup('tab-audit', function () {
         return AuditRender.renderMarkup();
       }, '#empty-checklist-state');
+    } else {
+      ok = !!document.getElementById('tab-audit');
     }
-    return !!document.getElementById('tab-audit');
+    // Route teardown очищает #tab-audit; remount даёт пустой <select>.
+    // Первый mount заполняет init/bootstrap:selectorReady — здесь только remount.
+    if (ok && !hadMarker) {
+      try {
+        if (typeof AuditRender.renderSelector === 'function') AuditRender.renderSelector();
+        if (AuditState.currentTemplateKey && typeof AuditRender.render === 'function') {
+          AuditRender.render();
+        } else if (typeof AuditRender.syncPaneVisibility === 'function') {
+          AuditRender.syncPaneVisibility();
+        }
+      } catch (_) { /* ignore */ }
+    } else if (ok && typeof AuditRender.syncPaneVisibility === 'function') {
+      // Каркас уже был, но visibility могла разъехаться с session (desktop remount).
+      try { AuditRender.syncPaneVisibility(); } catch (_) { /* ignore */ }
+    }
+    return ok;
   };
 
   // =========================================================================

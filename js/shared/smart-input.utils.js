@@ -72,7 +72,11 @@ function updateLocationFromStructured() {
     }
 
     locHidden.value = parts.join(', ');
-    window.scheduleSessionSave();
+    // scheduleSessionSave живёт в audit.actions — появляется после loadModule('quality').
+    // На DCL (settings → object-directory.initUI) функции ещё нет — no-op, не error.
+    if (typeof window.scheduleSessionSave === 'function') {
+        window.scheduleSessionSave();
+    }
     document.dispatchEvent(new CustomEvent('sharedSmartInput:locationUpdated'));
     setTimeout(updateBodyPadding, 50);
 }

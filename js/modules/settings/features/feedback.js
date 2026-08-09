@@ -475,21 +475,22 @@ async function rbi_saveEditedFeedback(id) {
 }
 
 function _renderDevFeedbackCard(f) {
+    // Theme tokens: rbi-dark-v3 remaps text-slate-800→light, but bg-white stays white → unreadable.
     const textDisplay = f.normalized_text
-        ? `<div class="text-[11px] bg-slate-50 border border-slate-200 p-2 rounded mb-2 font-medium">${f.normalized_text.replace(/\n/g, '<br>')}</div><details><summary class="text-[9px] text-slate-400 cursor-pointer">Оригинал</summary><div class="text-[10px] italic text-slate-500 mt-1">${_escAttr(f.text)}</div></details>`
-        : `<div class="text-[11px] bg-slate-50 border border-slate-200 p-2 rounded mb-2 italic">«${_escAttr(f.text)}»</div>`;
+        ? `<div class="text-[11px] text-[var(--text-main)] bg-[var(--hover-bg)] border border-[var(--card-border)] p-2 rounded mb-2 font-medium">${f.normalized_text.replace(/\n/g, '<br>')}</div><details><summary class="text-[9px] text-[var(--text-muted)] cursor-pointer">Оригинал</summary><div class="text-[10px] italic text-[var(--text-muted)] mt-1">${_escAttr(f.text)}</div></details>`
+        : `<div class="text-[11px] text-[var(--text-main)] bg-[var(--hover-bg)] border border-[var(--card-border)] p-2 rounded mb-2 italic">«${_escAttr(f.text)}»</div>`;
 
     return `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-3" data-feedback-id="${f.id}">
-            <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
-                <div class="text-[11px] font-black uppercase text-slate-800">${_escAttr(f.author)} <span class="text-[9px] font-normal text-slate-400 normal-case ml-2">${new Date(f.createdAt).toLocaleDateString('ru-RU')}</span></div>
-                <div class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">❤️ ${f.likes?.length || 0}</div>
+        <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-4 shadow-sm mb-3" data-feedback-id="${f.id}">
+            <div class="flex justify-between items-center mb-2 border-b border-[var(--card-border)] pb-2">
+                <div class="text-[11px] font-black uppercase text-[var(--text-main)]">${_escAttr(f.author)} <span class="text-[9px] font-normal text-[var(--text-muted)] normal-case ml-2">${new Date(f.createdAt).toLocaleDateString('ru-RU')}</span></div>
+                <div class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800">❤️ ${f.likes?.length || 0}</div>
             </div>
             ${textDisplay}
             
-            <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="mt-3 pt-3 border-t border-[var(--card-border)] grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Статус</label>
+                    <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Статус</label>
                     <select class="input-base text-[11px] !py-1.5 transition-colors duration-300"
                         onfocus="rbi_lockFeedbackUi()"
                         onchange="rbi_updateFeedbackStatus('${f.id}', this.value, this)">
@@ -500,7 +501,7 @@ function _renderDevFeedbackCard(f) {
                     </select>
                 </div>
                 <div>
-                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Ответ разработчика</label>
+                    <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Ответ разработчика</label>
                     <div class="flex gap-1">
                         <input type="text" id="dev-note-${f.id}" class="input-base text-[11px] !py-1.5"
                             placeholder="Напишите ответ..."
@@ -510,10 +511,10 @@ function _renderDevFeedbackCard(f) {
                             onkeydown="if(event.key==='Enter'){event.preventDefault();rbi_updateFeedbackNotes('${f.id}', this.nextElementSibling);}">
                         <button type="button" onclick="rbi_updateFeedbackNotes('${f.id}', this)" class="bg-emerald-600 text-white px-3 rounded-lg text-[10px] font-bold active:scale-95 shadow-sm transition-colors duration-300 w-10 shrink-0">OK</button>
                     </div>
-                    <div class="text-[8px] text-slate-400 font-medium mt-1">Сохраняется по OK / Enter / уходу из поля. Список не прыгает, пока пишете.</div>
+                    <div class="text-[8px] text-[var(--text-muted)] font-medium mt-1">Сохраняется по OK / Enter / уходу из поля. Список не прыгает, пока пишете.</div>
                 </div>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-100 flex justify-end">
+            <div class="mt-3 pt-2 border-t border-[var(--card-border)] flex justify-end">
                 <button onclick="rbi_deleteFeedback('${f.id}')" class="text-[9px] font-bold text-red-500 hover:text-red-700 uppercase flex items-center gap-1 active:scale-95"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Удалить из бэклога</button>
             </div>
         </div>`;
@@ -538,12 +539,12 @@ function rbi_renderDevFeedbackTab() {
         roadmapContainer.innerHTML = `<div class="text-[10px] text-slate-400 italic text-center">Опубликованных планов нет</div>`;
     } else {
         roadmapContainer.innerHTML = roadmaps.map(rm => `
-            <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-xl flex justify-between items-center shadow-sm">
+            <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-3 rounded-xl flex justify-between items-center shadow-sm">
                 <div class="flex-1 min-w-0 pr-3">
-                    <div class="text-[12px] font-bold text-indigo-900 leading-tight">${_escAttr(rm.text)}</div>
-                    <div class="text-[9px] font-black text-indigo-500 uppercase mt-1">❤️ Лайков от команды: ${rm.likes?.length || 0}</div>
+                    <div class="text-[12px] font-bold text-indigo-900 dark:text-indigo-200 leading-tight">${_escAttr(rm.text)}</div>
+                    <div class="text-[9px] font-black text-indigo-500 dark:text-indigo-300 uppercase mt-1">❤️ Лайков от команды: ${rm.likes?.length || 0}</div>
                 </div>
-                <button onclick="rbi_deleteRoadmapItem('${rm.id}')" class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-red-500 font-black shadow-sm active:scale-90 border border-indigo-100 shrink-0">✕</button>
+                <button onclick="rbi_deleteRoadmapItem('${rm.id}')" class="w-8 h-8 bg-[var(--card-bg)] rounded-full flex items-center justify-center text-red-500 font-black shadow-sm active:scale-90 border border-indigo-100 dark:border-indigo-800 shrink-0">✕</button>
             </div>
         `).join('');
     }
@@ -551,7 +552,7 @@ function rbi_renderDevFeedbackTab() {
     // 2. Бэклог по группам статусов
     const feedback = allData.filter(f => !f.is_roadmap);
     if (feedback.length === 0) {
-        listContainer.innerHTML = `<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-300 rounded-xl bg-white">Бэклог пуст</div>`;
+        listContainer.innerHTML = `<div class="text-center py-6 text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-widest border border-dashed border-[var(--card-border)] rounded-xl bg-[var(--card-bg)]">Бэклог пуст</div>`;
         return;
     }
 

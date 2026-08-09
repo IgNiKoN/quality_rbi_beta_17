@@ -13,7 +13,7 @@
     // ниже — явное решение пользователя «не ограничивать роли сейчас» (2026-07-13,
     // §29 п.10в), не временная заглушка. Пересечение с company.enabledModules
     // остаётся на стороне user-context.service.js.
-    var BUSINESS_MODULE_IDS = ['quality', 'construction'];
+    var BUSINESS_MODULE_IDS = ['quality', 'construction', 'knowledge'];
 
     // === МАТРИЦА ПРАВ ДОСТУПА (DEFAULT, неизменяемая) ===
     // dataScope — декларативное правило видимости данных по роли (§29 п.10 «в»):
@@ -22,8 +22,9 @@
     //   'ownContractor'         — только записи назначенного подрядчика (+ фильтр по проекту, если назначен);
     //   'ownProjectOrOwnRecords' — назначенные проекты, либо (если проектов нет) только свои записи без проекта;
     //   'none'                  — 0 доступа к чужим данным.
-    // Оверрайды админа (§23 Блок 1) живут в appSettings.roleMatrixOverrides
-    // и мержатся поверх DEFAULT при чтении — ключи ролей не добавляются/не удаляются.
+    // Оверрайды (§23 Блок 2): company SoT (RBI.services.company) → fallback
+    // appSettings.roleMatrixOverrides → DEFAULT. Ключи ролей не add/remove/rename.
+    // Persist — sparse partial отличий от DEFAULT (не полная копия матрицы).
     const ROLE_MATRIX = {
         guest: {
             canCreate: false, canPush: false, canDeleteOwn: false, canDeleteAll: false,
@@ -100,8 +101,9 @@
     var DATA_SCOPE_VALUES = {
         all: 1, ownProject: 1, ownContractor: 1, ownProjectOrOwnRecords: 1, none: 1
     };
-    var MODULE_ID_SET = { quality: 1, construction: 1 };
+    var MODULE_ID_SET = { quality: 1, construction: 1, knowledge: 1 };
     var OVERRIDES_SETTINGS_KEY = 'roleMatrixOverrides';
+    var SMOKE_MARKER = '__SMOKE_TEST__';
 
     // COMPANY_ROLE_MATRICES — обёртка DEFAULT ROLE_MATRIX под ключ единственной существующей
     // компании 'rbi' (§29 п.10б). DEFAULT не мутируется оверрайдами.
@@ -111,17 +113,39 @@
         return COMPANY_ROLE_MATRICES[companyId] || COMPANY_ROLE_MATRICES.rbi;
     }
 
-    function _readRawOverrides() {
+    function _readLocalOverrides() {
         if (typeof appSettings === 'undefined' || !appSettings) return {};
         var raw = appSettings[OVERRIDES_SETTINGS_KEY];
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
         return raw;
     }
 
+    function _companySvc() {
+        return (window.RBI && window.RBI.services && window.RBI.services.company) || null;
+    }
+
+    /**
+     * Company SoT побеждает local только если есть хотя бы один roleKey.
+     * Иначе — local prefs / {} (DEFAULT при merge).
+     */
+    function _readRawOverrides() {
+        var company = _companySvc();
+        if (company && typeof company.hasCompanyRoleMatrixOverrides === 'function' &&
+            company.hasCompanyRoleMatrixOverrides() &&
+            typeof company.getRoleMatrixOverrides === 'function') {
+            return company.getRoleMatrixOverrides() || {};
+        }
+        return _readLocalOverrides();
+    }
+
     function _cloneOverrides(src) {
         var out = {};
         var raw = src || {};
         Object.keys(raw).forEach(function (roleKey) {
+            if (roleKey === SMOKE_MARKER) {
+                out[SMOKE_MARKER] = raw[SMOKE_MARKER];
+                return;
+            }
             if (!ROLE_MATRIX[roleKey]) return;
             var entry = raw[roleKey];
             if (!entry || typeof entry !== 'object') return;
@@ -131,6 +155,45 @@
             }
         });
         return out;
+    }
+
+    function _modulesEqual(a, b) {
+        var aa = Array.isArray(a) ? a.slice().map(String).sort() : [];
+        var bb = Array.isArray(b) ? b.slice().map(String).sort() : [];
+        if (aa.length !== bb.length) return false;
+        for (var i = 0; i < aa.length; i++) {
+            if (aa[i] !== bb[i]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Sparse diff: только поля, отличающиеся от DEFAULT ROLE_MATRIX[roleKey].
+     * Не пишет полную копию DEFAULT «на всякий случай».
+     */
+    function _diffFromDefault(roleKey, partial) {
+        var base = ROLE_MATRIX[roleKey];
+        if (!base) return {};
+        var cleaned = _sanitizePartial(partial);
+        var sparse = {};
+        BOOL_PERM_KEYS.forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(cleaned, k) && cleaned[k] !== !!base[k]) {
+                sparse[k] = cleaned[k];
+            }
+        });
+        if (Object.prototype.hasOwnProperty.call(cleaned, 'dataScope') &&
+            cleaned.dataScope !== base.dataScope) {
+            sparse.dataScope = cleaned.dataScope;
+        }
+        if (Object.prototype.hasOwnProperty.call(cleaned, 'label') &&
+            String(cleaned.label) !== String(base.label)) {
+            sparse.label = cleaned.label;
+        }
+        if (Object.prototype.hasOwnProperty.call(cleaned, 'allowedModules') &&
+            !_modulesEqual(cleaned.allowedModules, base.allowedModules)) {
+            sparse.allowedModules = cleaned.allowedModules.slice();
+        }
+        return sparse;
     }
 
     function _sanitizePartial(partial) {
@@ -195,6 +258,15 @@
 
     function _persistOverrides(nextOverrides) {
         var safe = _cloneOverrides(nextOverrides);
+        var company = _companySvc();
+        // Company SoT + local mirror (offline UI) + dirty для sync push.
+        if (company && typeof company.setRoleMatrixOverrides === 'function') {
+            return company.setRoleMatrixOverrides(safe).then(function (res) {
+                if (res && res.error) throw res.error;
+                return true;
+            });
+        }
+        // Fallback без company.service (не должно случаться в runtime).
         if (window.RBI && window.RBI.services && window.RBI.services.settings &&
             typeof window.RBI.services.settings.set === 'function') {
             return window.RBI.services.settings.set(OVERRIDES_SETTINGS_KEY, safe);
@@ -271,7 +343,8 @@
             return _cloneOverrides(_readRawOverrides());
         },
 
-        // 3d. Установить partial-оверрайд роли. Нельзя добавить/удалить/переименовать ключ роли.
+        // 3d. Установить sparse-оверрайд роли (только отличия от DEFAULT).
+        // Нельзя добавить/удалить/переименовать ключ роли. Persist → company SoT.
         setRoleOverrides(roleKey, partial) {
             if (!ROLE_MATRIX[roleKey]) {
                 console.warn('[permission.service] setRoleOverrides: unknown role', roleKey);
@@ -280,9 +353,13 @@
             if (!_callerCanManageRoles()) {
                 return Promise.resolve({ error: 'forbidden' });
             }
-            const cleaned = _sanitizePartial(partial);
+            const sparse = _diffFromDefault(roleKey, partial);
             const next = _cloneOverrides(_readRawOverrides());
-            next[roleKey] = Object.assign({}, next[roleKey] || {}, cleaned);
+            if (Object.keys(sparse).length === 0) {
+                delete next[roleKey];
+            } else {
+                next[roleKey] = sparse;
+            }
             return Promise.resolve(_persistOverrides(next)).then(function () {
                 return { error: null, overrides: _cloneOverrides(_readRawOverrides()) };
             }).catch(function (e) {
@@ -310,10 +387,15 @@
             });
         },
 
-        // 3f. Явная подгрузка оверрайдов из appSettings (после load settings / sync pull).
-        // Чтение всегда live из appSettings — метод для симметрии API / будущих подписчиков.
+        // 3f. Явная перечитка оверрайдов (company SoT / local). Симметрия API.
         loadRoleOverrides() {
             return this.getRoleOverrides();
+        },
+
+        // 3g. Эталон DEFAULT без оверрайдов (для smoke / diff UI). Не мутировать.
+        getDefaultRoleEntry(roleKey) {
+            var base = ROLE_MATRIX[roleKey] || ROLE_MATRIX.guest;
+            return _mergeEntry(base, null);
         },
 
         // 4. ГРУППОВЫЕ ПРОВЕРКИ
@@ -670,6 +752,10 @@
 
         loadRoleOverrides: function () {
             return permissions.loadRoleOverrides();
+        },
+
+        getDefaultRoleEntry: function (roleKey) {
+            return permissions.getDefaultRoleEntry(roleKey);
         },
 
         isAdmin: function () {

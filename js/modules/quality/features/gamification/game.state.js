@@ -21,6 +21,65 @@
 
 import { calculateImpactScore, GameActions } from './game.actions.js';
 
+
+function _t(key, fallback, vars) {
+  try {
+    var i18n = window.RBI && window.RBI.services && window.RBI.services.i18n;
+    if (i18n && typeof i18n.t === 'function') {
+      var s = vars ? i18n.t(key, vars) : i18n.t(key);
+      if (s && s !== key) return s;
+    }
+  } catch (e) {}
+  if (vars && fallback) {
+    return String(fallback).replace(/\{(\w+)\}/g, function (_m, k) {
+      return vars[k] != null ? String(vars[k]) : '';
+    });
+  }
+  return fallback;
+}
+
+function _tSkill(group) {
+  var map = {
+    'Партнёрство': 'partnership',
+    'Оформление': 'documentation',
+    'Обучение': 'training',
+    'Объективность': 'objectivity',
+    'Охват': 'coverage',
+    'Редкие': 'rare'
+  };
+  var k = map[group];
+  return k ? _t('quality.game.skill.' + k, group) : group;
+}
+
+function _tTrend(trend) {
+  var map = {
+    'Сбор базы (нужно 10)': 'quality.game.trend.collecting',
+    'Ошибка расчета': 'quality.game.trend.error',
+    'Стабильно': 'quality.game.trend.stable',
+    'Улучшение': 'quality.game.trend.improve',
+    'Ухудшение': 'quality.game.trend.worsen',
+    'Недостаточно данных': 'quality.game.trend.insufficient'
+  };
+  var k = map[trend];
+  return k ? _t(k, trend) : trend;
+}
+
+function _tCompName(c) {
+  if (!c) return '';
+  return _t('quality.game.comp.' + c.id + '.name', c.name);
+}
+
+function _tCompDesc(c) {
+  if (!c) return '';
+  return _t('quality.game.comp.' + c.id + '.desc', c.desc);
+}
+
+function _tLevelName(grade) {
+  if (!grade) return '';
+  return _t('quality.game.level.' + grade.level, grade.name);
+}
+
+
 function _getSetting(key) {
   if (GameActions._ctx && GameActions._ctx.settings) return GameActions._ctx.settings.get(key);
   return window.RBI.services.settings.get(key);
@@ -500,11 +559,13 @@ function getSmartQuest(profile) {
   });
 
   if (closestBadge) {
-    return `<div class="text-[10px] sm:text-[11px] lg:text-[13px] font-black text-indigo-900 dark:text-indigo-200 mb-0.5 lg:mb-1 leading-tight">Прокачайте «${closestBadge.name}» (${Math.round(maxRatio * 100)}%)</div>
-              <div class="text-[9px] sm:text-[10px] lg:text-[11px] text-indigo-700 dark:text-indigo-400 leading-snug"><b>Цель:</b> ${closestBadge.desc}</div>`;
+    var _qName = _tCompName(closestBadge);
+    var _qPct = Math.round(maxRatio * 100);
+    return `<div class="text-[10px] sm:text-[11px] lg:text-[13px] font-black text-indigo-900 dark:text-indigo-200 mb-0.5 lg:mb-1 leading-tight">${_t('quality.game.quest.level_up', 'Прокачайте «{name}» ({pct}%)', { name: _qName, pct: _qPct })}</div>
+              <div class="text-[9px] sm:text-[10px] lg:text-[11px] text-indigo-700 dark:text-indigo-400 leading-snug"><b>${_t('quality.game.quest.goal', 'Цель:')}</b> ${_tCompDesc(closestBadge)}</div>`;
   } else {
-    return `<div class="text-[10px] sm:text-[11px] lg:text-[13px] font-black text-indigo-900 dark:text-indigo-200 mb-0.5 lg:mb-1 leading-tight">Профиль сбалансирован</div>
-              <div class="text-[9px] sm:text-[10px] lg:text-[11px] text-indigo-700 dark:text-indigo-400 leading-snug">Инспектируйте и применяйте TWI для роста XP.</div>`;
+    return `<div class="text-[10px] sm:text-[11px] lg:text-[13px] font-black text-indigo-900 dark:text-indigo-200 mb-0.5 lg:mb-1 leading-tight">${_t('quality.game.quest.balanced', 'Профиль сбалансирован')}</div>
+              <div class="text-[9px] sm:text-[10px] lg:text-[11px] text-indigo-700 dark:text-indigo-400 leading-snug">${_t('quality.game.quest.balanced_hint', 'Инспектируйте и применяйте TWI для роста XP.')}</div>`;
   }
 }
 
