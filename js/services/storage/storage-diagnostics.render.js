@@ -46,18 +46,13 @@ async function _rbiMeasureLocalFileCache() {
         reportPdfCount: 0,
         ok: false
     };
-    if (typeof dbGetAll !== 'function' || typeof STORES === 'undefined') return empty;
+    if (typeof dbForEachCursor !== 'function' || typeof STORES === 'undefined') return empty;
 
     try {
-        const localFiles = await dbGetAll(STORES.PHOTOS) || [];
-        const reports = (STORES.REPORTS)
-            ? (await dbGetAll(STORES.REPORTS) || [])
-            : [];
-
         const out = { ...empty, ok: true };
 
-        for (const f of localFiles) {
-            if (!f || !f.id || !f.data) continue;
+        await dbForEachCursor(STORES.PHOTOS, (f) => {
+            if (!f || !f.id || !f.data) return;
             out.totalFiles++;
             const id = String(f.id || '');
             const sizeBytes = _rbiPayloadBytes(f.data, f);
@@ -75,16 +70,18 @@ async function _rbiMeasureLocalFileCache() {
                 out.localOnlyFiles++;
                 out.localOnlyBytes += sizeBytes;
             }
-        }
+        });
 
-        for (const rep of reports) {
-            if (!rep || !rep.file_blob) continue;
-            const reportSize = _rbiPayloadBytes(rep.file_blob, rep);
-            out.reportPdfCount++;
-            out.reportPdfBytes += reportSize;
-            out.totalFiles++;
-            out.totalBytes += reportSize;
-            out.pdfFiles++;
+        if (STORES.REPORTS) {
+            await dbForEachCursor(STORES.REPORTS, (rep) => {
+                if (!rep || !rep.file_blob) return;
+                const reportSize = _rbiPayloadBytes(rep.file_blob, rep);
+                out.reportPdfCount++;
+                out.reportPdfBytes += reportSize;
+                out.totalFiles++;
+                out.totalBytes += reportSize;
+                out.pdfFiles++;
+            });
         }
         return out;
     } catch (_) {

@@ -115,18 +115,16 @@ window.RbiStorageManager = {
         let realBytes = 0;
         try {
             if (detailed) {
-                const files = await dbGetAll(STORES.PHOTOS);
-                if (files) {
-                    files.forEach(f => {
-                        if (!f || !f.data) return;
-                        realBytes += this.payloadBytes(f.data, f);
+                await dbForEachCursor(STORES.PHOTOS, (f) => {
+                    if (!f || !f.data) return;
+                    realBytes += this.payloadBytes(f.data, f);
+                });
+                if (STORES.REPORTS) {
+                    await dbForEachCursor(STORES.REPORTS, (rep) => {
+                        if (!rep || !rep.file_blob) return;
+                        realBytes += this.payloadBytes(rep.file_blob, rep);
                     });
                 }
-                const reports = STORES.REPORTS ? (await dbGetAll(STORES.REPORTS) || []) : [];
-                reports.forEach(rep => {
-                    if (!rep || !rep.file_blob) return;
-                    realBytes += this.payloadBytes(rep.file_blob, rep);
-                });
             } else if (STORES.FILE_REGISTRY) {
                 const registry = await dbGetAll(STORES.FILE_REGISTRY) || [];
                 registry.forEach((r) => {
@@ -218,8 +216,6 @@ window.RbiStorageManager = {
 
     async getRecoverableCacheStats() {
         try {
-            const files = await dbGetAll(STORES.PHOTOS) || [];
-            const reports = await dbGetAll(STORES.REPORTS) || [];
             const registry = STORES.FILE_REGISTRY ? (await dbGetAll(STORES.FILE_REGISTRY) || []) : [];
 
             const registryByUrl = new Map();
@@ -246,8 +242,8 @@ window.RbiStorageManager = {
             let imageFiles = 0;
             let pdfFiles = 0;
 
-            for (const file of files) {
-                if (!file || !file.id || !file.data) continue;
+            await dbForEachCursor(STORES.PHOTOS, (file) => {
+                if (!file || !file.id || !file.data) return;
 
                 totalFiles++;
 
@@ -301,10 +297,10 @@ window.RbiStorageManager = {
                     otherFiles++;
                     otherBytes += sizeBytes;
                 }
-            }
+            });
             // RBI NEW: учитываем PDF-отчеты, которые хранятся не в app_photos, а в app_reports.file_blob
-            for (const rep of reports) {
-                if (!rep || !rep.file_blob) continue;
+            await dbForEachCursor(STORES.REPORTS, (rep) => {
+                if (!rep || !rep.file_blob) return;
 
                 const reportSize = this.payloadBytes(rep.file_blob, rep);
 
@@ -320,7 +316,7 @@ window.RbiStorageManager = {
                     otherFiles++;
                     otherBytes += reportSize;
                 }
-            }
+            });
             return {
                 totalFiles,
                 totalBytes,
@@ -505,11 +501,22 @@ window.RbiStorageManager = {
             return 0;
         }
     },
+    /** localStorage-ключ для guard'а backfillLocalFileRegistryCache — число записей PHOTOS
+     *  на момент последнего успешного полного прохода (см. ниже). */
+    _BACKFILL_PHOTOS_COUNT_KEY: 'rbi_file_registry_backfill_photos_count',
+
     async backfillLocalFileRegistryCache() {
         try {
             if (!STORES.FILE_REGISTRY || !STORES.PHOTOS) return 0;
 
-            const files = await dbGetAll(STORES.PHOTOS) || [];
+            const currentPhotosCount = await dbCount(STORES.PHOTOS);
+            const lastPhotosCountRaw = localStorage.getItem(this._BACKFILL_PHOTOS_COUNT_KEY);
+            const lastPhotosCount = lastPhotosCountRaw !== null ? parseInt(lastPhotosCountRaw, 10) : NaN;
+
+            if (Number.isFinite(lastPhotosCount) && lastPhotosCount === currentPhotosCount) {
+                return 0;
+            }
+
             const registry = await dbGetAll(STORES.FILE_REGISTRY) || [];
 
             const existingKeys = new Set();
@@ -521,11 +528,15 @@ window.RbiStorageManager = {
                 if (r.localKey) existingKeys.add(String(r.localKey));
             });
 
-            let createdCount = 0;
             const now = new Date().toISOString();
 
-            for (const file of files) {
-                if (!file || !file.id || !file.data) continue;
+            // Лёгкие дескрипторы (без ссылки на file.data) — сама запись в
+            // FILE_REGISTRY (dbPut) выполняется после закрытия курсора, см.
+            // предупреждение в dbForEachCursor (storage-db.core.js).
+            const toCreate = [];
+
+            await dbForEachCursor(STORES.PHOTOS, (file) => {
+                if (!file || !file.id || !file.data) return;
 
                 const id = String(file.id || '');
                 const sourceUrl =
@@ -544,7 +555,7 @@ window.RbiStorageManager = {
                 const localKey = id;
                 const lookupKey = publicUrl || localKey;
 
-                if (!lookupKey || existingKeys.has(lookupKey)) continue;
+                if (!lookupKey || existingKeys.has(lookupKey)) return;
 
                 const sizeBytes =
                     file.sizeBytes ||
@@ -562,46 +573,67 @@ window.RbiStorageManager = {
                     file.entity_type ||
                     this.guessEntityTypeByUrl(publicUrl || localKey);
 
-                const isCloudBacked = !!publicUrl;
+                toCreate.push({
+                    publicUrl,
+                    localKey,
+                    sizeBytes,
+                    mimeType,
+                    entityType,
+                    entityId: file.entityId || file.entity_id || '',
+                    fieldPath: file.fieldPath || file.field_path || '',
+                    originalName: file.originalName || file.original_name || '',
+                    uploadedBy: file.uploadedBy || file.uploaded_by || window.syncConfig?.engineerName || '',
+                    createdAt: file.created_at || file.createdAt || now,
+                    cachedAt: file.cached_at || file.cachedAt || file.created_at || file.createdAt || now,
+                    lastAccessedAt: file.last_accessed_at || file.lastAccessedAt || file.cached_at || file.cachedAt || file.created_at || file.createdAt || now
+                });
+
+                existingKeys.add(lookupKey);
+            });
+
+            let createdCount = 0;
+
+            for (const item of toCreate) {
+                const isCloudBacked = !!item.publicUrl;
 
                 await dbPut(STORES.FILE_REGISTRY, {
                     id: 'localreg_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 100000),
 
                     project_code: window.syncConfig?.projectCode || 'LOCAL',
 
-                    entity_type: entityType,
-                    entityType: entityType,
+                    entity_type: item.entityType,
+                    entityType: item.entityType,
 
-                    entity_id: file.entityId || file.entity_id || '',
-                    entityId: file.entityId || file.entity_id || '',
+                    entity_id: item.entityId,
+                    entityId: item.entityId,
 
-                    field_path: file.fieldPath || file.field_path || '',
-                    fieldPath: file.fieldPath || file.field_path || '',
+                    field_path: item.fieldPath,
+                    fieldPath: item.fieldPath,
 
                     bucket: '',
                     storage_path: '',
                     storagePath: '',
 
-                    public_url: publicUrl,
-                    publicUrl: publicUrl,
+                    public_url: item.publicUrl,
+                    publicUrl: item.publicUrl,
 
-                    local_key: localKey,
-                    localKey: localKey,
+                    local_key: item.localKey,
+                    localKey: item.localKey,
 
-                    original_name: file.originalName || file.original_name || '',
-                    originalName: file.originalName || file.original_name || '',
+                    original_name: item.originalName,
+                    originalName: item.originalName,
 
-                    mime_type: mimeType,
-                    mimeType: mimeType,
+                    mime_type: item.mimeType,
+                    mimeType: item.mimeType,
 
-                    size_bytes: sizeBytes,
-                    sizeBytes: sizeBytes,
+                    size_bytes: item.sizeBytes,
+                    sizeBytes: item.sizeBytes,
 
-                    uploaded_by: file.uploadedBy || file.uploaded_by || window.syncConfig?.engineerName || '',
-                    uploadedBy: file.uploadedBy || file.uploaded_by || window.syncConfig?.engineerName || '',
+                    uploaded_by: item.uploadedBy,
+                    uploadedBy: item.uploadedBy,
 
-                    uploaded_at: file.created_at || file.createdAt || now,
-                    uploadedAt: file.created_at || file.createdAt || now,
+                    uploaded_at: item.createdAt,
+                    uploadedAt: item.createdAt,
 
                     cache_policy: 'auto',
                     cachePolicy: 'auto',
@@ -612,12 +644,12 @@ window.RbiStorageManager = {
                     is_deleted: false,
                     isDeleted: false,
 
-                    last_local_cached_at: file.cached_at || file.cachedAt || file.created_at || file.createdAt || now,
-                    lastLocalCachedAt: file.cached_at || file.cachedAt || file.created_at || file.createdAt || now,
+                    last_local_cached_at: item.cachedAt,
+                    lastLocalCachedAt: item.cachedAt,
 
                     // access ≠ cache: не подставляем now, иначе файл «вечно свежий» для TTL
-                    last_accessed_at: file.last_accessed_at || file.lastAccessedAt || file.cached_at || file.cachedAt || file.created_at || file.createdAt || now,
-                    lastAccessedAt: file.last_accessed_at || file.lastAccessedAt || file.cached_at || file.cachedAt || file.created_at || file.createdAt || now,
+                    last_accessed_at: item.lastAccessedAt,
+                    lastAccessedAt: item.lastAccessedAt,
 
                     last_local_cleanup_at: null,
                     lastLocalCleanupAt: null,
@@ -629,7 +661,6 @@ window.RbiStorageManager = {
                     updatedAt: now
                 });
 
-                existingKeys.add(lookupKey);
                 createdCount++;
             }
 
@@ -638,6 +669,10 @@ window.RbiStorageManager = {
                     createdCount
                 });
             }
+
+            try {
+                localStorage.setItem(this._BACKFILL_PHOTOS_COUNT_KEY, String(currentPhotosCount));
+            } catch (e) { /* ignore */ }
 
             return createdCount;
 
@@ -878,7 +913,6 @@ window.RbiStorageManager = {
         }
     },
     async collectEvictionCandidates(mode = 'normal_cleanup') {
-        const files = await dbGetAll(STORES.PHOTOS) || [];
         const registry = STORES.FILE_REGISTRY ? (await dbGetAll(STORES.FILE_REGISTRY) || []) : [];
 
         const registryByUrl = new Map();
@@ -894,8 +928,8 @@ window.RbiStorageManager = {
         const settings = typeof appSettings !== 'undefined' ? appSettings : {};
         const result = [];
 
-        for (const file of files) {
-            if (!file || !file.id || !file.data) continue;
+        await dbForEachCursor(STORES.PHOTOS, (file) => {
+            if (!file || !file.id || !file.data) return;
 
             const isHttp = String(file.id).startsWith('http');
             const reg = registryByUrl.get(file.id)
@@ -915,7 +949,7 @@ window.RbiStorageManager = {
             const hasCloud = publicUrl && String(publicUrl).startsWith('http');
             const isLocalOnly = String(file.id).startsWith('local://') && !hasCloud;
 
-            if (isLocalOnly || !hasCloud) continue;
+            if (isLocalOnly || !hasCloud) return;
 
             const entityType =
                 file.entityType ||
@@ -963,12 +997,12 @@ window.RbiStorageManager = {
             const isFreshFile = ageDays < (freshProtectionHours / 24);
 
             if (isFreshFile && mode !== 'critical_cleanup') {
-                continue;
+                return;
             }
 
             // soft + normal — уважаем TTL из настроек; critical / quota — можно раньше
             if ((mode === 'soft_lifecycle' || mode === 'normal_cleanup') && !oldEnough) {
-                continue;
+                return;
             }
 
             result.push({
@@ -980,7 +1014,7 @@ window.RbiStorageManager = {
                 priority: this.getEvictionPriority(entityType, ageDays, sizeBytes),
                 registry: reg
             });
-        }
+        });
 
         result.sort((a, b) => b.priority - a.priority);
 
@@ -1044,12 +1078,11 @@ window.RbiStorageManager = {
             // PDF-отчёты из app_reports — с тем же TTL, что и автоочистка
             let reportCandidates = 0;
             try {
-                const reportRows = await dbGetAll(STORES.REPORTS) || [];
                 const settings = typeof appSettings !== 'undefined' ? appSettings : {};
                 const ttlDays = settings.storageReportTtlDays || 30;
                 const now = Date.now();
 
-                reportRows.forEach(rep => {
+                await dbForEachCursor(STORES.REPORTS, (rep) => {
                     if (!rep || !rep.file_blob || !rep.file_url || !String(rep.file_url).startsWith('http')) return;
 
                     const ageDays = this.fileIdleAgeDays(rep, null, now);
@@ -1151,7 +1184,6 @@ window.RbiStorageManager = {
                 PhotoManager.clearMemory();
             }
 
-            const files = await dbGetAll(STORES.PHOTOS) || [];
             const registry = STORES.FILE_REGISTRY ? (await dbGetAll(STORES.FILE_REGISTRY) || []) : [];
 
             const registryByUrl = new Map();
@@ -1167,8 +1199,12 @@ window.RbiStorageManager = {
             let freedBytes = 0;
             let skippedLocalOnly = 0;
 
-            for (const file of files) {
-                if (!file || !file.id || !file.data) continue;
+            // Лёгкие дескрипторы (без ссылки на file.data) — удаление/dbPut идёт
+            // после закрытия курсора, см. предупреждение в dbForEachCursor.
+            const toEvict = [];
+
+            await dbForEachCursor(STORES.PHOTOS, (file) => {
+                if (!file || !file.id || !file.data) return;
 
                 const id = String(file.id || '');
 
@@ -1203,33 +1239,43 @@ window.RbiStorageManager = {
                 // локальные несинхронизированные файлы без облачного источника не удаляем.
                 if (isLocalOnly) {
                     skippedLocalOnly++;
-                    continue;
+                    return;
                 }
 
                 // Удаляем только восстановимые локальные копии.
-                if (!cloudUrl) continue;
+                if (!cloudUrl) return;
 
                 const sizeBytes = this.payloadBytes(file.data, file);
 
-                await dbDelete(STORES.PHOTOS, file.id);
+                toEvict.push({
+                    id: file.id,
+                    cloudUrl,
+                    sizeBytes,
+                    registryItem,
+                    entityType: file.entityType || file.entity_type || registryItem?.entity_type || this.guessEntityTypeByUrl(cloudUrl)
+                });
+            });
 
-                if (registryItem) {
-                    registryItem.cache_status = 'cloud_only';
-                    registryItem.cacheStatus = 'cloud_only';
-                    registryItem.last_local_cleanup_at = new Date().toISOString();
-                    registryItem.lastLocalCleanupAt = registryItem.last_local_cleanup_at;
+            for (const c of toEvict) {
+                await dbDelete(STORES.PHOTOS, c.id);
 
-                    await dbPut(STORES.FILE_REGISTRY, registryItem);
+                if (c.registryItem) {
+                    c.registryItem.cache_status = 'cloud_only';
+                    c.registryItem.cacheStatus = 'cloud_only';
+                    c.registryItem.last_local_cleanup_at = new Date().toISOString();
+                    c.registryItem.lastLocalCleanupAt = c.registryItem.last_local_cleanup_at;
+
+                    await dbPut(STORES.FILE_REGISTRY, c.registryItem);
                 }
 
                 deletedCount++;
-                freedBytes += sizeBytes;
+                freedBytes += c.sizeBytes;
 
                 await this.logEvent('manual_file_evicted', {
-                    fileId: file.id,
-                    publicUrl: cloudUrl,
-                    entityType: file.entityType || file.entity_type || registryItem?.entity_type || this.guessEntityTypeByUrl(cloudUrl),
-                    sizeBytes
+                    fileId: c.id,
+                    publicUrl: c.cloudUrl,
+                    entityType: c.entityType,
+                    sizeBytes: c.sizeBytes
                 });
             }
 
@@ -1239,10 +1285,12 @@ window.RbiStorageManager = {
             // RBI NEW: очищаем локальные PDF-отчеты из app_reports.
             // Метаданные отчета и file_url остаются, удаляется только тяжелый file_blob.
             try {
-                const reports = await dbGetAll(STORES.REPORTS) || [];
+                // Лёгкие дескрипторы (без ссылки на file_blob) — dbPut идёт после
+                // закрытия курсора, см. предупреждение в dbForEachCursor.
+                const reportsToEvict = [];
 
-                for (const rep of reports) {
-                    if (!rep || !rep.file_blob || !rep.file_url || !String(rep.file_url).startsWith('http')) continue;
+                await dbForEachCursor(STORES.REPORTS, (rep) => {
+                    if (!rep || !rep.file_blob || !rep.file_url || !String(rep.file_url).startsWith('http')) return;
 
                     let reportSize = 0;
 
@@ -1255,31 +1303,45 @@ window.RbiStorageManager = {
                             0;
                     } catch (e) { }
 
-                    rep.file_blob = null;
-                    rep.cache_status = 'cloud_only';
-                    rep.cacheStatus = 'cloud_only';
-                    rep.updatedAt = new Date().toISOString();
-                    rep.updated_at = rep.updatedAt;
+                    const cleanupAt = new Date().toISOString();
 
-                    await dbPut(STORES.REPORTS, rep);
+                    reportsToEvict.push({
+                        updatedReport: {
+                            ...rep,
+                            file_blob: null,
+                            cache_status: 'cloud_only',
+                            cacheStatus: 'cloud_only',
+                            updatedAt: cleanupAt,
+                            updated_at: cleanupAt
+                        },
+                        id: rep.id,
+                        fileUrl: rep.file_url,
+                        reportSize
+                    });
+                });
+
+                for (const item of reportsToEvict) {
+                    const { updatedReport, id, fileUrl, reportSize } = item;
+
+                    await dbPut(STORES.REPORTS, updatedReport);
 
                     // Обновляем массив в памяти, чтобы интерфейс не держал старый blob до перезагрузки
                     if (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray)) {
-                        const idx = reportsArray.findIndex(r => String(r.id) === String(rep.id));
+                        const idx = reportsArray.findIndex(r => String(r.id) === String(id));
                         if (idx >= 0) {
                             reportsArray[idx] = {
                                 ...reportsArray[idx],
                                 file_blob: null,
                                 cache_status: 'cloud_only',
                                 cacheStatus: 'cloud_only',
-                                updatedAt: rep.updatedAt,
-                                updated_at: rep.updated_at
+                                updatedAt: updatedReport.updatedAt,
+                                updated_at: updatedReport.updated_at
                             };
                         }
                     }
 
                     const reportRegistryItem =
-                        registryByUrl.get(rep.file_url) ||
+                        registryByUrl.get(fileUrl) ||
                         null;
 
                     if (reportRegistryItem) {
@@ -1297,8 +1359,8 @@ window.RbiStorageManager = {
                     freedBytes += reportSize;
 
                     await this.logEvent('manual_report_blob_evicted', {
-                        fileId: rep.id,
-                        publicUrl: rep.file_url,
+                        fileId: id,
+                        publicUrl: fileUrl,
                         entityType: 'report_pdf',
                         sizeBytes: reportSize
                     });
@@ -1357,7 +1419,6 @@ window.RbiStorageManager = {
     },
     async cleanupReportBlobsByTtl(mode = 'normal_cleanup') {
         try {
-            const reports = await dbGetAll(STORES.REPORTS) || [];
             const registry = STORES.FILE_REGISTRY ? (await dbGetAll(STORES.FILE_REGISTRY) || []) : [];
 
             const registryByUrl = new Map();
@@ -1374,35 +1435,53 @@ window.RbiStorageManager = {
             let deletedCount = 0;
             let freedBytes = 0;
 
-            for (const rep of reports) {
-                if (!rep || !rep.file_blob || !rep.file_url || !String(rep.file_url).startsWith('http')) continue;
+            // Лёгкие дескрипторы (без ссылки на file_blob) — dbPut идёт после
+            // закрытия курсора, см. предупреждение в dbForEachCursor.
+            const toEvict = [];
+
+            await dbForEachCursor(STORES.REPORTS, (rep) => {
+                if (!rep || !rep.file_blob || !rep.file_url || !String(rep.file_url).startsWith('http')) return;
 
                 const ageDays = this.fileIdleAgeDays(rep, null, now);
 
                 // Не удаляем свежие отчеты в первые 24 часа, кроме аварийного режима
                 if (ageDays < 1 && mode !== 'critical_cleanup') {
-                    continue;
+                    return;
                 }
 
                 // В мягком и нормальном режиме уважаем TTL
                 if ((mode === 'soft_lifecycle' || mode === 'normal_cleanup') && ageDays < ttlDays) {
-                    continue;
+                    return;
                 }
 
                 const reportSize = this.payloadBytes(rep.file_blob, rep);
+                const cleanupAt = new Date().toISOString();
 
-                rep.file_blob = null;
-                rep.cache_status = 'cloud_only';
-                rep.cacheStatus = 'cloud_only';
-                rep.last_local_cleanup_at = new Date().toISOString();
-                rep.lastLocalCleanupAt = rep.last_local_cleanup_at;
-                rep.updatedAt = rep.last_local_cleanup_at;
-                rep.updated_at = rep.updatedAt;
+                toEvict.push({
+                    updatedReport: {
+                        ...rep,
+                        file_blob: null,
+                        cache_status: 'cloud_only',
+                        cacheStatus: 'cloud_only',
+                        last_local_cleanup_at: cleanupAt,
+                        lastLocalCleanupAt: cleanupAt,
+                        updatedAt: cleanupAt,
+                        updated_at: cleanupAt
+                    },
+                    id: rep.id,
+                    fileUrl: rep.file_url,
+                    reportSize,
+                    ageDays
+                });
+            });
 
-                await dbPut(STORES.REPORTS, rep);
+            for (const item of toEvict) {
+                const { updatedReport, id, fileUrl, reportSize, ageDays } = item;
+
+                await dbPut(STORES.REPORTS, updatedReport);
 
                 if (typeof reportsArray !== 'undefined' && Array.isArray(reportsArray)) {
-                    const idx = reportsArray.findIndex(r => String(r.id) === String(rep.id));
+                    const idx = reportsArray.findIndex(r => String(r.id) === String(id));
 
                     if (idx >= 0) {
                         reportsArray[idx] = {
@@ -1410,15 +1489,15 @@ window.RbiStorageManager = {
                             file_blob: null,
                             cache_status: 'cloud_only',
                             cacheStatus: 'cloud_only',
-                            last_local_cleanup_at: rep.last_local_cleanup_at,
-                            lastLocalCleanupAt: rep.lastLocalCleanupAt,
-                            updatedAt: rep.updatedAt,
-                            updated_at: rep.updated_at
+                            last_local_cleanup_at: updatedReport.last_local_cleanup_at,
+                            lastLocalCleanupAt: updatedReport.lastLocalCleanupAt,
+                            updatedAt: updatedReport.updatedAt,
+                            updated_at: updatedReport.updated_at
                         };
                     }
                 }
 
-                const registryItem = registryByUrl.get(rep.file_url);
+                const registryItem = registryByUrl.get(fileUrl);
 
                 if (registryItem) {
                     registryItem.cache_status = 'cloud_only';
@@ -1435,8 +1514,8 @@ window.RbiStorageManager = {
                 freedBytes += reportSize;
 
                 await this.logEvent('auto_report_blob_evicted', {
-                    fileId: rep.id,
-                    publicUrl: rep.file_url,
+                    fileId: id,
+                    publicUrl: fileUrl,
                     entityType: 'report_pdf',
                     ageDays,
                     sizeBytes: reportSize,

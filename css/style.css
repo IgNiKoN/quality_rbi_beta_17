@@ -841,7 +841,7 @@ body.modal-open {
 .app-sidebar-item--settings {
     margin-top: auto;
     border-top: 1px solid var(--card-border);
-    border-radius: 12px 12px 0 0;
+    border-radius: var(--rbi-radius-lg) var(--rbi-radius-lg) 0 0;
     padding-top: 10px;
 }
 
@@ -854,7 +854,7 @@ body.modal-open {
     padding: 8px 2px;
     border: none;
     background: transparent;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -955,7 +955,7 @@ body.modal-open {
 .swipe-container {
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     margin-bottom: 8px;
     background: var(--card-bg);
     /* Защита от просвечивания второго слоя */
@@ -971,7 +971,7 @@ body.modal-open {
     padding: 0 24px;
     font-weight: 900;
     color: white;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     z-index: 1;
     opacity: 0;
 }
@@ -1149,7 +1149,7 @@ body.modal-open {
 .swipe-container {
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     margin-bottom: 8px;
 }
 
@@ -1163,7 +1163,7 @@ body.modal-open {
     padding: 0 20px;
     font-weight: 900;
     color: white;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     z-index: 1;
     opacity: 0;
     transition: opacity 0.2s;
@@ -1203,7 +1203,7 @@ body.modal-open {
     height: 44px;
     min-width: 44px;
     max-width: 44px;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     /* Более круглые кнопки */
     display: flex;
     align-items: center;
@@ -1290,7 +1290,7 @@ body.modal-open {
 .weight-tag {
     display: inline-block;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--rbi-radius-sm);
     font-size: 9px;
     font-weight: 900;
     letter-spacing: 0.05em;
@@ -1330,7 +1330,7 @@ body.modal-open {
     width: 100%;
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 8px;
+    border-radius: var(--rbi-radius-md);
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 600;
@@ -1376,7 +1376,7 @@ body.modal-open {
     background: rgba(15, 23, 42, 0.85);
     color: white;
     padding: 14px 20px;
-    border-radius: 16px;
+    border-radius: var(--rbi-radius-lg);
     font-size: 12px;
     font-weight: 700;
     text-align: center;
@@ -1783,7 +1783,7 @@ body.nav-pos-bottom .sticky-subnav {
     position: sticky !important;
     z-index: 40 !important;
     transition: top 0.3s ease;
-    border-radius: 16px !important;
+    border-radius: var(--rbi-radius-lg) !important;
     margin-bottom: 10px !important;
 }
 
@@ -2248,7 +2248,7 @@ input[list]::-webkit-calendar-picker-indicator {
     z-index: 10000 !important;
     box-shadow: 0 0 0 4px var(--primary), 0 0 0 9999px rgba(15, 23, 42, 0.85) !important;
     background-color: transparent !important;
-    border-radius: 12px !important;
+    border-radius: var(--rbi-radius-lg) !important;
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     pointer-events: none !important;
     opacity: 0;
@@ -2890,7 +2890,15 @@ body {
     color: var(--primary);
 }
 
-[data-theme="rbi-light-v3"] .nav-item.active::after,
+[data-theme="rbi-light-v3"] .nav-item.active::after {
+    content: '';
+    width: 18px;
+    height: 2px;
+    margin-top: 3px;
+    border-radius: 999px;
+    background: var(--primary);
+    opacity: 0.9;
+}
 [data-theme="rbi-dark-v3"] .nav-item.active::after {
     content: '';
     width: 18px;
@@ -2917,7 +2925,9 @@ body {
     background-color: var(--primary-hover) !important;
 }
 [data-theme="rbi-light-v3"] .bg-indigo-50,
-[data-theme="rbi-light-v3"] .bg-indigo-100,
+[data-theme="rbi-light-v3"] .bg-indigo-100 {
+    background-color: rgba(28, 43, 57, 0.06) !important;
+}
 [data-theme="rbi-dark-v3"] .bg-indigo-50,
 [data-theme="rbi-dark-v3"] .bg-indigo-100 {
     background-color: rgba(196, 154, 95, 0.14) !important;
@@ -2942,7 +2952,9 @@ body {
 [data-theme="rbi-light-v3"] .border-indigo-200,
 [data-theme="rbi-light-v3"] .border-indigo-300,
 [data-theme="rbi-light-v3"] .border-indigo-400,
-[data-theme="rbi-light-v3"] .border-indigo-800,
+[data-theme="rbi-light-v3"] .border-indigo-800 {
+    border-color: rgba(28, 43, 57, 0.22) !important;
+}
 [data-theme="rbi-dark-v3"] .border-indigo-100,
 [data-theme="rbi-dark-v3"] .border-indigo-200,
 [data-theme="rbi-dark-v3"] .border-indigo-300,
@@ -2955,7 +2967,7 @@ body {
 [data-theme="rbi-light-v3"] button.bg-indigo-600,
 [data-theme="rbi-light-v3"] button.bg-indigo-700 {
     background: linear-gradient(135deg, var(--graphite), var(--graphite-2)) !important;
-    border: 1px solid rgba(196, 154, 95, 0.28) !important;
+    border: 1px solid rgba(28, 43, 57, 0.28) !important;
     color: var(--white) !important;
 }
 [data-theme="rbi-dark-v3"] button.bg-indigo-500,
@@ -3272,7 +3284,7 @@ body {
 [data-theme="rbi-dark-v3"] input.input-base,
 [data-theme="rbi-dark-v3"] select.input-base,
 [data-theme="rbi-dark-v3"] textarea.input-base {
-    border-radius: 8px !important;
+    border-radius: var(--rbi-radius-md) !important;
     border-width: 2px !important;
 }
 
@@ -3290,7 +3302,8 @@ html[data-theme="rbi-light-v3"],
 html[data-theme="rbi-dark-v3"],
 html[data-theme="rbi-light-v3"] body,
 html[data-theme="rbi-dark-v3"] body {
-    font-family: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+    /* Значение токена переопределено для этих тем в css/brand/rbi.css. */
+    font-family: var(--rbi-font-sans) !important;
 }
 
 /* Portal chrome: colors + taller topbar; module rail width = default icon-rail. */
@@ -3305,7 +3318,14 @@ html[data-theme="rbi-dark-v3"] body {
         background: var(--header-bg);
     }
 
-    html[data-theme="rbi-light-v3"] .app-sidebar-item:hover,
+    html[data-theme="rbi-light-v3"] .app-sidebar-item:hover {
+        color: var(--text-muted);
+        background: var(--hover-bg);
+    }
+    html[data-theme="rbi-light-v3"] .app-sidebar-item.active:hover {
+        color: var(--primary);
+        background: var(--hover-bg);
+    }
     html[data-theme="rbi-dark-v3"] .app-sidebar-item:hover {
         color: var(--accent);
     }
@@ -3550,7 +3570,7 @@ button[disabled],
 :focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
-    border-radius: 10px;
+    border-radius: var(--rbi-radius-md);
 }
 
 button:focus-visible,
@@ -3594,7 +3614,7 @@ a:focus-visible {
 
 .rbi-skeleton-line {
     height: 12px;
-    border-radius: 8px;
+    border-radius: var(--rbi-radius-md);
     background: linear-gradient(
         90deg,
         var(--hover-bg) 0%,
@@ -3607,7 +3627,7 @@ a:focus-visible {
 
 .rbi-skeleton-card {
     height: 88px;
-    border-radius: 14px;
+    border-radius: var(--rbi-radius-lg);
     border: 1px solid var(--card-border);
     background: var(--card-bg);
     position: relative;
@@ -3769,7 +3789,7 @@ body.ui-motion-off .rbi-acc {
     justify-content: flex-end;
 }
 .rbi-rp-btn {
-    border-radius: 10px;
+    border-radius: var(--rbi-radius-md);
     padding: 8px 12px;
     font-size: 11px;
     font-weight: 800;
@@ -3826,7 +3846,7 @@ body.ui-motion-off .rbi-acc {
     background: #fff;
     color: #0f172a;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border-radius: var(--rbi-radius-lg);
     padding: 18px 16px 28px;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
@@ -3863,7 +3883,7 @@ body.ui-motion-off .rbi-acc {
 }
 .rbi-rp-kpi {
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     padding: 10px 8px;
     background: #f8fafc;
 }
@@ -3888,7 +3908,7 @@ body.ui-motion-off .rbi-acc {
 }
 .rbi-rp-ph {
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: var(--rbi-radius-lg);
     overflow: hidden;
     background: #fff;
 }
@@ -3909,7 +3929,7 @@ body.ui-motion-off .rbi-acc {
     font-size: 8px;
     font-weight: 900;
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: var(--rbi-radius-sm);
     background: #fee2e2;
     color: #b91c1c;
     margin-bottom: 4px;

@@ -93,7 +93,7 @@ body.rbi-analytics-desktop-wide #analytics-filters-block.sticky-top-panel {
   margin-bottom: 0 !important;
   background: var(--card-bg) !important;
   border: 1px solid var(--card-border) !important;
-  border-radius: 0.75rem !important;
+  border-radius: var(--rbi-radius-lg) !important;
   padding: 0.65rem 0.75rem !important;
   box-shadow: none !important;
 }
@@ -248,7 +248,7 @@ body.rbi-analytics-desktop-wide #analytics-desktop-toolbar button.input-base {
 body.rbi-analytics-desktop-wide #analytics-desktop-kpi {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.7rem 0.85rem;
 }
 
@@ -308,7 +308,7 @@ body.rbi-analytics-desktop-wide .ana-desk-sev-strip {
   align-items: stretch;
   margin-top: 12px;
   background: var(--hover-bg);
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   overflow: hidden;
   border: 1px solid var(--card-border);
 }
@@ -340,7 +340,7 @@ body.rbi-analytics-desktop-wide .ana-desk-sev-strip .v {
 body.rbi-analytics-desktop-wide .ana-desk-gap-warn {
   margin-top: 0.55rem;
   padding: 0.5rem 0.7rem;
-  border-radius: 0.55rem;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid #fed7aa;
   background: #fff7ed;
   color: #c2410c;
@@ -352,7 +352,7 @@ body.rbi-analytics-desktop-wide .ana-desk-gap-warn {
 body.rbi-analytics-desktop-wide .ana-desk-insight {
   margin-top: 0.55rem;
   padding: 0.55rem 0.75rem;
-  border-radius: 0.55rem;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--card-bg));
   background: color-mix(in srgb, var(--primary) 14%, var(--card-bg));
   color: var(--primary);
@@ -392,7 +392,7 @@ body.rbi-analytics-desktop-wide .ana-desk-insight {
   text-align: center;
   gap: 0.05rem;
   padding: 0.35rem 0.65rem;
-  border-radius: 0.45rem;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid var(--card-border, #e2e8f0);
   background: var(--hover-bg, #f8fafc);
   min-width: 0;
@@ -445,7 +445,7 @@ body.rbi-analytics-desktop-wide .ana-desk-insight {
   justify-content: center;
   text-align: center;
   padding: 0.2rem 0.4rem;
-  border-radius: 0.35rem;
+  border-radius: var(--rbi-radius-sm);
   font-size: 10px;
   font-weight: 800;
   border: 1px solid transparent;
@@ -468,7 +468,7 @@ body.rbi-analytics-desktop-wide .ana-desk-insight {
 
 .ana-risk-action {
   padding: 0.3rem 0.45rem;
-  border-radius: 0.4rem;
+  border-radius: var(--rbi-radius-sm);
   border: 1px solid color-mix(in srgb, #6366f1 22%, var(--card-border, #e2e8f0));
   background: color-mix(in srgb, #6366f1 7%, var(--card-bg, #fff));
   font-size: 10.5px;
@@ -503,7 +503,7 @@ body.rbi-analytics-desktop-wide .ana-desk-insight {
   line-height: 1.4;
   font-weight: 500;
   padding: 0.3rem 0.4rem;
-  border-radius: 0.4rem;
+  border-radius: var(--rbi-radius-sm);
   border: 1px solid var(--card-border, #e2e8f0);
   background: var(--hover-bg, #f8fafc);
 }
@@ -600,7 +600,7 @@ body.rbi-analytics-desktop-wide .ana-desk-secondary {
 body.rbi-analytics-desktop-wide .ana-desk-panel {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.85rem 1rem;
 }
 
@@ -727,7 +727,7 @@ body.rbi-analytics-desktop-wide .ana-desk-spark .bar b {
 body.rbi-analytics-desktop-wide .ana-desk-spark .bar i {
   display: block;
   width: 100%;
-  border-radius: 3px 3px 0 0;
+  border-radius: var(--rbi-radius-sm) var(--rbi-radius-sm) 0 0;
   background: var(--primary);
   min-height: 4px;
 }
@@ -762,7 +762,7 @@ body.rbi-analytics-desktop-wide .ana-desk-chart-caption {
 body.rbi-analytics-desktop-wide .ana-desk-evidence {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--rbi-radius-lg);
   padding: 0 1rem;
 }
 
@@ -950,7 +950,7 @@ body.rbi-analytics-desktop-wide #sub-contractors.ana-desk-split #contractor-deta
   max-width: none;
   width: 100%;
   border: 1px solid var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
   padding: 0;
   max-height: calc(100vh - 5rem);
@@ -1020,7 +1020,7 @@ body.rbi-analytics-desktop-wide .ana-desk-detail-head {
   padding: 0.65rem 0.85rem;
   border-bottom: 1px solid var(--card-border);
   background: var(--card-bg);
-  border-radius: 0.85rem 0.85rem 0 0;
+  border-radius: var(--rbi-radius-lg) var(--rbi-radius-lg) 0 0;
   box-shadow: none !important;
   border-left: 0 !important;
   border-right: 0 !important;
@@ -1035,7 +1035,7 @@ body.rbi-analytics-desktop-wide .ana-desk-detail-close {
   font-size: 12px;
   font-weight: 700;
   padding: 0.35rem 0.65rem;
-  border-radius: 0.45rem;
+  border-radius: var(--rbi-radius-md);
   cursor: pointer;
   line-height: 1.2;
 }
@@ -1144,12 +1144,12 @@ body.rbi-analytics-desktop-wide #contractor-detail-content .font-black {
 }
 
 body.rbi-analytics-desktop-wide #contractor-detail-content .rounded-2xl {
-  border-radius: 0.65rem !important;
+  border-radius: var(--rbi-radius-md) !important;
 }
 
 body.rbi-analytics-desktop-wide #contractor-detail-content .ana-desk-block {
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   background: var(--card-bg);
   overflow: hidden;
   margin: 0;
@@ -1197,7 +1197,7 @@ body.rbi-analytics-desktop-wide #contractor-detail-content .ana-desk-export-btn 
 
 body.rbi-analytics-desktop-wide #contractor-detail-content .ana-desk-hero-card {
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   padding: 12px 14px;
   background: var(--card-bg);
   margin: 0 !important;
@@ -1224,7 +1224,7 @@ body.rbi-analytics-desktop-wide .ana-desk-empty-sm {
 
 body.rbi-analytics-desktop-wide .ana-desk-table-wrap {
   border: 1px solid var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   overflow: auto;
   max-height: min(520px, calc(100vh - 16rem));
   background: var(--card-bg);
@@ -1319,7 +1319,7 @@ body.rbi-analytics-desktop-wide .ana-desk-empty {
   font-weight: 700;
   font-size: 14px;
   border: 1px dashed var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
 }
 
@@ -1366,7 +1366,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-toggle-pills {
   display: inline-flex;
   width: 100%;
   padding: 3px;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   background: var(--hover-bg);
   border: 1px solid var(--card-border);
   gap: 2px;
@@ -1380,7 +1380,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-pill {
   font-size: 13px;
   font-weight: 650;
   padding: 0.4rem 0.95rem;
-  border-radius: 6px;
+  border-radius: var(--rbi-radius-sm);
   cursor: pointer;
   flex: 1 1 0;
   text-align: center;
@@ -1412,7 +1412,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-hero {
   margin: 0 !important;
   background: var(--card-bg) !important;
   border: 1px solid var(--card-border) !important;
-  border-radius: 12px !important;
+  border-radius: var(--rbi-radius-lg) !important;
   box-shadow: none !important;
 }
 
@@ -1445,7 +1445,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-hero [class*="text-[9px]"] {
 body.rbi-analytics-desktop-wide .ana-desk-op-alert {
   margin: 0 !important;
   padding: 0.75rem 1rem !important;
-  border-radius: 10px !important;
+  border-radius: var(--rbi-radius-md) !important;
   font-size: 13px !important;
   text-align: left !important;
 }
@@ -1466,7 +1466,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-kpi-band {
 body.rbi-analytics-desktop-wide .ana-desk-op-kpi-band > div {
   margin: 0 !important;
   padding: 0.95rem 1rem !important;
-  border-radius: 12px !important;
+  border-radius: var(--rbi-radius-lg) !important;
   border: 1px solid var(--card-border) !important;
   background: var(--card-bg) !important;
   box-shadow: none !important;
@@ -1504,7 +1504,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-row-2 {
 body.rbi-analytics-desktop-wide .ana-desk-op-panel {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   padding: 1rem 1.15rem 1.15rem;
   min-width: 0;
   display: flex;
@@ -1592,7 +1592,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-cards-native {
 body.rbi-analytics-desktop-wide .ana-desk-op-card-native {
   min-height: 180px !important;
   padding: 1.15rem 1.2rem !important;
-  border-radius: 12px !important;
+  border-radius: var(--rbi-radius-lg) !important;
   border: 1px solid var(--card-border) !important;
   background: var(--card-bg) !important;
   box-shadow: none !important;
@@ -1716,7 +1716,7 @@ body.rbi-analytics-desktop-wide .ana-desk-op-native button.w-full {
   font-size: 12px !important;
   padding-top: 0.75rem !important;
   padding-bottom: 0.75rem !important;
-  border-radius: 10px !important;
+  border-radius: var(--rbi-radius-md) !important;
 }
 
 /* Legacy flat leftovers (if any) */
@@ -1847,7 +1847,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-mode-p
   display: inline-flex !important;
   width: 100%;
   padding: 3px !important;
-  border-radius: 8px !important;
+  border-radius: var(--rbi-radius-md) !important;
   background: var(--hover-bg) !important;
   border: 1px solid var(--card-border) !important;
   gap: 2px !important;
@@ -1862,7 +1862,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-pill {
   font-size: 13px !important;
   font-weight: 650 !important;
   padding: 0.4rem 0.95rem !important;
-  border-radius: 6px !important;
+  border-radius: var(--rbi-radius-sm) !important;
   box-shadow: none !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
@@ -1924,7 +1924,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #hist-search-text {
   font-size: 12px !important;
   padding: 0.45rem 0.7rem 0.45rem 2rem !important;
   min-height: 34px;
-  border-radius: 8px !important;
+  border-radius: var(--rbi-radius-md) !important;
   border-color: var(--card-border) !important;
   background: var(--bg-main) !important;
 }
@@ -1970,7 +1970,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #hist-panel-body .inp
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #hist-panel-body button.input-base {
   font-size: 11px !important;
   min-height: 34px;
-  border-radius: 8px !important;
+  border-radius: var(--rbi-radius-md) !important;
   background: var(--card-bg) !important;
   padding-top: 0.35rem !important;
   padding-bottom: 0.35rem !important;
@@ -2002,7 +2002,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #hist-checks-actions-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px !important;
+  border-radius: var(--rbi-radius-md) !important;
   border: 1px solid var(--card-border);
 }
 
@@ -2107,7 +2107,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-obj {
   text-align: left;
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   background: var(--card-bg);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
@@ -2235,7 +2235,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-empty 
   text-align: center;
   background: var(--card-bg);
   border: 1px dashed var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
 }
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-empty [data-hist-empty-label] {
@@ -2267,7 +2267,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-chip {
   font-size: 12px;
   font-weight: 650;
   padding: 0.4rem 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   cursor: pointer;
 }
 
@@ -2291,7 +2291,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-report
   padding: 0.65rem 0.85rem;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
 }
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-check-all {
@@ -2312,7 +2312,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-danger
   color: #dc2626;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   padding: 0.45rem 0.75rem;
   cursor: pointer;
 }
@@ -2332,7 +2332,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-file {
   padding: 0.7rem 0.75rem;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   cursor: pointer;
   text-align: left;
 }
@@ -2354,7 +2354,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-file-t
   align-self: center;
   width: 2.6rem;
   height: 2.6rem;
-  border-radius: 9px;
+  border-radius: var(--rbi-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2441,7 +2441,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-journa
   gap: 0.4rem;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.55rem;
 }
 
@@ -2465,7 +2465,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-row-he
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-row {
   padding: 0.15rem;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
 }
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-row:hover {
@@ -2491,7 +2491,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-row-ma
   padding: 0.55rem 0.4rem;
   cursor: pointer;
   text-align: left;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
 }
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-row-place {
@@ -2524,7 +2524,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-more {
   margin-top: 0.75rem;
   width: 100%;
   padding: 0.7rem;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   border: 1px dashed var(--card-border);
   background: var(--card-bg);
   color: var(--text-muted);
@@ -2543,7 +2543,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plans 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.9rem 1rem 1rem;
   display: flex;
   flex-direction: column;
@@ -2606,7 +2606,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-floor 
   width: 100%;
   text-align: left;
   padding: 0.65rem 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid var(--card-border);
   background: var(--bg-main);
   cursor: pointer;
@@ -2669,7 +2669,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-c
   max-height: min(72vh, 760px);
   overflow: auto;
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
   padding: 0.45rem;
 }
@@ -2727,7 +2727,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-p
   height: min(72vh, 780px);
   min-height: 440px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   background: #0f172a;
   border: 1px solid var(--card-border);
 }
@@ -2754,7 +2754,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #quality-plan-pin-ove
   inset: 0;
   display: block !important;
   overflow: hidden !important;
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   border: 0 !important;
   background: #0f172a;
   min-height: 0 !important;
@@ -2772,7 +2772,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist #quality-plan-pin-ove
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.94) 0%, rgba(2, 6, 23, 0.78) 55%, rgba(2, 6, 23, 0.15) 100%);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--rbi-radius-lg) var(--rbi-radius-lg) 0 0;
   padding-bottom: 0.35rem;
 }
 
@@ -2836,7 +2836,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-d
 
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-defects-empty {
   padding: 0.85rem 1rem;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   border: 1px dashed var(--card-border);
   background: var(--card-bg);
   color: var(--text-muted);
@@ -2864,7 +2864,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-p
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-fs-btn {
   flex-shrink: 0;
   padding: 0.4rem 0.7rem;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   color: var(--primary);
@@ -2894,7 +2894,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-a
   padding: 0.5rem 0.55rem;
   margin: 0.2rem 0 0.1rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   background: transparent;
   color: var(--text-muted);
   font-size: 11px;
@@ -2908,7 +2908,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-a
   margin: 0;
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   background: var(--card-bg);
   color: var(--text-main);
   font-size: 13px;
@@ -2982,7 +2982,7 @@ body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plans-
 body.rbi-analytics-desktop-wide #sub-history.ana-desk-hist .ana-desk-hist-plan-agg-wrap {
   overflow: auto;
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
 }
 
@@ -3168,7 +3168,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-mode-pills {
 
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-pill {
   flex: 0 0 auto !important;
-  border-radius: 0.55rem !important;
+  border-radius: var(--rbi-radius-md) !important;
   padding: 0.4rem 0.85rem !important;
   font-size: 0.65rem !important;
   font-weight: 750 !important;
@@ -3220,7 +3220,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-rail {
   max-height: calc(100vh - var(--desk-topbar-h, 52px) - var(--rbi-strip-h, 48px) - 9rem);
   overflow: auto;
   border: 1px solid var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
   padding: 0.45rem;
 }
@@ -3239,7 +3239,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-obj {
   width: 100%;
   text-align: left;
   padding: 0.55rem 0.6rem;
-  border-radius: 0.55rem;
+  border-radius: var(--rbi-radius-md);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -3318,7 +3318,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-kpi {
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-kpi-item {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.65rem 0.75rem;
   text-align: center;
 }
@@ -3346,7 +3346,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-kpi-val.is-bad 
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.85rem;
 }
 
@@ -3362,7 +3362,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-card-title {
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-table-wrap {
   overflow: auto;
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--rbi-radius-lg);
   background: var(--card-bg);
 }
 
@@ -3418,7 +3418,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-defect-n {
   color: #c2410c;
   font-size: 0.65rem;
   font-weight: 850;
-  border-radius: 0.35rem;
+  border-radius: var(--rbi-radius-sm);
   padding: 0.15rem 0.4rem;
 }
 
@@ -3430,7 +3430,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-empty {
   gap: 0.35rem;
   min-height: 12rem;
   border: 1px dashed var(--card-border);
-  border-radius: 0.85rem;
+  border-radius: var(--rbi-radius-lg);
   background: var(--bg-main);
   color: var(--text-muted);
   font-size: 0.75rem;
@@ -3496,7 +3496,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-host #sk-view-v
 
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-flat {
   margin-bottom: 0.75rem !important;
-  border-radius: 0.85rem !important;
+  border-radius: var(--rbi-radius-lg) !important;
   overflow: hidden;
 }
 
@@ -3553,7 +3553,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-sec {
   border: 1px solid var(--card-border);
   background: var(--bg-main);
   color: var(--text-muted);
-  border-radius: 0.5rem;
+  border-radius: var(--rbi-radius-md);
   padding: 0.35rem 0.75rem;
   font-size: 0.68rem;
   font-weight: 750;
@@ -3595,7 +3595,7 @@ body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-block-title {
   background: var(--bg-main);
   border: 1px solid var(--card-border);
   border-bottom: 0;
-  border-radius: 0.55rem 0.55rem 0 0;
+  border-radius: var(--rbi-radius-md) var(--rbi-radius-md) 0 0;
 }
 
 body.rbi-analytics-desktop-wide #sub-sk.ana-desk-sk .ana-desk-sk-block .ana-desk-sk-table-wrap {
@@ -3649,7 +3649,7 @@ body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-chr
   z-index: 4;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.85rem 1rem;
 }
 
@@ -3692,14 +3692,14 @@ body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-act
 body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-action-row > button {
   flex: 1 1 0;
   min-height: 42px;
-  border-radius: 11px !important;
+  border-radius: var(--rbi-radius-md) !important;
   font-size: 10px !important;
 }
 
 body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.9rem 1rem 1rem;
   min-width: 0;
 }
@@ -3833,7 +3833,7 @@ body.rbi-analytics-desktop-wide #sub-schedule.ana-desk-sched .ana-desk-sched-emp
   text-transform: uppercase;
   color: var(--text-muted);
   border: 1px dashed var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--rbi-radius-lg);
 }
 
 

@@ -97,28 +97,49 @@
     restoreSession: async function () {
       try {
         const data = await dbGet(STORES.STATE, 'current_session');
-        const hist = await dbGetAll(STORES.HISTORY);
 
-        let fullHistory = hist || [];
-
-        // ЖЕСТКАЯ ОЧИСТКА: Убираем Эталоны из массива Истории
-        window.contractorArray = fullHistory.filter(i => !i._deleted && i.templateKey !== 'sys_etalon_act');
-
-        // Удаляем их физически из базы Истории, если они туда затесались
-        const etalonsInHistory = fullHistory.filter(i => i.templateKey === 'sys_etalon_act');
-        if (etalonsInHistory.length > 0) {
-          for (let e of etalonsInHistory) {
-            await dbDelete(STORES.HISTORY, e.id);
+        // Курсорный проход вместо dbGetAll — не материализует весь стор HISTORY
+        // в RAM одним массивом (тот же паттерн, что уже применён для REPORTS).
+        // ЖЕСТКАЯ ОЧИСТКА: Эталоны, затесавшиеся в Историю, идут не в contractorArray,
+        // а в список на физическое удаление (dbDelete — после закрытия курсора,
+        // см. предупреждение в dbForEachCursor/storage-db.core.js).
+        const historyList = [];
+        const etalonIdsToRemoveFromHistory = [];
+        await dbForEachCursor(STORES.HISTORY, (item) => {
+          if (!item) return;
+          if (item.templateKey === 'sys_etalon_act') {
+            etalonIdsToRemoveFromHistory.push(item.id);
+            return;
           }
-          console.log(`[Очистка] Удалено ${etalonsInHistory.length} эталонов из Истории`);
+          if (!item._deleted) historyList.push(item);
+        });
+        window.contractorArray = historyList;
+
+        if (etalonIdsToRemoveFromHistory.length > 0) {
+          for (const id of etalonIdsToRemoveFromHistory) {
+            await dbDelete(STORES.HISTORY, id);
+          }
+          console.log(`[Очистка] Удалено ${etalonIdsToRemoveFromHistory.length} эталонов из Истории`);
         }
 
-        // Загружаем эталоны в СВОЙ отдельный массив
-        const etalons = await dbGetAll(STORES.ETALON_ACTS);
-        window.etalonActsArray = (etalons || []).filter(i => !i._deleted);
+        // Загружаем эталоны в СВОЙ отдельный массив — курсором, без dbGetAll.
+        const etalonsList = [];
+        await dbForEachCursor(STORES.ETALON_ACTS, (item) => {
+          if (item && !item._deleted) etalonsList.push(item);
+        });
+        window.etalonActsArray = etalonsList;
         // Загружаем сохраненные PDF-отчеты
-        const reports = await dbGetAll(STORES.REPORTS);
-        window.reportsArray = (reports || []).filter(i => !i._deleted);
+        const reportsList = [];
+        await dbForEachCursor(STORES.REPORTS, (r) => {
+            if (!r || r._deleted) return;
+            const url = r.file_url || r.fileUrl || '';
+            if (r.file_blob && typeof url === 'string' && url.indexOf('http') === 0) {
+                reportsList.push({ ...r, file_blob: null });
+            } else {
+                reportsList.push(r);
+            }
+        });
+        window.reportsArray = reportsList;
         if (window.RBI?.services?.reports?.detachCloudBlobsInMemory) {
             window.RBI.services.reports.detachCloudBlobsInMemory(window.reportsArray);
         } else {

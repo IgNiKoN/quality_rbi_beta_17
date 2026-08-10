@@ -17,7 +17,7 @@
 
     var RBI_ALLOWED_THEMES_LOCAL = [
         'auto', 'light', 'dark',
-        'rbi-light', 'rbi-dark',
+        'rbi-light', 'rbi-dark', 'rbi-auto',
         'rbi-light-v2', 'rbi-dark-v2', 'rbi-auto-v2',
         'rbi-light-v3', 'rbi-dark-v3', 'rbi-auto-v3'
     ];

@@ -188,11 +188,26 @@
         const N = recentWindow.length;
         if (N === 0) return null;
 
-        const tKey = customArray[0].templateKey;
-        const type = tKey.split('_')[0];
-        const key = tKey.replace(type + '_', '');
-        const specificChecklist = type === 'sys' && window.SYSTEM_TEMPLATES[key] ? window.SYSTEM_TEMPLATES[key].groups : (userTemplatesData[key] ? userTemplatesData[key].groups : []);
-        const flatList = getFlatList(specificChecklist);
+        // templateKey может отсутствовать у части cloud/legacy записей — не валим всю Сводку.
+        let tKey = null;
+        for (let ti = 0; ti < recentWindow.length; ti++) {
+            if (recentWindow[ti] && recentWindow[ti].templateKey) {
+                tKey = recentWindow[ti].templateKey;
+                break;
+            }
+        }
+        if (!tKey && customArray[0] && customArray[0].templateKey) {
+            tKey = customArray[0].templateKey;
+        }
+        let flatList = [];
+        if (tKey) {
+            const type = String(tKey).split('_')[0];
+            const key = String(tKey).replace(type + '_', '');
+            const specificChecklist = type === 'sys' && window.SYSTEM_TEMPLATES && window.SYSTEM_TEMPLATES[key]
+                ? window.SYSTEM_TEMPLATES[key].groups
+                : (userTemplatesData[key] ? userTemplatesData[key].groups : []);
+            flatList = getFlatList(specificChecklist || []);
+        }
 
         let urkValues = [];
         let docValues = [];

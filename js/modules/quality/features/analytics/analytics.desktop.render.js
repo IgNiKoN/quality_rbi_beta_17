@@ -457,11 +457,25 @@ function paintContextZones(opts) {
     || zoneD.querySelector('#gallery-wrap-desk_ok')
   );
   // Возврат на подвкладку: не wipe живых галерей (blob revoke + rebuild → вопросики).
+  // Но графики/risk-текст в zone C всё равно обновляем под текущие фильтры.
   if (!shouldRepaintDeskContextZones({ hasGalleryWrap, force })) {
     const photosDetails = zoneD.querySelector('#analytics-photos-details-desk');
     if (photosDetails && photosDetails.open) {
       try { rehydrateDeskPhotoGalleries(); } catch (_) { /* ignore */ }
     }
+    try {
+      const dataKeep = getFilteredData();
+      const modelKeep = buildPulseModel(dataKeep);
+      const riskBody = zoneC.querySelector('.ana-desk-risk-body');
+      if (riskBody) {
+        riskBody.innerHTML = modelKeep.insightHtml || formatRiskInsightDisplayHtml(modelKeep.insight);
+      }
+      if (!zoneC.querySelector('#desk-chart-trend')) {
+        paintContextZones({ force: true });
+        return;
+      }
+      requestAnimationFrame(() => paintDesktopCharts(dataKeep, modelKeep));
+    } catch (_) { /* ignore */ }
     return;
   }
 
@@ -1846,12 +1860,16 @@ function onepagerDesktopFingerprint(data) {
   const dFrom = document.getElementById('filter-date-from')?.value || '';
   const dTo = document.getElementById('filter-date-to')?.value || '';
   const f = (window.activeMultiFilters && window.activeMultiFilters.analytics) || {};
+  const tg = (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
+  const lines = (window.selectedChartFilters && window.selectedChartFilters.onepager) || [];
   return [
     mode,
     n,
     period,
     dFrom,
     dTo,
+    tg,
+    lines.join('\u0001'),
     (f.project || []).join('\u0001'),
     (f.contractor || []).join('\u0001'),
     (f.inspector || []).join('\u0001'),
@@ -1862,9 +1880,10 @@ function onepagerDesktopFingerprint(data) {
 function isOnePagerDesktopFresh(container, fp) {
   if (!container || !fp || fp !== _opPaintFp) return false;
   if (!container.classList.contains('ana-desk-op-native')) return false;
-  // Достаточно executive-layout: Chart ещё может быть в mobile setTimeout(100).
-  // Ждать инстанс нельзя — второй afterTabPaint иначе снова сносит DOM.
-  return !!container.querySelector('.ana-desk-op-exec, #op-line-chart, .ana-desk-op-kpi-band');
+  // Нужен живой canvas тренда — иначе «свежий» layout без графика и фильтры/WEEK не перерисуют.
+  const line = container.querySelector('#op-line-chart');
+  if (!line) return false;
+  return !!container.querySelector('.ana-desk-op-exec, .ana-desk-op-kpi-band');
 }
 
 function paintOnePagerDesktopNow(data) {

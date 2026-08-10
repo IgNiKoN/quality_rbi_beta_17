@@ -837,7 +837,10 @@ window.triggerSync = async function (mode = 'silent') {
         // Нужно принудительно сбросить время и скачать всё с нуля!
         let localHistoryCount = 0;
         try {
-            if (typeof dbGetAll === 'function') {
+            // Нужен только count — dbCount не поднимает записи в RAM (в отличие от dbGetAll).
+            if (typeof dbCount === 'function') {
+                localHistoryCount = await dbCount('app_history');
+            } else if (typeof dbGetAll === 'function') {
                 const hist = await dbGetAll('app_history');
                 localHistoryCount = hist ? hist.length : 0;
             }
@@ -1078,9 +1081,18 @@ window.triggerSync = async function (mode = 'silent') {
                 window._tempHistoryBatch = []; // очищаем
             }
 
-            if (typeof dbGetAll === 'function') {
+            if (typeof dbForEachCursor === 'function') {
+                const historyList = [];
+                await dbForEachCursor('app_history', (x) => { if (x && !x._deleted) historyList.push(x); });
+                window.contractorArray = historyList;
+
+                // <-- ОЧЕНЬ ВАЖНО: обновляем и эталоны
+                const etalonsList = [];
+                await dbForEachCursor('rbi_etalon_acts', (x) => { if (x && !x._deleted) etalonsList.push(x); });
+                window.etalonActsArray = etalonsList;
+            } else if (typeof dbGetAll === 'function') {
                 window.contractorArray = (await dbGetAll('app_history') || []).filter(x => !x._deleted);
-                window.etalonActsArray = (await dbGetAll('rbi_etalon_acts') || []).filter(x => !x._deleted); // <-- ОЧЕНЬ ВАЖНО: обновляем и эталоны
+                window.etalonActsArray = (await dbGetAll('rbi_etalon_acts') || []).filter(x => !x._deleted);
             }
 
             // Точечный пересчёт агрегатов подрядчика (contractor-metrics.service.js) —
@@ -1427,7 +1439,17 @@ window.triggerSync = async function (mode = 'silent') {
             // Достаем свежие данные из БД в оперативную память, чтобы экран их увидел без перезагрузки.
             if (typeof dbGetAll === 'function') {
                 if (typeof reportsArray !== 'undefined') {
-                    window.reportsArray = (await dbGetAll('app_reports') || []).filter(x => !x._deleted && !x.is_deleted);
+                    const reportsList = [];
+                    await dbForEachCursor('app_reports', (r) => {
+                        if (!r || r._deleted || r.is_deleted) return;
+                        const url = r.file_url || r.fileUrl || '';
+                        if (r.file_blob && typeof url === 'string' && url.indexOf('http') === 0) {
+                            reportsList.push({ ...r, file_blob: null });
+                        } else {
+                            reportsList.push(r);
+                        }
+                    });
+                    window.reportsArray = reportsList;
                     if (window.RBI?.services?.reports?.detachCloudBlobsInMemory) {
                         window.RBI.services.reports.detachCloudBlobsInMemory(window.reportsArray);
                     } else {
@@ -2099,7 +2121,12 @@ window.triggerSync = async function (mode = 'silent') {
                 pushErrors++;
             }
 
-            currentHistory = typeof dbGetAll === 'function' ? (await dbGetAll('app_history') || []) : [];
+            if (typeof dbForEachCursor === 'function') {
+                currentHistory = [];
+                await dbForEachCursor('app_history', (x) => { if (x) currentHistory.push(x); });
+            } else {
+                currentHistory = typeof dbGetAll === 'function' ? (await dbGetAll('app_history') || []) : [];
+            }
 
             // Если не админ, отправляем только свои проверки
             if (window.RBI.services.permissions && !window.RBI.services.permissions.isAdmin()) {
@@ -2929,15 +2956,38 @@ window.triggerSync = async function (mode = 'silent') {
                     }
                     // --- КОНЕЦ ДЕДУПЛИКАЦИИ ---
                     // --- НОВОЕ: ОТПРАВКА ОТЧЕТОВ И HTML СНИМКОВ ---
-                    let reportsToPush = filterNew(await dbGetAll(STORES.REPORTS) || []);
+                    const reportIdsToPush = [];
+                    await dbForEachCursor(STORES.REPORTS, (item) => {
+                        if (!item) return;
+                        // Только метаданные (без file_blob) — легкий предикат filterNew.
+                        const meta = {
+                            syncStatus: item.syncStatus,
+                            sync_status: item.sync_status,
+                            source: item.source,
+                            updatedAt: item.updatedAt,
+                            updated_at: item.updated_at,
+                            modifiedAt: item.modifiedAt,
+                            modified_at: item.modified_at,
+                            createdAt: item.createdAt,
+                            created_at: item.created_at,
+                            generated_at: item.generated_at,
+                            date: item.date,
+                            timestamp: item.timestamp
+                        };
+                        if (filterNew([meta]).length) {
+                            reportIdsToPush.push(item.id);
+                        }
+                    });
 
                     // Админы могут отправлять (в том числе удалять) чужие отчеты
                     const isAdmin = window.RBI.services.permissions ? window.RBI.services.permissions.isAdmin() : false;
-                    if (!isAdmin) {
-                        reportsToPush = reportsToPush.filter(r => r.created_by === iName || !r.created_by);
-                    }
 
-                    for (const rep of reportsToPush) {
+                    for (const repId of reportIdsToPush) {
+                        // Точечная подгрузка (с file_blob) непосредственно перед отправкой —
+                        // чтобы в память попадала только одна запись, а не все REPORTS сразу.
+                        const rep = await dbGet(STORES.REPORTS, repId);
+                        if (!rep) continue;
+                        if (!isAdmin && rep.created_by && rep.created_by !== iName) continue;
                         try {
                             // RBI FIX: отчеты, созданные в разных браузерах, должны гарантированно попадать в push.
                             if (!rep.updatedAt && !rep.updated_at) {
@@ -3853,20 +3903,23 @@ window.triggerSync = async function (mode = 'silent') {
                 if (typeof reportsArray !== 'undefined') extractFiles(reportsArray);
 
                 let orphanPhotosDeleted = 0;
-                const allPhotos = await dbGetAll('app_photos');
-                if (allPhotos) {
-                    for (let p of allPhotos) {
-                        if (!p || !p.id) continue;
-                        const alt =
-                            p.sourceUrl || p.source_url || p.public_url || p.publicUrl || '';
-                        if (usedPhotos.has(p.id) || (alt && usedPhotos.has(alt))) continue;
+                // Лёгкие дескрипторы (только id) — dbDelete идёт после закрытия курсора,
+                // см. предупреждение в dbForEachCursor (storage-db.core.js).
+                const orphanPhotoIdsToDelete = [];
+                await dbForEachCursor('app_photos', (p) => {
+                    if (!p || !p.id) return;
+                    const alt =
+                        p.sourceUrl || p.source_url || p.public_url || p.publicUrl || '';
+                    if (usedPhotos.has(p.id) || (alt && usedPhotos.has(alt))) return;
+                    orphanPhotoIdsToDelete.push(p.id);
+                });
 
-                        await dbDelete('app_photos', p.id);
-                        orphanPhotosDeleted++;
-                        if (PhotoManager.cache && PhotoManager.cache[p.id]) {
-                            URL.revokeObjectURL(PhotoManager.cache[p.id]);
-                            delete PhotoManager.cache[p.id];
-                        }
+                for (const photoId of orphanPhotoIdsToDelete) {
+                    await dbDelete('app_photos', photoId);
+                    orphanPhotosDeleted++;
+                    if (PhotoManager.cache && PhotoManager.cache[photoId]) {
+                        URL.revokeObjectURL(PhotoManager.cache[photoId]);
+                        delete PhotoManager.cache[photoId];
                     }
                 }
                 console.log(

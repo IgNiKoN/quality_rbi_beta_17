@@ -96,7 +96,7 @@ body.rbi-audit-desktop-wide #audit-desktop-shell {
 .audit-desk-zone {
   background: var(--card-bg, var(--card-bg));
   border: 1px solid var(--card-border, var(--card-border));
-  border-radius: 14px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.75rem 0.9rem 0.85rem;
   min-width: 0;
 }
@@ -202,7 +202,7 @@ body.rbi-audit-desktop-wide #header-checklist-container {
   min-height: 44px;
   margin-top: 0.1rem;
   padding: 0.5rem 0.85rem;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   background: var(--bg-main);
   border: 1px solid var(--card-border, var(--card-border));
   box-shadow: none;
@@ -215,7 +215,7 @@ body.rbi-audit-desktop-wide .audit-desk-topbar-strip #header-checklist-container
   min-height: 34px;
   margin-top: 0;
   padding: 0.35rem 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--rbi-radius-md);
   background: color-mix(in srgb, var(--primary) 6%, var(--card-bg));
   border-color: color-mix(in srgb, var(--primary) 28%, var(--card-border));
 }
@@ -312,7 +312,7 @@ body.rbi-audit-desktop-wide #data-block-content .input-base {
   font-size: 13px !important;
   font-weight: 650 !important;
   padding: 0.55rem 0.7rem !important;
-  border-radius: 9px !important;
+  border-radius: var(--rbi-radius-md) !important;
   height: auto !important;
   min-height: 40px;
   background: var(--bg-main) !important;
@@ -336,7 +336,7 @@ body.rbi-audit-desktop-wide #btn-quality-plan-pin {
   grid-row: 1;
   min-height: 40px;
   padding: 0.55rem 0.9rem !important;
-  border-radius: 9px !important;
+  border-radius: var(--rbi-radius-md) !important;
   font-size: 11px !important;
   font-weight: 800 !important;
   letter-spacing: 0.04em;
@@ -427,7 +427,7 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   flex-direction: column;
   background: var(--card-bg, var(--card-bg));
   border: 1px solid var(--card-border, var(--card-border));
-  border-radius: 14px;
+  border-radius: var(--rbi-radius-lg);
   overflow: hidden;
 }
 
@@ -608,7 +608,7 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   width: 100%;
   background: var(--card-bg, var(--card-bg));
   border: 1px solid var(--card-border, var(--card-border));
-  border-radius: 14px;
+  border-radius: var(--rbi-radius-lg);
   padding: 0.75rem 0.85rem 0.85rem;
 }
 
@@ -657,7 +657,7 @@ body.rbi-audit-desktop-wide #header-dashboard [data-audit-action="toggleDashboar
 body.rbi-audit-desktop-wide #header-dashboard > .flex.gap-2 > .flex-1 {
   background: var(--bg-main);
   border: 1px solid var(--card-border, var(--card-border));
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   padding: 0.55rem 0.7rem !important;
   min-width: 0;
 }
@@ -667,7 +667,7 @@ body.rbi-audit-desktop-wide #dash-expanded-view {
   margin-top: 0.65rem !important;
   padding: 0.65rem 0.75rem !important;
   border: 1px solid var(--card-border, var(--card-border)) !important;
-  border-radius: 10px;
+  border-radius: var(--rbi-radius-md);
   background: var(--bg-main);
 }
 

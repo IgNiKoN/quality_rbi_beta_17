@@ -2670,9 +2670,13 @@ export const AnalyticsRender = {
             const ctxLine = document.getElementById('op-line-chart');
             if (ctxLine) {
                 const opGrouping = (window.trendGroupings && window.trendGroupings.onepager) || 'WEEK';
-                const trendSource = (window.AnalyticsActions && typeof window.AnalyticsActions.getOnePagerTrendSourceData === 'function')
+                let trendSource = (window.AnalyticsActions && typeof window.AnalyticsActions.getOnePagerTrendSourceData === 'function')
                     ? window.AnalyticsActions.getOnePagerTrendSourceData(opGrouping)
                     : data;
+                // Lookback-источник пуст (режим/кэш), а KPI-срез есть — не оставляем пустой canvas.
+                if ((!trendSource || !trendSource.length) && Array.isArray(data) && data.length) {
+                    trendSource = data;
+                }
                 const trendData = window.buildTrendChartData(trendSource, 'contractorName', activeLineFilters, opGrouping);
                 trendData.datasets.forEach(ds => { ds.borderWidth = 1.5; ds.pointRadius = 2; });
 

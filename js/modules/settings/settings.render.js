@@ -293,18 +293,19 @@ var SettingsRender = {
                                 <div class="font-bold text-sm" data-i18n="settings.body.interface.theme">Тема приложения</div>
                                 <div class="text-[10px] text-[var(--text-muted)] mt-1" data-i18n="settings.body.interface.theme_hint">Цветовая схема</div>
                             </div>
-                            <select id="set-theme" class="input-base w-40" data-settings-action="toggleSetting" data-settings-action-key="theme" data-settings-action-val-type="element" data-action-event="change">
-                                <option value="auto" data-i18n="settings.opt.theme.auto">Системная</option>
-                                <option value="light" data-i18n="settings.opt.theme.light">Светлая</option>
-                                <option value="dark" data-i18n="settings.opt.theme.dark">Тёмная</option>
-                                <option value="rbi-light" data-i18n="settings.opt.theme.rbi_light">RBI Светлая</option>
-                                <option value="rbi-dark" data-i18n="settings.opt.theme.rbi_dark">RBI Тёмная</option>
+                            <select id="set-theme" class="input-base w-52" data-settings-action="toggleSetting" data-settings-action-key="theme" data-settings-action-val-type="element" data-action-event="change">
+                                <option value="rbi-auto-v3" data-i18n="settings.opt.theme.rbi_auto_v3">RBI · Авто</option>
+                                <option value="rbi-light-v3" data-i18n="settings.opt.theme.rbi_light_v3">RBI · Светлая</option>
+                                <option value="rbi-dark-v3" data-i18n="settings.opt.theme.rbi_dark_v3">RBI · Тёмная</option>
+                                <option value="auto" data-i18n="settings.opt.theme.auto">Системная · индиго</option>
+                                <option value="light" data-i18n="settings.opt.theme.light">Светлая · индиго</option>
+                                <option value="dark" data-i18n="settings.opt.theme.dark">Тёмная · индиго</option>
+                                <option value="rbi-auto" data-i18n="settings.opt.theme.rbi_auto">RBI v1 · Авто</option>
+                                <option value="rbi-light" data-i18n="settings.opt.theme.rbi_light">RBI v1 · Светлая</option>
+                                <option value="rbi-dark" data-i18n="settings.opt.theme.rbi_dark">RBI v1 · Тёмная</option>
                                 <option value="rbi-auto-v2" data-i18n="settings.opt.theme.rbi_auto_v2">RBI v2 · Авто</option>
-                                <option value="rbi-light-v2" data-i18n="settings.opt.theme.rbi_light_v2">RBI Светлая v2</option>
-                                <option value="rbi-dark-v2" data-i18n="settings.opt.theme.rbi_dark_v2">RBI Тёмная v2</option>
-                                <option value="rbi-auto-v3" data-i18n="settings.opt.theme.rbi_auto_v3">RBI v3 · Авто (портал)</option>
-                                <option value="rbi-light-v3" data-i18n="settings.opt.theme.rbi_light_v3">RBI Светлая v3 (портал)</option>
-                                <option value="rbi-dark-v3" data-i18n="settings.opt.theme.rbi_dark_v3">RBI Тёмная v3 (портал)</option>
+                                <option value="rbi-light-v2" data-i18n="settings.opt.theme.rbi_light_v2">RBI v2 · Светлая</option>
+                                <option value="rbi-dark-v2" data-i18n="settings.opt.theme.rbi_dark_v2">RBI v2 · Тёмная</option>
                             </select>
                         </div>
                         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
@@ -2147,6 +2148,8 @@ console.log('[SettingsRender] settings.render.js markup mounted');
 
         if (theme === 'auto') {
             theme = prefersDark ? 'dark' : 'light';
+        } else if (theme === 'rbi-auto') {
+            theme = prefersDark ? 'rbi-dark' : 'rbi-light';
         } else if (theme === 'rbi-auto-v2') {
             theme = prefersDark ? 'rbi-dark-v2' : 'rbi-light-v2';
         } else if (theme === 'rbi-auto-v3') {
@@ -2257,13 +2260,13 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         });
     }
 
-    // auto / rbi-auto-v2 / rbi-auto-v3 — следим за системной светлой/тёмной
+    // auto / rbi-auto / rbi-auto-v2 / rbi-auto-v3 — следим за системной светлой/тёмной
     if (window.matchMedia) {
         try {
             var _schemeMq = window.matchMedia('(prefers-color-scheme: dark)');
             var _onSchemeChange = function () {
                 var t = _getSetting('theme') || 'rbi-auto-v3';
-                if (t === 'auto' || t === 'rbi-auto-v2' || t === 'rbi-auto-v3') {
+                if (t === 'auto' || t === 'rbi-auto' || t === 'rbi-auto-v2' || t === 'rbi-auto-v3') {
                     _applySettingsToUI();
                 }
             };

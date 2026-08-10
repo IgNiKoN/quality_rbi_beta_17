@@ -680,22 +680,28 @@ window.emptyTrashBin = async function () {
         if (typeof customDocs !== 'undefined') extractFiles(customDocs);
 
         // 3. УДАЛЕНИЕ МУСОРНЫХ ФАЙЛОВ ИЗ ХРАНИЛИЩА ФОТО/PDF
-        const allPhotos = await dbGetAll(STORES.PHOTOS);
-        if (allPhotos) {
-            for (let p of allPhotos) {
-                // Если файл лежит в базе, но ссылка на него не найдена ни в одной карточке
-                if (!usedFiles.has(p.id)) {
-                    if (p.data && p.data.byteLength) freedBytes += p.data.byteLength;
-                    await dbDelete(STORES.PHOTOS, p.id);
+        // Лёгкие дескрипторы (только id) — dbDelete идёт после закрытия курсора,
+        // см. предупреждение в dbForEachCursor (storage-db.core.js).
+        const photoIdsToDelete = [];
 
-                    // Выгружаем из кэша браузера, если он там застрял
-                    if (PhotoManager.cache && PhotoManager.cache[p.id]) {
-                        URL.revokeObjectURL(PhotoManager.cache[p.id]);
-                        delete PhotoManager.cache[p.id];
-                    }
-                    deletedFiles++;
-                }
+        await dbForEachCursor(STORES.PHOTOS, (p) => {
+            if (!p || !p.id) return;
+            // Если файл лежит в базе, но ссылка на него не найдена ни в одной карточке
+            if (!usedFiles.has(p.id)) {
+                if (p.data && p.data.byteLength) freedBytes += p.data.byteLength;
+                photoIdsToDelete.push(p.id);
             }
+        });
+
+        for (const photoId of photoIdsToDelete) {
+            await dbDelete(STORES.PHOTOS, photoId);
+
+            // Выгружаем из кэша браузера, если он там застрял
+            if (PhotoManager.cache && PhotoManager.cache[photoId]) {
+                URL.revokeObjectURL(PhotoManager.cache[photoId]);
+                delete PhotoManager.cache[photoId];
+            }
+            deletedFiles++;
         }
 
         // 4. ИТОГИ

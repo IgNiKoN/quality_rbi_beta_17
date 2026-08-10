@@ -532,6 +532,74 @@ async function dbGetPageByIndex(storeName, opts) {
     });
 }
 
+/** Число записей в store без чтения value (не поднимает данные в RAM). */
+async function dbCount(storeName) {
+    const db = await openAppDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const req = store.count();
+        req.onsuccess = () => resolve(req.result || 0);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// КУРСОРНЫЙ ПРОХОД ПО СТОРУ (без dbGetAll — не накапливает весь стор в RAM).
+// Используется там, где нужно обработать каждую запись по одной (например,
+// PHOTOS с тяжёлыми ArrayBuffer в поле data) — см. storage-cache-manager.js.
+//
+// ВАЖНО: callback ДОЛЖЕН быть синхронным (без await внутри). Асинхронная
+// работа (dbPut/dbDelete/сетевые вызовы) между двумя cursor.continue() рвёт
+// активность транзакции курсора (TransactionInactiveError) — тяжёлые async
+// операции по каждой записи нужно откладывать в отдельный массив лёгких
+// дескрипторов (без ссылки на .data) и выполнять ПОСЛЕ resolve этого промиса.
+//
+// Фильтрация по project_code — как в dbGetAll (см. выше): системные записи
+// (id/slug начинается на sys_) всегда проходят, остальные — если project_code
+// пуст или совпадает с текущим. Для globalStores фильтрация не применяется.
+async function dbForEachCursor(storeName, callback) {
+    const db = await openAppDb();
+    const pCode = window.syncConfig?.projectCode || 'LOCAL';
+    const globalStores = [STORES.STATE, STORES.SETTINGS, STORES.PHOTOS, STORES.BACKUP_LOGS, STORES.GAME_LOGS];
+    const isGlobalStore = globalStores.includes(storeName);
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const req = store.openCursor();
+
+        req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) {
+                resolve();
+                return;
+            }
+
+            const item = cursor.value;
+
+            if (!isGlobalStore) {
+                const isSystemRecord = String(item?.id).startsWith('sys_') || String(item?.slug).startsWith('sys_');
+                const itemProject = item?.project_code || item?.data?.project_code;
+                const belongsToProject = isSystemRecord || !itemProject || itemProject === pCode;
+                if (!belongsToProject) {
+                    cursor.continue();
+                    return;
+                }
+            }
+
+            try {
+                callback(item);
+            } catch (e) {
+                reject(e);
+                return;
+            }
+
+            cursor.continue();
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
 async function dbDelete(storeName, key) {
     const db = await openAppDb();
     return new Promise((resolve, reject) => {
@@ -559,6 +627,8 @@ window.dbGet = dbGet;
 window.dbHasKey = dbHasKey;
 window.dbGetAll = dbGetAll;
 window.dbGetPageByIndex = dbGetPageByIndex;
+window.dbCount = dbCount;
+window.dbForEachCursor = dbForEachCursor;
 window.dbDelete = dbDelete;
 window.dbClear = dbClear;
 window.dbPutBatch = dbPutBatch;

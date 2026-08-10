@@ -299,9 +299,10 @@ function makeWorkGroup(kind, title, count) {
   toggle.innerHTML =
     '<span class="kb-desk-twi-work-name">' +
     escapeHtml(title) +
-    ' <span class="kb-desk-twi-work-count">' +
+    '</span>' +
+    '<span class="kb-desk-twi-work-count">' +
     count +
-    '</span></span>' +
+    '</span>' +
     '<span class="kb-desk-twi-work-chevron" aria-hidden="true">▾</span>';
 
   const body = document.createElement('div');
