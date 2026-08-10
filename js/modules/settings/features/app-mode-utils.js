@@ -464,6 +464,23 @@ const AppModeManager = {
             this.currentMode = selectedModules[0];
             localStorage.setItem('rbi_app_mode', this.currentMode);
         }
+        // Peer knowledge только knowledge-only; иначе БЗ — экран Q/C (как на ПК).
+        if (selectedModules && this.currentMode === 'knowledge'
+            && shell && typeof shell.isKnowledgePeerVisible === 'function'
+            && !shell.isKnowledgePeerVisible(selectedModules)
+            && typeof shell.resolveKnowledgeEntry === 'function') {
+            const entry = shell.resolveKnowledgeEntry(this.previousMode || 'quality');
+            this.currentMode = entry.mode;
+            localStorage.setItem('rbi_app_mode', this.currentMode);
+            const hash = String(window.location.hash || '');
+            if (hash.indexOf('#/knowledge') === 0) {
+                const suffix = hash.slice('#/knowledge'.length);
+                const nextHash = entry.path + suffix;
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search + nextHash);
+                } catch (_e) { /* ignore */ }
+            }
+        }
 
         const selector = document.getElementById('app-mode-selector');
         const label = document.getElementById('current-mode-label');
@@ -494,10 +511,32 @@ const AppModeManager = {
         const hash = window.location.hash || '';
         const onSettings = /^#\/settings(\/|$)/i.test(hash)
             || /^#\/quality\/settings(\/|$)/i.test(hash);
+
+        // БЗ при наличии Q/C — экран reference host-модуля, не peer #/knowledge.
+        if (newMode === 'knowledge') {
+            const shellKb = window.RBI?.services?.shell;
+            if (shellKb && typeof shellKb.resolveKnowledgeEntry === 'function') {
+                const entry = shellKb.resolveKnowledgeEntry(this.currentMode);
+                if (entry.mode !== 'knowledge') {
+                    if (this.currentMode === entry.mode) {
+                        this.renderBottomNav();
+                        this.updateHeaderVisibility();
+                        if (shellKb.renderSidebar) shellKb.renderSidebar();
+                        if (shellKb.renderMobileModuleMenu) shellKb.renderMobileModuleMenu();
+                        window.AppRouter.navigate(entry.path, true);
+                        return;
+                    }
+                    newMode = entry.mode;
+                    // Fall through to normal switch, then override home → reference.
+                    this._pendingKnowledgeReferencePath = entry.path;
+                }
+            }
+        }
+
         // Тот же режим, но открыты Настройки (chrome) — выйти в home модуля.
         // Иначе early-return оставлял hash на #/settings и F5 снова открывал настройки.
         if (this.currentMode === newMode) {
-            if (!onSettings) return;
+            if (!onSettings && !this._pendingKnowledgeReferencePath) return;
             this.renderBottomNav();
             this.updateHeaderVisibility();
             const shellSame = window.RBI?.services?.shell;
@@ -506,6 +545,12 @@ const AppModeManager = {
             }
             if (shellSame && typeof shellSame.renderMobileModuleMenu === 'function') {
                 shellSame.renderMobileModuleMenu();
+            }
+            if (this._pendingKnowledgeReferencePath) {
+                const refPath = this._pendingKnowledgeReferencePath;
+                this._pendingKnowledgeReferencePath = null;
+                window.AppRouter.navigate(refPath, true);
+                return;
             }
             switch (newMode) {
                 case 'quality':
@@ -559,14 +604,17 @@ const AppModeManager = {
             shell.renderMobileModuleMenu();
         }
 
+        const knowledgeRef = this._pendingKnowledgeReferencePath;
+        this._pendingKnowledgeReferencePath = null;
+
         switch (newMode) {
             case 'quality':
                 document.getElementById('construction-warning-banner').style.display = 'none';
-                window.AppRouter.navigate('#/quality/audit', true);
+                window.AppRouter.navigate(knowledgeRef || '#/quality/audit', true);
                 break;
             case 'construction':
                 document.getElementById('construction-warning-banner').style.display = 'flex';
-                window.AppRouter.navigate('#/construction/defects', true);
+                window.AppRouter.navigate(knowledgeRef || '#/construction/defects', true);
                 break;
             case 'knowledge':
                 document.getElementById('construction-warning-banner').style.display = 'none';

@@ -175,6 +175,39 @@
       this._updateModeSelectorOptions(valid);
       return valid;
     },
+    /**
+     * Peer-модуль knowledge только в knowledge-only наборе.
+     * Если выбраны Качество и/или Стройконтроль — БЗ экран внутри них
+     * (#/quality|construction/reference), не отдельный пункт rail/гамбургера.
+     */
+    isKnowledgePeerVisible: function (selectedIds) {
+      var selected = Array.isArray(selectedIds) ? selectedIds : this.getSelectedModules();
+      return selected.indexOf('knowledge') !== -1
+        && selected.indexOf('quality') === -1
+        && selected.indexOf('construction') === -1;
+    },
+    /**
+     * Куда вести «База знаний» как вход: peer #/knowledge или экран host-модуля.
+     * @returns {{ mode: string, path: string }}
+     */
+    resolveKnowledgeEntry: function (currentMode) {
+      var selected = this.getSelectedModules();
+      if (this.isKnowledgePeerVisible(selected)) {
+        return { mode: 'knowledge', path: '#/knowledge' };
+      }
+      var mode = currentMode || null;
+      var host = null;
+      if (mode === 'quality' && selected.indexOf('quality') !== -1) host = 'quality';
+      else if ((mode === 'construction' || mode === 'construction-v2')
+        && selected.indexOf('construction') !== -1) host = 'construction';
+      else if (selected.indexOf('quality') !== -1) host = 'quality';
+      else if (selected.indexOf('construction') !== -1) host = 'construction';
+      if (!host) return { mode: 'knowledge', path: '#/knowledge' };
+      return {
+        mode: host,
+        path: host === 'quality' ? '#/quality/reference' : '#/construction/reference'
+      };
+    },
     // Sidebar icon-rail (App Shell, §29 п.9, вариант A) — вертикальный список иконок
     // переключения бизнес-модуля, видим только на ПК (>=768px, см. css/style.css).
     // Переиспользует те же данные, что renderModuleSelection(), другой рендер
@@ -187,6 +220,7 @@
       var selected = this.getSelectedModules();
       var roleAllowedIds = getRoleAllowedBusinessModuleIds();
       var currentMode = (window.AppModeManager && window.AppModeManager.currentMode) || null;
+      var knowledgePeer = this.isKnowledgePeerVisible(selected);
 
       var icons = {
         quality: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>',
@@ -199,6 +233,7 @@
       BUSINESS_MODULES.forEach(function (mod) {
         if (roleAllowedIds.indexOf(mod.id) === -1) return;
         if (selected.indexOf(mod.id) === -1) return;
+        if (mod.id === 'knowledge' && !knowledgePeer) return;
         var isActive = currentMode === mod.id;
         var label = _navLabel(mod.id, mod.label);
         html += '<button type="button" data-sidebar-module-id="' + mod.id + '"' +
@@ -325,6 +360,7 @@
       var selected = this.getSelectedModules();
       var roleAllowedIds = getRoleAllowedBusinessModuleIds();
       var currentMode = (window.AppModeManager && window.AppModeManager.currentMode) || null;
+      var knowledgePeer = this.isKnowledgePeerVisible(selected);
 
       var labels = {
         quality: _navLabel('quality', 'Качество'),
@@ -337,6 +373,7 @@
       BUSINESS_MODULES.forEach(function (mod) {
         if (roleAllowedIds.indexOf(mod.id) === -1) return;
         if (selected.indexOf(mod.id) === -1) return;
+        if (mod.id === 'knowledge' && !knowledgePeer) return;
         var isActive = currentMode === mod.id;
         html += '<button type="button" data-shell-action="selectMobileModule" data-shell-action-arg="' + mod.id + '"' +
           ' class="w-full text-left px-3.5 py-2.5 text-[11px] font-bold uppercase flex items-center justify-between gap-2 transition-colors ' +
@@ -400,8 +437,10 @@
         'construction-v2': _navLabel('construction_v2', 'Стройконтроль в2 (тест)')
       };
       var currentValue = select.value;
+      var knowledgePeer = this.isKnowledgePeerVisible(selectedIds);
       select.innerHTML = '';
       selectedIds.forEach(function (id) {
+        if (id === 'knowledge' && !knowledgePeer) return;
         var opt = document.createElement('option');
         opt.value = id;
         opt.textContent = labels[id] || id;
