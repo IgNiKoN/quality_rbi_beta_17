@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.59.0';
-const SW_VERSION = '18.59.1';
+const SW_VERSION = '18.59.10';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 /**
@@ -262,8 +262,10 @@ const urlsToCache = [
 ];
 
 // 2. УСТАНОВКА: Безопасное скачивание файлов в память
+// skipWaiting: только первая установка (нет active SW). Обновление ждёт
+// кнопку «Обновить» → postMessage('SKIP_WAITING'), иначе controllerchange
+// + location.reload на iPhone выглядят как внезапная перезагрузка.
 self.addEventListener('install', event => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[SW] Кэшируем ядро и библиотеки...');
@@ -308,6 +310,10 @@ self.addEventListener('install', event => {
         })
 
       );
+    }).then(() => {
+      if (!self.registration.active) {
+        return self.skipWaiting();
+      }
     })
   );
 });

@@ -187,6 +187,8 @@
             // Живой DOM после sync не трогаем (аккордеоны/скролл). Но если
             // пользователь сменил глобальный фильтр во время defer — filter paint
             // stale, иначе кнопка «закреплена», а данные остаются старыми.
+            // dataStale сам по себе НЕ повод для paint (см. sync-live-paint.policy /
+            // shouldSkipAnalyticsLivePaint в analytics.render).
             var filterStale = typeof window.analyticsFilterPaintIsStale === 'function'
                 && window.analyticsFilterPaintIsStale();
             var dataStale = !!(window.AnalyticsRender
@@ -194,8 +196,7 @@
                 && window.AnalyticsRender.sourceDataIsStale());
             if (!_analyticsNeedsFlushPaint() && !filterStale) {
                 // A9: если source-signature не изменился — снимаем dirty,
-                // иначе следующий switchAnalyticsSubTab снова full-rebuild'ил.
-                // Если данные реально изменились — dirty остаётся до навигации.
+                // иначе dirty остаётся до навигации (без live rebuild).
                 if (!dataStale) flags.analytics = false;
                 return;
             }

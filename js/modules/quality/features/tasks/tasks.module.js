@@ -572,14 +572,12 @@ async function _gameForceUpdatePlan(silent) {
 
     await _gameGenerateWeeklyPlan(true);
 
-    // RBI FIX: без этой проверки каждый вызов _gameForceUpdatePlan (в т.ч. в самом конце
-    // triggerSync) безусловно запрашивал новую синхронизацию — при уже идущей синхронизации
-    // такой запрос уходил в pending-retry и запускал следующий полный цикл сразу после
-    // окончания текущего, из-за чего sync крутился без остановки. Синхронизацию имеет смысл
-    // просить только если реально были найдены и помечены дубликаты задач.
+    // RBI FIX: sync только при реальных дубликатах. Если мы уже внутри triggerSync
+    // (gameForceUpdatePlan(true) в конце цикла) — только dirty, без _sync: иначе
+    // pending-retry сразу стартует второй полный круг поверх рендера подвкладок (iPhone).
     if (hadRealChanges) {
         localStorage.setItem('rbi_cloud_dirty', '1');
-        _sync('silent');
+        if (!window.isSyncing) _sync('silent');
     }
 
     if (!silent) setTimeout(function(){ showToast(_t('quality.tasks.toast.cleaned', '✨ База очищена, дубликаты инспекций удалены!')); }, 500);
@@ -2171,9 +2169,11 @@ async function _generateAutoTasks(silent) {
         await _storage().put(_storage().stores().TASKS, window.rbi_tasksData[i]);
     }
 
+    // Если вызвали из конца triggerSync — не стартовать nested silent sync
+    // (pending-retry + каскад). Достаточно dirty: интервал/ручной sync догонят push.
     if (generatedCount > 0 || updatedCount > 0 || deletedCount > 0) {
         localStorage.setItem('rbi_cloud_dirty', '1');
-        _sync('silent');
+        if (!window.isSyncing) _sync('silent');
     }
 
     setTimeout(function() {

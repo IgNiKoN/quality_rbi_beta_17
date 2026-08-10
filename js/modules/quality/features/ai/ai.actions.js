@@ -5,6 +5,7 @@
 // AIActions — делегат, вызывающий <name> напрямую (module-scope, без window.).
 
 import { meetingRichToPlain, meetingRichToSafeHtml } from '../meetings/meetings.protocol.js';
+import { buildRiskZonesInsightFromChecks } from '../analytics/analytics.risk-insight.js';
 
 function _getSetting(key) {
     return ((AIActions._ctx && AIActions._ctx.settings) || window.RBI.services.settings).get(key);
@@ -375,8 +376,19 @@ async function generateSmartComment(scenario) {
             const top3Defects = Object.keys(defectsCountMap).sort((a, b) => defectsCountMap[b] - defectsCountMap[a]).slice(0, 3)
                 .map(s => `${s} (${defectsCountMap[s]})`).join(', ') || 'значимых дефектов нет';
 
-            promptSystem = `Ты — эксперт-аналитик качества. Сформируй КРАТКИЙ обзор (до 80 слов). 1. Статус. 2. Риск. 3. Прогноз. 4. Действие. ${toneDesc} ЗАПРЕЩЕНО использовать слово "авария"/"аварийный" — используй формулировку "критический дефект вес 3".`;
-            promptUser = `ИКО: ${IKO}. В красной зоне: ${redZone}%. Проверок: ${data.length}. Критических дефектов (вес 3): ${sumB3}. ТОП дефектов: ${top3Defects}. Сценарий: ${scenario}`;
+            const risk = buildRiskZonesInsightFromChecks(data, {
+                templates: _templates().getUserTemplates()
+            });
+
+            promptSystem = `Ты — эксперт стройконтроля по оценке уровня качества. На основе ФАКТОВ ниже напиши деловой анализ на русском (90–140 слов).
+Структура строго — 4 коротких блока, между блоками пустая строка:
+1) Оценка УРОВНЯ КАЧЕСТВА: НИЗКИЙ / ПРИЕМЛЕМЫЙ / ВЫСОКИЙ — опирайся на ср. УрК (KPI «Ср. УрК»). ЗАПРЕЩЕНО оценивать и упоминать «надёжность» / ИУрК.
+2) Зоны по УрК: зелёная ≥85% / жёлтая 70–84% / красная <70%, кого держать на радаре.
+3) Главные риски по дефектам/этапам (кратко).
+4) 1–3 действия на неделю (список с "-").
+Формат: короткие абзацы, без простыни; начинай блок с "1)"…"4)".
+Правила: только факты из входа; не выдумывай цифры; ЗАПРЕЩЕНО слова "авария"/"аварийный" и "надёжность". ${toneDesc}`;
+            promptUser = `СВОДКА УРОВНЯ КАЧЕСТВА И ЗОН:\n${risk.facts}\n\nДополнительно: ИКО объекта ${IKO}; доля работ в красной зоне (интегральный показатель): ${redZone}%; проверок с критическими дефектами (вес 3): ${sumB3}; ТОП этапов с B2/B3: ${top3Defects}.\nСценарий тона: ${scenario}`;
         } else {
             const parts = currentEditingExpertKey.split('_||_');
             const cKey = parts[0]; const tTitle = parts[1];
@@ -387,7 +399,14 @@ async function generateSmartComment(scenario) {
             promptUser = `Подрядчик: ${cKey.split(' [')[0]}. УрК: ${m.finalC}%. Доля критических дефектов (вес 3): ${m.rateB3}%. Сценарий: ${scenario}`;
         }
 
-        const aiResponse = await callAI([{ role: 'system', content: promptSystem }, { role: 'user', content: promptUser }], { temperature: 0.4, max_tokens: 300 });
+        const aiResponse = await callAI([{ role: 'system', content: promptSystem }, { role: 'user', content: promptUser }], {
+            temperature: 0.35,
+            max_tokens: (currentEditingExpertKey === 'global_main_analysis'
+                || currentEditingExpertKey === 'global_onepager_pdca'
+                || (currentEditingExpertKey && currentEditingExpertKey.startsWith('onepager_')))
+                ? 550
+                : 300
+        });
         inputField.value = aiResponse;
         showToast(_t('quality.ai.toast.text_generated', '✅ Текст сгенерирован ИИ!'));
         _gameLogAction('ai_generate', scenario);

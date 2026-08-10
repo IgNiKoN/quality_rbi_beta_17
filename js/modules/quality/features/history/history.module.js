@@ -91,7 +91,9 @@ export const HistoryModule = {
             const onSync = async () => {
                 if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('history');
                 else if (window.syncDirtyFlags) window.syncDirtyFlags.history = true;
-                if (typeof window.shouldDeferFullRender === 'function' && window.shouldDeferFullRender('history')) {
+                // Аналитика активна (в т.ч. не-История) — только dirty, без лишнего load во время defer.
+                if (typeof window.shouldDeferFullRender === 'function'
+                    && window.shouldDeferFullRender(['history', 'analytics'])) {
                     return;
                 }
                 await HistoryActions.loadRecords();

@@ -10,6 +10,18 @@
  */
 
 import { AnalyticsState } from './analytics.state.js';
+import {
+    shouldFullRebuildAnalyticsLive,
+    shouldSkipAnalyticsLivePaint,
+    analyticsSourceDataSignatureFromArray,
+    isReusablePhotoThumbUrl
+} from '../../../../shared/sync-live-paint.policy.js';
+import {
+    buildRiskZonesInsight,
+    buildRiskZonesInsightFromChecks,
+    formatRiskInsightDisplayHtml,
+    isAutoRiskInsightText
+} from './analytics.risk-insight.js';
 
 function _t(key, fallback, vars) {
   try {
@@ -272,6 +284,8 @@ const PHOTO_THUMB_CACHE_MAX = 60;
 
 function _setPhotoThumbCache(photoRef, thumb) {
     if (!photoRef || !thumb) return;
+    // blob: не кэшируем — PhotoManager LRU revoke → ERR_FILE_NOT_FOUND при возврате.
+    if (!isReusablePhotoThumbUrl(thumb)) return;
     // delete+set → ключ уходит в конец Map (LRU)
     if (_photoThumbCache.has(photoRef)) _photoThumbCache.delete(photoRef);
     _photoThumbCache.set(photoRef, thumb);
@@ -279,6 +293,16 @@ function _setPhotoThumbCache(photoRef, thumb) {
         const oldest = _photoThumbCache.keys().next().value;
         _photoThumbCache.delete(oldest);
     }
+}
+
+function _getCachedPhotoThumb(photoRef) {
+    if (!photoRef || !_photoThumbCache.has(photoRef)) return '';
+    const cached = _photoThumbCache.get(photoRef);
+    if (!isReusablePhotoThumbUrl(cached)) {
+        _photoThumbCache.delete(photoRef);
+        return '';
+    }
+    return cached;
 }
 
 // Поколение рендера аналитики: при смене фильтра старые async-превью
@@ -324,11 +348,8 @@ function _analyticsSourceDataSignature() {
             arr = window.contractorArray;
         }
     } catch (_) { arr = []; }
-    if (!arr.length) return '0';
-    // length + края id: ловит restoreSession/pull без полного хеша массива.
-    const a = arr[0] && arr[0].id;
-    const b = arr[arr.length - 1] && arr[arr.length - 1].id;
-    return arr.length + ':' + String(a || '') + ':' + String(b || '');
+    // Sort edges: IDB reorder после silent pull не выглядит как смена данных.
+    return analyticsSourceDataSignatureFromArray(arr);
 }
 
 function _analyticsSectionLooksPainted(tabId) {
@@ -632,11 +653,12 @@ async function _getGalleryPhotoSrc(photoRef) {
     if (!photoRef) return null;
     if (Array.isArray(photoRef)) photoRef = photoRef[0];
     if (!photoRef) return null;
-    if (_photoThumbCache.has(photoRef)) {
-        const cached = _photoThumbCache.get(photoRef);
+    const hit = _getCachedPhotoThumb(photoRef);
+    if (hit) {
+        // LRU touch
         _photoThumbCache.delete(photoRef);
-        _photoThumbCache.set(photoRef, cached);
-        return cached;
+        _photoThumbCache.set(photoRef, hit);
+        return hit;
     }
 
     let realSrc = null;
@@ -647,6 +669,7 @@ async function _getGalleryPhotoSrc(photoRef) {
     }
     if (!realSrc) return null;
     _setPhotoThumbCache(photoRef, realSrc);
+    // Даже если blob не попал в cache — вернуть свежий URL для текущего img.
     return realSrc;
 }
 
@@ -660,9 +683,10 @@ function _renderPhotoCardHtml(d, i, galleryId, badgeColor, badgeText) {
         ? window.rbiEscapeAttr(photoRef)
         : String(photoRef || '').replace(/"/g, '&quot;');
     const placeholder = window.rbiPhotoPlaceholder || '';
-    const cached = _photoThumbCache.get(photoRef) || '';
+    const cached = _getCachedPhotoThumb(photoRef) || '';
     const initialSrc = cached || placeholder;
     // Полный файл (без data-prefer-thumb) — hydrator / _hydrateGalleryPhotos.
+    // Без reusable cache всегда data-local-src — иначе после revoke blob нечего резолвить.
     const localAttrs = (!cached || cached === placeholder)
         ? ` data-local-src="${safePhoto}"`
         : '';
@@ -683,6 +707,27 @@ function _renderPhotoCardHtml(d, i, galleryId, badgeColor, badgeText) {
         `;
 }
 
+function _galleryPhotoTs(p) {
+    const t = Number(p && p.ts);
+    if (Number.isFinite(t) && t > 0) return t;
+    const raw = p && (p.dateRaw != null ? p.dateRaw : p.date);
+    const d = raw != null ? new Date(raw).getTime() : NaN;
+    return Number.isFinite(d) ? d : 0;
+}
+
+/** Галереи B3/B2/OK: сначала новые проверки, затем подрядчик / пункт. */
+function _sortGalleryNewestFirst(arr) {
+    if (!Array.isArray(arr) || arr.length < 2) return arr || [];
+    arr.sort((a, b) => {
+        const dt = _galleryPhotoTs(b) - _galleryPhotoTs(a);
+        if (dt) return dt;
+        const c = String((a && a.contr) || '').localeCompare(String((b && b.contr) || ''), 'ru');
+        if (c) return c;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''), 'ru');
+    });
+    return arr;
+}
+
 function _collectAnalyticsGalleryPhotos(data) {
     const allPhotosB3 = [];
     const allPhotosB2 = [];
@@ -690,6 +735,8 @@ function _collectAnalyticsGalleryPhotos(data) {
     if (!Array.isArray(data)) return { allPhotosB3, allPhotosB2, allPhotosOK };
     data.forEach((i) => {
         if (!i || !i.state) return;
+        const ts = new Date(i.date).getTime();
+        const dateLabel = Number.isFinite(ts) ? new Date(ts).toLocaleDateString('ru-RU') : '—';
         Object.keys(i.state).forEach((id) => {
             const s = i.state[id];
             const photosArr = (i.photos && i.photos[id])
@@ -710,18 +757,23 @@ function _collectAnalyticsGalleryPhotos(data) {
                     photo: photo,
                     name: defName,
                     contr: i.contractorName,
-                    date: new Date(i.date).toLocaleDateString('ru-RU')
+                    date: dateLabel,
+                    ts: Number.isFinite(ts) ? ts : 0,
+                    dateRaw: i.date
                 };
                 if (s === 'fail' || s === 'fail_escalated') {
                     const isB3 = (s === 'fail_escalated') || (foundItem && foundItem.w === 3);
                     if (isB3) allPhotosB3.push(photoObj);
-                    else allPhotosB2.push(photoObj);
+                    else allPhotosB2.push(photoObj); // B1 и B2 — одна лента «значимые»
                 } else if (s === 'ok') {
                     allPhotosOK.push(photoObj);
                 }
             });
         });
     });
+    _sortGalleryNewestFirst(allPhotosB3);
+    _sortGalleryNewestFirst(allPhotosB2);
+    _sortGalleryNewestFirst(allPhotosOK);
     return { allPhotosB3, allPhotosB2, allPhotosOK };
 }
 
@@ -806,12 +858,12 @@ function _hydrateGalleryPhotos(galleryId, entries, renderGen) {
     entries.forEach(function (item) {
         const photoRef = item.photoRef;
         const idx = item.idx;
-        if (_photoThumbCache.has(photoRef)) {
-            const cached = _photoThumbCache.get(photoRef);
+        const cached = _getCachedPhotoThumb(photoRef);
+        if (cached) {
             const img = document.querySelector(
                 '#gallery-wrap-' + galleryId + ' img[data-photo-idx="' + idx + '"]'
             );
-            if (img && cached) {
+            if (img) {
                 img.src = cached;
                 img.removeAttribute('data-local-src');
             }
@@ -1357,6 +1409,7 @@ export const AnalyticsRender = {
         // Единый хелпер §5 (sync-ui-defer): sync не full-render'ит УЖЕ открытую
         // живую Аналитику. Но после route-teardown секция пустая — первый paint
         // обязателен, иначе «Загрузка…» висит до конца sync (История/ПК СК/График).
+        // return true = был paint (desk afterTabPaint); false = no-op / skip.
         const activeTabEarly = (AnalyticsState && AnalyticsState.activeSubTab) || 'sub-contractors';
         const deferringNow = typeof window.shouldDeferFullRender === 'function'
             ? window.shouldDeferFullRender('analytics')
@@ -1365,7 +1418,7 @@ export const AnalyticsRender = {
         if (deferringNow && analyticsSectionLooksPainted(activeTabEarly)) {
             if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
             else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
-            return;
+            return false;
         }
         if (deferringNow) {
             // Пусто / скелетон после teardown — помечаем dirty, но НЕ return:
@@ -1389,9 +1442,25 @@ export const AnalyticsRender = {
         const dataSig = _analyticsSourceDataSignature();
         const dataChanged = dataSig !== _analyticsDataSig;
         const filterFpChanged = fp !== _analyticsFilterFp;
-        // A9: dirty-флаг сам по себе НЕ инвалидирует paint — только смена фильтра
-        // или реального source-signature (иначе каждый фоновый sync → full rebuild).
-        const filterChanged = filterFpChanged || dataChanged;
+        const sectionPainted = activeTab === 'sub-history'
+            ? _historySectionLooksPainted()
+            : _analyticsSectionLooksPainted(activeTab);
+
+        // Тихий sync / IDB reorder: данные сдвинулись, DOM живой — не rebuild.
+        // Dirty остаётся → refresh при смене подвкладки / уходе-заходе.
+        if (shouldSkipAnalyticsLivePaint({ filterFpChanged, dataChanged, sectionPainted })) {
+            if (window.RBI?.utils?.syncUi?.markDirty) window.RBI.utils.syncUi.markDirty('analytics');
+            else if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = true;
+            return false;
+        }
+
+        // A9: dirty сам по себе НЕ инвалидирует paint. Full rebuild — фильтр
+        // или данные на пустом/скелетон-экране (shouldFullRebuildAnalyticsLive).
+        const filterChanged = shouldFullRebuildAnalyticsLive({
+            filterFpChanged,
+            dataChanged,
+            sectionPainted
+        });
 
         if (filterChanged) {
             // Инвалидируем in-flight превью и кэш отрисованных подвкладок.
@@ -1432,7 +1501,7 @@ export const AnalyticsRender = {
             && _analyticsSectionLooksPainted(activeTab);
         if (!filterChanged && (historyReuseOk || tabReuseOk)) {
             if (window.syncDirtyFlags) window.syncDirtyFlags.analytics = false;
-            return;
+            return false;
         }
 
         const data = _analyticsFilteredCache || getFilteredAnalyticsData();
@@ -1489,7 +1558,7 @@ export const AnalyticsRender = {
                         }
                     }).catch(function () { /* ignore */ });
                 }
-                return;
+                return true;
             }
             if (histDirty && !hasMem && window.HistoryActions && typeof window.HistoryActions.loadRecords === 'function') {
                 const histEl = document.getElementById('history-list');
@@ -1500,7 +1569,7 @@ export const AnalyticsRender = {
                     renderHistoryTab();
                     initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
                 });
-                return;
+                return true;
             }
             renderHistoryTab();
             initCollapsiblePanel('hist-sticky-panel', 'hist-panel-body', 'hist-panel-header', 'hist-panel-toggle-icon');
@@ -1513,6 +1582,7 @@ export const AnalyticsRender = {
             if (window.RBI && window.RBI.events && typeof window.RBI.events.emit === 'function') window.RBI.events.emit('sk:renderRequested', { view: 'mainTab' });
         }
         else if (activeTab === 'sub-rating') AnalyticsRender.renderRatingTab(); // Обратная совместимость
+        return true;
     },
 
     // =========================================================================
@@ -1686,7 +1756,6 @@ export const AnalyticsRender = {
         const avgDocProd = kpiRatings.avgDoc;
         const contrCount = Object.keys(groupedC).length;
 
-        let defaultSmartText = '';
         let cList = [];
 
         for (let cName in groupedC) {
@@ -1699,12 +1768,29 @@ export const AnalyticsRender = {
 
         const validContrCount = kpiRatings.relN || 0;
         const avgIntegralUrk = kpiRatings.avgReliability != null ? kpiRatings.avgReliability : 0;
-        if (defaultSmartText === '') defaultSmartText = _t('quality.analytics.insight.all_green', 'Все подрядчики в зеленой зоне. Вмешательство не требуется.');
+        const defaultInsight = buildRiskZonesInsight({
+            rows: cList,
+            avgUrk: avgUrkProd,
+            qualityN: validContrCount,
+            sumB1,
+            sumB2,
+            sumB3,
+            checks: data.length
+        });
 
         const globalKey = 'global_main_analysis';
-        const rawSmartText = _reports().getExpertConclusion(globalKey) || defaultSmartText;
-        const uiSmartText = rawSmartText.replace(/\n/g, '<br>');
-        const isCustomText = !!_reports().getExpertConclusion(globalKey);
+        let savedExpert = _reports().getExpertConclusion(globalKey) || '';
+        // Старый автотекст в expert conclusions давал нечитаемую простыню — сбрасываем.
+        if (savedExpert && isAutoRiskInsightText(savedExpert)) {
+            try { _reports().setExpertConclusion(globalKey, ''); } catch (_) { /* ignore */ }
+            savedExpert = '';
+        }
+        const isCustomText = !!String(savedExpert).trim();
+        // В UI только компактная карточка (или осознанный ИИ/ручной текст). Простыню автотекста не показываем.
+        const uiSmartText = isCustomText
+            ? formatRiskInsightDisplayHtml(savedExpert)
+            : (defaultInsight.html || '');
+        const rawSmartText = isCustomText ? savedExpert : '';
 
         const getSelectHtml = (type) => `
             <select onchange="updateTrendCharts('${type}', this.value)" class="text-[9px] font-semibold border border-indigo-200 text-indigo-700 bg-white rounded px-1 py-1 outline-none cursor-pointer shadow-sm">
@@ -1721,24 +1807,24 @@ export const AnalyticsRender = {
 
         topContainer.innerHTML = `
             <div class="grid grid-cols-3 min-[500px]:grid-cols-5 gap-2 mb-2">
-                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.avg_urk_title', 'Средний УрК подрядчиков (окно до 15 проверок, приоритет N≥7)')}">${_t('quality.analytics.kpi.avg_urk', 'Ср. УрК')}</div>
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col items-center justify-center text-center min-w-0">
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate w-full" title="${_t('quality.analytics.kpi.avg_urk_title', 'Средний УрК подрядчиков (окно до 15 проверок, приоритет N≥7)')}">${_t('quality.analytics.kpi.avg_urk', 'Ср. УрК')}</div>
                     <div class="text-lg font-bold leading-none ${avgUrkProd < 70 ? 'text-red-600' : (avgUrkProd < 85 ? 'text-orange-500' : 'text-green-600')}">${avgUrkProd}%</div>
                 </div>
-                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.avg_doc_title', 'Средний УрК документации подрядчиков (окно до 15)')}">${_t('quality.analytics.kpi.avg_doc', 'Ср. УрК Докум.')}</div>
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col items-center justify-center text-center min-w-0">
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate w-full" title="${_t('quality.analytics.kpi.avg_doc_title', 'Средний УрК документации подрядчиков (окно до 15)')}">${_t('quality.analytics.kpi.avg_doc', 'Ср. УрК Докум.')}</div>
                     <div class="text-lg font-bold leading-none ${avgDocProd === null ? 'text-slate-400' : (avgDocProd < 70 ? 'text-red-600' : (avgDocProd < 85 ? 'text-orange-500' : 'text-indigo-600'))}">${avgDocProd === null ? '—' : avgDocProd + '%'}</div>
                 </div>
-                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate" title="${_t('quality.analytics.kpi.reliability_title', 'Средний Интегральный рейтинг подрядчиков')}">${_t('quality.analytics.kpi.reliability', 'Надежность')}</div>
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col items-center justify-center text-center min-w-0">
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate w-full" title="${_t('quality.analytics.kpi.reliability_title', 'Средний Интегральный рейтинг подрядчиков')}">${_t('quality.analytics.kpi.reliability', 'Надежность')}</div>
                     <div class="text-lg font-bold leading-none ${avgIntegralUrk < 70 ? 'text-red-600' : (avgIntegralUrk < 85 ? 'text-orange-500' : 'text-indigo-600')}">${validContrCount > 0 ? avgIntegralUrk + '%' : _t('quality.analytics.kpi.collecting', 'СБОР')}</div>
                 </div>
-                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">${_t('quality.analytics.kpi.contractors', 'Подрядчиков')}</div>
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col items-center justify-center text-center min-w-0">
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate w-full">${_t('quality.analytics.kpi.contractors', 'Подрядчиков')}</div>
                     <div class="text-lg font-bold leading-none text-slate-800 dark:text-white">${contrCount}</div>
                 </div>
-                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col justify-center min-w-0">
-                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate">${_t('quality.analytics.kpi.checks', 'Проверок')}</div>
+                <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-2 shadow-sm flex flex-col items-center justify-center text-center min-w-0">
+                    <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5 truncate w-full">${_t('quality.analytics.kpi.checks', 'Проверок')}</div>
                     <div class="text-lg font-bold leading-none text-slate-800 dark:text-white">${data.length}</div>
                 </div>
             </div>
@@ -1767,7 +1853,7 @@ export const AnalyticsRender = {
                     </button>
                     <div class="text-[10px] text-slate-500 uppercase font-semibold mb-3 border-b border-slate-100 pb-2 pr-20">${_t('quality.analytics.section.sample_status', 'Статус выборки: проанализировано {n} подрядчиков', { n: validContrCount })}</div>
                     ${isCustomText ? `<div class="text-[9px] font-semibold text-yellow-700 uppercase mb-2 bg-yellow-100 w-fit px-2 py-0.5 rounded flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Скорректировано инженером</div>` : ''}
-                    <div class="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                    <div class="ana-risk-host text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                         ${uiSmartText}
                     </div>
                     <textarea id="hidden_global_analysis" class="hidden">${rawSmartText}</textarea>
@@ -3056,7 +3142,17 @@ export const AnalyticsRender = {
                     if (s === 'ok') {
                         cStageData[parentStage].ok++;
                         photosArr.forEach((photo) => {
-                            if (photo) allPhotosOK.push({ photo: photo, name: defName, contr: contractorName, date: new Date(unit.date).toLocaleDateString('ru-RU') });
+                            if (photo) {
+                                const ts = new Date(unit.date).getTime();
+                                allPhotosOK.push({
+                                    photo: photo,
+                                    name: defName,
+                                    contr: contractorName,
+                                    date: Number.isFinite(ts) ? new Date(ts).toLocaleDateString('ru-RU') : '—',
+                                    ts: Number.isFinite(ts) ? ts : 0,
+                                    dateRaw: unit.date
+                                });
+                            }
                         });
                     }
 
@@ -3065,26 +3161,39 @@ export const AnalyticsRender = {
                         const flatList = getFlatList(clGroups);
                         const foundItem = flatList.find(x => String(x.id) === String(id));
                         let isB3 = (s === 'fail_escalated') || (foundItem && foundItem.w === 3);
+                        const ts = new Date(unit.date).getTime();
+                        const dateLabel = Number.isFinite(ts) ? new Date(ts).toLocaleDateString('ru-RU') : '—';
+                        const photoMeta = {
+                            name: defName,
+                            contr: contractorName,
+                            date: dateLabel,
+                            ts: Number.isFinite(ts) ? ts : 0,
+                            dateRaw: unit.date
+                        };
 
                         if (isB3) {
                             cStageData[parentStage].b3++;
                             if (!cB3Counts[defName]) cB3Counts[defName] = { count: 0, photo: null, name: defName };
                             cB3Counts[defName].count++;
                             photosArr.forEach((photo) => {
-                                if (photo) allPhotosB3.push({ photo: photo, name: defName, contr: contractorName, date: new Date(unit.date).toLocaleDateString('ru-RU') });
+                                if (photo) allPhotosB3.push({ photo: photo, ...photoMeta });
                             });
                         } else {
                             cStageData[parentStage].b2++;
                             if (!cFailCounts[defName]) cFailCounts[defName] = { count: 0, photo: null, name: defName };
                             cFailCounts[defName].count++;
                             photosArr.forEach((photo) => {
-                                if (photo) allPhotosB2.push({ photo: photo, name: defName, contr: contractorName, date: new Date(unit.date).toLocaleDateString('ru-RU') });
+                                if (photo) allPhotosB2.push({ photo: photo, ...photoMeta });
                             });
                         }
                     }
                 });
             }
         });
+
+        _sortGalleryNewestFirst(allPhotosB3);
+        _sortGalleryNewestFirst(allPhotosB2);
+        _sortGalleryNewestFirst(allPhotosOK);
 
         let stagesUIHtml = Object.keys(cStageData).map(k => {
             const d = cStageData[k];
@@ -3523,6 +3632,41 @@ export const AnalyticsRender = {
         `;
     },
 
+    /**
+     * Повторная гидрация уже смонтированной галереи (возврат на desk-подвкладку
+     * после revoke blob: в PhotoManager LRU).
+     */
+    rehydratePhotoGallery(galleryId) {
+        const wrap = document.getElementById('gallery-wrap-' + galleryId);
+        if (!wrap) return;
+        const entry = _galleryFullData.get(galleryId);
+        const placeholder = window.rbiPhotoPlaceholder || '';
+        const hydrateEntries = [];
+        wrap.querySelectorAll('img[data-photo-idx]').forEach(function (img) {
+            const idx = Number(img.getAttribute('data-photo-idx'));
+            let photoRef = null;
+            if (entry && entry.photosArray && entry.photosArray[idx]) {
+                photoRef = entry.photosArray[idx].photo;
+            }
+            if (!photoRef) photoRef = img.getAttribute('data-local-src') || '';
+            if (Array.isArray(photoRef)) photoRef = photoRef[0];
+            if (!photoRef) {
+                if (img.src && String(img.src).indexOf('blob:') === 0) img.src = placeholder;
+                return;
+            }
+            if (_photoThumbCache.has(photoRef)) _photoThumbCache.delete(photoRef);
+            const safe = (typeof window.rbiEscapeAttr === 'function')
+                ? window.rbiEscapeAttr(photoRef)
+                : String(photoRef).replace(/"/g, '&quot;');
+            img.setAttribute('data-local-src', safe);
+            img.src = placeholder;
+            hydrateEntries.push({ photoRef: photoRef, idx: idx });
+        });
+        if (hydrateEntries.length) {
+            _hydrateGalleryPhotos(galleryId, hydrateEntries, _analyticsRenderGen);
+        }
+    },
+
     // Обратная совместимость сигнатуры window-биндинга loadMorePhotos
     // (см. конец файла) — реальная реализация делегирует в module-scope
     // _loadMorePhotosImpl, работающую напрямую с _galleryFullData/DOM.
@@ -3807,11 +3951,15 @@ export const AnalyticsRender = {
                     </div>
                 </div>
             </div>`;
-    }
+    },
+
+    sortGalleryNewestFirst: _sortGalleryNewestFirst
 };
 
 if (typeof window !== 'undefined') {
     window.AnalyticsRender = AnalyticsRender;
+    window.buildRiskZonesInsightFromChecks = buildRiskZonesInsightFromChecks;
+    window.buildRiskZonesInsight = buildRiskZonesInsight;
 
     // =========================================================================
     // МОНТАЖ РАЗМЕТКИ ВКЛАДКИ «АНАЛИТИКА» (перенос из index.html:619-974,

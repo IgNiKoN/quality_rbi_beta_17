@@ -153,7 +153,10 @@ export const SKModule = {
                 } else if (window.syncDirtyFlags) {
                     window.syncDirtyFlags.sk = true;
                 }
-                if (typeof window.shouldDeferFullRender === 'function' && window.shouldDeferFullRender('sk')) {
+                // Не full-render ПК СК, если открыта любая Аналитика (в т.ч. Подрядчики):
+                // иначе silent sync переписывает скрытый DOM и даёт jank на активном экране.
+                if (typeof window.shouldDeferFullRender === 'function'
+                    && window.shouldDeferFullRender(['sk', 'analytics'])) {
                     return;
                 }
                 SKRender.render(SKState.currentSubTab);

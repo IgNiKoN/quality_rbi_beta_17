@@ -278,6 +278,7 @@ body.rbi-analytics-desktop-wide .ana-desk-kpi-strip > div {
   border-radius: 0;
   padding: 0 20px;
   border-right: 1px solid var(--card-border);
+  text-align: center;
 }
 
 body.rbi-analytics-desktop-wide .ana-desk-kpi-strip > div:first-child { padding-left: 0; }
@@ -289,6 +290,7 @@ body.rbi-analytics-desktop-wide .ana-desk-kpi-strip .k {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+  text-align: center;
 }
 
 body.rbi-analytics-desktop-wide .ana-desk-kpi-strip .v {
@@ -298,6 +300,7 @@ body.rbi-analytics-desktop-wide .ana-desk-kpi-strip .v {
   letter-spacing: -0.02em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 body.rbi-analytics-desktop-wide .ana-desk-sev-strip {
@@ -355,6 +358,165 @@ body.rbi-analytics-desktop-wide .ana-desk-insight {
   color: var(--primary);
   font-size: 12.5px;
   line-height: 1.45;
+}
+
+/* Анализ зон риска — компактная вёрстка (mobile + desktop) */
+.ana-risk-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-main, #334155);
+}
+.ana-risk-insight--compact {
+  gap: 0.3rem;
+}
+.ana-risk-insight--prose {
+  gap: 0.4rem;
+  max-height: 11rem;
+  overflow: auto;
+}
+.ana-risk-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+}
+.ana-risk-level {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.05rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--card-border, #e2e8f0);
+  background: var(--hover-bg, #f8fafc);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ana-risk-level-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
+  width: 100%;
+}
+.ana-risk-level-value {
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: center;
+  width: 100%;
+}
+.ana-risk-level--low {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.ana-risk-level--low .ana-risk-level-value { color: #b91c1c; }
+.ana-risk-level--mid {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+.ana-risk-level--mid .ana-risk-level-value { color: #b45309; }
+.ana-risk-level--high {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.ana-risk-level--high .ana-risk-level-value { color: #15803d; }
+.ana-risk-level--mute .ana-risk-level-value { color: #64748b; }
+
+.ana-risk-zones {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex: 1 1 auto;
+}
+.ana-risk-zones .z {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 10px;
+  font-weight: 800;
+  border: 1px solid transparent;
+  min-width: 2.4rem;
+}
+.ana-risk-zones .z-g { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.ana-risk-zones .z-y { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.ana-risk-zones .z-r { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.ana-risk-zones .z-n { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+
+.ana-risk-focus {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  line-height: 1.3;
+  text-align: center;
+}
+.ana-risk-focus-red b { color: #b91c1c; }
+.ana-risk-focus-yellow b { color: #b45309; }
+
+.ana-risk-action {
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, #6366f1 22%, var(--card-border, #e2e8f0));
+  background: color-mix(in srgb, #6366f1 7%, var(--card-bg, #fff));
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-main, #334155);
+  text-align: center;
+}
+
+.ana-risk-ul,
+.ana-risk-ol {
+  margin: 0.15rem 0 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.ana-risk-ul li,
+.ana-risk-ol li {
+  font-size: 11px;
+  line-height: 1.35;
+}
+.ana-risk-p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.ana-risk-k { font-weight: 800; color: var(--text-main, #0f172a); }
+.ana-risk-sec {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--card-border, #e2e8f0);
+  background: var(--hover-bg, #f8fafc);
+}
+.ana-risk-num {
+  font-weight: 800;
+  color: #4f46e5;
+  margin-right: 0.1rem;
+}
+.ana-desk-risk-body {
+  margin-top: 0.25rem;
+}
+.ana-desk-risk-body .ana-risk-insight--prose {
+  max-height: 9.5rem;
 }
 
 body.rbi-analytics-desktop-wide .ana-desk-zone-label {

@@ -1,7 +1,7 @@
 /**
  * analytics.desktop.render.js
  * Desktop Analytics (≥1280): зоны A→B→C→D (пульс → работа/таблица+detail →
- * контекст HTML → фото свёрнуто). Mobile analytics.* не редактирует.
+ * контекст HTML → фото раскрыто по умолчанию). Mobile analytics.* не редактирует.
  * Стили: css/analytics.desktop.css (.rbi-analytics-desktop-wide).
  */
 
@@ -21,6 +21,12 @@ import {
   paintScheduleContent,
   teardownScheduleDesktop
 } from './schedule.desktop.content.js';
+import {
+  shouldScheduleDeskAfterTabPaint,
+  deskDetailsOpenAttr,
+  shouldRepaintDeskContextZones
+} from '../../../../shared/sync-live-paint.policy.js';
+import { buildRiskZonesInsight, formatRiskInsightDisplayHtml, isAutoRiskInsightText } from './analytics.risk-insight.js';
 
 const DESKTOP_MIN = 1280;
 const SHELL_ID = 'analytics-desktop-shell';
@@ -338,25 +344,42 @@ function buildPulseModel(data) {
     : { avgUrk: 0, avgDoc: null, avgReliability: null, relN: 0 };
 
   const rows = buildContractorRows(data);
-  let warnN = 0;
-  let badName = '';
-  rows.forEach((r) => {
-    if (r.metrics.finalC < 85 && r.metrics.count >= 7) warnN++;
-    if (r.metrics.finalC < 70 && !badName) badName = r.name.split(' [')[0];
-  });
+  let sumB1z = sumB1;
+  let sumB2z = sumB2;
+  let sumB3z = sumB3;
+  // buildContractorRows may apply chip filter — for insight use unfiltered zone rows
+  const allRows = (() => {
+    const prev = window.currentContractorsFilter;
+    window.currentContractorsFilter = 'ALL';
+    try { return buildContractorRows(data); } finally { window.currentContractorsFilter = prev; }
+  })();
 
-  let insight = _t('quality.analytics.insight.all_green', 'Все подрядчики в зелёной зоне. Вмешательство не требуется.');
+  let insight = '';
+  let insightHtml = '';
   try {
     const reports = window.RBI && window.RBI.services && window.RBI.services.reports;
-    const saved = reports && typeof reports.getExpertConclusion === 'function'
+    let saved = reports && typeof reports.getExpertConclusion === 'function'
       ? reports.getExpertConclusion('global_main_analysis')
       : null;
-    if (saved) insight = saved;
-    else if (warnN > 0) {
-      insight = _t('quality.analytics.insight.warn_zone', '{n} подрядчик(ов) вне зелёной зоны{prio} — разбор в таблице ниже.', {
-        n: warnN,
-        prio: badName ? _t('quality.analytics.insight.priority', '; приоритет: «{name}»', { name: badName }) : ''
-      });
+    if (saved && isAutoRiskInsightText(saved)) {
+      try { reports.setExpertConclusion('global_main_analysis', ''); } catch (_) { /* ignore */ }
+      saved = null;
+    }
+    const built = buildRiskZonesInsight({
+      rows: allRows.map((r) => ({ name: r.name, metrics: r.metrics })),
+      avgUrk: ratings.avgUrk || 0,
+      qualityN: ratings.relN || 0,
+      sumB1: sumB1z,
+      sumB2: sumB2z,
+      sumB3: sumB3z,
+      checks: data.length
+    });
+    if (saved && String(saved).trim()) {
+      insight = saved;
+      insightHtml = formatRiskInsightDisplayHtml(saved);
+    } else {
+      insight = '';
+      insightHtml = built.html || '';
     }
   } catch (_) { /* ignore */ }
 
@@ -370,7 +393,8 @@ function buildPulseModel(data) {
     sumB1, sumB2, sumB3,
     causesCount,
     rows,
-    insight
+    insight,
+    insightHtml
   };
 }
 
@@ -397,8 +421,7 @@ function buildKpiHtml(data) {
     + '  <div><div class="k">B1</div><div class="v text-blue-600">' + m.sumB1 + '</div></div>'
     + '  <div><div class="k">B2</div><div class="v text-orange-500">' + m.sumB2 + '</div></div>'
     + '  <div><div class="k">B3</div><div class="v text-red-600">' + m.sumB3 + '</div></div>'
-    + '</div>'
-    + '<div class="ana-desk-insight"><strong>' + _t('quality.analytics.desk.signal', 'Сигнал:') + '</strong> ' + escapeAttr(m.insight).replace(/\n/g, ' ') + '</div>';
+    + '</div>';
 }
 
 function ensureContextZones() {
@@ -420,12 +443,27 @@ function ensureContextZones() {
   }
 }
 
-function paintContextZones() {
+function paintContextZones(opts) {
   if (!_shellApplied || !isDesktopViewport()) return;
   ensureContextZones();
   const zoneC = document.getElementById('ana-desk-zone-c');
   const zoneD = document.getElementById('ana-desk-zone-d');
   if (!zoneC || !zoneD) return;
+
+  const force = !!(opts && opts.force);
+  const hasGalleryWrap = !!(
+    zoneD.querySelector('#gallery-wrap-desk_b3')
+    || zoneD.querySelector('#gallery-wrap-desk_b2')
+    || zoneD.querySelector('#gallery-wrap-desk_ok')
+  );
+  // Возврат на подвкладку: не wipe живых галерей (blob revoke + rebuild → вопросики).
+  if (!shouldRepaintDeskContextZones({ hasGalleryWrap, force })) {
+    const photosDetails = zoneD.querySelector('#analytics-photos-details-desk');
+    if (photosDetails && photosDetails.open) {
+      try { rehydrateDeskPhotoGalleries(); } catch (_) { /* ignore */ }
+    }
+    return;
+  }
 
   const data = getFilteredData();
   const model = buildPulseModel(data);
@@ -435,7 +473,7 @@ function paintContextZones() {
     + '<div class="ana-desk-secondary">'
     + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.section.risk_zones', 'Анализ зон риска') + '</h3>'
     + '    <div class="meta">' + _t('quality.analytics.desk.meta_sample', 'По выборке · подрядчиков: {n}', { n: model.contrCount }) + '</div>'
-    + '    <p>' + escapeAttr(model.insight).replace(/\n/g, '<br>') + '</p></div>'
+    + '    <div class="ana-desk-risk-body">' + (model.insightHtml || formatRiskInsightDisplayHtml(model.insight)) + '</div></div>'
     + '  <div class="ana-desk-panel"><h3>' + _t('quality.analytics.desk.dynamics_urk', 'Динамика УрК') + '</h3>'
     + '    <div class="meta">' + _t('quality.analytics.desk.meta_weekly_urk', 'Средний УрК по неделям, %') + '</div>'
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-trend"></canvas></div></div>'
@@ -449,8 +487,13 @@ function paintContextZones() {
     + '    <div class="ana-desk-canvas-wrap"><canvas id="desk-chart-compare"></canvas></div></div>'
     + '</div>';
 
+  // Сохранить open при repaint; первый paint — раскрыт по умолчанию.
+  const prevPhotos = document.getElementById('analytics-photos-details-desk');
+  const prevOpen = prevPhotos ? !!prevPhotos.open : null;
+  const openAttr = deskDetailsOpenAttr(prevOpen, true);
+
   zoneD.innerHTML = ''
-    + '<details class="ana-desk-evidence" id="analytics-photos-details-desk">'
+    + '<details class="ana-desk-evidence" id="analytics-photos-details-desk"' + openAttr + '>'
     + '  <summary>' + _t('quality.analytics.desk.gallery_summary', 'Фотогалерея B3 / B2 / OK — раскрыть') + '</summary>'
     + '  <div class="ana-desk-evidence-body">'
     + '    <div class="ev-h b3">' + _t('quality.analytics.gallery.b3_title', 'Критический брак (B3)') + '</div><div id="lazy-gallery-desk_b3" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
@@ -464,9 +507,30 @@ function paintContextZones() {
   const photosDetails = zoneD.querySelector('#analytics-photos-details-desk');
   if (photosDetails) {
     photosDetails.addEventListener('toggle', ensureDesktopPhotoGalleries);
+    // Уже open на первом paint / после preserve — сразу гидратировать галерею.
+    if (photosDetails.open) {
+      try { ensureDesktopPhotoGalleries({ target: photosDetails }); } catch (_) { /* ignore */ }
+    }
   }
 
   requestAnimationFrame(() => paintDesktopCharts(data, model));
+}
+
+/** Сброс мёртвых blob: в desk-галереях и повторный resolve из IDB. */
+function rehydrateDeskPhotoGalleries() {
+  const rehydrate = window.AnalyticsRender
+    && typeof window.AnalyticsRender.rehydratePhotoGallery === 'function'
+    ? window.AnalyticsRender.rehydratePhotoGallery.bind(window.AnalyticsRender)
+    : null;
+  ['desk_b3', 'desk_b2', 'desk_ok'].forEach(function (id) {
+    if (rehydrate) {
+      try { rehydrate(id); } catch (_) { /* ignore */ }
+    }
+  });
+  const zone = document.getElementById('ana-desk-zone-d');
+  if (zone && typeof window.rbiHydrateLocalImages === 'function') {
+    try { window.rbiHydrateLocalImages(zone); } catch (_) { /* ignore */ }
+  }
 }
 
 /** Remove mobile photo-details from hidden top-summary (duplicate ids). */
@@ -490,9 +554,25 @@ function collectDesktopGalleryPhotos(data) {
   const userTpl = getTemplatesMap() || {};
   const sysTpl = (typeof window.SYSTEM_TEMPLATES !== 'undefined' && window.SYSTEM_TEMPLATES) || {};
   const flatFn = typeof window.getFlatList === 'function' ? window.getFlatList : null;
+  const sortFn = (typeof window.AnalyticsRender !== 'undefined' && window.AnalyticsRender.sortGalleryNewestFirst)
+    ? window.AnalyticsRender.sortGalleryNewestFirst
+    : function (arr) {
+      if (!Array.isArray(arr) || arr.length < 2) return arr || [];
+      arr.sort(function (a, b) {
+        const ta = Number(a && a.ts) || 0;
+        const tb = Number(b && b.ts) || 0;
+        if (tb !== ta) return tb - ta;
+        const c = String((a && a.contr) || '').localeCompare(String((b && b.contr) || ''), 'ru');
+        if (c) return c;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''), 'ru');
+      });
+      return arr;
+    };
 
   data.forEach((i) => {
     if (!i || !i.state) return;
+    const ts = new Date(i.date).getTime();
+    const dateLabel = Number.isFinite(ts) ? new Date(ts).toLocaleDateString('ru-RU') : '—';
     Object.keys(i.state).forEach((id) => {
       const s = i.state[id];
       const photosArr = (i.photos && i.photos[id])
@@ -523,18 +603,23 @@ function collectDesktopGalleryPhotos(data) {
           photo: photo,
           name: defName,
           contr: i.contractorName,
-          date: new Date(i.date).toLocaleDateString('ru-RU')
+          date: dateLabel,
+          ts: Number.isFinite(ts) ? ts : 0,
+          dateRaw: i.date
         };
         if (s === 'fail' || s === 'fail_escalated') {
           const isB3 = (s === 'fail_escalated') || (foundItem && foundItem.w === 3);
           if (isB3) allPhotosB3.push(photoObj);
-          else allPhotosB2.push(photoObj);
+          else allPhotosB2.push(photoObj); // B1+B2
         } else if (s === 'ok') {
           allPhotosOK.push(photoObj);
         }
       });
     });
   });
+  sortFn(allPhotosB3);
+  sortFn(allPhotosB2);
+  sortFn(allPhotosOK);
   return { allPhotosB3, allPhotosB2, allPhotosOK };
 }
 
@@ -544,11 +629,14 @@ function ensureDesktopPhotoGalleries(ev) {
 
   const zone = document.getElementById('ana-desk-zone-d');
   if (!zone) return;
-  // Already filled into the visible desktop zone
+  // Already filled — не init заново; подтянуть свежие URL если blob revoke.
   if (zone.querySelector('#gallery-wrap-desk_b3')
     || zone.querySelector('#gallery-wrap-desk_b2')
     || zone.querySelector('#gallery-wrap-desk_ok')) {
-    if (!zone.querySelector('[id^="lazy-gallery-desk_"]')) return;
+    if (!zone.querySelector('[id^="lazy-gallery-desk_"]')) {
+      try { rehydrateDeskPhotoGalleries(); } catch (_) { /* ignore */ }
+      return;
+    }
   }
 
   const init = (window.AnalyticsRender && typeof window.AnalyticsRender.initPhotoGallery === 'function')
@@ -2050,7 +2138,8 @@ function deskRepaintContractors() {
   if (!isDeskContractorsActive()) return;
   try { refreshKpi(); } catch (_) { /* ignore */ }
   try { paintContractorsTable(); } catch (_) { /* ignore */ }
-  try { paintContextZones(); } catch (_) { /* ignore */ }
+  // force: смена фильтра/списка — зоны и галереи пересобрать.
+  try { paintContextZones({ force: true }); } catch (_) { /* ignore */ }
   try { neutralizeMobileGalleryMarkup(); } catch (_) { /* ignore */ }
 }
 
@@ -2107,7 +2196,8 @@ function wrapPaintFunctions() {
     const origTab = AR.renderCurrentAnalyticsTab.bind(AR);
     const wrappedTab = function () {
       const ret = origTab.apply(AR, arguments);
-      if (_shellApplied && isDesktopViewport()) {
+      // Только после реального paint — иначе silent sync / reuse схлопывает фото.
+      if (_shellApplied && isDesktopViewport() && shouldScheduleDeskAfterTabPaint(ret)) {
         scheduleAfterTabPaint(
           (window.AnalyticsState && window.AnalyticsState.activeSubTab) || 'sub-contractors',
           80
@@ -2296,7 +2386,6 @@ function bindLocale() {
           || window.currentActiveAnalyticsTab
           || '';
         if (tab === 'sub-contractors') {
-          try { paintContextZones(); } catch (_) { /* ignore */ }
           const kpi = document.getElementById(KPI_ID);
           if (kpi) {
             try { kpi.innerHTML = buildKpiHtml(getFilteredData()); } catch (_) { /* ignore */ }
