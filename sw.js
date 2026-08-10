@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.59.0';
-const SW_VERSION = '18.59.28';
+const SW_VERSION = '18.59.29';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 /**
@@ -352,7 +352,10 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return fetch(event.request).then((networkResponse) => {
+      // Сеть (обновление кэша) запускаем всегда, но НЕ ждём её для ответа,
+      // если есть кэш — см. ветку ниже. .catch(() => null) не даёт упасть
+      // необработанным réjection'ом (сеть недоступна/CORS).
+      const networkUpdate = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && mayCachePut(event.request.url)) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -360,11 +363,25 @@ self.addEventListener('fetch', event => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // CORS/сеть упали: нельзя резолвить undefined → TypeError в SW.
-        if (cachedResponse) return cachedResponse;
-        return Response.error();
-      });
+      }).catch(() => null);
+
+      // Cache-first + stale-while-revalidate: если есть закэшированная
+      // версия — отдаём её МГНОВЕННО, не дожидаясь сети. Раньше здесь был
+      // network-first (сначала fetch, кэш — только при явном сетевом
+      // сбое) — на iOS при смене сети на возврате из фона fetch() может
+      // «висеть» без явного reject, и запрос ядра приложения (bootstrap.js,
+      // router.js и т.п.) зависал вместо мгновенной отдачи из кэша. Плюс
+      // раньше не-200 ответ сети (гонка деплоя/CDN) шёл пользователю
+      // напрямую, даже если в кэше была валидная версия. Сеть обновляет
+      // кэш в фоне (event.waitUntil — чтобы браузер не убил SW раньше
+      // времени), результат уйдёт в дело при следующем обращении.
+      if (cachedResponse) {
+        event.waitUntil(networkUpdate);
+        return cachedResponse;
+      }
+
+      // В кэше нет записи — сеть остаётся единственным источником.
+      return networkUpdate.then((networkResponse) => networkResponse || Response.error());
     }).catch(() => Response.error())
   );
 });
