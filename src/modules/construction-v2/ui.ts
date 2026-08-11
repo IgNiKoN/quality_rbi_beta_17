@@ -10,9 +10,16 @@ import { focusAcceptanceOnPlan, renderAcceptanceKanban } from './acceptance-kanb
 import { PlanViewer } from './plan-viewer';
 import { openCreateDefectForm, openViewDefectForm } from './defect-form';
 import { renderTransferBoard, teardownTransferUi } from './transfer-board';
-import { renderDefectsRegistry } from './defects-registry';
+import { renderTransferBoardDesktop } from './transfer-board-desktop';
+import { renderDefectsRegistry, type DefectsRegistryCallbacks } from './defects-registry';
+import { renderDefectsRegistryDesktop } from './defects-registry-desktop';
+import { renderAcceptanceKanbanDesktop } from './acceptance-kanban-desktop';
+import { isDesktopViewport, bindResizeWatcher } from './desktop-utils';
+import { renderPlanChromeDesktop, renderPlanTreeDesktop } from './plan-chrome-desktop';
 import { renderMetricsView } from './metrics-view';
-import { renderContractorCabinet } from './contractor-cabinet';
+import { renderMetricsViewDesktop } from './metrics-view-desktop';
+import { renderContractorCabinet, type CabinetCallbacks } from './contractor-cabinet';
+import { renderContractorCabinetDesktop } from './contractor-cabinet-desktop';
 import {
   filterAcceptancesForRole,
   filterDefectsForRole
@@ -291,6 +298,13 @@ async function _afterDefectMutation(): Promise<void> {
     return;
   }
   await _refreshOverlaysOnly();
+}
+
+function _setPlanPickerSheetVisible(open: boolean): void {
+  const sheet = document.getElementById('c2-plan-picker-sheet');
+  if (!sheet) return;
+  sheet.classList.toggle('hidden', !open);
+  sheet.classList.toggle('flex', open);
 }
 
 async function _mountViewerIfNeeded(svc: LocSvc): Promise<void> {
@@ -618,7 +632,14 @@ export async function renderConstructionV2(): Promise<void> {
     _viewer?.destroy();
     _viewer = null;
     _mountedPdfUrl = null;
-    await renderAcceptanceKanban(root);
+    bindResizeWatcher(() => {
+      if (_subview === 'acceptance') renderConstructionV2().catch(() => {});
+    });
+    if (isDesktopViewport()) {
+      await renderAcceptanceKanbanDesktop(root);
+    } else {
+      await renderAcceptanceKanban(root);
+    }
     return;
   }
 
@@ -628,6 +649,9 @@ export async function renderConstructionV2(): Promise<void> {
     _viewer?.destroy();
     _viewer = null;
     _mountedPdfUrl = null;
+    bindResizeWatcher(() => {
+      if (_subview === 'cabinet') renderConstructionV2().catch(() => {});
+    });
     const dSvcCab = _defects();
     const aSvcCab = _acc();
     if (dSvcCab) await dSvcCab.init();
@@ -637,7 +661,11 @@ export async function renderConstructionV2(): Promise<void> {
     if (!host) return;
     const defects = dSvcCab?.list?.({ includeDeleted: false }) || [];
     const acceptances = aSvcCab?.list?.({ includeDeleted: false }) || [];
-    renderContractorCabinet(host, {
+    const cabinetOpts: {
+      defects: ConstructionDefectV2[];
+      acceptances: ConstructionAcceptanceV2[];
+      cb: CabinetCallbacks;
+    } = {
       defects,
       acceptances,
       cb: {
@@ -663,7 +691,12 @@ export async function renderConstructionV2(): Promise<void> {
           });
         }
       }
-    });
+    };
+    if (isDesktopViewport()) {
+      renderContractorCabinetDesktop(host, cabinetOpts);
+    } else {
+      renderContractorCabinet(host, cabinetOpts);
+    }
     return;
   }
 
@@ -672,7 +705,14 @@ export async function renderConstructionV2(): Promise<void> {
     _viewer?.destroy();
     _viewer = null;
     _mountedPdfUrl = null;
-    await renderTransferBoard(root);
+    bindResizeWatcher(() => {
+      if (_subview === 'transfer') renderConstructionV2().catch(() => {});
+    });
+    if (isDesktopViewport()) {
+      await renderTransferBoardDesktop(root);
+    } else {
+      await renderTransferBoard(root);
+    }
     return;
   }
 
@@ -695,6 +735,9 @@ export async function renderConstructionV2(): Promise<void> {
   _mountedPdfUrl = null;
 
   if (_subview === 'metrics') {
+    bindResizeWatcher(() => {
+      if (_subview === 'metrics') renderConstructionV2().catch(() => {});
+    });
     root.innerHTML = `<div id="c2-metrics-host" class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden min-h-[420px]"></div>`;
     const host = document.getElementById('c2-metrics-host');
     if (!host) return;
@@ -704,16 +747,24 @@ export async function renderConstructionV2(): Promise<void> {
             filterDefectsForRole(dSvc.list(opts) || [])
         }
       : null;
-    renderMetricsView(host, {
+    const metricsOpts = {
       loc: svc,
       defectsSvc: scopedDefectsSvc,
       selectedFloorId: _selectedFloorId,
-      cb: { onOpenDefect: (id) => _openViewDefect(id) }
-    });
+      cb: { onOpenDefect: (id: string) => _openViewDefect(id) }
+    };
+    if (isDesktopViewport()) {
+      renderMetricsViewDesktop(host, metricsOpts);
+    } else {
+      renderMetricsView(host, metricsOpts);
+    }
     return;
   }
 
   if (_subview === 'defects') {
+    bindResizeWatcher(() => {
+      if (_subview === 'defects') renderConstructionV2().catch(() => {});
+    });
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
         <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
@@ -740,7 +791,7 @@ export async function renderConstructionV2(): Promise<void> {
           .join(' / ')
       : '';
     const list = _selectedFloorId && dSvc ? dSvc.listForFloor(_selectedFloorId) : [];
-    renderDefectsRegistry(host, {
+    const registryOpts = {
       floorId: _selectedFloorId,
       floorLabel: path || floor?.displayName || '',
       defects: list,
@@ -748,32 +799,82 @@ export async function renderConstructionV2(): Promise<void> {
       cb: {
         onOpenDefect: (id) => _openViewDefect(id),
         onShowOnPlan: (id, locationId) => focusDefectOnPlan(id, locationId)
-      }
-    });
+      } as DefectsRegistryCallbacks
+    };
+    if (isDesktopViewport()) {
+      renderDefectsRegistryDesktop(host, registryOpts);
+    } else {
+      renderDefectsRegistry(host, registryOpts);
+    }
     return;
   }
 
   // plan subview
-  root.innerHTML = `
-    <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
-      <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</div>
-        <div id="c2-tree">${_renderTree(svc)}</div>
-        ${
-          !dSvc
-            ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_defects_missing', 'constructionDefects не загружен')}</div>`
-            : ''
-        }
-        ${
-          !aSvc
-            ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_acc_missing', 'constructionAcceptance не загружен')}</div>`
-            : ''
-        }
-      </aside>
-      <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
-        ${_renderPlanChrome(svc)}
-      </main>
-    </div>`;
+  bindResizeWatcher(() => {
+    if (_subview === 'plan') renderConstructionV2().catch(() => {});
+  });
+  const svcMissingHtml = `
+    ${
+      !dSvc
+        ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_defects_missing', 'constructionDefects не загружен')}</div>`
+        : ''
+    }
+    ${
+      !aSvc
+        ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">${_t('construction.v2.svc_acc_missing', 'constructionAcceptance не загружен')}</div>`
+        : ''
+    }`;
+  if (isDesktopViewport()) {
+    // Тот же паттерн размеров дерево/контент, что у subview «Замечания» (md:w-72 + max-h-[70vh]).
+    root.innerHTML = `
+      <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
+        <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
+          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</div>
+          <div id="c2-tree">${renderPlanTreeDesktop(svc, _selectedFloorId)}</div>
+          ${svcMissingHtml}
+        </aside>
+        <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
+          ${renderPlanChromeDesktop(svc, { selectedFloorId: _selectedFloorId, addMode: _addMode, zoneMode: _zoneMode })}
+        </main>
+      </div>`;
+  } else {
+    // Дерево свёрнуто в breadcrumb-кнопку — план сразу занимает весь экран, без скролла мимо
+    // огромного списка объектов. Полное дерево — bottom-sheet по тапу (data-c2-plan-picker-open).
+    const path = _selectedFloorId
+      ? svc
+          .getPath(_selectedFloorId)
+          .map((n) => n.displayName)
+          .join(' / ')
+      : '';
+    root.innerHTML = `
+      <div class="flex flex-col h-full min-h-[420px]">
+        <button type="button" data-c2-plan-picker-open
+          class="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-left shrink-0">
+          <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 shrink-0">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</span>
+          <span class="flex-1 min-w-0 truncate text-[12px] font-semibold text-slate-700 dark:text-slate-200">
+            ${path ? _escape(path) : _t('construction.v2.select_floor_cta', 'Выбрать этаж')}
+          </span>
+          <span class="text-[10px] font-black uppercase text-indigo-600 shrink-0">${_t('construction.v2.change', 'Изменить')}</span>
+        </button>
+        <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
+          ${_renderPlanChrome(svc)}
+        </main>
+      </div>
+      <div id="c2-plan-picker-sheet" data-c2-plan-picker-backdrop
+        class="fixed inset-0 z-[6000] hidden items-end bg-black/40 p-3">
+        <div class="w-full max-h-[75vh] bg-[var(--card-bg)] rounded-t-2xl shadow-2xl border border-[var(--card-border)] overflow-hidden flex flex-col">
+          <div class="px-4 py-3 border-b border-[var(--card-border)] flex items-center justify-between shrink-0">
+            <div class="text-[11px] font-black uppercase tracking-widest text-indigo-600">${_t('construction.v2.hierarchy', 'Иерархия (v2)')}</div>
+            <button type="button" data-c2-plan-picker-close
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+          </div>
+          <div class="p-3 overflow-y-auto">
+            <div id="c2-tree">${_renderTree(svc)}</div>
+            ${svcMissingHtml}
+          </div>
+        </div>
+      </div>`;
+  }
 
   _bindOnce();
   _bindI18nOnce();
@@ -795,7 +896,26 @@ function _bindOnce() {
         _selectedFloorId = id;
         _addMode = false;
         _zoneMode = false;
+        _setPlanPickerSheetVisible(false);
         renderConstructionV2().catch((e) => console.warn('[construction-v2] render', e));
+        return;
+      }
+      // Открытие/закрытие bottom-sheet дерева — прямое переключение видимости DOM-узла, БЕЗ
+      // полного renderConstructionV2(): иначе #c2-plan-host пересоздаётся, а _mountViewerIfNeeded
+      // не перемонтирует PDF-канвас повторно на тот же plan.pdf_url — план оставался бы пустым.
+      const planPickerOpenBtn = t?.closest?.('[data-c2-plan-picker-open]') as HTMLElement | null;
+      if (planPickerOpenBtn) {
+        _setPlanPickerSheetVisible(true);
+        return;
+      }
+      const planPickerCloseBtn = t?.closest?.('[data-c2-plan-picker-close]') as HTMLElement | null;
+      if (planPickerCloseBtn) {
+        _setPlanPickerSheetVisible(false);
+        return;
+      }
+      // Клик по самому backdrop (не по панели внутри) — закрыть шторку.
+      if (t && t.hasAttribute('data-c2-plan-picker-backdrop')) {
+        _setPlanPickerSheetVisible(false);
         return;
       }
       const addBtn = t?.closest?.('[data-c2-add-mode]') as HTMLElement | null;
@@ -897,12 +1017,18 @@ export async function refreshConstructionV2Markers(): Promise<void> {
   if (!tab || tab.classList.contains('hidden')) return;
   if (_subview === 'acceptance') {
     const root = _root();
-    if (root) await renderAcceptanceKanban(root);
+    if (root) {
+      if (isDesktopViewport()) await renderAcceptanceKanbanDesktop(root);
+      else await renderAcceptanceKanban(root);
+    }
     return;
   }
   if (_subview === 'transfer') {
     const root = _root();
-    if (root) await renderTransferBoard(root);
+    if (root) {
+      if (isDesktopViewport()) await renderTransferBoardDesktop(root);
+      else await renderTransferBoard(root);
+    }
     return;
   }
   if (_subview === 'defects' || _subview === 'metrics') {

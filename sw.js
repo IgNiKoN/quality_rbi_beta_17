@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.59.0';
-const SW_VERSION = '18.59.29';
+const SW_VERSION = '18.59.47';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 /**
@@ -96,6 +96,9 @@ const urlsToCache = [
   './data/system_twi.js',
   './js/shared/template.utils.js',
   './data/system_templates.js',
+  './data/system_templates.en.js',
+  './data/system_templates.sr-Latn.js',
+  './js/shared/system-templates-locale.js',
   './js/core/router.js',
   './js/core/views.js',
   './js/services/config.service.js',

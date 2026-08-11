@@ -162,7 +162,9 @@ function undecorateDeskFields() {
 
 function moveHeaderPiecesIntoChrome(chrome) {
   if (!chrome) return;
-  const slotCheck = chrome.querySelector('[data-audit-desk-slot-checklist]');
+  // slotCheck живёт в .audit-desk-topbar-strip — теперь отдельном от chrome
+  // прямом ребёнке shell (см. ensureShell), поэтому ищем от document, не от chrome.
+  const slotCheck = document.querySelector('[data-audit-desk-slot-checklist]');
   const slotDash = document.querySelector('[data-audit-desk-slot-dash]');
   const slotData = chrome.querySelector('[data-audit-desk-slot-data]');
   const slotNav = chrome.querySelector('[data-audit-desk-slot-nav]');
@@ -249,19 +251,27 @@ function ensureShell() {
     shell = document.createElement('div');
     shell.id = SHELL_ID;
 
+    // Strip — отдельный от chrome прямой ребёнок shell (не вложен в короткий
+    // .audit-desk-chrome), чтобы containing block для position:sticky был
+    // высотой всего shell (chrome + work с длинным чек-листом), а не только
+    // короткой chrome-секции — иначе sticky «кончается» на границе chrome
+    // и полоса уезжает под #app-desk-topbar при скролле длинного чек-листа.
+    const strip = document.createElement('div');
+    strip.className = 'audit-desk-topbar-strip';
+    strip.setAttribute('data-audit-desk-topbar-strip', '');
+    strip.innerHTML = ''
+      + '<div class="audit-desk-topbar-strip-inner">'
+      + '  <div class="audit-desk-topbar-brand">'
+      + '    <span class="audit-desk-topbar-label">' + _t('quality.desk.audit.strip_label', 'Осмотр') + '</span>'
+      + '    <span class="audit-desk-topbar-sub" data-audit-desk-chrome-sub>' + _t('quality.desk.audit.strip_sub_pick', 'Выберите чек-лист') + '</span>'
+      + '  </div>'
+      + '  <div class="audit-desk-topbar-tpl" data-audit-desk-slot-checklist></div>'
+      + '</div>';
+
     const chrome = document.createElement('section');
     chrome.id = CHROME_ID;
     chrome.className = 'audit-desk-chrome';
     chrome.innerHTML = ''
-      + '<div class="audit-desk-topbar-strip" data-audit-desk-topbar-strip>'
-      + '  <div class="audit-desk-topbar-strip-inner">'
-      + '    <div class="audit-desk-topbar-brand">'
-      + '      <span class="audit-desk-topbar-label">' + _t('quality.desk.audit.strip_label', 'Осмотр') + '</span>'
-      + '      <span class="audit-desk-topbar-sub" data-audit-desk-chrome-sub>' + _t('quality.desk.audit.strip_sub_pick', 'Выберите чек-лист') + '</span>'
-      + '    </div>'
-      + '    <div class="audit-desk-topbar-tpl" data-audit-desk-slot-checklist></div>'
-      + '  </div>'
-      + '</div>'
       + '<div class="audit-desk-chrome-body">'
       + '  <div class="audit-desk-zone audit-desk-zone-object">'
       + '    <div class="audit-desk-zone-head">'
@@ -335,6 +345,7 @@ function ensureShell() {
     side.appendChild(metrics);
     work.appendChild(check);
     work.appendChild(side);
+    shell.appendChild(strip);
     shell.appendChild(chrome);
     shell.appendChild(work);
   }

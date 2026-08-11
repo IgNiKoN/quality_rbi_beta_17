@@ -16,8 +16,38 @@
     <script src="./libs/tailwindcdn.js"></script>
 
     <script>
+        // Семантические токены дизайн-системы (_ai/DESIGN_SYSTEM.md §2/§5) — ссылаются на
+        // CSS-переменные бренда (css/brand/rbi.css), не хардкодят hex/px. Старые Tailwind-цвета
+        // (indigo/violet/red/slate…) не удалены — остаются для существующего кода.
         tailwind.config = {
-            darkMode: 'class'
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: 'var(--primary)',
+                            hover: 'var(--primary-hover)',
+                            soft: 'color-mix(in srgb, var(--primary) 18%, var(--card-bg))',
+                        },
+                        danger: {
+                            DEFAULT: 'var(--danger)',
+                            soft: 'color-mix(in srgb, var(--danger) 18%, var(--card-bg))',
+                        },
+                        success: 'var(--success)',
+                        warning: 'var(--warning)',
+                        surface: 'var(--card-bg)',
+                        'surface-border': 'var(--card-border)',
+                        ink: 'var(--text-main)',
+                        muted: 'var(--text-muted)',
+                    },
+                    fontSize: {
+                        'rbi-caption': ['10px', { lineHeight: '1.3' }],
+                        'rbi-label': ['11px', { lineHeight: '1.3' }],
+                        'rbi-body': ['12px', { lineHeight: '1.4' }],
+                        'rbi-title': ['15px', { lineHeight: '1.3' }],
+                    },
+                },
+            },
         }
     </script>
 
@@ -766,6 +796,8 @@
     <script src="data/system_twi.js"></script>
     <script src="js/shared/template.utils.js"></script>
     <script src="data/system_templates.js"></script>
+    <script src="data/system_templates.en.js"></script>
+    <script src="data/system_templates.sr-Latn.js"></script>
 
     <!-- construction: loadModule('construction') → index.js (features + dist services) -->
 
@@ -786,6 +818,7 @@
     <script type="module" src="js/dist/rbi-locations.js"></script>
     <script type="module" src="js/services/settings.service.js"></script>
     <script type="module" src="js/services/i18n.service.js"></script>
+    <script type="module" src="js/shared/system-templates-locale.js"></script>
     <script type="module" src="js/services/session.service.js"></script>
     <script type="module" src="js/services/inspection.service.js"></script>
     <script type="module" src="js/services/contractor-metrics.service.js"></script>

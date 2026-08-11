@@ -96,6 +96,19 @@ function bindAuditActionDelegation() {
     if (el) dispatch(el, e);
   }, true);
 
+  // При выборе значения из нативного <select> мышью браузер (Chromium) шлёт
+  // 'click' на сам select ПОСЛЕ 'change' (хвост того же жеста выбора, не
+  // новое намерение пользователя открыть список). Помечаем select на один
+  // тик после 'change', чтобы форсированный showPicker() ниже не ловил этот
+  // хвостовой click и не переоткрывал список сразу после выбора («моргание»).
+  var _justChangedSelects = new WeakSet();
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || t.tagName !== 'SELECT') return;
+    _justChangedSelects.add(t);
+    setTimeout(function () { _justChangedSelects.delete(t); }, 0);
+  }, true);
+
   // Нативный <select> с почти нулевой opacity часто не открывает picker —
   // в т.ч. когда клик уже попал в сам select (декор с pointer-events-none,
   // hit-target = select). Раньше при e.target===sel делали early-return и
@@ -108,6 +121,7 @@ function bindAuditActionDelegation() {
     if (!wrap) return;
     var sel = wrap.querySelector('select');
     if (!sel) return;
+    if (_justChangedSelects.has(sel)) return;
     if (typeof sel.showPicker === 'function') {
       try { sel.showPicker(); return; } catch (_) { /* fall through */ }
     }

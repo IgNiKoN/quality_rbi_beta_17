@@ -316,9 +316,11 @@
         top: 0;
     }
 
-    body.has-app-nav2.has-desk-topbar.nav-pos-auto .header-fixed,
-    body.has-app-nav2.has-desk-topbar.nav-pos-top .header-fixed {
-        top: var(--desk-topbar-h);
+    /* Shell B: desk-topbar заменяет mobile #main-header целиком — не сосуществуют.
+       Вызывающий код (views.js/app-mode-utils.js/construction-v2) не знает про
+       desk-topbar и может выставить display:block — глушим на уровне chrome. */
+    body.has-desk-topbar #main-header {
+        display: none !important;
     }
 
     body.has-app-sidebar.has-app-nav2 {
