@@ -58,6 +58,39 @@
             return Object.prototype.hasOwnProperty.call(sys, key);
         },
 
+        /* Редактор системных чек-листов Блок 1: резолвер «поставка либо
+           официальная пользовательская копия по указателю компании».
+           Использовать во всех местах, где чек-лист реально загружается для
+           работы (Осмотр/База знаний) — не для админского списка поставки.
+           @returns {{groups:Array, title:string, isOfficialOverride:boolean,
+             officialVersion?:number, officialUpdatedAt?:string,
+             officialUpdatedBy?:string, officialRef?:string}|null} */
+        getEffectiveTemplate: function (systemKey) {
+            var sys = (typeof window.SYSTEM_TEMPLATES !== 'undefined') ? window.SYSTEM_TEMPLATES : {};
+            var base = sys[systemKey];
+            if (!base) return null;
+            var companySvc = window.RBI && window.RBI.services && window.RBI.services.company;
+            var pointer = (companySvc && typeof companySvc.getOfficialTemplates === 'function')
+                ? companySvc.getOfficialTemplates()[systemKey]
+                : null;
+            if (pointer && pointer.type === 'user' && pointer.ref) {
+                var user = (window.userTemplates && typeof window.userTemplates === 'object') ? window.userTemplates : {};
+                var override = user[pointer.ref];
+                if (override && !override._deleted && !override.is_deleted && Array.isArray(override.groups)) {
+                    return {
+                        groups: override.groups,
+                        title: base.title,
+                        isOfficialOverride: true,
+                        officialVersion: pointer.version,
+                        officialUpdatedAt: pointer.updatedAt,
+                        officialUpdatedBy: pointer.updatedBy,
+                        officialRef: pointer.ref
+                    };
+                }
+            }
+            return { groups: base.groups, title: base.title, isOfficialOverride: false };
+        },
+
         /* ── CRUD (пользовательские шаблоны) ── */
 
         saveUserTemplate: function (data) {
@@ -75,13 +108,13 @@
             if (typeof window.dbPut === 'function' && window.STORES && window.STORES.TEMPLATES) {
                 window.dbPut(window.STORES.TEMPLATES, { slug: slug, data: data })
                     .then(function () {
-                        this._emitChanged();
+                        this._emitChanged({ slug: slug });
                     }.bind(this))
                     .catch(function (e) {
                         console.error('[TemplateService] ошибка сохранения:', e);
                     });
             } else {
-                this._emitChanged();
+                this._emitChanged({ slug: slug });
             }
         },
 
@@ -102,7 +135,7 @@
 
             var finalize = function () {
                 delete window.userTemplates[key];
-                this._emitChanged();
+                this._emitChanged({ slug: key, deleted: true });
             }.bind(this);
 
             if (typeof window.dbPut === 'function' && window.STORES && window.STORES.TEMPLATES) {
@@ -119,10 +152,10 @@
 
         /* ── Внутренний хелпер ── */
 
-        _emitChanged: function () {
+        _emitChanged: function (payload) {
             var events = window.RBI && window.RBI.events;
             if (events && typeof events.emit === 'function') {
-                events.emit('templates:changed', {});
+                events.emit('templates:changed', payload || {});
             }
         }
     };

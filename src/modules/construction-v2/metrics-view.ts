@@ -91,34 +91,34 @@ function _locationIdsUnderObject(loc: LocSvc, objectId: string): Set<string> {
 function _kpiCard(label: string, value: string, tone = ''): string {
   const toneCls =
     tone === 'danger'
-      ? 'border-red-200 dark:border-red-900/50'
+      ? 'border-danger-soft'
       : tone === 'ok'
         ? 'border-emerald-200 dark:border-emerald-900/40'
         : 'border-[var(--card-border)]';
   return `<div class="min-w-[7.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
-    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape(label)}</div>
-    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${_escape(value)}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1">${_escape(label)}</div>
+    <div class="text-[18px] font-black text-ink leading-none">${_escape(value)}</div>
   </div>`;
 }
 
 function _barRow(label: string, count: number, max: number, color: string): string {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0;
-  return `<div class="flex items-center gap-2 text-[11px] mb-1.5">
-    <span class="w-12 shrink-0 font-bold text-slate-500">${_escape(label)}</span>
+  return `<div class="flex items-center gap-2 text-rbi-label mb-1.5">
+    <span class="w-12 shrink-0 font-bold text-muted">${_escape(label)}</span>
     <div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
       <div class="h-full ${color}" style="width:${pct}%"></div>
     </div>
-    <span class="w-8 text-right font-bold text-slate-700 dark:text-slate-200">${count}</span>
+    <span class="w-8 text-right font-bold text-ink">${count}</span>
   </div>`;
 }
 
 function _periodBtn(p: PeriodPreset, label: string): string {
   const on = _period === p;
   return `<button type="button" data-c2-metrics-period="${p}"
-    class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+    class="px-2.5 py-1 rounded-lg text-rbi-caption font-bold border transition-colors ${
       on
-        ? 'bg-indigo-600 text-white border-indigo-600'
-        : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+        ? 'bg-brand text-white border-brand'
+        : 'bg-transparent text-muted border-surface hover:border-brand-soft'
     }">${_escape(label)}</button>`;
 }
 
@@ -163,7 +163,7 @@ export function renderMetricsView(
       (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-bold">${_escape(r.category)}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-red-600 font-semibold' : ''}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-danger font-semibold' : ''}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
     )
@@ -171,7 +171,7 @@ export function renderMetricsView(
 
   const contrRows =
     m.byContractor.length === 0
-      ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">${_escape(_t('construction.v2.metrics.no_data', 'Нет данных'))}</td></tr>`
+      ? `<tr><td colspan="4" class="py-3 text-center text-muted text-rbi-body">${_escape(_t('construction.v2.metrics.no_data', 'Нет данных'))}</td></tr>`
       : m.byContractor
           .map(
             (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
@@ -179,7 +179,7 @@ export function renderMetricsView(
               _contractorLabel(r.contractorId)
             )}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-red-600 font-semibold' : ''}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? 'text-danger font-semibold' : ''}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
           )
@@ -187,19 +187,19 @@ export function renderMetricsView(
 
   const overdueRows =
     m.overdueList.length === 0
-      ? `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape(_t('construction.v2.metrics.no_overdue', 'Нет просроченных'))}</div>`
+      ? `<div class="p-4 text-center text-muted text-rbi-body">${_escape(_t('construction.v2.metrics.no_overdue', 'Нет просроченных'))}</div>`
       : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${m.overdueList
             .map(
               (r) => `<li>
             <button type="button" data-c2-metrics-def="${_escape(r.id)}"
-              class="w-full text-left px-3 py-2.5 hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
+              class="w-full text-left px-3 py-2.5 hover:bg-danger-soft transition-colors">
               <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                <span class="text-[10px] font-bold text-slate-500">${_escape(r.category)}</span>
-                <span class="text-[9px] font-bold uppercase text-red-600">${_escape(_t('construction.v2.metrics.overdue_days', '+{days} дн. проср.', { days: r.daysOverdue }))}</span>
-                <span class="text-[10px] text-slate-400">${_escape(_t('construction.v2.metrics.open_days', '{days} дн. открыто', { days: r.daysOpen }))}</span>
+                <span class="text-rbi-caption font-bold text-muted">${_escape(r.category)}</span>
+                <span class="text-rbi-caption font-bold uppercase text-danger">${_escape(_t('construction.v2.metrics.overdue_days', '+{days} дн. проср.', { days: r.daysOverdue }))}</span>
+                <span class="text-rbi-caption text-muted">${_escape(_t('construction.v2.metrics.open_days', '{days} дн. открыто', { days: r.daysOpen }))}</span>
               </span>
-              <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape(
+              <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape(
                 r.description
               )}</span>
             </button>
@@ -212,13 +212,13 @@ export function renderMetricsView(
     <div class="flex flex-col gap-3 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">${_escape(_t('construction.v2.metrics.title', 'Сроки замечаний'))}</h3>
-          <p class="text-[10px] text-slate-400 mt-0.5">${_escape(_t('construction.v2.metrics.subtitle', 'Локальный расчёт по defects_v2 · без новой схемы БД'))}</p>
+          <h3 class="text-rbi-title font-black text-ink tracking-tight">${_escape(_t('construction.v2.metrics.title', 'Сроки замечаний'))}</h3>
+          <p class="text-rbi-caption text-muted mt-0.5">${_escape(_t('construction.v2.metrics.subtitle', 'Локальный расчёт по defects_v2 · без новой схемы БД'))}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex gap-1">${_periodBtn('30', _t('construction.v2.metrics.period_30', '30 дн.'))}${_periodBtn('90', _t('construction.v2.metrics.period_90', '90 дн.'))}${_periodBtn('all', _t('construction.v2.metrics.period_all', 'Все'))}</div>
           <select data-c2-metrics-object
-            class="text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
+            class="text-rbi-label font-bold rounded-xl border border-surface bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
             ${objectOptions}
           </select>
         </div>
@@ -234,9 +234,9 @@ export function renderMetricsView(
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape(_t('construction.v2.metrics.by_category', 'По категории'))}</div>
-          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape(_t('construction.v2.metrics.by_category', 'По категории'))}</div>
+          <table class="w-full text-rbi-label text-ink">
+            <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
               <th class="text-left font-bold pb-1">${_escape(_t('construction.v2.metrics.th_cat', 'Cat'))}</th>
               <th class="text-right font-bold pb-1">${_escape(_t('construction.v2.metrics.th_open', 'Откр.'))}</th>
               <th class="text-right font-bold pb-1">${_escape(_t('construction.v2.metrics.th_overdue', 'Проср.'))}</th>
@@ -246,18 +246,18 @@ export function renderMetricsView(
           </table>
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape(_t('construction.v2.metrics.aging_open', 'Aging открытых'))}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape(_t('construction.v2.metrics.aging_open', 'Aging открытых'))}</div>
           ${_barRow(_t('construction.v2.metrics.aging_0_3', '0–3'), m.aging['0-3'], agingMax, 'bg-emerald-500')}
           ${_barRow(_t('construction.v2.metrics.aging_4_7', '4–7'), m.aging['4-7'], agingMax, 'bg-amber-400')}
           ${_barRow(_t('construction.v2.metrics.aging_8_14', '8–14'), m.aging['8-14'], agingMax, 'bg-orange-500')}
-          ${_barRow(_t('construction.v2.metrics.aging_15_plus', '15+'), m.aging['15+'], agingMax, 'bg-red-600')}
+          ${_barRow(_t('construction.v2.metrics.aging_15_plus', '15+'), m.aging['15+'], agingMax, 'bg-danger')}
         </div>
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape(_t('construction.v2.metrics.by_contractor', 'По подрядчику (топ-10 по просрочке)'))}</div>
-        <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-          <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape(_t('construction.v2.metrics.by_contractor', 'По подрядчику (топ-10 по просрочке)'))}</div>
+        <table class="w-full text-rbi-label text-ink">
+          <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
             <th class="text-left font-bold pb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</th>
             <th class="text-right font-bold pb-1">${_escape(_t('construction.v2.metrics.th_open', 'Откр.'))}</th>
             <th class="text-right font-bold pb-1">${_escape(_t('construction.v2.metrics.th_overdue', 'Проср.'))}</th>
@@ -268,7 +268,7 @@ export function renderMetricsView(
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
+        <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-danger">
           ${_escape(_t('construction.v2.metrics.overdue_now', 'Просроченные сейчас · до 20'))}
         </div>
         ${overdueRows}

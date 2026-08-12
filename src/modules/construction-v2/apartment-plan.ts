@@ -118,8 +118,8 @@ function _syncAddBtn() {
     ? _t('construction.v2.add_picking', 'Кликни…')
     : _t('construction.v2.add_defect', '+ Замечание');
   btn.className = _addMode
-    ? 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600'
-    : 'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200';
+    ? 'px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-brand text-white border-brand'
+    : 'px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-transparent text-brand border-brand-soft';
 }
 
 async function _refreshPins(): Promise<void> {
@@ -233,31 +233,31 @@ export async function openApartmentPlan(
   wrap.className = 'fixed inset-0 flex flex-col bg-slate-100 dark:bg-slate-900';
   wrap.style.zIndex = '1100';
   wrap.innerHTML = `
-    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-surface bg-surface">
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.apt_fs_title', 'Замечания на плане · весь экран'))}</div>
-          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape(title)}</div>
-          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape(path)}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(_t('construction.v2.apt_fs_title', 'Замечания на плане · весь экран'))}</div>
+          <div class="text-rbi-title font-black text-ink truncate">${_escape(title)}</div>
+          <div class="text-rbi-caption font-bold text-muted truncate">${_escape(path)}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">${_escape(_t('construction.v2.apt_overlay_count', 'Показано {shown} из {total}', { shown: 0, total: 0 }))}</span>
+          <span id="c2-apt-overlay-count" class="text-rbi-caption font-bold text-muted hidden sm:inline">${_escape(_t('construction.v2.apt_overlay_count', 'Показано {shown} из {total}', { shown: 0, total: 0 }))}</span>
           <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
             <button type="button" data-c2-apt-zoom-out
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_out', 'Уменьшить'))}">−</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-surface" title="${_escape(_t('construction.v2.zoom_out', 'Уменьшить'))}">−</button>
             <button type="button" data-c2-apt-zoom-in
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_in', 'Увеличить'))}">+</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-surface" title="${_escape(_t('construction.v2.zoom_in', 'Увеличить'))}">+</button>
             <button type="button" data-c2-apt-zoom-fit
-              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape(_t('construction.v2.zoom_fit', 'По размеру'))}">Fit</button>
+              class="px-2.5 h-8 rounded-lg text-rbi-caption font-bold uppercase text-ink hover:bg-surface" title="${_escape(_t('construction.v2.zoom_fit', 'По размеру'))}">Fit</button>
           </div>
           ${
             guest
               ? ''
               : `<button type="button" data-c2-apt-add-mode
-                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">${_escape(_t('construction.v2.add_defect', '+ Замечание'))}</button>`
+                  class="px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-transparent text-brand border-brand-soft">${_escape(_t('construction.v2.add_defect', '+ Замечание'))}</button>`
           }
           <button type="button" data-c2-apt-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">${_escape(_t('construction.v2.fs_close', 'Закрыть'))}</button>
+            class="px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-slate-50 text-ink border-surface dark:bg-slate-900">${_escape(_t('construction.v2.fs_close', 'Закрыть'))}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="apt"></div>
@@ -383,7 +383,7 @@ export async function openApartmentPlan(
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.plan_error', 'Ошибка плана: {msg}', { msg }))}</div>`;
+    host.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape(_t('construction.v2.plan_error', 'Ошибка плана: {msg}', { msg }))}</div>`;
     _viewer = null;
   }
 }

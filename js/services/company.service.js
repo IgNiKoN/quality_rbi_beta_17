@@ -13,6 +13,12 @@
 // §23 Блок 2: roleMatrixOverrides — company SoT в памяти (+ mirror в
 // appSettings для offline UI). Cloud: таблица rbi_company_settings.
 // Пустой '{}' / нет строки = права как DEFAULT ROLE_MATRIX в permission.service.
+//
+// «Указатель официальной версии» (редактор системных чек-листов, Блок 1):
+// officialTemplates — company SoT в памяти (+ mirror в appSettings), своя
+// колонка rbi_company_settings.official_templates, свой dirty-флаг —
+// НЕ переиспользует переменные/колонку role_matrix_overrides (push — отдельный
+// upsert-вызов, риск гонки двух функций одной строки).
 
 (function () {
   'use strict';
@@ -28,6 +34,11 @@
   var _roleMatrixOverrides = null;
   var _roleMatrixDirty = false;
   var _roleMatrixUpdatedAt = null;
+
+  /** In-memory company SoT for official template pointers. null = ещё не применяли cloud. */
+  var _officialTemplates = null;
+  var _officialTemplatesDirty = false;
+  var _officialTemplatesUpdatedAt = null;
 
   function _settingsSvc() {
     return (window.RBI && window.RBI.services && window.RBI.services.settings) || null;
@@ -134,6 +145,54 @@
       return Promise.resolve(true);
     }
     return Promise.resolve(false);
+  }
+
+  /**
+   * Клонировать map указателей официальных версий: { systemKey: { type, ref,
+   * version, updatedAt, updatedBy } }. Валидные записи только type 'system'|'user'.
+   */
+  function _cloneOfficialTemplates(src) {
+    var out = {};
+    var raw = src && typeof src === 'object' && !Array.isArray(src) ? src : {};
+    Object.keys(raw).forEach(function (key) {
+      var entry = raw[key];
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
+      var type = entry.type === 'user' ? 'user' : (entry.type === 'system' ? 'system' : null);
+      if (!type) return;
+      out[key] = {
+        type: type,
+        ref: type === 'user' ? (entry.ref || null) : null,
+        version: Number(entry.version) || 1,
+        updatedAt: entry.updatedAt || null,
+        updatedBy: entry.updatedBy || null
+      };
+    });
+    return out;
+  }
+
+  function _mirrorOfficialTemplatesLocal(map) {
+    var safe = _cloneOfficialTemplates(map);
+    var svc = _settingsSvc();
+    if (svc && typeof svc.set === 'function') {
+      return Promise.resolve(svc.set('officialTemplates', safe)).then(function () {
+        return true;
+      });
+    }
+    if (window.appSettings) {
+      window.appSettings.officialTemplates = safe;
+      window.appSettings.settingsUpdatedAt = Date.now();
+      return Promise.resolve(true);
+    }
+    return Promise.resolve(false);
+  }
+
+  function _currentUserLabel() {
+    try {
+      if (window.appSettings && window.appSettings.inspectorName) {
+        return String(window.appSettings.inspectorName);
+      }
+    } catch (_e) { /* ignore */ }
+    return 'admin';
   }
 
   var CompanyService = {
@@ -286,6 +345,129 @@
     markRoleMatrixDirty: function () {
       _roleMatrixDirty = true;
       _roleMatrixUpdatedAt = new Date().toISOString();
+    },
+
+    // --- Редактор системных чек-листов Блок 1: указатель официальной версии ---
+
+    /**
+     * Копия указателей официальных версий ({} если SoT ещё не задан).
+     * Ключ — systemKey (ключ SYSTEM_TEMPLATES), значение —
+     * { type: 'user', ref: userTemplateSlug, version, updatedAt, updatedBy }.
+     * Отсутствие ключа = «Поставка» (нет оверрайда).
+     */
+    getOfficialTemplates: function () {
+      return _cloneOfficialTemplates(_officialTemplates || {});
+    },
+
+    isOfficialTemplatesDirty: function () {
+      return !!_officialTemplatesDirty;
+    },
+
+    getOfficialTemplatesUpdatedAt: function () {
+      return _officialTemplatesUpdatedAt;
+    },
+
+    /**
+     * Назначить официальную версию systemKey → указатель на user_template.
+     * version = +1 относительно текущего указателя того же systemKey (иначе 1).
+     * @returns {Promise<{ error: string|null, entry?: object }>}
+     */
+    setOfficialTemplate: function (systemKey, pointer) {
+      if (!systemKey || !pointer || pointer.type !== 'user' || !pointer.ref) {
+        return Promise.resolve({ error: 'invalid_pointer' });
+      }
+      var next = _cloneOfficialTemplates(_officialTemplates || {});
+      var prevVersion = (next[systemKey] && Number(next[systemKey].version)) || 0;
+      var entry = {
+        type: 'user',
+        ref: pointer.ref,
+        version: prevVersion + 1,
+        updatedAt: new Date().toISOString(),
+        updatedBy: _currentUserLabel()
+      };
+      next[systemKey] = entry;
+      _officialTemplates = next;
+      _officialTemplatesDirty = true;
+      _officialTemplatesUpdatedAt = entry.updatedAt;
+      try {
+        localStorage.setItem('rbi_cloud_dirty', '1');
+      } catch (_ls) { /* ignore */ }
+      return _mirrorOfficialTemplatesLocal(next).then(function () {
+        _emit('company:officialTemplatesChanged', {
+          officialTemplates: _cloneOfficialTemplates(next),
+          source: 'local'
+        });
+        try {
+          if (typeof window.triggerSync === 'function') {
+            window.triggerSync('silent');
+          }
+        } catch (_sync) { /* ignore */ }
+        return { error: null, entry: Object.assign({}, entry) };
+      }).catch(function (e) {
+        console.error('[CompanyService] setOfficialTemplate', e);
+        return { error: e && e.message ? e.message : 'persist_failed' };
+      });
+    },
+
+    /**
+     * Снять указатель («Вернуть к поставке»). Сама пользовательская копия
+     * не удаляется — становится обычным неофициальным черновиком.
+     * @returns {Promise<{ error: string|null }>}
+     */
+    clearOfficialTemplate: function (systemKey) {
+      if (!systemKey) return Promise.resolve({ error: 'invalid_key' });
+      var next = _cloneOfficialTemplates(_officialTemplates || {});
+      if (!next[systemKey]) return Promise.resolve({ error: null });
+      delete next[systemKey];
+      _officialTemplates = next;
+      _officialTemplatesDirty = true;
+      _officialTemplatesUpdatedAt = new Date().toISOString();
+      try {
+        localStorage.setItem('rbi_cloud_dirty', '1');
+      } catch (_ls) { /* ignore */ }
+      return _mirrorOfficialTemplatesLocal(next).then(function () {
+        _emit('company:officialTemplatesChanged', {
+          officialTemplates: _cloneOfficialTemplates(next),
+          source: 'local'
+        });
+        try {
+          if (typeof window.triggerSync === 'function') {
+            window.triggerSync('silent');
+          }
+        } catch (_sync) { /* ignore */ }
+        return { error: null };
+      }).catch(function (e) {
+        console.error('[CompanyService] clearOfficialTemplate', e);
+        return { error: e && e.message ? e.message : 'persist_failed' };
+      });
+    },
+
+    /**
+     * Применить указатели с cloud pull (без dirty). Если локально dirty —
+     * не затирать (ожидаем push).
+     * @returns {{ applied: boolean, skippedDirty?: boolean }}
+     */
+    applyOfficialTemplatesFromCloud: function (map, updatedAt) {
+      if (_officialTemplatesDirty) {
+        return { applied: false, skippedDirty: true };
+      }
+      var next = _cloneOfficialTemplates(map || {});
+      _officialTemplates = next;
+      _officialTemplatesUpdatedAt = updatedAt || new Date().toISOString();
+      _mirrorOfficialTemplatesLocal(next);
+      _emit('company:officialTemplatesChanged', {
+        officialTemplates: _cloneOfficialTemplates(next),
+        source: 'cloud'
+      });
+      return { applied: true };
+    },
+
+    /**
+     * После успешного push — снять dirty (SoT уже в облаке).
+     */
+    markOfficialTemplatesSynced: function (updatedAt) {
+      _officialTemplatesDirty = false;
+      if (updatedAt) _officialTemplatesUpdatedAt = updatedAt;
     }
   };
 

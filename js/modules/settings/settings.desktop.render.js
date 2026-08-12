@@ -178,29 +178,22 @@ function restoreMobileStructure() {
 
   const strip = tab.querySelector('.settings-desk-topbar-strip');
   const body = tab.querySelector('.settings-desk-body');
-  const subnav = document.getElementById('settings-subnav');
-  const panels = tab.querySelector('.settings-panels');
-  const actions = document.getElementById('settings-desk-strip-actions');
 
-  // Remount via ensureSettingsMarkup is safer on teardown wipe;
-  // here only when leaving desktop without full wipe.
+  // Desktop rail/stage wrap the mobile subnav/panels nodes — removing `.settings-desk-body`
+  // wholesale (rail + stage) deletes the actual mobile content, not just the desktop chrome.
+  // `#settings-subnav`/`.settings-panels` no longer exist afterward, so `rbiEnsureTabMarkup`'s
+  // marker check fails on the next call and it rebuilds fresh mobile markup below — this is
+  // required here (not optional), otherwise `#tab-settings` is left empty until a full route
+  // re-entry (bug: resize desktop→mobile while on Settings without navigating away and back).
   if (strip) strip.remove();
-  if (body) {
-    if (subnav && !tab.querySelector('.sticky-top-panel')) {
-      // Full remount on next renderSettings — wipe desk nodes
-      body.remove();
-    } else {
-      body.remove();
-    }
+  if (body) body.remove();
+
+  if (typeof window.ensureSettingsMarkup === 'function') {
+    window.ensureSettingsMarkup();
   }
-  // Force remount next open
-  try {
-    if (typeof window.rbiTeardownTabView === 'function') {
-      /* keep content if still on settings mobile */
-    }
-  } catch (_) { /* ignore */ }
-  void panels;
-  void actions;
+  if (typeof window.renderSettingsTab === 'function') {
+    window.renderSettingsTab();
+  }
 }
 
 export function showSettingsDesktop() {

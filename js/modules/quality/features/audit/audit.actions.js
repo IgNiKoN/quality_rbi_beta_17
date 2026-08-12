@@ -159,8 +159,33 @@ function _t(key, fallback, vars) {
       },
       getSystemTemplates: function () {
         return typeof window.SYSTEM_TEMPLATES !== 'undefined' ? window.SYSTEM_TEMPLATES : {};
+      },
+      getEffectiveTemplate: function (key) {
+        var sys = typeof window.SYSTEM_TEMPLATES !== 'undefined' ? window.SYSTEM_TEMPLATES : {};
+        var base = sys[key];
+        return base ? { groups: base.groups, title: base.title, isOfficialOverride: false } : null;
       }
     };
+  }
+
+  // Редактор системных чек-листов Блок 1: снимок использованного чек-листа
+  // (groups/items с id/n(название)/w(вес) как использовались на момент
+  // сохранения) — открытие даже очень старой проверки не зависит от того,
+  // как чек-лист поменяется дальше. Пишется только для новых записей.
+  function _buildChecklistSnapshot(checklist) {
+    if (!Array.isArray(checklist)) return null;
+    try {
+      return checklist.map(function (g) {
+        return {
+          group: g && g.group,
+          items: Array.isArray(g && g.items) ? g.items.map(function (it) {
+            return { id: it.id, n: it.n, w: it.w };
+          }) : []
+        };
+      });
+    } catch (_e) {
+      return null;
+    }
   }
 
   // Фаза 88 (перенесено из audit.legacy.js): единая точка доступа к
@@ -437,8 +462,16 @@ function _t(key, fallback, vars) {
       var type = val.split('_')[0];
       var key = val.replace(type + '_', '');
 
-      if (type === 'sys' && _templates().getSystemTemplates()[key]) AuditState.setChecklist(_templates().getSystemTemplates()[key].groups);
-      else if (type === 'user' && _templates().getUserTemplates()[key]) AuditState.setChecklist(_templates().getUserTemplates()[key].groups);
+      if (type === 'sys') {
+        // ctx.templates часто указывает на RBI.utils.templates (read-only,
+        // без getEffectiveTemplate) из-за перезаписи shared ctx под-модулями
+        // (см. audit.module.js:152) — берём сервис напрямую с fallback.
+        var _tSvc = (window.RBI && window.RBI.services && window.RBI.services.templates) || _templates();
+        var _eff = (_tSvc && typeof _tSvc.getEffectiveTemplate === 'function')
+          ? _tSvc.getEffectiveTemplate(key)
+          : null;
+        if (_eff) AuditState.setChecklist(_eff.groups);
+      } else if (type === 'user' && _templates().getUserTemplates()[key]) AuditState.setChecklist(_templates().getUserTemplates()[key].groups);
 
       // Keep object; reset contractor + section/floor/room/pin + session (follow-up UX).
       AuditActions.resetPinContextKeepProject({ clearContractor: true });
@@ -787,6 +820,7 @@ function _t(key, fallback, vars) {
         contractorId: contractorNormalized.contractorId || '',
         templateKey: AuditState.currentTemplateKey,
         templateTitle: tTitle,
+        checklistSnapshot: _buildChecklistSnapshot(AuditState.currentChecklist),
         section: secInput.value.trim(),
         floor: floorInput.value.trim(),
         room: roomInput.value.trim(),

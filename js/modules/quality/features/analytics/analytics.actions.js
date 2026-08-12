@@ -507,7 +507,7 @@ export const AnalyticsActions = {
 
         // Сбрасываем стили всех кнопок (в т.ч. legacy `active` с Подрядчиков в markup)
         document.querySelectorAll('#analytics-subtabs-block .sub-tab-btn').forEach(el => {
-            el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400', 'active');
+            el.classList.remove('bg-surface', 'shadow-sm', 'text-brand', 'active');
             el.classList.add('text-[var(--text-muted)]');
         });
 
@@ -520,7 +520,7 @@ export const AnalyticsActions = {
             btnElement = document.querySelector(`#analytics-subtabs-block button[data-action-arg="${tabId}"]`);
         }
         if (btnElement) {
-            btnElement.classList.add('bg-white', 'shadow-sm', 'text-indigo-600', 'dark:bg-slate-700', 'dark:text-indigo-400', 'active');
+            btnElement.classList.add('bg-surface', 'shadow-sm', 'text-brand', 'active');
             btnElement.classList.remove('text-[var(--text-muted)]');
         }
 
@@ -626,13 +626,13 @@ export const AnalyticsActions = {
         const container = document.getElementById('contractors-chips-container');
         if (container) {
             container.querySelectorAll('.contr-chip').forEach(el => {
-                el.className = "contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 active:scale-95 whitespace-nowrap transition-colors";
+                el.className = "contr-chip px-3 py-1.5 rounded-full text-rbi-caption font-bold bg-slate-100 text-muted active:scale-95 whitespace-nowrap transition-colors";
             });
         }
 
         // Красим активный чипс
         if (btnElement) {
-            btnElement.className = "contr-chip px-3 py-1.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-sm active:scale-95 whitespace-nowrap transition-colors";
+            btnElement.className = "contr-chip px-3 py-1.5 rounded-full text-rbi-caption font-bold bg-brand text-white shadow-sm active:scale-95 whitespace-nowrap transition-colors";
         }
 
         // Перерисовываем список
@@ -672,7 +672,7 @@ export const AnalyticsActions = {
         const isAuto = window.selectedChartFilters[type].length === 0;
 
         let html = `<div class="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar mb-4 pr-1">`;
-        html += `<label class="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl mb-3 font-bold cursor-pointer text-indigo-800 dark:text-indigo-300">
+        html += `<label class="flex items-center gap-3 p-3 bg-brand-soft/30 border border-brand-soft rounded-xl mb-3 font-bold cursor-pointer text-brand">
             <input type="checkbox" id="chart-filter-auto" class="w-5 h-5 accent-indigo-600" onchange="if(this.checked) document.querySelectorAll('.chart-filter-cb').forEach(cb => cb.checked = false)" ${isAuto ? 'checked' : ''}>
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             ${_t('quality.analytics.chart.auto_select', 'Автовыбор (до 10)')}
@@ -684,19 +684,19 @@ export const AnalyticsActions = {
             const safeLabel = String(item).replace(/</g, '&lt;');
             html += `<label class="flex items-center gap-3 p-3 bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] rounded-xl cursor-pointer border border-[var(--card-border)] transition-colors">
                 <input type="checkbox" value="${safeVal}" class="chart-filter-cb w-5 h-5 accent-indigo-600 shrink-0" ${isChecked ? 'checked' : ''} onchange="document.getElementById('chart-filter-auto').checked = false">
-                <span class="text-[12px] truncate flex-1 min-w-0" title="${safeVal}">${safeLabel}</span>
-                <span class="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md font-bold shrink-0">${counts[item]} ${_t('quality.analytics.chart.pcs', 'шт')}</span>
+                <span class="text-rbi-body truncate flex-1 min-w-0" title="${safeVal}">${safeLabel}</span>
+                <span class="text-rbi-caption text-muted bg-surface px-2 py-1 rounded-md font-bold shrink-0">${counts[item]} ${_t('quality.analytics.chart.pcs', 'шт')}</span>
             </label>`;
         });
         html += `</div>
         <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold uppercase active:scale-95 border border-slate-200 dark:border-slate-700">${_t('quality.analytics.btn.cancel', 'Отмена')}</button>
-            <button onclick="saveChartFilters('${type}')" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase shadow-md active:scale-95">${_t('quality.analytics.btn.apply', 'Применить')}</button>
+            <button onclick="closeModal()" class="flex-1 bg-surface text-ink py-3 rounded-xl font-bold uppercase active:scale-95 border border-surface">${_t('quality.analytics.btn.cancel', 'Отмена')}</button>
+            <button onclick="saveChartFilters('${type}')" class="flex-1 bg-brand text-white py-3 rounded-xl font-bold uppercase shadow-md active:scale-95">${_t('quality.analytics.btn.apply', 'Применить')}</button>
         </div>`;
 
         const modal = document.getElementById('modal-overlay');
         document.getElementById('modal-icon').innerHTML = '';
-        document.getElementById('modal-title').innerHTML = `<div class="flex items-center gap-2"><svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg> ${title}</div>`;
+        document.getElementById('modal-title').innerHTML = `<div class="flex items-center gap-2"><svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg> ${title}</div>`;
         document.getElementById('modal-body').innerHTML = html;
         document.body.classList.add('modal-open');
         modal.style.display = 'flex';
@@ -873,8 +873,8 @@ export const AnalyticsActions = {
         const viewPlans = document.getElementById('history-plans-view');
         const actionsRow = document.getElementById('hist-checks-actions-row');
 
-        const actClass = "px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 bg-white dark:bg-slate-800 text-indigo-600 shadow-sm";
-        const inactClass = "px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all duration-300 text-slate-500 dark:text-slate-400";
+        const actClass = "px-3 py-1 rounded-full text-rbi-caption font-black uppercase transition-all duration-300 bg-surface text-brand shadow-sm";
+        const inactClass = "px-3 py-1 rounded-full text-rbi-caption font-black uppercase transition-all duration-300 text-muted";
 
         // Сохраняем стейт в глобальную переменную, чтобы фильтры понимали, что перерисовывать
         window.currentHistoryViewMode = view;
@@ -1227,17 +1227,17 @@ export const AnalyticsActions = {
     // =========================================================================
     rbi_openQualityDaySettings(taskId) {
         const modal = document.getElementById('modal-overlay');
-        document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200">📅</div>`;
+        document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-brand-soft text-brand rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-brand-soft">📅</div>`;
         document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.analytics.qday.settings_title', 'Настройки Отчета')}</div>`;
 
         document.getElementById('modal-body').innerHTML = `
-            <div class="text-center text-[12px] text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            <div class="text-center text-rbi-body text-muted mb-4 leading-relaxed">
                 ${_t('quality.analytics.qday.settings_hint', 'Выберите период для формирования Мега-Отчета. Система агрегирует метрики всех подрядчиков, выберет лучшие практики и запросит ИИ-резюме.')}
             </div>
             
             <div class="mb-6">
-                <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block">${_t('quality.analytics.qday.period_label', 'Отчетный период')}</label>
-                <select id="qday-period-select" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] font-bold text-slate-800 dark:text-white outline-none">
+                <label class="text-rbi-caption font-bold text-muted uppercase mb-2 block">${_t('quality.analytics.qday.period_label', 'Отчетный период')}</label>
+                <select id="qday-period-select" class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-rbi-body font-bold text-ink dark:text-white outline-none">
                     <option value="current_month">${_t('quality.analytics.qday.period_current_month', 'За текущий месяц')}</option>
                     <option value="last_month">${_t('quality.analytics.qday.period_last_month', 'За прошлый месяц')}</option>
                     <option value="quarter">${_t('quality.analytics.qday.period_quarter', 'За последние 3 месяца (Квартал)')}</option>
@@ -1246,10 +1246,10 @@ export const AnalyticsActions = {
             </div>
 
             <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm">
+                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-muted py-3.5 rounded-xl font-bold text-rbi-label uppercase active:scale-95 shadow-sm">
                     ${_t('quality.analytics.btn.cancel', 'Отмена')}
                 </button>
-                <button onclick="closeModal(); rbi_executeQualityDayReport('${taskId}')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">
+                <button onclick="closeModal(); rbi_executeQualityDayReport('${taskId}')" class="flex-1 bg-brand text-white py-3.5 rounded-xl font-black text-rbi-label uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">
                     🚀 ${_t('quality.analytics.qday.generate', 'Сгенерировать')}
                 </button>
             </div>
@@ -1269,15 +1269,15 @@ export const AnalyticsActions = {
 
         // Показываем лоадер
         const modal = document.getElementById('modal-overlay');
-        document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200 animate-pulse">🤖</div>`;
+        document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-brand-soft text-brand rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-brand-soft animate-pulse">🤖</div>`;
         document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.analytics.qday.building_title', 'Сборка Дня Качества')}</div>`;
         document.getElementById('modal-body').innerHTML = `
             <div class="flex flex-col items-center justify-center py-4">
-                <div class="text-[11px] font-bold text-slate-500 text-center space-y-2">
+                <div class="text-rbi-label font-bold text-muted text-center space-y-2">
                     <div>📥 ${_t('quality.analytics.qday.step_aggregate', 'Агрегируем метрики подрядчиков...')}</div>
                     <div>📊 ${_t('quality.analytics.qday.step_impact', 'Рассчитываем Impact Score команды...')}</div>
                     <div>🏆 ${_t('quality.analytics.qday.step_practices', 'Выбираем лучшие практики...')}</div>
-                    <div class="text-indigo-600 font-black mt-2">${_t('quality.analytics.qday.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
+                    <div class="text-brand font-black mt-2">${_t('quality.analytics.qday.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
                 </div>
             </div>
         `;
@@ -1525,9 +1525,9 @@ function renderExpertModalOverlayMarkup() {
         <div class="bg-[var(--card-bg)] w-full max-w-2xl p-6 rounded-2xl shadow-2xl transition-transform"
             id="expert-modal-content" onclick="event.stopPropagation()">
             <div
-                class="flex justify-between items-center mb-4 border-b border-[var(--card-border)] pb-3 text-slate-800 dark:text-white">
-                <h3 class="font-black text-[13px] uppercase tracking-tight flex items-center gap-2">
-                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                class="flex justify-between items-center mb-4 border-b border-[var(--card-border)] pb-3 text-ink dark:text-white">
+                <h3 class="font-black text-rbi-body uppercase tracking-tight flex items-center gap-2">
+                    <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
@@ -1535,7 +1535,7 @@ function renderExpertModalOverlayMarkup() {
                     </svg>
                     Редактировать заключение
                 </h3>
-                <div class="w-8 h-8 bg-[var(--hover-bg)] rounded-full flex items-center justify-center cursor-pointer text-slate-500"
+                <div class="w-8 h-8 bg-[var(--hover-bg)] rounded-full flex items-center justify-center cursor-pointer text-muted"
                     data-analytics-action="cancelExpertEdit"><svg class="w-4 h-4" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
@@ -1544,19 +1544,19 @@ function renderExpertModalOverlayMarkup() {
             <!-- КНОПКИ ГЕНЕРАТОРА СЦЕНАРИЕВ -->
             <div class="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-2 border-b border-[var(--card-border)]">
                 <button data-action="generateSmartComment" data-action-arg="standard"
-                    class="shrink-0 flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-brand-soft text-brand px-3 py-2 rounded-lg text-rbi-caption font-bold border border-brand-soft/30 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
                         </path>
                     </svg> Базовый</button>
                 <button data-action="generateSmartComment" data-action-arg="strict"
-                    class="shrink-0 flex items-center gap-1.5 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-danger-soft text-danger px-3 py-2 rounded-lg text-rbi-caption font-bold border border-danger-soft/30 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg> Претензия</button>
                 <button data-action="generateSmartComment" data-action-arg="tech"
-                    class="shrink-0 flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-slate-100 text-ink px-3 py-2 rounded-lg text-rbi-caption font-bold border border-slate-300 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
@@ -1565,21 +1565,21 @@ function renderExpertModalOverlayMarkup() {
                         </path>
                     </svg> Тех.аудит</button>
                 <button data-action="generateSmartComment" data-action-arg="boss"
-                    class="shrink-0 flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-amber-200 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-2 rounded-lg text-rbi-caption font-bold border border-amber-200 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
                         </path>
                     </svg> Руководству</button>
                 <button data-action="generateSmartComment" data-action-arg="action_plan"
-                    class="shrink-0 flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-rbi-caption font-bold border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
                         </path>
                     </svg> План действий</button>
                 <button data-action="generateSmartComment" data-action-arg="improve"
-                    class="shrink-0 flex items-center gap-1.5 bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-[10px] font-bold border border-purple-200 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400 active:scale-95"><svg
+                    class="shrink-0 flex items-center gap-1.5 bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-rbi-caption font-bold border border-purple-200 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400 active:scale-95"><svg
                         class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
@@ -1587,13 +1587,13 @@ function renderExpertModalOverlayMarkup() {
                     </svg> ✨ Улучшить мой текст</button>
             </div>
             <textarea id="modal-expert-input"
-                class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-4 text-[12px] outline-none h-[50vh] resize-none text-slate-800 dark:text-slate-200"></textarea>
+                class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-4 text-rbi-body outline-none h-[50vh] resize-none text-ink"></textarea>
             <div class="flex gap-2 mt-4">
                 <button data-analytics-action="resetExpertEdit"
-                    class="bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/30 dark:border-red-800 px-4 py-3.5 rounded-xl font-bold text-[10px] uppercase active:scale-95">Сброс
+                    class="bg-danger-soft text-danger border border-danger-soft/30 px-4 py-3.5 rounded-xl font-bold text-rbi-caption uppercase active:scale-95">Сброс
                     к ИИ</button>
                 <button data-analytics-action="saveExpertEdit"
-                    class="flex-1 bg-indigo-600 text-white px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase shadow-md active:scale-95">Сохранить
+                    class="flex-1 bg-brand text-white px-4 py-3.5 rounded-xl font-bold text-rbi-label uppercase shadow-md active:scale-95">Сохранить
                     правки</button>
             </div>
         </div>

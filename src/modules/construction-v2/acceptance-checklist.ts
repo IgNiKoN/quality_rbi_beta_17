@@ -309,16 +309,16 @@ function _bBadgeHtml(b: AcceptanceQualityB | null): string {
   if (!b) return '';
   const tone =
     b.final < 70 || b.isDanger
-      ? 'bg-red-50 text-red-700 border-red-200'
+      ? 'bg-danger-soft text-danger border-danger-soft'
       : b.final < 85
         ? 'bg-amber-50 text-amber-800 border-amber-200'
         : 'bg-green-50 text-green-700 border-green-200';
   return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
       <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-black uppercase">${_escape(_t('construction.v2.acc.quality_b', 'УрК B'))}</span>
-        <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape(String(b.final))}%</span>
+        <span class="text-rbi-caption font-black uppercase">${_escape(_t('construction.v2.acc.quality_b', 'УрК B'))}</span>
+        <span class="text-rbi-title font-black" data-c2-cl-b-final>${_escape(String(b.final))}%</span>
       </div>
-      <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape(b.statusTxt || '')}</div>
+      <div class="text-rbi-caption font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape(b.statusTxt || '')}</div>
     </div>`;
 }
 
@@ -333,11 +333,11 @@ export function renderChecklistSectionHtml(
   const editable = opts?.editable !== false;
   const tmplKey = String(item.template_key || item.checklist_results?.template_key || '');
   if (!tmplKey) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">${_escape(_t('construction.v2.acc.checklist_no_work', 'Чек-лист: вид работ не выбран'))}</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-rbi-caption font-bold text-muted">${_escape(_t('construction.v2.acc.checklist_no_work', 'Чек-лист: вид работ не выбран'))}</div>`;
   }
   const templateItems = listTemplateChecklistItems(tmplKey);
   if (!templateItems.length) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">${_escape(_t('construction.v2.acc.checklist_empty', 'Чек-лист шаблона пуст или не найден'))}</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-rbi-caption font-bold text-amber-600">${_escape(_t('construction.v2.acc.checklist_empty', 'Чек-лист шаблона пуст или не найден'))}</div>`;
   }
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   const b = computeAcceptanceQualityB(tmplKey, item.checklist_results);
@@ -347,26 +347,26 @@ export function renderChecklistSectionHtml(
       : listFailBatchCandidates(item, []).length;
   const openBtn = editable
     ? `<button type="button" data-c2-cl-open
-         class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase shadow-md">
+         class="w-full mt-2 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase shadow-md">
          ${_escape(_t('construction.v2.acc.run_checklist', 'Пройти чек-лист'))}</button>`
     : '';
   const batchBtn =
     editable && batchN > 0
       ? `<button type="button" data-c2-cl-batch-fail
-           class="w-full mt-2 bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-[11px] font-black uppercase">
+           class="w-full mt-2 bg-danger-soft text-danger border border-danger-soft py-2.5 rounded-xl text-rbi-label font-black uppercase">
            ${_escape(_t('construction.v2.acc.batch_fail_btn', 'Создать замечания по FAIL ({count})', { count: batchN }))}</button>`
       : '';
 
   return `
     <div class="mt-3 pt-3 border-t border-[var(--card-border)]" data-c2-cl-section>
       <div class="flex items-center justify-between gap-2 mb-1">
-        <div class="text-[10px] font-black uppercase text-indigo-600">${_escape(_t('construction.v2.acc.checklist', 'Чек-лист'))}</div>
-        <div class="text-[10px] font-bold text-slate-500" data-c2-cl-progress>
+        <div class="text-rbi-caption font-black uppercase text-brand">${_escape(_t('construction.v2.acc.checklist', 'Чек-лист'))}</div>
+        <div class="text-rbi-caption font-bold text-muted" data-c2-cl-progress>
           ${progress.done}/${progress.total}
           · OK ${progress.ok} · FAIL ${progress.fail} · N/A ${progress.na}
         </div>
       </div>
-      <div class="text-[10px] text-slate-400 font-bold">
+      <div class="text-rbi-caption text-muted font-bold">
         ${_escape(_t('construction.v2.acc.checklist_summary', '{items} пункт(ов) · {groups} групп', {
           items: String(templateItems.length),
           groups: String(new Set(templateItems.map((t) => t.group)).size)

@@ -51,6 +51,7 @@ import { mountCloudDeletedPurgeUI, CloudDeletedPurgeUI } from './features/cloud-
 import { mountCloudOrphanUrlsUI, CloudOrphanUrlsUI } from './features/cloud-orphan-urls-ui.js';
 import { mountRoleMatrixUI, RoleMatrixUI } from './features/role-matrix-ui.js';
 import { mountEnabledModulesUI, EnabledModulesUI } from './features/enabled-modules-ui.js';
+import { mountOfficialTemplatesUI, OfficialTemplatesUI } from './features/official-templates-ui.js';
 // Side-effect: window.* из feature/render (раньше — статичные <script> в index.html)
 import './features/tutorial.js';
 import './settings.render.js';
@@ -181,6 +182,7 @@ export const SettingsModule = {
     CloudOrphanUrlsUI,
     RoleMatrixUI,
     EnabledModulesUI,
+    OfficialTemplatesUI,
 
     /**
      * Инициализация: подписка на события платформы.

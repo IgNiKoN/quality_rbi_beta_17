@@ -52,11 +52,11 @@ function _knowledgeSvc() {
 function _helpButtonsHtml() {
   return `<div class="flex gap-2 mt-2" data-c2-help-actions>
       <button type="button" data-c2-item-help
-        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+        class="flex-1 px-2 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide bg-brand-soft text-brand border border-brand-soft">
         ${_escape$h(_t$k("construction.form.btn_help", "Справка"))}
       </button>
       <button type="button" data-c2-item-norm
-        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600">
+        class="flex-1 px-2 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide bg-slate-100 text-ink border border-surface">
         ${_escape$h(_t$k("construction.form.btn_norm", "Норматив"))}
       </button>
     </div>`;
@@ -319,14 +319,14 @@ function _contractorOptionsHtml(selected) {
 }
 function _renderGallery(photos) {
   if (!photos.length) {
-    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>${_escape$h(_t$k("construction.form.no_photos", "Нет фото"))}</div>`;
+    return `<div class="text-rbi-caption text-muted mb-2" data-c2-photo-empty>${_escape$h(_t$k("construction.form.no_photos", "Нет фото"))}</div>`;
   }
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos.map(
-    (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" data-c2-photo-idx="${i}">
+    (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-surface" data-c2-photo-idx="${i}">
       <img src="${_escape$h(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape$h(p)}" />
       <button type="button" data-c2-photo-remove="${i}"
-        class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[11px] font-black">✕</button>
+        class="absolute top-1 right-1 w-6 h-6 rounded-full bg-danger text-white text-rbi-label font-black">✕</button>
     </div>`
   ).join("")}
   </div>`;
@@ -396,7 +396,7 @@ function _bindItemSearch(panel) {
     if (!dd) return;
     const tmplKey = (tmpl == null ? void 0 : tmpl.value) || "";
     if (!tmplKey) {
-      dd.innerHTML = `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape$h(_t$k("construction.form.select_work_first", "Сначала выберите вид работ"))}</div>`;
+      dd.innerHTML = `<div class="p-3 text-rbi-caption text-muted font-bold text-center">${_escape$h(_t$k("construction.form.select_work_first", "Сначала выберите вид работ"))}</div>`;
       dd.classList.remove("hidden");
       return;
     }
@@ -409,16 +409,16 @@ function _bindItemSearch(panel) {
       }
     );
     if (!matched.length) {
-      dd.innerHTML = `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape$h(_t$k("construction.form.search_empty", "Ничего не найдено"))}</div>`;
+      dd.innerHTML = `<div class="p-3 text-rbi-caption text-muted font-bold text-center">${_escape$h(_t$k("construction.form.search_empty", "Ничего не найдено"))}</div>`;
       dd.classList.remove("hidden");
       return;
     }
     dd.innerHTML = matched.map((i) => {
       const w = Number(i.w) || 2;
-      return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+      return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-brand-soft"
           data-c2-pick-item data-id="${_escape$h(i.id)}" data-name="${_escape$h(i.n)}" data-w="${w}" data-norm="${_escape$h(i.t || "")}">
-          <div class="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
-            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$h(i.n)}
+          <div class="text-rbi-label font-bold text-ink leading-tight">
+            <span class="text-rbi-caption font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape$h(i.n)}
           </div>
         </button>`;
     }).join("");
@@ -494,13 +494,13 @@ function _historyHtml(history) {
     const photosHtml = photos.map(
       (p) => `<img src="${_escape$h(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape$h(String(p))}" alt="" />`
     ).join("");
-    return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px]">
-      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape$h(stName)}</span><span class="text-slate-400">${_escape$h(dDate)}</span></div>
-      <div class="text-slate-600 dark:text-slate-300">${_escape$h(h.user || "")}${h.comment ? ` — <i>${_escape$h(String(h.comment))}</i>` : ""}</div>
+    return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-rbi-caption">
+      <div class="flex justify-between font-bold mb-1"><span class="text-brand">${_escape$h(stName)}</span><span class="text-muted">${_escape$h(dDate)}</span></div>
+      <div class="text-ink">${_escape$h(h.user || "")}${h.comment ? ` — <i>${_escape$h(String(h.comment))}</i>` : ""}</div>
       <div class="flex gap-1 flex-wrap">${photosHtml}</div>
     </div>`;
   });
-  return `<div class="w-full mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2 max-h-36 overflow-y-auto" data-c2-history>
+  return `<div class="w-full mt-3 pt-3 border-t border-surface flex flex-col gap-2 max-h-36 overflow-y-auto" data-c2-history>
     ${rows.join("")}
   </div>`;
 }
@@ -517,58 +517,58 @@ function openCreateDefectForm(coords, onSave, onCancel, prefill) {
   const prefillDesc = (prefill == null ? void 0 : prefill.description) != null && String(prefill.description).trim() ? _stripHtml$3(String(prefill.description)) : (prefill == null ? void 0 : prefill.item_name) ? _autoDescription(String(prefill.item_name), prefillNormRaw) : "";
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape$h(_t$k("construction.form.new_defect", "Новое замечание"))}</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>
+      <h3 class="text-rbi-body font-black uppercase tracking-tight">${_escape$h(_t$k("construction.form.new_defect", "Новое замечание"))}</h3>
+      <button type="button" data-c2-defect-close class="text-muted text-rbi-label font-bold uppercase">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-3">${_escape$h(_t$k("construction.form.coords", "Координаты: {x}% × {y}%", { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.work_type_label", "Вид работ (чек-лист) *"))}</label>
-    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+    <p class="text-rbi-caption text-muted mb-3">${_escape$h(_t$k("construction.form.coords", "Координаты: {x}% × {y}%", { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.work_type_label", "Вид работ (чек-лист) *"))}</label>
+    <select data-c2-template class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">
       ${_templateOptionsHtml(prefill == null ? void 0 : prefill.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.violation_label", "Нарушение *"))}</label>
+      <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.violation_label", "Нарушение *"))}</label>
       <input type="text" data-c2-item-search autocomplete="off" placeholder="${_escape$h(_t$k("construction.form.violation_placeholder", "Начните вводить нарушение..."))}"
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
+        class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"
         value="${_escape$h((prefill == null ? void 0 : prefill.item_name) || "")}" />
       <input type="hidden" data-c2-item-id value="${_escape$h((prefill == null ? void 0 : prefill.item_id) || "")}" />
       <input type="hidden" data-c2-item-name value="${_escape$h((prefill == null ? void 0 : prefill.item_name) || "")}" />
-      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-surface shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${prefillNormRaw || (prefill == null ? void 0 : prefill.item_id) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$h(_t$k("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+    <div data-c2-norm-block class="${prefillNormRaw || (prefill == null ? void 0 : prefill.item_id) ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-surface p-2.5 rounded-xl mb-3">
+      <div class="text-rbi-caption font-black uppercase text-brand mb-1">${_escape$h(_t$k("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
+      <div data-c2-norm-text class="text-rbi-caption text-muted font-medium"></div>
       ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.category", "Категория"))}</label>
-        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]">
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.category", "Категория"))}</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body">
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.deadline", "Срок"))}</label>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.deadline", "Срок"))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape$h(deadlineDefault)}"
-          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
+          class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body" />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.contractor", "Подрядчик"))}</label>
-    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.contractor", "Подрядчик"))}</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">
       ${_contractorOptionsHtml()}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.description", "Описание"))}</label>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape$h(prefillDesc)}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.photos", "Фото"))}</label>
+      class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">${_escape$h(prefillDesc)}</textarea>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
-      class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-surface text-muted py-3 rounded-xl text-rbi-caption font-bold uppercase">
       + ${_escape$h(_t$k("construction.form.add_photo", "+ Добавить фото"))}
     </button>
     <div class="flex gap-2 justify-end">
-      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape$h(_t$k("construction.form.cancel", "Отмена"))}</button>
-      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">${_escape$h(_t$k("construction.form.save", "Сохранить"))}</button>
+      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-rbi-label font-bold uppercase text-muted">${_escape$h(_t$k("construction.form.cancel", "Отмена"))}</button>
+      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-rbi-label font-black uppercase bg-brand text-white">${_escape$h(_t$k("construction.form.save", "Сохранить"))}</button>
     </div>`;
   root.classList.remove("hidden");
   root.classList.add("flex");
@@ -636,35 +636,35 @@ function _actionButtonsHtml(defect) {
   const st = String(defect.status || "issued");
   if (st === "issued") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape$h(_t$k("construction.form.action_in_progress", "В работу"))}</button>
-        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.action_fixed_photo", "Устранено (Фото)"))}</button>`;
+      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-rbi-label font-bold uppercase">${_escape$h(_t$k("construction.form.action_in_progress", "В работу"))}</button>
+        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.action_fixed_photo", "Устранено (Фото)"))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-delete class="bg-red-50 text-red-600 py-2.5 px-3 rounded-xl text-[11px] font-bold uppercase border border-red-200">🗑️</button>
-        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.action_update", "💾 Обновить"))}</button>`;
+      return `<button type="button" data-c2-defect-delete class="bg-danger-soft text-danger py-2.5 px-3 rounded-xl text-rbi-label font-bold uppercase border border-danger-soft">🗑️</button>
+        <button type="button" data-c2-defect-save class="flex-1 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.action_update", "💾 Обновить"))}</button>`;
     }
   } else if (st === "in_progress") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.action_fixed_attach", "Устранено (Приложить фото)"))}</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.action_fixed_attach", "Устранено (Приложить фото)"))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">${_escape$h(_t$k("construction.form.contractor_working", "Подрядчик взял в работу"))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-bold text-blue-500 py-2">${_escape$h(_t$k("construction.form.contractor_working", "Подрядчик взял в работу"))}</div>`;
   } else if (st === "fixed") {
     if (isEngineer) {
-      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape$h(_t$k("construction.form.action_reject", "❌ Отклонить"))}</button>
-        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.action_accept", "✅ Принять"))}</button>`;
+      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-danger-soft text-danger border border-danger-soft py-2.5 rounded-xl text-rbi-label font-bold uppercase">${_escape$h(_t$k("construction.form.action_reject", "❌ Отклонить"))}</button>
+        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.action_accept", "✅ Принять"))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">${_escape$h(_t$k("construction.form.awaiting_review", "Ожидает проверки инженером"))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-bold text-green-500 py-2">${_escape$h(_t$k("construction.form.awaiting_review", "Ожидает проверки инженером"))}</div>`;
   } else if (st === "closed") {
-    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">${_escape$h(_t$k("construction.form.defect_closed", "Дефект закрыт"))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-black text-green-600 py-2">${_escape$h(_t$k("construction.form.defect_closed", "Дефект закрыт"))}</div>`;
   } else if (st === "rejected") {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.resubmit_photo", "Повторно предъявить (Фото)"))}</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.resubmit_photo", "Повторно предъявить (Фото)"))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape$h(_t$k("construction.form.action_update", "💾 Обновить"))}</button>`;
+      return `<button type="button" data-c2-defect-save class="flex-1 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape$h(_t$k("construction.form.action_update", "💾 Обновить"))}</button>`;
     }
   }
-  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>`;
+  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-rbi-label font-bold uppercase text-muted">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>`;
 }
 function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   var _a, _b, _c, _d;
@@ -690,53 +690,53 @@ function openViewDefectForm(defect, onDelete, onSave, onChangeStatus) {
   const disabled = canEditFields ? "" : " disabled";
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape$h(_t$k("construction.form.defect_title", "Замечание"))}</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>
+      <h3 class="text-rbi-body font-black uppercase tracking-tight">${_escape$h(_t$k("construction.form.defect_title", "Замечание"))}</h3>
+      <button type="button" data-c2-defect-close class="text-muted text-rbi-label font-bold uppercase">${_escape$h(_t$k("construction.form.close", "Закрыть"))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">${_escape$h(_t$k("construction.form.status_line", "Статус: {status}", { status: _statusLabel$5(String(defect.status)) }))}</p>
-    <p class="text-[10px] text-slate-400 mb-3">${_escape$h(_t$k("construction.form.coords", "Координаты: {x}% × {y}%", { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.work_type_view", "Вид работ"))}</label>
-    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+    <p class="text-rbi-caption text-muted mb-1">${_escape$h(_t$k("construction.form.status_line", "Статус: {status}", { status: _statusLabel$5(String(defect.status)) }))}</p>
+    <p class="text-rbi-caption text-muted mb-3">${_escape$h(_t$k("construction.form.coords", "Координаты: {x}% × {y}%", { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.work_type_view", "Вид работ"))}</label>
+    <select data-c2-template class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>
       ${_templateOptionsHtml(defect.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.violation_view", "Нарушение"))}</label>
+      <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.violation_view", "Нарушение"))}</label>
       <input type="text" data-c2-item-search autocomplete="off" value="${_escape$h(defect.item_name || "")}"
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+        class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled} />
       <input type="hidden" data-c2-item-id value="${_escape$h(defect.item_id || "")}" />
       <input type="hidden" data-c2-item-name value="${_escape$h(defect.item_name || "")}" />
-      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-surface shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape$h(_t$k("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? "" : "hidden"} bg-slate-50 dark:bg-slate-900 border border-surface p-2.5 rounded-xl mb-3">
+      <div class="text-rbi-caption font-black uppercase text-brand mb-1">${_escape$h(_t$k("construction.form.norm_ref", "Справочно (Норматив)"))}</div>
+      <div data-c2-norm-text class="text-rbi-caption text-muted font-medium"></div>
       ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.category", "Категория"))}</label>
-        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled}>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.category", "Категория"))}</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled}>
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.deadline", "Срок"))}</label>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.deadline", "Срок"))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape$h(deadlineVal)}"
-          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+          class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled} />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.contractor", "Подрядчик"))}</label>
-    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.contractor", "Подрядчик"))}</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>
       ${_contractorOptionsHtml(defect.contractorId)}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.description", "Описание"))}</label>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.description", "Описание"))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape$h(_stripHtml$3(String(defect.description || "")))}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape$h(_t$k("construction.form.photos", "Фото"))}</label>
+      class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>${_escape$h(_stripHtml$3(String(defect.description || "")))}</textarea>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape$h(_t$k("construction.form.photos", "Фото"))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${canEditFields ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
-      class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-surface text-muted py-3 rounded-xl text-rbi-caption font-bold uppercase">
       + ${_escape$h(_t$k("construction.form.add_photo", "+ Добавить фото"))}
     </button>` : `<div class="mb-3"></div>`}
     ${_historyHtml(defect.history)}
@@ -1572,8 +1572,8 @@ function _statusLabel$4(statusKey) {
 }
 const STATUS_STYLES = {
   issued: {
-    active: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400",
-    badgeActive: "bg-red-600 text-white"
+    active: "bg-danger-soft text-danger border-danger-soft",
+    badgeActive: "bg-danger text-white"
   },
   in_progress: {
     active: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400",
@@ -1588,7 +1588,7 @@ const STATUS_STYLES = {
     badgeActive: "bg-green-600 text-white"
   },
   rejected: {
-    active: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300",
+    active: "bg-slate-100 text-ink border-surface dark:bg-slate-800",
     badgeActive: "bg-slate-500 text-white"
   }
 };
@@ -1652,8 +1652,8 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
   const isAllMode = filters.statuses.length === 0;
   const compact = !!(opts == null ? void 0 : opts.compact);
   const darkFs = !!(opts == null ? void 0 : opts.darkFs);
-  const inactiveClass = darkFs ? "bg-white/10 text-slate-300 border-white/20" : "bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
-  const inactiveBadge = darkFs ? "bg-white/10 text-slate-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500 border border-slate-200 dark:border-slate-700";
+  const inactiveClass = darkFs ? "bg-white/10 text-slate-300 border-white/20" : "bg-surface text-muted border-surface";
+  const inactiveBadge = darkFs ? "bg-white/10 text-slate-400" : "bg-slate-100 text-muted dark:bg-slate-900 border border-surface";
   const chips = ALL_PIN_STATUSES.map((statusKey) => {
     const isActive = filters.statuses.includes(statusKey);
     const visuallyActive = isAllMode || isActive;
@@ -1661,9 +1661,9 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
     const badgeClass = visuallyActive ? STATUS_STYLES[statusKey].badgeActive : inactiveBadge;
     const pad = compact ? "px-2 py-1" : "px-2.5 py-1.5";
     return `<button type="button" data-c2-pin-status="${statusKey}"
-      class="shrink-0 ${pad} rounded-xl border text-[9px] font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
+      class="shrink-0 ${pad} rounded-xl border text-rbi-caption font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
       ${_statusLabel$4(statusKey)}
-      <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-[8px] font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
+      <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-rbi-caption font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
     </button>`;
   }).join("");
   const cats = [
@@ -1674,14 +1674,14 @@ function renderPinFiltersHtml(baseDefects, filters = pinFiltersState, opts) {
   ];
   const catBtns = cats.map(({ key, label }) => {
     const on = filters.category === key;
-    const cls = on ? darkFs ? "bg-white text-slate-900" : "bg-indigo-600 text-white" : darkFs ? "bg-white/10 text-slate-300 hover:bg-white/20" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+    const cls = on ? darkFs ? "bg-white text-slate-900" : "bg-brand text-white" : darkFs ? "bg-white/10 text-slate-300 hover:bg-white/20" : "bg-slate-100 text-ink dark:bg-slate-800";
     return `<button type="button" data-c2-pin-category="${key}"
-        class="px-2 py-1 rounded-lg text-[9px] font-bold transition-colors ${cls}">${label}</button>`;
+        class="px-2 py-1 rounded-lg text-rbi-caption font-bold transition-colors ${cls}">${label}</button>`;
   }).join("");
   return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
     <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
     <div class="flex gap-1 items-center">
-      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t$i("construction.pin.cat", "Кат.")}</span>
+      <span class="text-rbi-caption font-bold uppercase tracking-wider text-muted shrink-0">${_t$i("construction.pin.cat", "Кат.")}</span>
       <div class="flex gap-0.5">${catBtns}</div>
     </div>
   </div>`;
@@ -1750,7 +1750,7 @@ function _syncAddBtn() {
   const btn = document.querySelector("[data-c2-apt-add-mode]");
   if (!btn) return;
   btn.textContent = _addMode$1 ? _t$h("construction.v2.add_picking", "Кликни…") : _t$h("construction.v2.add_defect", "+ Замечание");
-  btn.className = _addMode$1 ? "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-indigo-600 text-white border-indigo-600" : "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200";
+  btn.className = _addMode$1 ? "px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-brand text-white border-brand" : "px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-transparent text-brand border-brand-soft";
 }
 async function _refreshPins() {
   const dSvc = _defects$2();
@@ -1841,27 +1841,27 @@ async function openApartmentPlan(unit, cb) {
   wrap.className = "fixed inset-0 flex flex-col bg-slate-100 dark:bg-slate-900";
   wrap.style.zIndex = "1100";
   wrap.innerHTML = `
-    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+    <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-surface bg-surface">
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$g(_t$h("construction.v2.apt_fs_title", "Замечания на плане · весь экран"))}</div>
-          <div class="text-[14px] font-black text-slate-800 dark:text-slate-100 truncate">${_escape$g(title)}</div>
-          <div class="text-[10px] font-bold text-slate-400 truncate">${_escape$g(path)}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$g(_t$h("construction.v2.apt_fs_title", "Замечания на плане · весь экран"))}</div>
+          <div class="text-rbi-title font-black text-ink truncate">${_escape$g(title)}</div>
+          <div class="text-rbi-caption font-bold text-muted truncate">${_escape$g(path)}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <span id="c2-apt-overlay-count" class="text-[10px] font-bold text-slate-400 hidden sm:inline">${_escape$g(_t$h("construction.v2.apt_overlay_count", "Показано {shown} из {total}", { shown: 0, total: 0 }))}</span>
+          <span id="c2-apt-overlay-count" class="text-rbi-caption font-bold text-muted hidden sm:inline">${_escape$g(_t$h("construction.v2.apt_overlay_count", "Показано {shown} из {total}", { shown: 0, total: 0 }))}</span>
           <div class="flex gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-900/80">
             <button type="button" data-c2-apt-zoom-out
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$g(_t$h("construction.v2.zoom_out", "Уменьшить"))}">−</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-surface" title="${_escape$g(_t$h("construction.v2.zoom_out", "Уменьшить"))}">−</button>
             <button type="button" data-c2-apt-zoom-in
-              class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$g(_t$h("construction.v2.zoom_in", "Увеличить"))}">+</button>
+              class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-surface" title="${_escape$g(_t$h("construction.v2.zoom_in", "Увеличить"))}">+</button>
             <button type="button" data-c2-apt-zoom-fit
-              class="px-2.5 h-8 rounded-lg text-[9px] font-bold uppercase text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700" title="${_escape$g(_t$h("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
+              class="px-2.5 h-8 rounded-lg text-rbi-caption font-bold uppercase text-ink hover:bg-surface" title="${_escape$g(_t$h("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
           </div>
           ${guest ? "" : `<button type="button" data-c2-apt-add-mode
-                  class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-transparent text-indigo-600 border-indigo-200">${_escape$g(_t$h("construction.v2.add_defect", "+ Замечание"))}</button>`}
+                  class="px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-transparent text-brand border-brand-soft">${_escape$g(_t$h("construction.v2.add_defect", "+ Замечание"))}</button>`}
           <button type="button" data-c2-apt-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:border-slate-600">${_escape$g(_t$h("construction.v2.fs_close", "Закрыть"))}</button>
+            class="px-3 py-1.5 rounded-xl border text-rbi-caption font-black uppercase bg-slate-50 text-ink border-surface dark:bg-slate-900">${_escape$g(_t$h("construction.v2.fs_close", "Закрыть"))}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="apt"></div>
@@ -1984,7 +1984,7 @@ async function openApartmentPlan(unit, cb) {
     await _refreshPins();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$g(_t$h("construction.v2.plan_error", "Ошибка плана: {msg}", { msg }))}</div>`;
+    host.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$g(_t$h("construction.v2.plan_error", "Ошибка плана: {msg}", { msg }))}</div>`;
     _viewer$1 = null;
   }
 }
@@ -2167,13 +2167,13 @@ function acceptGateWarning(item) {
 }
 function _bBadgeHtml(b) {
   if (!b) return "";
-  const tone = b.final < 70 || b.isDanger ? "bg-red-50 text-red-700 border-red-200" : b.final < 85 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
+  const tone = b.final < 70 || b.isDanger ? "bg-danger-soft text-danger border-danger-soft" : b.final < 85 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
   return `<div class="mt-2 px-2.5 py-2 rounded-xl border ${tone}" data-c2-cl-b>
       <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-black uppercase">${_escape$f(_t$g("construction.v2.acc.quality_b", "УрК B"))}</span>
-        <span class="text-[14px] font-black" data-c2-cl-b-final>${_escape$f(String(b.final))}%</span>
+        <span class="text-rbi-caption font-black uppercase">${_escape$f(_t$g("construction.v2.acc.quality_b", "УрК B"))}</span>
+        <span class="text-rbi-title font-black" data-c2-cl-b-final>${_escape$f(String(b.final))}%</span>
       </div>
-      <div class="text-[10px] font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$f(b.statusTxt || "")}</div>
+      <div class="text-rbi-caption font-bold mt-0.5 opacity-80" data-c2-cl-b-status>${_escape$f(b.statusTxt || "")}</div>
     </div>`;
 }
 function renderChecklistSectionHtml(item, opts) {
@@ -2181,31 +2181,31 @@ function renderChecklistSectionHtml(item, opts) {
   const editable = (opts == null ? void 0 : opts.editable) !== false;
   const tmplKey = String(item.template_key || ((_a = item.checklist_results) == null ? void 0 : _a.template_key) || "");
   if (!tmplKey) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-slate-400">${_escape$f(_t$g("construction.v2.acc.checklist_no_work", "Чек-лист: вид работ не выбран"))}</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-rbi-caption font-bold text-muted">${_escape$f(_t$g("construction.v2.acc.checklist_no_work", "Чек-лист: вид работ не выбран"))}</div>`;
   }
   const templateItems = listTemplateChecklistItems(tmplKey);
   if (!templateItems.length) {
-    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-[10px] font-bold text-amber-600">${_escape$f(_t$g("construction.v2.acc.checklist_empty", "Чек-лист шаблона пуст или не найден"))}</div>`;
+    return `<div class="mt-3 pt-3 border-t border-[var(--card-border)] text-rbi-caption font-bold text-amber-600">${_escape$f(_t$g("construction.v2.acc.checklist_empty", "Чек-лист шаблона пуст или не найден"))}</div>`;
   }
   const progress = computeChecklistProgress(tmplKey, item.checklist_results);
   const b = computeAcceptanceQualityB(tmplKey, item.checklist_results);
   const batchN = (opts == null ? void 0 : opts.batchFailCount) != null ? opts.batchFailCount : listFailBatchCandidates(item, []).length;
   const openBtn = editable ? `<button type="button" data-c2-cl-open
-         class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase shadow-md">
+         class="w-full mt-2 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase shadow-md">
          ${_escape$f(_t$g("construction.v2.acc.run_checklist", "Пройти чек-лист"))}</button>` : "";
   const batchBtn = editable && batchN > 0 ? `<button type="button" data-c2-cl-batch-fail
-           class="w-full mt-2 bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-[11px] font-black uppercase">
+           class="w-full mt-2 bg-danger-soft text-danger border border-danger-soft py-2.5 rounded-xl text-rbi-label font-black uppercase">
            ${_escape$f(_t$g("construction.v2.acc.batch_fail_btn", "Создать замечания по FAIL ({count})", { count: batchN }))}</button>` : "";
   return `
     <div class="mt-3 pt-3 border-t border-[var(--card-border)]" data-c2-cl-section>
       <div class="flex items-center justify-between gap-2 mb-1">
-        <div class="text-[10px] font-black uppercase text-indigo-600">${_escape$f(_t$g("construction.v2.acc.checklist", "Чек-лист"))}</div>
-        <div class="text-[10px] font-bold text-slate-500" data-c2-cl-progress>
+        <div class="text-rbi-caption font-black uppercase text-brand">${_escape$f(_t$g("construction.v2.acc.checklist", "Чек-лист"))}</div>
+        <div class="text-rbi-caption font-bold text-muted" data-c2-cl-progress>
           ${progress.done}/${progress.total}
           · OK ${progress.ok} · FAIL ${progress.fail} · N/A ${progress.na}
         </div>
       </div>
-      <div class="text-[10px] text-slate-400 font-bold">
+      <div class="text-rbi-caption text-muted font-bold">
         ${_escape$f(_t$g("construction.v2.acc.checklist_summary", "{items} пункт(ов) · {groups} групп", {
     items: String(templateItems.length),
     groups: String(new Set(templateItems.map((t) => t.group)).size)
@@ -2302,13 +2302,13 @@ function slotBoardHtml(occupancy, opts) {
     const label = o.taken ? _t$f("construction.v2.slots.taken", "занято{suffix}", { suffix: o.count > 1 ? ` ×${o.count}` : "" }) : _t$f("construction.v2.slots.free", "свободно");
     const tip = o.items.map((i) => String(i.work_type || i.id || "").slice(0, 40)).filter(Boolean).join("; ");
     return `<div class="rounded-xl border px-2 py-1.5 text-center ${cls}" title="${_escape$e(tip)}">
-        <div class="text-[10px] font-black">${o.time}</div>
-        <div class="text-[8px] font-bold uppercase tracking-wide">${_escape$e(label)}</div>
+        <div class="text-rbi-caption font-black">${o.time}</div>
+        <div class="text-rbi-caption font-bold uppercase tracking-wide">${_escape$e(label)}</div>
       </div>`;
   }).join("");
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-      <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_escape$e(title)}</div>
+      <div class="text-rbi-caption font-black uppercase tracking-widest text-brand mb-2">${_escape$e(title)}</div>
       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">${cells}</div>
     </div>`;
 }
@@ -2456,11 +2456,11 @@ function _contractorSelectHtml(selectedId, opts) {
     const label = id || _t$e("construction.v2.acc.contractor_unlinked", "не привязан");
     return `
       <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$d(_t$e("construction.form.contractor", "Подрядчик"))}</label>
+        <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape$d(_t$e("construction.form.contractor", "Подрядчик"))}</label>
         <input type="hidden" id="c2-acc-contractor" value="${_escape$d(id)}">
-        <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape$d(
+        <div class="input-base text-rbi-body font-bold w-full bg-slate-50 dark:bg-slate-900 text-ink">${_escape$d(
       label
-    )} <span class="text-[9px] font-bold uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.contractor_yours", "(ваш)"))}</span></div>
+    )} <span class="text-rbi-caption font-bold uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.contractor_yours", "(ваш)"))}</span></div>
       </div>`;
   }
   const svc = (_b = (_a = window.RBI) == null ? void 0 : _a.services) == null ? void 0 : _b.contractors;
@@ -2473,8 +2473,8 @@ function _contractorSelectHtml(selectedId, opts) {
   }).join("");
   return `
     <div>
-      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$d(_t$e("construction.form.contractor", "Подрядчик"))} *</label>
-      <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
+      <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape$d(_t$e("construction.form.contractor", "Подрядчик"))} *</label>
+      <select id="c2-acc-contractor" class="input-base text-rbi-body font-bold w-full border-brand-soft">${optsHtml}</select>
     </div>`;
 }
 function _floorLabel(locationId) {
@@ -2535,18 +2535,18 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
   }
   const isApartment = ctx.mode === "apartment" || _locationNodeType(ctx.locationId) === "apartment";
   const path = _floorLabel(ctx.locationId);
-  const zoneBadge = isApartment ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">${_escape$d(_t$e("construction.v2.acc.badge_apartment", "Квартира"))}</span>` : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">${_escape$d(_t$e("construction.v2.acc.badge_zone", "✅ Зона выделена"))}</span>`;
+  const zoneBadge = isApartment ? `<span class="bg-brand-soft text-brand px-2 py-0.5 rounded text-rbi-caption font-black border border-brand-soft">${_escape$d(_t$e("construction.v2.acc.badge_apartment", "Квартира"))}</span>` : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-rbi-caption font-black border border-blue-200">${_escape$d(_t$e("construction.v2.acc.badge_zone", "✅ Зона выделена"))}</span>`;
   const roomVolHtml = isApartment ? `<div>
-         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</label>
-         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
+         <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</label>
+         <input type="text" id="c2-acc-vol" class="input-base text-rbi-body w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
        </div>` : `<div class="grid grid-cols-2 gap-2">
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.axes", "Оси / Захватка"))}</label>
-           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.axes_ph", "Напр: Оси А-Б"))}" value="${_escape$d(ctx.zone.room || "")}">
+           <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.axes", "Оси / Захватка"))}</label>
+           <input type="text" id="c2-acc-room" class="input-base text-rbi-body w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.axes_ph", "Напр: Оси А-Б"))}" value="${_escape$d(ctx.zone.room || "")}">
          </div>
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</label>
-           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
+           <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</label>
+           <input type="text" id="c2-acc-vol" class="input-base text-rbi-body w-full" placeholder="${_escape$d(_t$e("construction.v2.acc.volume_ph", "Напр: 45 м2"))}">
          </div>
        </div>`;
   const contractorHtml = _contractorSelectHtml(null, {
@@ -2556,39 +2556,39 @@ function openCreateAcceptanceForm(ctx, onSave, onCancel) {
   const html = `
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
-        <div class="p-4 bg-indigo-600 border-b border-indigo-700 flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? _escape$d(_t$e("construction.v2.acc.title_apartment", "📝 Приёмка квартиры (v2)")) : _escape$d(_t$e("construction.v2.acc.title_request", "📝 Заявка на приемку (v2)"))}</h3>
-          <button type="button" data-c2-acc-close class="text-indigo-200 hover:text-white font-black text-lg leading-none">✕</button>
+        <div class="p-4 bg-brand border-b border-brand-hover flex justify-between items-center">
+          <h3 class="font-black text-rbi-body uppercase text-white">${isApartment ? _escape$d(_t$e("construction.v2.acc.title_apartment", "📝 Приёмка квартиры (v2)")) : _escape$d(_t$e("construction.v2.acc.title_request", "📝 Заявка на приемку (v2)"))}</h3>
+          <button type="button" data-c2-acc-close class="text-white/80 hover:text-white font-black text-lg leading-none">✕</button>
         </div>
         <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div class="text-[10px] font-black text-indigo-500 uppercase mb-1 flex justify-between">
+          <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-surface">
+            <div class="text-rbi-caption font-black text-brand uppercase mb-1 flex justify-between">
               <span>${_escape$d(_t$e("construction.v2.acc.location", "Локация"))}</span>
               ${zoneBadge}
             </div>
-            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape$d(path)}</div>
+            <div class="text-rbi-body font-bold text-ink">${_escape$d(path)}</div>
           </div>
           <div>
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.work_type", "Вид работ *"))}</label>
-            <select id="c2-acc-work" class="input-base text-[12px] font-bold mb-2 border-indigo-300 w-full">
+            <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape$d(_t$e("construction.v2.acc.work_type", "Вид работ *"))}</label>
+            <select id="c2-acc-work" class="input-base text-rbi-body font-bold mb-2 border-brand-soft w-full">
               ${_tmplOptions()}
             </select>
             ${roomVolHtml}
           </div>
           ${contractorHtml}
-          <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">${_escape$d(_t$e("construction.v2.acc.when_ready", "Когда готовы сдать?"))}</label>
+          <div class="pt-2 border-t border-surface">
+            <label class="text-rbi-caption font-black text-brand uppercase mb-2 block">${_escape$d(_t$e("construction.v2.acc.when_ready", "Когда готовы сдать?"))}</label>
             <div class="grid grid-cols-2 gap-2">
-              <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today$4()}">
-              <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
+              <input type="date" id="c2-acc-date" class="input-base text-rbi-body font-bold w-full" value="${_today$4()}">
+              <select id="c2-acc-time" class="input-base text-rbi-body font-bold w-full">
                 ${slotTimeOptionsHtml("14:00")}
               </select>
             </div>
           </div>
         </div>
         <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/50 flex gap-2">
-          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">${_escape$d(_t$e("construction.form.cancel", "Отмена"))}</button>
-          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">${_escape$d(_t$e("construction.v2.acc.submit", "Отправить"))}</button>
+          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-ink py-3 rounded-xl text-rbi-label font-bold uppercase border border-surface">${_escape$d(_t$e("construction.form.cancel", "Отмена"))}</button>
+          <button type="button" data-c2-acc-save class="flex-[1.5] bg-brand text-white py-3 rounded-xl text-rbi-label font-black uppercase shadow-md">${_escape$d(_t$e("construction.v2.acc.submit", "Отправить"))}</button>
         </div>
       </div>
     </div>`;
@@ -2661,48 +2661,48 @@ function openAcceptanceDetails(item, handlers) {
     if (isEngineer) {
       actions = `
         <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-[var(--card-border)]">
-          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
+          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
           <div class="flex gap-2">
-            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape$d(_t$e("construction.form.action_accept", "✅ Принять"))}</button>
-            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape$d(_t$e("construction.form.action_reject", "❌ Отклонить"))}</button>
+            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-rbi-caption uppercase">${_escape$d(_t$e("construction.form.action_accept", "✅ Принять"))}</button>
+            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-danger-soft text-danger border border-danger-soft py-3 rounded-xl font-bold text-rbi-caption uppercase">${_escape$d(_t$e("construction.form.action_reject", "❌ Отклонить"))}</button>
           </div>
         </div>`;
     } else if (role !== "guest") {
       actions = `
         <div class="mt-4 pt-4 border-t border-[var(--card-border)] text-center">
-          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape$d(_t$e("construction.v2.acc.engineer_reviewing", "⏳ Инженер проверяет заявку..."))}</div>
-          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">${_escape$d(_t$e("construction.v2.acc.revoke", "Отозвать заявку"))}</button>
+          <div class="text-rbi-label font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape$d(_t$e("construction.v2.acc.engineer_reviewing", "⏳ Инженер проверяет заявку..."))}</div>
+          <button type="button" data-c2-acc-revoke class="w-full bg-danger-soft text-danger py-3 rounded-xl font-bold text-rbi-caption uppercase border border-danger-soft">${_escape$d(_t$e("construction.v2.acc.revoke", "Отозвать заявку"))}</button>
         </div>`;
     }
   } else if (isEngineer) {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
-        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">${_escape$d(_t$e("construction.v2.acc.return_pending", "Вернуть в pending"))}</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase mb-2">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
+        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-ink py-3 rounded-xl font-bold text-rbi-caption uppercase border border-surface">${_escape$d(_t$e("construction.v2.acc.return_pending", "Вернуть в pending"))}</button>
       </div>`;
   } else {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase">${_escape$d(_t$e("construction.v2.acc.show_on_plan", "🗺️ Показать на плане"))}</button>
       </div>`;
   }
   const html = `
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">${_escape$d(_t$e("construction.v2.acc.details_title", "Заявка · {status}", { status }))}</h3>
-          <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
+          <h3 class="font-black text-rbi-body uppercase">${_escape$d(_t$e("construction.v2.acc.details_title", "Заявка · {status}", { status }))}</h3>
+          <button type="button" data-c2-acc-dclose class="text-muted font-black text-lg">✕</button>
         </div>
-        <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.location", "Локация"))}</span><div class="font-bold">${_escape$d(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.work_type_view", "Вид работ"))}</span><div class="font-bold">${_escape$d(item.work_type || "—")}</div></div>
+        <div class="p-4 text-rbi-body space-y-2 max-h-[75vh] overflow-y-auto">
+          <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.location", "Локация"))}</span><div class="font-bold">${_escape$d(path)}</div></div>
+          <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.work_type_view", "Вид работ"))}</span><div class="font-bold">${_escape$d(item.work_type || "—")}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</span><div class="font-bold">${_escape$d(item.volume || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.axes_view", "Оси"))}</span><div class="font-bold">${_escape$d(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.volume", "Объем"))}</span><div class="font-bold">${_escape$d(item.volume || "—")}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.axes_view", "Оси"))}</span><div class="font-bold">${_escape$d(((_a = item.zone) == null ? void 0 : _a.room) || "—")}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.date", "Дата"))}</span><div class="font-bold">${_escape$d(item.requested_date || "—")}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape$d(_t$e("construction.v2.acc.time", "Время"))}</span><div class="font-bold">${_escape$d(item.requested_time || "—")}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.date", "Дата"))}</span><div class="font-bold">${_escape$d(item.requested_date || "—")}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape$d(_t$e("construction.v2.acc.time", "Время"))}</span><div class="font-bold">${_escape$d(item.requested_time || "—")}</div></div>
           </div>
           ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}
@@ -3071,33 +3071,33 @@ function _cardHtml$1(r, loc) {
   const path = loc.getPath(r.locationId).map((n) => n.displayName).join(" · ");
   const overdue = r.status === "pending" && r.requested_date && new Date(r.requested_date).setHours(0, 0, 0, 0) < (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0);
   const progress = computeChecklistProgress(r.template_key, r.checklist_results);
-  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape$c(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">${_escape$c(_t$d("construction.v2.kanban.checklist_progress", "Чек-лист 0/{total}", { total: progress.total }))}</div>` : "";
+  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-1.5 text-rbi-caption font-black uppercase tracking-wide text-brand">${_escape$c(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-1.5 text-rbi-caption font-bold text-muted">${_escape$c(_t$d("construction.v2.kanban.checklist_progress", "Чек-лист 0/{total}", { total: progress.total }))}</div>` : "";
   return `
-    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
+    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-brand transition-colors"
          data-c2-acc-card="${_escape$c(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$c(r.work_type || _t$d("construction.v2.kanban.no_work_type", "Без вида работ"))}</div>
-        ${overdue ? `<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">${_escape$c(_t$d("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
+        <div class="text-rbi-label font-black text-ink leading-tight">${_escape$c(r.work_type || _t$d("construction.v2.kanban.no_work_type", "Без вида работ"))}</div>
+        ${overdue ? `<span class="text-rbi-caption font-black uppercase text-danger bg-danger-soft px-1.5 py-0.5 rounded">${_escape$c(_t$d("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </div>
-      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape$c(path || r.locationId)}</div>
-      <div class="flex justify-between items-center text-[10px]">
-        <span class="font-bold text-slate-600">${_escape$c(r.requested_date || "—")} ${_escape$c(r.requested_time || "")}</span>
+      <div class="text-rbi-caption text-muted font-bold mb-2">${_escape$c(path || r.locationId)}</div>
+      <div class="flex justify-between items-center text-rbi-caption">
+        <span class="font-bold text-ink">${_escape$c(r.requested_date || "—")} ${_escape$c(r.requested_time || "")}</span>
         <button type="button" data-c2-acc-plan="${_escape$c(r.id)}"
-          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">${_escape$c(_t$d("construction.v2.kanban.plan_btn", "План"))}</button>
+          class="text-brand bg-white border border-brand-soft px-2 py-1 rounded text-rbi-caption font-bold">${_escape$c(_t$d("construction.v2.kanban.plan_btn", "План"))}</button>
       </div>
-      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape$c(r.volume)}</div>` : ""}
+      ${r.volume ? `<div class="mt-1 text-rbi-caption text-muted font-bold">${_escape$c(r.volume)}</div>` : ""}
       ${progressHtml}
     </div>`;
 }
 function _column$1(title, color, items, loc) {
   return `
-    <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700 p-2">
+    <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-surface p-2">
       <div class="flex items-center justify-between px-1 mb-2">
-        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape$c(title)}</span>
-        <span class="bg-white dark:bg-slate-800 text-slate-600 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 text-[10px] font-bold">${items.length}</span>
+        <span class="text-rbi-caption font-black uppercase tracking-widest ${color}">${_escape$c(title)}</span>
+        <span class="bg-surface text-ink px-1.5 py-0.5 rounded shadow-sm border border-surface text-rbi-caption font-bold">${items.length}</span>
       </div>
       <div class="max-h-[55vh] overflow-y-auto">
-        ${items.length ? items.map((r) => _cardHtml$1(r, loc)).join("") : `<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">${_escape$c(_t$d("construction.v2.kanban.no_requests", "Заявок нет"))}</div>`}
+        ${items.length ? items.map((r) => _cardHtml$1(r, loc)).join("") : `<div class="text-center py-4 text-rbi-caption font-bold text-muted border border-dashed border-surface rounded-xl">${_escape$c(_t$d("construction.v2.kanban.no_requests", "Заявок нет"))}</div>`}
       </div>
     </div>`;
 }
@@ -3105,7 +3105,7 @@ async function renderAcceptanceKanban(root) {
   const acc = _acc$4();
   const loc = _loc$4();
   if (!acc || !loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$c(_t$d("construction.v2.kanban.svc_missing", "constructionAcceptance / locations не загружены"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$c(_t$d("construction.v2.kanban.svc_missing", "constructionAcceptance / locations не загружены"))}</div>`;
     return;
   }
   await loc.init();
@@ -3126,19 +3126,19 @@ async function renderAcceptanceKanban(root) {
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$c(_t$d("construction.v2.kanban.title", "Канбан приёмки (v2)"))}</div>
-        <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$c(_t$d("construction.v2.kanban.title", "Канбан приёмки (v2)"))}</div>
+        <select id="c2-acc-obj-filter" class="input-base text-rbi-label font-bold max-w-[220px]">${objOpts}</select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">${_escape$c(_t$d("construction.v2.kanban.slots_day", "Слоты дня"))}</label>
-        <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape$c(
+        <label class="text-rbi-caption font-black uppercase text-muted" for="c2-acc-slots-date">${_escape$c(_t$d("construction.v2.kanban.slots_day", "Слоты дня"))}</label>
+        <input type="date" id="c2-acc-slots-date" class="input-base text-rbi-label font-bold max-w-[160px]" value="${_escape$c(
     slotsDate
   )}">
       </div>
       ${slotBoardHtml(occupancy, { title: _t$d("construction.v2.slots.occupancy", "Занятость {date}", { date: slotsDate }) })}
       <div class="flex flex-col lg:flex-row gap-3">
         ${_column$1(_t$d("construction.v2.kanban.col_pending", "Ожидают"), "text-blue-600", pending, loc)}
-        ${_column$1(_t$d("construction.v2.kanban.col_rejected", "Отклонены"), "text-red-600", rejected, loc)}
+        ${_column$1(_t$d("construction.v2.kanban.col_rejected", "Отклонены"), "text-danger", rejected, loc)}
         ${_column$1(_t$d("construction.v2.kanban.col_accepted", "Приняты"), "text-green-600", accepted, loc)}
       </div>
     </div>`;
@@ -3297,46 +3297,46 @@ function openUnitCard(unit, deps) {
   wrap.className = "fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 p-3";
   wrap.style.zIndex = "1050";
   wrap.innerHTML = `
-    <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
+    <div data-c2-unit-card-panel class="w-full max-w-md bg-surface rounded-2xl shadow-2xl border border-surface overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$b(_t$c("construction.v2.unit.apartment", "Квартира"))}</div>
-          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape$b(unit.type || "КВ")} ${_escape$b(
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$b(_t$c("construction.v2.unit.apartment", "Квартира"))}</div>
+          <div class="text-[18px] font-black text-ink">${_escape$b(unit.type || "КВ")} ${_escape$b(
     unit.name
   )}</div>
-          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape$b(path)}</div>
+          <div class="text-rbi-label font-bold text-muted mt-0.5">${_escape$b(path)}</div>
         </div>
-        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="${_escape$b(_t$c("construction.form.close", "Закрыть"))}">×</button>
+        <button type="button" data-c2-unit-card-close class="text-muted hover:text-ink text-[20px] leading-none px-1" aria-label="${_escape$b(_t$c("construction.form.close", "Закрыть"))}">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
-          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape$b(_t$c("construction.v2.unit.transfer_status", "Статус передачи"))}</span>
+          <span class="text-rbi-caption font-black uppercase tracking-widest text-muted">${_escape$b(_t$c("construction.v2.unit.transfer_status", "Статус передачи"))}</span>
           <select id="c2-unit-card-status" data-c2-unit-id="${_escape$b(unit.id)}"
-            class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
+            class="mt-1 w-full rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold"
             ${guest ? "disabled" : ""}>
             ${statusOpts}
           </select>
         </label>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape$b(_t$c("construction.v2.unit.plan_pdf", "План квартиры (PDF)"))}</div>
-          ${hasPdf ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape$b(
+        <div class="rounded-xl border border-surface p-3 space-y-2">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted">${_escape$b(_t$c("construction.v2.unit.plan_pdf", "План квартиры (PDF)"))}</div>
+          ${hasPdf ? `<div class="text-rbi-label font-bold text-ink truncate">${_escape$b(
     unit.pdf_name || "plan.pdf"
   )}${unit.pdf_size ? ` · ${_escape$b(String(unit.pdf_size))} B` : ""}</div>
                  <div class="flex flex-wrap gap-2">
                    <a href="${_escape$b(String(unit.pdf_url))}" target="_blank" rel="noopener"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">${_escape$b(_t$c("construction.v2.unit.open", "Открыть"))}</a>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-brand-soft text-brand text-rbi-caption font-black uppercase border border-brand-soft">${_escape$b(_t$c("construction.v2.unit.open", "Открыть"))}</a>
                    <button type="button" data-c2-unit-apt-plan="${_escape$b(unit.id)}"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">${_escape$b(_t$c("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>
-                 </div>` : `<div class="text-[11px] text-slate-400 font-bold">${_escape$b(_t$c("construction.v2.unit.plan_missing", "План не загружен"))}</div>
-                 <div class="text-[10px] text-slate-400 font-bold">${_escape$b(_t$c("construction.v2.unit.plan_upload_hint", "Загрузка PDF — в Настройках → справочник локаций"))}</div>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-brand text-white text-rbi-caption font-black uppercase border border-brand">${_escape$b(_t$c("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>
+                 </div>` : `<div class="text-rbi-label text-muted font-bold">${_escape$b(_t$c("construction.v2.unit.plan_missing", "План не загружен"))}</div>
+                 <div class="text-rbi-caption text-muted font-bold">${_escape$b(_t$c("construction.v2.unit.plan_upload_hint", "Загрузка PDF — в Настройках → справочник локаций"))}</div>
                  <button type="button" disabled
-                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">${_escape$b(_t$c("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>`}
+                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-muted text-rbi-caption font-black uppercase border border-surface cursor-not-allowed opacity-70">${_escape$b(_t$c("construction.v2.unit.defects_on_plan", "Замечания на плане"))}</button>`}
         </div>
         <button type="button" data-c2-unit-acceptance="${_escape$b(unit.id)}"
-          class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? "opacity-50 cursor-not-allowed" : ""}"
+          class="w-full py-2.5 rounded-xl text-rbi-label font-black uppercase text-white bg-brand border border-brand ${guest ? "opacity-50 cursor-not-allowed" : ""}"
           ${guest ? "disabled" : ""}>${_escape$b(_t$c("construction.v2.unit.acceptance", "Приёмка"))}</button>
         ${canDel ? `<button type="button" data-c2-unit-delete="${_escape$b(unit.id)}"
-                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">${_escape$b(_t$c("construction.v2.unit.delete_room", "Удалить помещение"))}</button>` : ""}
+                class="w-full py-2.5 rounded-xl text-rbi-label font-black uppercase text-danger border border-danger-soft bg-danger-soft">${_escape$b(_t$c("construction.v2.unit.delete_room", "Удалить помещение"))}</button>` : ""}
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -3509,7 +3509,7 @@ function _cellBg$1(status) {
     return "bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:border-green-800";
   }
   if (st === "has_defects" || st === "defects") {
-    return "bg-red-50 text-red-700 border-red-300 dark:bg-red-900/30 dark:border-red-800";
+    return "bg-danger-soft text-danger border-danger-soft";
   }
   if (st === "shareholder_defects") {
     return "bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:border-orange-800";
@@ -3520,24 +3520,24 @@ function _cellBg$1(status) {
   if (st === "finishing" || st === "ready") {
     return "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:border-blue-800";
   }
-  return "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+  return "bg-surface text-ink border-surface";
 }
 let _objectId$3 = null;
 let _buildingId$1 = null;
 let _bound$4 = false;
 function _renderLegend$1() {
   const items = [
-    { st: "not_inspected", swatch: "bg-white border border-slate-300 dark:bg-slate-700 dark:border-slate-600" },
+    { st: "not_inspected", swatch: "bg-surface border border-surface" },
     { st: "finishing", swatch: "bg-blue-100 border border-blue-300" },
-    { st: "has_defects", swatch: "bg-red-100 border border-red-300" },
+    { st: "has_defects", swatch: "bg-danger-soft border border-danger-soft" },
     { st: "ready_for_transfer", swatch: "bg-amber-100 border border-amber-300" },
     { st: "transferred", swatch: "bg-green-100 border border-green-300" },
     { st: "shareholder_defects", swatch: "bg-orange-100 border border-orange-300" }
   ];
   return `
-    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-surface p-2 rounded-xl border border-surface shadow-sm">
       ${items.map(
-    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$a(
+    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-rbi-caption font-bold text-muted uppercase">${_escape$a(
       _unitStatusLabel$1(it.st)
     )}</span></div>`
   ).join("")}
@@ -3545,11 +3545,11 @@ function _renderLegend$1() {
 }
 function _renderGrid$1(uSvc, loc) {
   if (!_buildingId$1) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$a(_t$b("construction.v2.transfer.select_building", "Выберите корпус для просмотра шахматки"))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape$a(_t$b("construction.v2.transfer.select_building", "Выберите корпус для просмотра шахматки"))}</div>`;
   }
   const floors = _floorsForBuilding$1(_buildingId$1, loc);
   if (!floors.length) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$a(_t$b("construction.v2.transfer.no_floors", "В этом корпусе ещё не созданы этажи"))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape$a(_t$b("construction.v2.transfer.no_floors", "В этом корпусе ещё не созданы этажи"))}</div>`;
   }
   const bldUnits = uSvc.listForBuilding(_buildingId$1);
   let html = _renderLegend$1();
@@ -3559,31 +3559,31 @@ function _renderGrid$1(uSvc, loc) {
     const floorLabel = floor.displayName || floor.id;
     html += `
       <div class="flex items-center gap-2">
-        <div class="w-12 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$a(
+        <div class="w-12 shrink-0 text-center font-black text-rbi-caption text-muted bg-[var(--hover-bg)] py-3 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$a(
       floorLabel
     )}</div>
         <div class="flex gap-1.5 flex-1">`;
     if (!floorUnits.length) {
-      html += `<div class="text-[9px] text-slate-300 italic py-3">${_escape$a(_t$b("construction.v2.transfer.no_rooms", "Помещений нет"))}</div>`;
+      html += `<div class="text-rbi-caption text-muted italic py-3">${_escape$a(_t$b("construction.v2.transfer.no_rooms", "Помещений нет"))}</div>`;
     } else {
       for (const u of floorUnits) {
         const bg = _cellBg$1(String(u.status || "not_inspected"));
-        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : "";
+        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-brand"></span>` : "";
         const b = _bForUnit$1(u);
         let bTint = "";
         let bBadge = "";
         if (b) {
-          const ring = b.final < 70 ? "ring-2 ring-red-400/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
+          const ring = b.final < 70 ? "ring-2 ring-danger/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
           bTint = ` ${ring}`;
-          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${b.final < 70 ? "bg-red-500/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$a(b.statusTxt)}">${_escape$a(String(b.final))}</span>`;
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-rbi-caption font-black leading-none py-0.5 ${b.final < 70 ? "bg-danger/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$a(b.statusTxt)}">${_escape$a(String(b.final))}</span>`;
         }
         html += `
           <button type="button" data-c2-unit-cell="${_escape$a(u.id)}"
             class="relative ${bg}${bTint} border rounded-lg w-[46px] h-[46px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
             ${bBadge}
-            <span class="text-[12px] font-black">${_escape$a(u.name)}</span>
-            <span class="text-[8px] opacity-60 font-bold">${_escape$a(u.type || "КВ")}</span>
+            <span class="text-rbi-body font-black">${_escape$a(u.name)}</span>
+            <span class="text-rbi-caption opacity-60 font-bold">${_escape$a(u.type || "КВ")}</span>
           </button>`;
       }
     }
@@ -3593,7 +3593,7 @@ function _renderGrid$1(uSvc, loc) {
   if (_canManage$1() && bldUnits.length === 0) {
     html += `
       <button type="button" data-c2-generate-grid
-        class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+        class="mt-4 w-full bg-brand-soft text-brand border border-brand-soft py-3.5 rounded-xl text-rbi-caption font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
         ${_escape$a(_t$b("construction.v2.transfer.generate_grid", "Сгенерировать сетку квартир (8 на этаж)"))}
       </button>`;
   }
@@ -3618,10 +3618,10 @@ function _selectorsHtml$1(loc) {
   }
   return `
     <div class="flex flex-col sm:flex-row gap-2 mb-4">
-      <select id="c2-transfer-object" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold">
+      <select id="c2-transfer-object" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold">
         ${objOpts}
       </select>
-      <select id="c2-transfer-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId$3 ? "" : "disabled"}>
+      <select id="c2-transfer-building" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold" ${_objectId$3 ? "" : "disabled"}>
         ${bldOpts}
       </select>
     </div>`;
@@ -3634,11 +3634,11 @@ async function renderTransferBoard(root) {
   const loc = _loc$3();
   const uSvc = _units$1();
   if (!loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$a(_t$b("construction.v2.svc_locations_missing", "service.locations не загружен"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$a(_t$b("construction.v2.svc_locations_missing", "service.locations не загружен"))}</div>`;
     return;
   }
   if (!uSvc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$a(_t$b("construction.v2.svc_units_missing", "service.constructionUnits не загружен"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$a(_t$b("construction.v2.svc_units_missing", "service.constructionUnits не загружен"))}</div>`;
     return;
   }
   await loc.init();
@@ -3661,8 +3661,8 @@ async function renderTransferBoard(root) {
   root.innerHTML = `
     <div class="max-w-5xl mx-auto">
       <div class="mb-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$a(_t$b("construction.v2.transfer.title", "Передача · шахматка v2"))}</div>
-        <p class="text-[11px] text-slate-400 font-bold mt-0.5">${_escape$a(_t$b("construction.v2.transfer.hint", "Клик по клетке — карточка квартиры{guest}", { guest: _isGuest$1() ? _t$b("construction.v2.transfer.guest_view", " (только просмотр)") : "" }))}</p>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$a(_t$b("construction.v2.transfer.title", "Передача · шахматка v2"))}</div>
+        <p class="text-rbi-label text-muted font-bold mt-0.5">${_escape$a(_t$b("construction.v2.transfer.hint", "Клик по клетке — карточка квартиры{guest}", { guest: _isGuest$1() ? _t$b("construction.v2.transfer.guest_view", " (только просмотр)") : "" }))}</p>
       </div>
       ${_selectorsHtml$1(loc)}
       <div id="c2-transfer-grid">${_renderGrid$1(uSvc, loc)}</div>
@@ -3914,7 +3914,7 @@ function _cellBg(status) {
     return "bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:border-green-800";
   }
   if (st === "has_defects" || st === "defects") {
-    return "bg-red-50 text-red-700 border-red-300 dark:bg-red-900/30 dark:border-red-800";
+    return "bg-danger-soft text-danger border-danger-soft";
   }
   if (st === "shareholder_defects") {
     return "bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:border-orange-800";
@@ -3925,24 +3925,24 @@ function _cellBg(status) {
   if (st === "finishing" || st === "ready") {
     return "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:border-blue-800";
   }
-  return "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+  return "bg-surface text-ink border-surface";
 }
 let _objectId$2 = null;
 let _buildingId = null;
 let _bound$3 = false;
 function _renderLegend() {
   const items = [
-    { st: "not_inspected", swatch: "bg-white border border-slate-300 dark:bg-slate-700 dark:border-slate-600" },
+    { st: "not_inspected", swatch: "bg-surface border border-surface" },
     { st: "finishing", swatch: "bg-blue-100 border border-blue-300" },
-    { st: "has_defects", swatch: "bg-red-100 border border-red-300" },
+    { st: "has_defects", swatch: "bg-danger-soft border border-danger-soft" },
     { st: "ready_for_transfer", swatch: "bg-amber-100 border border-amber-300" },
     { st: "transferred", swatch: "bg-green-100 border border-green-300" },
     { st: "shareholder_defects", swatch: "bg-orange-100 border border-orange-300" }
   ];
   return `
-    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-surface p-2 rounded-xl border border-surface shadow-sm">
       ${items.map(
-    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape$9(
+    (it) => `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-rbi-caption font-bold text-muted uppercase">${_escape$9(
       _unitStatusLabel(it.st)
     )}</span></div>`
   ).join("")}
@@ -3950,11 +3950,11 @@ function _renderLegend() {
 }
 function _renderGrid(uSvc, loc) {
   if (!_buildingId) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$9(_t$a("construction.v2.transfer.select_building", "Выберите корпус для просмотра шахматки"))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape$9(_t$a("construction.v2.transfer.select_building", "Выберите корпус для просмотра шахматки"))}</div>`;
   }
   const floors = _floorsForBuilding(_buildingId, loc);
   if (!floors.length) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape$9(_t$a("construction.v2.transfer.no_floors", "В этом корпусе ещё не созданы этажи"))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape$9(_t$a("construction.v2.transfer.no_floors", "В этом корпусе ещё не созданы этажи"))}</div>`;
   }
   const bldUnits = uSvc.listForBuilding(_buildingId);
   let html = _renderLegend();
@@ -3964,31 +3964,31 @@ function _renderGrid(uSvc, loc) {
     const floorLabel = floor.displayName || floor.id;
     html += `
       <div class="flex items-center gap-2">
-        <div class="w-14 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3.5 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$9(
+        <div class="w-14 shrink-0 text-center font-black text-rbi-caption text-muted bg-[var(--hover-bg)] py-3.5 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape$9(
       floorLabel
     )}</div>
         <div class="flex gap-1.5 flex-wrap flex-1">`;
     if (!floorUnits.length) {
-      html += `<div class="text-[9px] text-slate-300 italic py-3">${_escape$9(_t$a("construction.v2.transfer.no_rooms", "Помещений нет"))}</div>`;
+      html += `<div class="text-rbi-caption text-muted italic py-3">${_escape$9(_t$a("construction.v2.transfer.no_rooms", "Помещений нет"))}</div>`;
     } else {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || "not_inspected"));
-        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : "";
+        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-brand"></span>` : "";
         const b = _bForUnit(u);
         let bTint = "";
         let bBadge = "";
         if (b) {
-          const ring = b.final < 70 ? "ring-2 ring-red-400/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
+          const ring = b.final < 70 ? "ring-2 ring-danger/70" : b.final < 85 ? "ring-2 ring-amber-400/70" : "ring-2 ring-emerald-400/60";
           bTint = ` ${ring}`;
-          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${b.final < 70 ? "bg-red-500/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$9(b.statusTxt)}">${_escape$9(String(b.final))}</span>`;
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-rbi-caption font-black leading-none py-0.5 ${b.final < 70 ? "bg-danger/90 text-white" : b.final < 85 ? "bg-amber-500/90 text-white" : "bg-emerald-600/90 text-white"}" title="${_escape$9(b.statusTxt)}">${_escape$9(String(b.final))}</span>`;
         }
         html += `
           <button type="button" data-c2-tr-desk-unit-cell="${_escape$9(u.id)}"
             class="relative ${bg}${bTint} border rounded-lg w-[54px] h-[54px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
             ${bBadge}
-            <span class="text-[13px] font-black">${_escape$9(u.name)}</span>
-            <span class="text-[9px] opacity-60 font-bold">${_escape$9(u.type || "КВ")}</span>
+            <span class="text-rbi-body font-black">${_escape$9(u.name)}</span>
+            <span class="text-rbi-caption opacity-60 font-bold">${_escape$9(u.type || "КВ")}</span>
           </button>`;
       }
     }
@@ -3998,7 +3998,7 @@ function _renderGrid(uSvc, loc) {
   if (_canManage() && bldUnits.length === 0) {
     html += `
       <button type="button" data-c2-tr-desk-generate-grid
-        class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+        class="mt-4 w-full bg-brand-soft text-brand border border-brand-soft py-3.5 rounded-xl text-rbi-caption font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
         ${_escape$9(_t$a("construction.v2.transfer.generate_grid", "Сгенерировать сетку квартир (8 на этаж)"))}
       </button>`;
   }
@@ -4023,10 +4023,10 @@ function _selectorsHtml(loc) {
   }
   return `
     <div class="flex gap-2 mb-4 max-w-xl">
-      <select id="c2-tr-desk-object" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold">
+      <select id="c2-tr-desk-object" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold">
         ${objOpts}
       </select>
-      <select id="c2-tr-desk-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId$2 ? "" : "disabled"}>
+      <select id="c2-tr-desk-building" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold" ${_objectId$2 ? "" : "disabled"}>
         ${bldOpts}
       </select>
     </div>`;
@@ -4039,11 +4039,11 @@ async function renderTransferBoardDesktop(root) {
   const loc = _loc$2();
   const uSvc = _units();
   if (!loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$9(_t$a("construction.v2.svc_locations_missing", "service.locations не загружен"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$9(_t$a("construction.v2.svc_locations_missing", "service.locations не загружен"))}</div>`;
     return;
   }
   if (!uSvc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$9(_t$a("construction.v2.svc_units_missing", "service.constructionUnits не загружен"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$9(_t$a("construction.v2.svc_units_missing", "service.constructionUnits не загружен"))}</div>`;
     return;
   }
   await loc.init();
@@ -4066,8 +4066,8 @@ async function renderTransferBoardDesktop(root) {
   root.innerHTML = `
     <div class="w-full">
       <div class="mb-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$9(_t$a("construction.v2.transfer.title", "Передача · шахматка v2"))}</div>
-        <p class="text-[11px] text-slate-400 font-bold mt-0.5">${_escape$9(_t$a("construction.v2.transfer.hint", "Клик по клетке — карточка квартиры{guest}", { guest: _isGuest() ? _t$a("construction.v2.transfer.guest_view", " (только просмотр)") : "" }))}</p>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$9(_t$a("construction.v2.transfer.title", "Передача · шахматка v2"))}</div>
+        <p class="text-rbi-label text-muted font-bold mt-0.5">${_escape$9(_t$a("construction.v2.transfer.hint", "Клик по клетке — карточка квартиры{guest}", { guest: _isGuest() ? _t$a("construction.v2.transfer.guest_view", " (только просмотр)") : "" }))}</p>
       </div>
       ${_selectorsHtml(loc)}
       <div id="c2-tr-desk-grid">${_renderGrid(uSvc, loc)}</div>
@@ -4514,7 +4514,7 @@ function _categoryLabel$1(c) {
 function _categoryBar$1(c) {
   const v = String(c || "").toUpperCase();
   if (v === "B1" || v === "MINOR") return "bg-blue-500";
-  if (v === "B3" || v === "CRITICAL") return "bg-red-600";
+  if (v === "B3" || v === "CRITICAL") return "bg-danger";
   return "bg-orange-500";
 }
 function _deadlineMeta$1(d) {
@@ -4527,13 +4527,13 @@ function _deadlineMeta$1(d) {
 }
 function _statusChip$1(status) {
   const st = String(status || "").toLowerCase();
-  let cls = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  let cls = "bg-slate-100 text-ink dark:bg-slate-800";
   if (st === "issued" || st === "open") cls = "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300";
   else if (st === "in_progress") cls = "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
   else if (st === "fixed") cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
   else if (st === "closed") cls = "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300";
-  else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
-  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape$8(
+  else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-muted dark:bg-slate-800";
+  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-rbi-caption font-bold ${cls}">${_escape$8(
     _statusLabel$3(st)
   )}</span>`;
 }
@@ -4558,7 +4558,7 @@ function renderDefectsRegistry(host, opts) {
   const defects = filterDefectsForRole(opts.defects || []);
   const filters = opts.filters || pinFiltersState;
   if (!floorId) {
-    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
+    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-muted text-rbi-body font-medium px-6 text-center">
       ${_escape$8(_t$8("construction.v2.registry.select_floor", "Выберите этаж слева, чтобы увидеть реестр замечаний"))}
     </div>`;
     return;
@@ -4568,8 +4568,8 @@ function renderDefectsRegistry(host, opts) {
     filtered = filtered.filter((d) => isOverdueNow(d));
   }
   filtered = _sortRegistry$1(filtered);
-  const overdueChipCls = _overdueOnly$1 ? "bg-red-600 text-white border-red-600" : "bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30";
-  const rows = filtered.length === 0 ? `<div class="p-8 text-center text-slate-400 text-[13px] font-medium">
+  const overdueChipCls = _overdueOnly$1 ? "bg-danger text-white border-danger" : "bg-surface text-danger border-danger-soft hover:bg-danger-soft";
+  const rows = filtered.length === 0 ? `<div class="p-8 text-center text-muted text-rbi-body font-medium">
           ${_escape$8(_t$8("construction.v2.registry.empty_filter", "Нет замечаний по выбранному фильтру"))}
         </div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${filtered.map((d, i) => {
@@ -4578,29 +4578,29 @@ function renderDefectsRegistry(host, opts) {
     ).slice(0, 140);
     const dl = _deadlineMeta$1(d);
     const openDays = daysOpen(d);
-    const daysBadge = openDays != null ? `<span class="text-[10px] font-bold ${dl.overdue ? "text-red-600 dark:text-red-400" : "text-slate-400"}">${openDays} ${_escape$8(_t$8("construction.v2.registry.days_short", "дн."))}</span>` : "";
-    const dlCls = dl.overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-400";
+    const daysBadge = openDays != null ? `<span class="text-rbi-caption font-bold ${dl.overdue ? "text-danger" : "text-muted"}">${openDays} ${_escape$8(_t$8("construction.v2.registry.days_short", "дн."))}</span>` : "";
+    const dlCls = dl.overdue ? "text-danger font-semibold" : "text-muted";
     const bar = _categoryBar$1(String(d.category));
-    const rowBg = dl.overdue ? "bg-red-50/40 dark:bg-red-950/15" : "";
+    const rowBg = dl.overdue ? "bg-danger-soft" : "";
     return `<li class="${rowBg}">
                 <div class="flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                   <div class="w-1 shrink-0 ${bar}"></div>
                   <button type="button" data-c2-def-row="${_escape$8(d.id)}"
                     class="flex-1 min-w-0 text-left px-3 py-2.5 flex items-start gap-2.5">
-                    <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300
-                                 flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
+                    <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-ink
+                                 flex items-center justify-center text-rbi-caption font-bold">${i + 1}</span>
                     <span class="min-w-0 flex-1">
                       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                        <span class="text-[10px] font-bold text-slate-500">${_escape$8(_categoryLabel$1(String(d.category)))}</span>
+                        <span class="text-rbi-caption font-bold text-muted">${_escape$8(_categoryLabel$1(String(d.category)))}</span>
                         ${_statusChip$1(String(d.status))}
                         ${daysBadge}
-                        <span class="text-[10px] ${dlCls}">${_escape$8(dl.label)}${dl.overdue ? ` · ${_escape$8(_t$8("construction.v2.registry.overdue", "просрочено"))}` : ""}</span>
+                        <span class="text-rbi-caption ${dlCls}">${_escape$8(dl.label)}${dl.overdue ? ` · ${_escape$8(_t$8("construction.v2.registry.overdue", "просрочено"))}` : ""}</span>
                       </span>
-                      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$8(desc)}</span>
+                      <span class="block text-rbi-body font-medium text-ink line-clamp-2 leading-snug">${_escape$8(desc)}</span>
                     </span>
                   </button>
                   <button type="button" data-c2-def-on-plan="${_escape$8(d.id)}" data-c2-def-loc="${_escape$8(d.locationId)}"
-                    class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                    class="shrink-0 self-center mr-2 px-2 py-1.5 rounded-lg text-rbi-caption font-bold text-brand hover:bg-brand-soft"
                     title="${_escape$8(_t$8("construction.v2.registry.show_on_plan", "Показать на плане"))}">${_escape$8(_t$8("construction.v2.registry.on_plan", "На плане"))}</button>
                 </div>
               </li>`;
@@ -4608,17 +4608,17 @@ function renderDefectsRegistry(host, opts) {
         </ul>`;
   host.innerHTML = `
     <div class="flex flex-col h-full min-h-[320px]">
-      <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+      <div class="px-3 py-2.5 border-b border-surface flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+          <div class="text-rbi-body font-semibold text-ink min-w-0 truncate">
             ${_escape$8(floorLabel || _t$8("construction.v2.registry.floor", "Этаж"))}
           </div>
-          <div class="text-[10px] text-slate-400 shrink-0">${_escape$8(_t$8("construction.v2.registry.shown_count", "Показано {shown} из {total}", { shown: filtered.length, total: defects.length }))}</div>
+          <div class="text-rbi-caption text-muted shrink-0">${_escape$8(_t$8("construction.v2.registry.shown_count", "Показано {shown} из {total}", { shown: filtered.length, total: defects.length }))}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
           <button type="button" data-c2-reg-overdue
-            class="shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border ${overdueChipCls}"
+            class="shrink-0 px-2 py-1 rounded-lg text-rbi-caption font-black uppercase tracking-wide border ${overdueChipCls}"
             title="${_escape$8(_t$8("construction.v2.registry.overdue_only_title", "Только просроченные (issued / в работе / на проверке)"))}">${_escape$8(_t$8("construction.v2.registry.overdue_chip", "Просроч."))}</button>
         </div>
       </div>
@@ -4696,18 +4696,18 @@ function _categoryLabel(c) {
 function _categoryBar(c) {
   const v = String(c || "").toUpperCase();
   if (v === "B1" || v === "MINOR") return "bg-blue-500";
-  if (v === "B3" || v === "CRITICAL") return "bg-red-600";
+  if (v === "B3" || v === "CRITICAL") return "bg-danger";
   return "bg-orange-500";
 }
 function _statusChip(status) {
   const st = String(status || "").toLowerCase();
-  let cls = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  let cls = "bg-slate-100 text-ink dark:bg-slate-800";
   if (st === "issued" || st === "open") cls = "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300";
   else if (st === "in_progress") cls = "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
   else if (st === "fixed") cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
   else if (st === "closed") cls = "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300";
-  else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
-  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape$7(
+  else if (st === "rejected" || st === "cancelled") cls = "bg-slate-100 text-muted dark:bg-slate-800";
+  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-rbi-caption font-bold ${cls}">${_escape$7(
     _statusLabel$2(st)
   )}</span>`;
 }
@@ -4737,7 +4737,7 @@ function renderDefectsRegistryDesktop(host, opts) {
   const defects = filterDefectsForRole(opts.defects || []);
   const filters = opts.filters || pinFiltersState;
   if (!floorId) {
-    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
+    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-muted text-rbi-body font-medium px-6 text-center">
       ${_escape$7(_t$7("construction.v2.registry.select_floor", "Выберите этаж слева, чтобы увидеть реестр замечаний"))}
     </div>`;
     return;
@@ -4747,8 +4747,8 @@ function renderDefectsRegistryDesktop(host, opts) {
     filtered = filtered.filter((d) => isOverdueNow(d));
   }
   filtered = _sortRegistry(filtered);
-  const overdueChipCls = _overdueOnly ? "bg-red-600 text-white border-red-600" : "bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30";
-  const rows = filtered.length === 0 ? `<tr><td colspan="6" class="p-8 text-center text-slate-400 text-[13px] font-medium">
+  const overdueChipCls = _overdueOnly ? "bg-danger text-white border-danger" : "bg-surface text-danger border-danger-soft hover:bg-danger-soft";
+  const rows = filtered.length === 0 ? `<tr><td colspan="6" class="p-8 text-center text-muted text-rbi-body font-medium">
           ${_escape$7(_t$7("construction.v2.registry.empty_filter", "Нет замечаний по выбранному фильтру"))}
         </td></tr>` : filtered.map((d, i) => {
     const desc = _stripHtml(
@@ -4756,53 +4756,53 @@ function renderDefectsRegistryDesktop(host, opts) {
     ).slice(0, 200);
     const dl = _deadlineMeta(d);
     const openDays = daysOpen(d);
-    const dlCls = dl.overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-slate-500 dark:text-slate-400";
+    const dlCls = dl.overdue ? "text-danger font-semibold" : "text-muted";
     const bar = _categoryBar(String(d.category));
-    const rowBg = dl.overdue ? "bg-red-50/40 dark:bg-red-950/15" : "";
-    return `<tr class="${rowBg} hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800">
+    const rowBg = dl.overdue ? "bg-danger-soft" : "";
+    return `<tr class="${rowBg} hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-surface">
               <td class="p-0 w-1"><div class="w-1 h-full ${bar}"></div></td>
               <td class="px-3 py-2.5 align-top">
                 <button type="button" data-c2-def-row="${_escape$7(d.id)}" class="text-left w-full flex items-start gap-2.5">
-                  <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300
-                               flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
+                  <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-ink
+                               flex items-center justify-center text-rbi-caption font-bold">${i + 1}</span>
                   <span class="min-w-0">
-                    <span class="block text-[10px] font-bold text-slate-500 mb-0.5">${_escape$7(_categoryLabel(String(d.category)))}</span>
+                    <span class="block text-rbi-caption font-bold text-muted mb-0.5">${_escape$7(_categoryLabel(String(d.category)))}</span>
                     ${_statusChip(String(d.status))}
                   </span>
                 </button>
               </td>
               <td class="px-3 py-2.5 align-top">
                 <button type="button" data-c2-def-row="${_escape$7(d.id)}" class="text-left w-full">
-                  <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape$7(desc)}</span>
+                  <span class="block text-rbi-body font-medium text-ink line-clamp-2 leading-snug">${_escape$7(desc)}</span>
                 </button>
               </td>
               <td class="px-3 py-2.5 align-top whitespace-nowrap">
-                <span class="text-[12px] ${dlCls}">${_escape$7(dl.label)}</span>
-                ${dl.overdue ? `<span class="block text-[10px] text-red-600 dark:text-red-400 font-bold">${_escape$7(_t$7("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
+                <span class="text-rbi-body ${dlCls}">${_escape$7(dl.label)}</span>
+                ${dl.overdue ? `<span class="block text-rbi-caption text-danger font-bold">${_escape$7(_t$7("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
               </td>
-              <td class="px-3 py-2.5 align-top whitespace-nowrap text-[12px] ${dl.overdue ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500 dark:text-slate-400"}">
+              <td class="px-3 py-2.5 align-top whitespace-nowrap text-rbi-body ${dl.overdue ? "text-danger font-bold" : "text-muted"}">
                 ${openDays != null ? `${openDays} ${_escape$7(_t$7("construction.v2.registry.days_short", "дн."))}` : "—"}
               </td>
               <td class="px-3 py-2.5 align-top text-right">
                 <button type="button" data-c2-def-on-plan="${_escape$7(d.id)}" data-c2-def-loc="${_escape$7(d.locationId)}"
-                  class="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  class="shrink-0 px-2.5 py-1.5 rounded-lg text-rbi-caption font-bold text-brand hover:bg-brand-soft"
                   title="${_escape$7(_t$7("construction.v2.registry.show_on_plan", "Показать на плане"))}">${_escape$7(_t$7("construction.v2.registry.on_plan", "На плане"))}</button>
               </td>
             </tr>`;
   }).join("");
   host.innerHTML = `
     <div class="flex flex-col h-full min-h-[320px]">
-      <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+      <div class="px-4 py-3 border-b border-surface flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <div class="text-[13px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+          <div class="text-rbi-body font-semibold text-ink min-w-0 truncate">
             ${_escape$7(floorLabel || _t$7("construction.v2.registry.floor", "Этаж"))}
           </div>
-          <div class="text-[11px] text-slate-400 shrink-0">${_escape$7(_t$7("construction.v2.registry.shown_count", "Показано {shown} из {total}", { shown: filtered.length, total: defects.length }))}</div>
+          <div class="text-rbi-label text-muted shrink-0">${_escape$7(_t$7("construction.v2.registry.shown_count", "Показано {shown} из {total}", { shown: filtered.length, total: defects.length }))}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
           <button type="button" data-c2-reg-overdue
-            class="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border ${overdueChipCls}"
+            class="shrink-0 px-2.5 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide border ${overdueChipCls}"
             title="${_escape$7(_t$7("construction.v2.registry.overdue_only_title", "Только просроченные (issued / в работе / на проверке)"))}">${_escape$7(_t$7("construction.v2.registry.overdue_chip", "Просроч."))}</button>
         </div>
       </div>
@@ -4884,33 +4884,33 @@ function _cardHtml(r, loc) {
   const path = loc.getPath(r.locationId).map((n) => n.displayName).join(" · ");
   const overdue = r.status === "pending" && r.requested_date && new Date(r.requested_date).setHours(0, 0, 0, 0) < (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0);
   const progress = computeChecklistProgress(r.template_key, r.checklist_results);
-  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-2 text-[10px] font-black uppercase tracking-wide text-indigo-600">${_escape$6(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-2 text-[10px] font-bold text-slate-400">${_escape$6(_t$6("construction.v2.kanban.checklist_progress", "Чек-лист 0/{total}", { total: progress.total }))}</div>` : "";
+  const progressHtml = progress.total > 0 && (r.checklist_results || progress.done > 0) ? `<div class="mt-2 text-rbi-caption font-black uppercase tracking-wide text-brand">${_escape$6(progressLine(progress))}${progress.fail ? ` · FAIL ${progress.fail}` : ""}</div>` : progress.total > 0 ? `<div class="mt-2 text-rbi-caption font-bold text-muted">${_escape$6(_t$6("construction.v2.kanban.checklist_progress", "Чек-лист 0/{total}", { total: progress.total }))}</div>` : "";
   return `
-    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3.5 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
+    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3.5 mb-3 shadow-sm cursor-pointer hover:border-brand transition-colors"
          data-c2-acc-desk-card="${_escape$6(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1.5">
-        <div class="text-[13px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape$6(r.work_type || _t$6("construction.v2.kanban.no_work_type", "Без вида работ"))}</div>
-        ${overdue ? `<span class="text-[9px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded shrink-0">${_escape$6(_t$6("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
+        <div class="text-rbi-body font-black text-ink leading-tight">${_escape$6(r.work_type || _t$6("construction.v2.kanban.no_work_type", "Без вида работ"))}</div>
+        ${overdue ? `<span class="text-rbi-caption font-black uppercase text-danger bg-danger-soft px-1.5 py-0.5 rounded shrink-0">${_escape$6(_t$6("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </div>
-      <div class="text-[11px] text-slate-500 font-bold mb-2">${_escape$6(path || r.locationId)}</div>
-      <div class="flex justify-between items-center text-[11px]">
-        <span class="font-bold text-slate-600 dark:text-slate-300">${_escape$6(r.requested_date || "—")} ${_escape$6(r.requested_time || "")}</span>
+      <div class="text-rbi-label text-muted font-bold mb-2">${_escape$6(path || r.locationId)}</div>
+      <div class="flex justify-between items-center text-rbi-label">
+        <span class="font-bold text-ink">${_escape$6(r.requested_date || "—")} ${_escape$6(r.requested_time || "")}</span>
         <button type="button" data-c2-acc-desk-plan="${_escape$6(r.id)}"
-          class="text-indigo-600 bg-white border border-indigo-200 px-2.5 py-1 rounded text-[10px] font-bold">${_escape$6(_t$6("construction.v2.kanban.plan_btn", "План"))}</button>
+          class="text-brand bg-white border border-brand-soft px-2.5 py-1 rounded text-rbi-caption font-bold">${_escape$6(_t$6("construction.v2.kanban.plan_btn", "План"))}</button>
       </div>
-      ${r.volume ? `<div class="mt-1.5 text-[10px] text-slate-400 font-bold">${_escape$6(r.volume)}</div>` : ""}
+      ${r.volume ? `<div class="mt-1.5 text-rbi-caption text-muted font-bold">${_escape$6(r.volume)}</div>` : ""}
       ${progressHtml}
     </div>`;
 }
 function _column(title, color, items, loc) {
   return `
-    <div class="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700 p-3">
+    <div class="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-surface p-3">
       <div class="flex items-center justify-between px-1 mb-2.5">
-        <span class="text-[11px] font-black uppercase tracking-widest ${color}">${_escape$6(title)}</span>
-        <span class="bg-white dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded shadow-sm border border-slate-200 text-[11px] font-bold">${items.length}</span>
+        <span class="text-rbi-label font-black uppercase tracking-widest ${color}">${_escape$6(title)}</span>
+        <span class="bg-surface text-ink px-2 py-0.5 rounded shadow-sm border border-surface text-rbi-label font-bold">${items.length}</span>
       </div>
       <div class="max-h-[65vh] overflow-y-auto">
-        ${items.length ? items.map((r) => _cardHtml(r, loc)).join("") : `<div class="text-center py-6 text-[11px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">${_escape$6(_t$6("construction.v2.kanban.no_requests", "Заявок нет"))}</div>`}
+        ${items.length ? items.map((r) => _cardHtml(r, loc)).join("") : `<div class="text-center py-6 text-rbi-label font-bold text-muted border border-dashed border-surface rounded-xl">${_escape$6(_t$6("construction.v2.kanban.no_requests", "Заявок нет"))}</div>`}
       </div>
     </div>`;
 }
@@ -4918,7 +4918,7 @@ async function renderAcceptanceKanbanDesktop(root) {
   const acc = _acc$1();
   const loc = _loc$1();
   if (!acc || !loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape$6(_t$6("construction.v2.kanban.svc_missing", "constructionAcceptance / locations не загружены"))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape$6(_t$6("construction.v2.kanban.svc_missing", "constructionAcceptance / locations не загружены"))}</div>`;
     return;
   }
   await loc.init();
@@ -4939,19 +4939,19 @@ async function renderAcceptanceKanbanDesktop(root) {
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[11px] font-black uppercase tracking-widest text-indigo-600">${_escape$6(_t$6("construction.v2.kanban.title", "Канбан приёмки (v2)"))}</div>
-        <select id="c2-acc-desk-obj-filter" class="input-base text-[12px] font-bold max-w-[240px]">${objOpts}</select>
+        <div class="text-rbi-label font-black uppercase tracking-widest text-brand">${_escape$6(_t$6("construction.v2.kanban.title", "Канбан приёмки (v2)"))}</div>
+        <select id="c2-acc-desk-obj-filter" class="input-base text-rbi-body font-bold max-w-[240px]">${objOpts}</select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="text-[11px] font-black uppercase text-slate-500" for="c2-acc-desk-slots-date">${_escape$6(_t$6("construction.v2.kanban.slots_day", "Слоты дня"))}</label>
-        <input type="date" id="c2-acc-desk-slots-date" class="input-base text-[12px] font-bold max-w-[170px]" value="${_escape$6(
+        <label class="text-rbi-label font-black uppercase text-muted" for="c2-acc-desk-slots-date">${_escape$6(_t$6("construction.v2.kanban.slots_day", "Слоты дня"))}</label>
+        <input type="date" id="c2-acc-desk-slots-date" class="input-base text-rbi-body font-bold max-w-[170px]" value="${_escape$6(
     slotsDate
   )}">
       </div>
       ${slotBoardHtml(occupancy, { title: _t$6("construction.v2.slots.occupancy", "Занятость {date}", { date: slotsDate }) })}
       <div class="grid grid-cols-3 gap-3">
         ${_column(_t$6("construction.v2.kanban.col_pending", "Ожидают"), "text-blue-600", pending, loc)}
-        ${_column(_t$6("construction.v2.kanban.col_rejected", "Отклонены"), "text-red-600", rejected, loc)}
+        ${_column(_t$6("construction.v2.kanban.col_rejected", "Отклонены"), "text-danger", rejected, loc)}
         ${_column(_t$6("construction.v2.kanban.col_accepted", "Приняты"), "text-green-600", accepted, loc)}
       </div>
     </div>`;
@@ -5064,26 +5064,26 @@ function _escape$5(s) {
 function renderPlanTreeDesktop(svc, selectedFloorId) {
   const objects = svc.listNodes({ nodeType: "object", parentId: null });
   if (!objects.length) {
-    return `<div class="p-6 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+    return `<div class="p-6 text-center text-muted text-rbi-label font-bold uppercase tracking-widest">
       ${_t$5("construction.v2.tree_empty", "Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».")}
     </div>`;
   }
-  let html = '<ul class="space-y-1.5 text-[13px]">';
+  let html = '<ul class="space-y-1.5 text-rbi-body">';
   for (const obj of objects) {
-    html += `<li class="font-black text-slate-700 dark:text-slate-200">${_escape$5(obj.displayName)}`;
+    html += `<li class="font-black text-ink">${_escape$5(obj.displayName)}`;
     const buildings = svc.getChildren(obj.id);
-    html += '<ul class="ml-3 mt-1 space-y-1 border-l border-slate-200 dark:border-slate-700 pl-3">';
+    html += '<ul class="ml-3 mt-1 space-y-1 border-l border-surface pl-3">';
     for (const b of buildings) {
-      html += `<li><span class="font-bold text-slate-600 dark:text-slate-300">${_escape$5(b.displayName)}</span>`;
+      html += `<li><span class="font-bold text-ink">${_escape$5(b.displayName)}</span>`;
       const sections = svc.getChildren(b.id);
       html += '<ul class="ml-2 mt-0.5 space-y-0.5">';
       for (const sec of sections) {
-        html += `<li class="text-slate-500">${_escape$5(sec.displayName)}`;
+        html += `<li class="text-muted">${_escape$5(sec.displayName)}`;
         const floors = svc.getChildren(sec.id);
         html += '<ul class="ml-2">';
         for (const fl of floors) {
           const plan = svc.getPlanForFloor(fl.id);
-          const active = selectedFloorId === fl.id ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800" : "hover:bg-slate-100 dark:hover:bg-slate-800";
+          const active = selectedFloorId === fl.id ? "bg-brand-soft text-brand" : "hover:bg-slate-100 dark:hover:bg-slate-800";
           const mark = (plan == null ? void 0 : plan.pdf_url) ? "📄" : "⚠️";
           html += `<li>
             <button type="button" data-c2-floor="${_escape$5(fl.id)}"
@@ -5102,20 +5102,20 @@ function renderPlanTreeDesktop(svc, selectedFloorId) {
   return html;
 }
 function _zoomToolbarDesktopHtml(prefix) {
-  return `<div class="flex gap-1 shrink-0 items-center rounded-xl border border-slate-200 dark:border-slate-600 p-0.5">
+  return `<div class="flex gap-1 shrink-0 items-center rounded-xl border border-surface p-0.5">
     <button type="button" data-c2-zoom-out="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_out", "Уменьшить"))}">−</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_out", "Уменьшить"))}">−</button>
     <button type="button" data-c2-zoom-in="${prefix}"
-      class="w-8 h-8 rounded-lg text-[16px] font-black text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_in", "Увеличить"))}">+</button>
+      class="w-8 h-8 rounded-lg text-[16px] font-black text-ink hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_in", "Увеличить"))}">+</button>
     <button type="button" data-c2-zoom-fit="${prefix}"
-      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
+      class="px-2.5 h-8 rounded-lg text-rbi-caption font-black uppercase text-ink hover:bg-slate-100 dark:hover:bg-slate-800" title="${_escape$5(_t$5("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
   </div>`;
 }
 function _fullscreenIconBtnDesktop() {
   const fs = _escape$5(_t$5("construction.v2.fullscreen", "На весь экран"));
   return `<button type="button" data-c2-fullscreen
-    class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0
-           text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+    class="w-9 h-9 rounded-xl border border-surface flex items-center justify-center shrink-0
+           text-ink bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
     title="${fs}" aria-label="${fs}">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
@@ -5124,7 +5124,7 @@ function _fullscreenIconBtnDesktop() {
 }
 function renderPlanChromeDesktop(svc, opts) {
   if (!opts.selectedFloorId) {
-    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
+    return `<div class="flex items-center justify-center h-full min-h-[240px] text-muted text-rbi-body font-medium px-4 text-center">
       ${_t$5("construction.v2.select_floor", "Выберите этаж слева")}
     </div>`;
   }
@@ -5133,34 +5133,34 @@ function renderPlanChromeDesktop(svc, opts) {
   const path = svc.getPath(opts.selectedFloorId).map((n) => n.displayName).join(" / ");
   if (!(plan == null ? void 0 : plan.pdf_url)) {
     return `<div class="p-6">
-      <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape$5(path)}</div>
-      <div class="text-amber-600 font-bold text-[13px]">${_t$5("construction.v2.no_pdf", "Нет PDF-плана на этом этаже")}</div>
-      <p class="text-[11px] text-slate-500 mt-2">${_t$5("construction.v2.no_pdf_hint", "Загрузите план в Настройках → «Объекты и планы».")}</p>
+      <div class="text-rbi-label font-bold text-muted mb-2">${_escape$5(path)}</div>
+      <div class="text-amber-600 font-bold text-rbi-body">${_t$5("construction.v2.no_pdf", "Нет PDF-плана на этом этаже")}</div>
+      <p class="text-rbi-label text-muted mt-2">${_t$5("construction.v2.no_pdf_hint", "Загрузите план в Настройках → «Объекты и планы».")}</p>
     </div>`;
   }
-  const addCls = opts.addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
+  const addCls = opts.addMode ? "bg-brand text-white border-brand" : "bg-transparent text-brand border-brand-soft";
   const zoneCls = opts.zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
   return `<div class="flex flex-col h-full min-h-[320px]" id="c2-plan-chrome">
-    <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-nowrap">
-      <div class="text-[13px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+    <div class="px-3 py-2 border-b border-surface flex items-center justify-between gap-2 flex-nowrap">
+      <div class="text-rbi-body font-semibold text-ink min-w-0 truncate">
         ${_escape$5(path || (floor == null ? void 0 : floor.displayName) || "")}
       </div>
       <div class="flex gap-1.5 shrink-0 items-center flex-nowrap">
         ${_zoomToolbarDesktopHtml("desk")}
         <button type="button" data-c2-zone-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold whitespace-nowrap ${zoneCls}">
+          class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold whitespace-nowrap ${zoneCls}">
           ${opts.zoneMode ? _t$5("construction.v2.zone_picking", "2 клика…") : _t$5("construction.v2.zone", "Зона")}
         </button>
         <button type="button" data-c2-add-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold whitespace-nowrap ${addCls}">
+          class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold whitespace-nowrap ${addCls}">
           ${opts.addMode ? _t$5("construction.v2.add_picking", "Кликни…") : _t$5("construction.v2.add_defect", "+ Замечание")}
         </button>
         ${_fullscreenIconBtnDesktop()}
       </div>
     </div>
-    <div class="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700" data-c2-pin-filters-host="plan"></div>
+    <div class="px-3 py-1.5 border-b border-surface" data-c2-pin-filters-host="plan"></div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
-    <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+    <div class="px-3 py-1.5 text-rbi-caption text-muted border-t border-surface flex justify-end">
       <span id="c2-overlay-count"></span>
     </div>
   </div>`;
@@ -5215,26 +5215,26 @@ function _locationIdsUnderObject$1(loc, objectId) {
   return ids;
 }
 function _kpiCard$1(label, value, tone = "") {
-  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "ok" ? "border-emerald-200 dark:border-emerald-900/40" : "border-[var(--card-border)]";
+  const toneCls = tone === "danger" ? "border-danger-soft" : tone === "ok" ? "border-emerald-200 dark:border-emerald-900/40" : "border-[var(--card-border)]";
   return `<div class="min-w-[7.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
-    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape$4(label)}</div>
-    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${_escape$4(value)}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1">${_escape$4(label)}</div>
+    <div class="text-[18px] font-black text-ink leading-none">${_escape$4(value)}</div>
   </div>`;
 }
 function _barRow$1(label, count, max, color) {
   const pct = max > 0 ? Math.round(count / max * 100) : 0;
-  return `<div class="flex items-center gap-2 text-[11px] mb-1.5">
-    <span class="w-12 shrink-0 font-bold text-slate-500">${_escape$4(label)}</span>
+  return `<div class="flex items-center gap-2 text-rbi-label mb-1.5">
+    <span class="w-12 shrink-0 font-bold text-muted">${_escape$4(label)}</span>
     <div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
       <div class="h-full ${color}" style="width:${pct}%"></div>
     </div>
-    <span class="w-8 text-right font-bold text-slate-700 dark:text-slate-200">${count}</span>
+    <span class="w-8 text-right font-bold text-ink">${count}</span>
   </div>`;
 }
 function _periodBtn$1(p, label) {
   const on = _period$1 === p;
   return `<button type="button" data-c2-metrics-period="${p}"
-    class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300"}">${_escape$4(label)}</button>`;
+    class="px-2.5 py-1 rounded-lg text-rbi-caption font-bold border transition-colors ${on ? "bg-brand text-white border-brand" : "bg-transparent text-muted border-surface hover:border-brand-soft"}">${_escape$4(label)}</button>`;
 }
 function renderMetricsView(host, opts) {
   var _a;
@@ -5262,31 +5262,31 @@ function renderMetricsView(host, opts) {
     (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-bold">${_escape$4(r.category)}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-danger font-semibold" : ""}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt$1(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">${_escape$4(_t$4("construction.v2.metrics.no_data", "Нет данных"))}</td></tr>` : m.byContractor.map(
+  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-muted text-rbi-body">${_escape$4(_t$4("construction.v2.metrics.no_data", "Нет данных"))}</td></tr>` : m.byContractor.map(
     (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-medium truncate max-w-[10rem]" title="${_escape$4(r.contractorId)}">${_escape$4(
       _contractorLabel$1(r.contractorId)
     )}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-danger font-semibold" : ""}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt$1(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const overdueRows = m.overdueList.length === 0 ? `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape$4(_t$4("construction.v2.metrics.no_overdue", "Нет просроченных"))}</div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
+  const overdueRows = m.overdueList.length === 0 ? `<div class="p-4 text-center text-muted text-rbi-body">${_escape$4(_t$4("construction.v2.metrics.no_overdue", "Нет просроченных"))}</div>` : `<ul class="divide-y divide-slate-100 dark:divide-slate-800">
           ${m.overdueList.map(
     (r) => `<li>
             <button type="button" data-c2-metrics-def="${_escape$4(r.id)}"
-              class="w-full text-left px-3 py-2.5 hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
+              class="w-full text-left px-3 py-2.5 hover:bg-danger-soft transition-colors">
               <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                <span class="text-[10px] font-bold text-slate-500">${_escape$4(r.category)}</span>
-                <span class="text-[9px] font-bold uppercase text-red-600">${_escape$4(_t$4("construction.v2.metrics.overdue_days", "+{days} дн. проср.", { days: r.daysOverdue }))}</span>
-                <span class="text-[10px] text-slate-400">${_escape$4(_t$4("construction.v2.metrics.open_days", "{days} дн. открыто", { days: r.daysOpen }))}</span>
+                <span class="text-rbi-caption font-bold text-muted">${_escape$4(r.category)}</span>
+                <span class="text-rbi-caption font-bold uppercase text-danger">${_escape$4(_t$4("construction.v2.metrics.overdue_days", "+{days} дн. проср.", { days: r.daysOverdue }))}</span>
+                <span class="text-rbi-caption text-muted">${_escape$4(_t$4("construction.v2.metrics.open_days", "{days} дн. открыто", { days: r.daysOpen }))}</span>
               </span>
-              <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$4(
+              <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape$4(
       r.description
     )}</span>
             </button>
@@ -5297,13 +5297,13 @@ function renderMetricsView(host, opts) {
     <div class="flex flex-col gap-3 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 class="text-[14px] font-black text-slate-800 dark:text-slate-100 tracking-tight">${_escape$4(_t$4("construction.v2.metrics.title", "Сроки замечаний"))}</h3>
-          <p class="text-[10px] text-slate-400 mt-0.5">${_escape$4(_t$4("construction.v2.metrics.subtitle", "Локальный расчёт по defects_v2 · без новой схемы БД"))}</p>
+          <h3 class="text-rbi-title font-black text-ink tracking-tight">${_escape$4(_t$4("construction.v2.metrics.title", "Сроки замечаний"))}</h3>
+          <p class="text-rbi-caption text-muted mt-0.5">${_escape$4(_t$4("construction.v2.metrics.subtitle", "Локальный расчёт по defects_v2 · без новой схемы БД"))}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex gap-1">${_periodBtn$1("30", _t$4("construction.v2.metrics.period_30", "30 дн."))}${_periodBtn$1("90", _t$4("construction.v2.metrics.period_90", "90 дн."))}${_periodBtn$1("all", _t$4("construction.v2.metrics.period_all", "Все"))}</div>
           <select data-c2-metrics-object
-            class="text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
+            class="text-rbi-label font-bold rounded-xl border border-surface bg-[var(--card-bg)] px-2 py-1.5 max-w-[12rem]">
             ${objectOptions}
           </select>
         </div>
@@ -5319,9 +5319,9 @@ function renderMetricsView(host, opts) {
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$4(_t$4("construction.v2.metrics.by_category", "По категории"))}</div>
-          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$4(_t$4("construction.v2.metrics.by_category", "По категории"))}</div>
+          <table class="w-full text-rbi-label text-ink">
+            <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
               <th class="text-left font-bold pb-1">${_escape$4(_t$4("construction.v2.metrics.th_cat", "Cat"))}</th>
               <th class="text-right font-bold pb-1">${_escape$4(_t$4("construction.v2.metrics.th_open", "Откр."))}</th>
               <th class="text-right font-bold pb-1">${_escape$4(_t$4("construction.v2.metrics.th_overdue", "Проср."))}</th>
@@ -5331,18 +5331,18 @@ function renderMetricsView(host, opts) {
           </table>
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$4(_t$4("construction.v2.metrics.aging_open", "Aging открытых"))}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$4(_t$4("construction.v2.metrics.aging_open", "Aging открытых"))}</div>
           ${_barRow$1(_t$4("construction.v2.metrics.aging_0_3", "0–3"), m.aging["0-3"], agingMax, "bg-emerald-500")}
           ${_barRow$1(_t$4("construction.v2.metrics.aging_4_7", "4–7"), m.aging["4-7"], agingMax, "bg-amber-400")}
           ${_barRow$1(_t$4("construction.v2.metrics.aging_8_14", "8–14"), m.aging["8-14"], agingMax, "bg-orange-500")}
-          ${_barRow$1(_t$4("construction.v2.metrics.aging_15_plus", "15+"), m.aging["15+"], agingMax, "bg-red-600")}
+          ${_barRow$1(_t$4("construction.v2.metrics.aging_15_plus", "15+"), m.aging["15+"], agingMax, "bg-danger")}
         </div>
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$4(_t$4("construction.v2.metrics.by_contractor", "По подрядчику (топ-10 по просрочке)"))}</div>
-        <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-          <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$4(_t$4("construction.v2.metrics.by_contractor", "По подрядчику (топ-10 по просрочке)"))}</div>
+        <table class="w-full text-rbi-label text-ink">
+          <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
             <th class="text-left font-bold pb-1">${_escape$4(_t$4("construction.form.contractor", "Подрядчик"))}</th>
             <th class="text-right font-bold pb-1">${_escape$4(_t$4("construction.v2.metrics.th_open", "Откр."))}</th>
             <th class="text-right font-bold pb-1">${_escape$4(_t$4("construction.v2.metrics.th_overdue", "Проср."))}</th>
@@ -5353,7 +5353,7 @@ function renderMetricsView(host, opts) {
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
+        <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-danger">
           ${_escape$4(_t$4("construction.v2.metrics.overdue_now", "Просроченные сейчас · до 20"))}
         </div>
         ${overdueRows}
@@ -5431,26 +5431,26 @@ function _locationIdsUnderObject(loc, objectId) {
   return ids;
 }
 function _kpiCard(label, value, tone = "") {
-  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "ok" ? "border-emerald-200 dark:border-emerald-900/40" : "border-[var(--card-border)]";
+  const toneCls = tone === "danger" ? "border-danger-soft" : tone === "ok" ? "border-emerald-200 dark:border-emerald-900/40" : "border-[var(--card-border)]";
   return `<div class="flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-4 py-3">
-    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">${_escape$3(label)}</div>
-    <div class="text-[26px] font-black text-slate-800 dark:text-slate-100 leading-none">${_escape$3(value)}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1.5">${_escape$3(label)}</div>
+    <div class="text-[26px] font-black text-ink leading-none">${_escape$3(value)}</div>
   </div>`;
 }
 function _barRow(label, count, max, color) {
   const pct = max > 0 ? Math.round(count / max * 100) : 0;
-  return `<div class="flex items-center gap-2 text-[11px] mb-1.5">
-    <span class="w-12 shrink-0 font-bold text-slate-500">${_escape$3(label)}</span>
+  return `<div class="flex items-center gap-2 text-rbi-label mb-1.5">
+    <span class="w-12 shrink-0 font-bold text-muted">${_escape$3(label)}</span>
     <div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
       <div class="h-full ${color}" style="width:${pct}%"></div>
     </div>
-    <span class="w-8 text-right font-bold text-slate-700 dark:text-slate-200">${count}</span>
+    <span class="w-8 text-right font-bold text-ink">${count}</span>
   </div>`;
 }
 function _periodBtn(p, label) {
   const on = _period === p;
   return `<button type="button" data-c2-metrics-desk-period="${p}"
-    class="px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300"}">${_escape$3(label)}</button>`;
+    class="px-3 py-1.5 rounded-lg text-rbi-label font-bold border transition-colors ${on ? "bg-brand text-white border-brand" : "bg-transparent text-muted border-surface hover:border-brand-soft"}">${_escape$3(label)}</button>`;
 }
 function renderMetricsViewDesktop(host, opts) {
   var _a;
@@ -5478,29 +5478,29 @@ function renderMetricsViewDesktop(host, opts) {
     (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-bold">${_escape$3(r.category)}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-danger font-semibold" : ""}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-[12px]">${_escape$3(_t$3("construction.v2.metrics.no_data", "Нет данных"))}</td></tr>` : m.byContractor.map(
+  const contrRows = m.byContractor.length === 0 ? `<tr><td colspan="4" class="py-3 text-center text-muted text-rbi-body">${_escape$3(_t$3("construction.v2.metrics.no_data", "Нет данных"))}</td></tr>` : m.byContractor.map(
     (r) => `<tr class="border-t border-slate-100 dark:border-slate-800">
       <td class="py-1.5 pr-2 font-medium truncate max-w-[10rem]" title="${_escape$3(r.contractorId)}">${_escape$3(
       _contractorLabel(r.contractorId)
     )}</td>
       <td class="py-1.5 pr-2 text-right">${r.open}</td>
-      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-red-600 font-semibold" : ""}">${r.overdue}</td>
+      <td class="py-1.5 pr-2 text-right ${r.overdue ? "text-danger font-semibold" : ""}">${r.overdue}</td>
       <td class="py-1.5 text-right">${_fmt(r.avgEliminateDays)}</td>
     </tr>`
   ).join("");
-  const overdueCards = m.overdueList.length === 0 ? `<div class="p-4 text-center text-slate-400 text-[12px] col-span-full">${_escape$3(_t$3("construction.v2.metrics.no_overdue", "Нет просроченных"))}</div>` : m.overdueList.map(
+  const overdueCards = m.overdueList.length === 0 ? `<div class="p-4 text-center text-muted text-rbi-body col-span-full">${_escape$3(_t$3("construction.v2.metrics.no_overdue", "Нет просроченных"))}</div>` : m.overdueList.map(
     (r) => `<button type="button" data-c2-metrics-desk-def="${_escape$3(r.id)}"
-              class="text-left px-3 py-2.5 rounded-xl border border-[var(--card-border)] hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors">
+              class="text-left px-3 py-2.5 rounded-xl border border-[var(--card-border)] hover:bg-danger-soft transition-colors">
               <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                <span class="text-[10px] font-bold text-slate-500">${_escape$3(r.category)}</span>
-                <span class="text-[9px] font-bold uppercase text-red-600">${_escape$3(_t$3("construction.v2.metrics.overdue_days", "+{days} дн. проср.", { days: r.daysOverdue }))}</span>
-                <span class="text-[10px] text-slate-400">${_escape$3(_t$3("construction.v2.metrics.open_days", "{days} дн. открыто", { days: r.daysOpen }))}</span>
+                <span class="text-rbi-caption font-bold text-muted">${_escape$3(r.category)}</span>
+                <span class="text-rbi-caption font-bold uppercase text-danger">${_escape$3(_t$3("construction.v2.metrics.overdue_days", "+{days} дн. проср.", { days: r.daysOverdue }))}</span>
+                <span class="text-rbi-caption text-muted">${_escape$3(_t$3("construction.v2.metrics.open_days", "{days} дн. открыто", { days: r.daysOpen }))}</span>
               </span>
-              <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$3(
+              <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape$3(
       r.description
     )}</span>
             </button>`
@@ -5509,13 +5509,13 @@ function renderMetricsViewDesktop(host, opts) {
     <div class="flex flex-col gap-3 p-4">
       <div class="flex items-center justify-between gap-2">
         <div>
-          <h3 class="text-[16px] font-black text-slate-800 dark:text-slate-100 tracking-tight">${_escape$3(_t$3("construction.v2.metrics.title", "Сроки замечаний"))}</h3>
-          <p class="text-[11px] text-slate-400 mt-0.5">${_escape$3(_t$3("construction.v2.metrics.subtitle", "Локальный расчёт по defects_v2 · без новой схемы БД"))}</p>
+          <h3 class="text-[16px] font-black text-ink tracking-tight">${_escape$3(_t$3("construction.v2.metrics.title", "Сроки замечаний"))}</h3>
+          <p class="text-rbi-label text-muted mt-0.5">${_escape$3(_t$3("construction.v2.metrics.subtitle", "Локальный расчёт по defects_v2 · без новой схемы БД"))}</p>
         </div>
         <div class="flex items-center gap-2">
           <div class="flex gap-1">${_periodBtn("30", _t$3("construction.v2.metrics.period_30", "30 дн."))}${_periodBtn("90", _t$3("construction.v2.metrics.period_90", "90 дн."))}${_periodBtn("all", _t$3("construction.v2.metrics.period_all", "Все"))}</div>
           <select data-c2-metrics-desk-object
-            class="text-[12px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[var(--card-bg)] px-3 py-2 max-w-[16rem]">
+            class="text-rbi-body font-bold rounded-xl border border-surface bg-[var(--card-bg)] px-3 py-2 max-w-[16rem]">
             ${objectOptions}
           </select>
         </div>
@@ -5531,9 +5531,9 @@ function renderMetricsViewDesktop(host, opts) {
 
       <div class="grid grid-cols-3 gap-3">
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$3(_t$3("construction.v2.metrics.by_category", "По категории"))}</div>
-          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$3(_t$3("construction.v2.metrics.by_category", "По категории"))}</div>
+          <table class="w-full text-rbi-label text-ink">
+            <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
               <th class="text-left font-bold pb-1">${_escape$3(_t$3("construction.v2.metrics.th_cat", "Cat"))}</th>
               <th class="text-right font-bold pb-1">${_escape$3(_t$3("construction.v2.metrics.th_open", "Откр."))}</th>
               <th class="text-right font-bold pb-1">${_escape$3(_t$3("construction.v2.metrics.th_overdue", "Проср."))}</th>
@@ -5543,16 +5543,16 @@ function renderMetricsViewDesktop(host, opts) {
           </table>
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$3(_t$3("construction.v2.metrics.aging_open", "Aging открытых"))}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$3(_t$3("construction.v2.metrics.aging_open", "Aging открытых"))}</div>
           ${_barRow(_t$3("construction.v2.metrics.aging_0_3", "0–3"), m.aging["0-3"], agingMax, "bg-emerald-500")}
           ${_barRow(_t$3("construction.v2.metrics.aging_4_7", "4–7"), m.aging["4-7"], agingMax, "bg-amber-400")}
           ${_barRow(_t$3("construction.v2.metrics.aging_8_14", "8–14"), m.aging["8-14"], agingMax, "bg-orange-500")}
-          ${_barRow(_t$3("construction.v2.metrics.aging_15_plus", "15+"), m.aging["15+"], agingMax, "bg-red-600")}
+          ${_barRow(_t$3("construction.v2.metrics.aging_15_plus", "15+"), m.aging["15+"], agingMax, "bg-danger")}
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">${_escape$3(_t$3("construction.v2.metrics.by_contractor", "По подрядчику (топ-10 по просрочке)"))}</div>
-          <table class="w-full text-[11px] text-slate-700 dark:text-slate-200">
-            <thead><tr class="text-[9px] uppercase tracking-wider text-slate-400">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-2">${_escape$3(_t$3("construction.v2.metrics.by_contractor", "По подрядчику (топ-10 по просрочке)"))}</div>
+          <table class="w-full text-rbi-label text-ink">
+            <thead><tr class="text-rbi-caption uppercase tracking-wider text-muted">
               <th class="text-left font-bold pb-1">${_escape$3(_t$3("construction.form.contractor", "Подрядчик"))}</th>
               <th class="text-right font-bold pb-1">${_escape$3(_t$3("construction.v2.metrics.th_open", "Откр."))}</th>
               <th class="text-right font-bold pb-1">${_escape$3(_t$3("construction.v2.metrics.th_overdue", "Проср."))}</th>
@@ -5564,7 +5564,7 @@ function renderMetricsViewDesktop(host, opts) {
       </div>
 
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-red-600">
+        <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-danger">
           ${_escape$3(_t$3("construction.v2.metrics.overdue_now", "Просроченные сейчас · до 20"))}
         </div>
         <div class="grid grid-cols-3 gap-2 p-3">${overdueCards}</div>
@@ -5639,10 +5639,10 @@ function _statusLabel$1(s) {
   return entry ? _t$2(entry[0], entry[1]) : s || "—";
 }
 function _kpi(label, value, tone = "") {
-  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
+  const toneCls = tone === "danger" ? "border-danger-soft" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
   return `<div class="min-w-[6.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
-    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape$2(label)}</div>
-    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${value}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1">${_escape$2(label)}</div>
+    <div class="text-[18px] font-black text-ink leading-none">${value}</div>
   </div>`;
 }
 function _defectRow(d) {
@@ -5650,41 +5650,41 @@ function _defectRow(d) {
   const overdue = isOverdueNow(d);
   return `<li>
     <button type="button" data-c2-cab-def="${_escape$2(d.id)}"
-      class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${overdue ? "bg-red-50/40 dark:bg-red-950/15" : ""}">
+      class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${overdue ? "bg-danger-soft" : ""}">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[10px] font-bold text-slate-500">${_escape$2(String(d.category || ""))}</span>
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$2(_statusLabel$1(String(d.status)))}</span>
-        ${overdue ? `<span class="text-[9px] font-bold uppercase text-red-600">${_escape$2(_t$2("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
+        <span class="text-rbi-caption font-bold text-muted">${_escape$2(String(d.category || ""))}</span>
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape$2(_statusLabel$1(String(d.status)))}</span>
+        ${overdue ? `<span class="text-rbi-caption font-bold uppercase text-danger">${_escape$2(_t$2("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$2(desc)}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$2(_pathLabel$1(d.locationId))}</span>
+      <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape$2(desc)}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape$2(_pathLabel$1(d.locationId))}</span>
     </button>
   </li>`;
 }
 function _accRow(a) {
   return `<li>
     <button type="button" data-c2-cab-acc="${_escape$2(a.id)}"
-      class="w-full text-left px-3 py-2.5 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors">
+      class="w-full text-left px-3 py-2.5 hover:bg-brand-soft transition-colors">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$2(_statusLabel$1(String(a.status)))}</span>
-        <span class="text-[10px] font-bold text-slate-500">${_escape$2(a.requested_date || "—")} ${_escape$2(
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape$2(_statusLabel$1(String(a.status)))}</span>
+        <span class="text-rbi-caption font-bold text-muted">${_escape$2(a.requested_date || "—")} ${_escape$2(
     a.requested_time || ""
   )}</span>
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape$2(
+      <span class="block text-rbi-body font-medium text-ink">${_escape$2(
     a.work_type || _t$2("construction.v2.kanban.no_work_type", "Без вида работ")
   )}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$2(_pathLabel$1(a.locationId))}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape$2(_pathLabel$1(a.locationId))}</span>
     </button>
   </li>`;
 }
 function _section(title, rows, empty) {
   return `
     <section class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-      <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$2(
+      <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$2(
     title
   )}</div>
-      ${rows ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>` : `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape$2(empty)}</div>`}
+      ${rows ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>` : `<div class="p-4 text-center text-muted text-rbi-body">${_escape$2(empty)}</div>`}
     </section>`;
 }
 function renderContractorCabinet(host, opts) {
@@ -5694,7 +5694,7 @@ function renderContractorCabinet(host, opts) {
   if (!myId) {
     host.innerHTML = `
       <div class="p-6 max-w-lg mx-auto">
-        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-rbi-body font-medium text-amber-900 dark:text-amber-100">
           ${_escape$2(_t$2("construction.v2.cabinet.unbound", "Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика — иначе кабинет, реестр и пины будут пустыми."))}
         </div>
       </div>`;
@@ -5718,8 +5718,8 @@ function renderContractorCabinet(host, opts) {
   host.innerHTML = `
     <div class="space-y-3 p-1 sm:p-2">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$2(_t$2("construction.v2.cabinet.title", "Кабинет подрядчика"))}</div>
-        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape$2(myId)}">${_escape$2(_t$2("construction.v2.cabinet.my_id", "мой id · {id}", { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$2(_t$2("construction.v2.cabinet.title", "Кабинет подрядчика"))}</div>
+        <div class="text-rbi-caption text-muted font-bold truncate max-w-[14rem]" title="${_escape$2(myId)}">${_escape$2(_t$2("construction.v2.cabinet.my_id", "мой id · {id}", { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
       </div>
       <div class="flex flex-wrap gap-2">
         ${_kpi(_t$2("construction.v2.cabinet.kpi_open", "Открытые"), open.length)}
@@ -5795,10 +5795,10 @@ function _statusLabel(s) {
   return entry ? _t$1(entry[0], entry[1]) : s || "—";
 }
 function _kpiDesk(label, value, tone = "") {
-  const toneCls = tone === "danger" ? "border-red-200 dark:border-red-900/50" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
+  const toneCls = tone === "danger" ? "border-danger-soft" : tone === "warn" ? "border-amber-200 dark:border-amber-900/40" : "border-[var(--card-border)]";
   return `<div class="flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-4 py-3">
-    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">${_escape$1(label)}</div>
-    <div class="text-[26px] font-black text-slate-800 dark:text-slate-100 leading-none">${value}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1.5">${_escape$1(label)}</div>
+    <div class="text-[26px] font-black text-ink leading-none">${value}</div>
   </div>`;
 }
 function _defectRowDesk(d) {
@@ -5806,41 +5806,41 @@ function _defectRowDesk(d) {
   const overdue = isOverdueNow(d);
   return `<li>
     <button type="button" data-c2-cab-desk-def="${_escape$1(d.id)}"
-      class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${overdue ? "bg-red-50/40 dark:bg-red-950/15" : ""}">
+      class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${overdue ? "bg-danger-soft" : ""}">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[10px] font-bold text-slate-500">${_escape$1(String(d.category || ""))}</span>
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$1(_statusLabel(String(d.status)))}</span>
-        ${overdue ? `<span class="text-[9px] font-bold uppercase text-red-600">${_escape$1(_t$1("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
+        <span class="text-rbi-caption font-bold text-muted">${_escape$1(String(d.category || ""))}</span>
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape$1(_statusLabel(String(d.status)))}</span>
+        ${overdue ? `<span class="text-rbi-caption font-bold uppercase text-danger">${_escape$1(_t$1("construction.v2.registry.overdue", "просрочено"))}</span>` : ""}
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape$1(desc)}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(d.locationId))}</span>
+      <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape$1(desc)}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape$1(_pathLabel(d.locationId))}</span>
     </button>
   </li>`;
 }
 function _accRowDesk(a) {
   return `<li>
     <button type="button" data-c2-cab-desk-acc="${_escape$1(a.id)}"
-      class="w-full text-left px-3 py-2.5 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors">
+      class="w-full text-left px-3 py-2.5 hover:bg-brand-soft transition-colors">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape$1(_statusLabel(String(a.status)))}</span>
-        <span class="text-[10px] font-bold text-slate-500">${_escape$1(a.requested_date || "—")} ${_escape$1(
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape$1(_statusLabel(String(a.status)))}</span>
+        <span class="text-rbi-caption font-bold text-muted">${_escape$1(a.requested_date || "—")} ${_escape$1(
     a.requested_time || ""
   )}</span>
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape$1(
+      <span class="block text-rbi-body font-medium text-ink">${_escape$1(
     a.work_type || _t$1("construction.v2.kanban.no_work_type", "Без вида работ")
   )}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape$1(_pathLabel(a.locationId))}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape$1(_pathLabel(a.locationId))}</span>
     </button>
   </li>`;
 }
 function _sectionDesk(title, rows, empty, gridColCls) {
   return `
     <section class="${gridColCls} bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-      <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$1(
+      <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$1(
     title
   )}</div>
-      ${rows ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>` : `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape$1(empty)}</div>`}
+      ${rows ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>` : `<div class="p-4 text-center text-muted text-rbi-body">${_escape$1(empty)}</div>`}
     </section>`;
 }
 function renderContractorCabinetDesktop(host, opts) {
@@ -5850,7 +5850,7 @@ function renderContractorCabinetDesktop(host, opts) {
   if (!myId) {
     host.innerHTML = `
       <div class="p-6 max-w-lg">
-        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-rbi-body font-medium text-amber-900 dark:text-amber-100">
           ${_escape$1(_t$1("construction.v2.cabinet.unbound", "Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика — иначе кабинет, реестр и пины будут пустыми."))}
         </div>
       </div>`;
@@ -5874,8 +5874,8 @@ function renderContractorCabinetDesktop(host, opts) {
   host.innerHTML = `
     <div class="flex flex-col gap-3 p-4">
       <div class="flex items-center justify-between gap-2">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape$1(_t$1("construction.v2.cabinet.title", "Кабинет подрядчика"))}</div>
-        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape$1(myId)}">${_escape$1(_t$1("construction.v2.cabinet.my_id", "мой id · {id}", { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape$1(_t$1("construction.v2.cabinet.title", "Кабинет подрядчика"))}</div>
+        <div class="text-rbi-caption text-muted font-bold truncate max-w-[14rem]" title="${_escape$1(myId)}">${_escape$1(_t$1("construction.v2.cabinet.my_id", "мой id · {id}", { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
       </div>
       <div class="flex gap-3">
         ${_kpiDesk(_t$1("construction.v2.cabinet.kpi_open", "Открытые"), open.length)}
@@ -5968,26 +5968,26 @@ function _root() {
 function _renderTree(svc) {
   const objects = svc.listNodes({ nodeType: "object", parentId: null });
   if (!objects.length) {
-    return `<div class="p-6 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+    return `<div class="p-6 text-center text-muted text-rbi-label font-bold uppercase tracking-widest">
       ${_t("construction.v2.tree_empty", "Нет объектов. Создайте иерархию в Настройках → «Объекты и планы».")}
     </div>`;
   }
-  let html = '<ul class="space-y-1 text-[12px]">';
+  let html = '<ul class="space-y-1 text-rbi-body">';
   for (const obj of objects) {
-    html += `<li class="font-black text-slate-700 dark:text-slate-200">${_escape(obj.displayName)}`;
+    html += `<li class="font-black text-ink">${_escape(obj.displayName)}`;
     const buildings = svc.getChildren(obj.id);
-    html += '<ul class="ml-3 mt-1 space-y-1 border-l border-slate-200 dark:border-slate-700 pl-2">';
+    html += '<ul class="ml-3 mt-1 space-y-1 border-l border-surface pl-2">';
     for (const b of buildings) {
-      html += `<li><span class="font-bold text-slate-600 dark:text-slate-300">${_escape(b.displayName)}</span>`;
+      html += `<li><span class="font-bold text-ink">${_escape(b.displayName)}</span>`;
       const sections = svc.getChildren(b.id);
       html += '<ul class="ml-2 mt-0.5 space-y-0.5">';
       for (const sec of sections) {
-        html += `<li class="text-slate-500">${_escape(sec.displayName)}`;
+        html += `<li class="text-muted">${_escape(sec.displayName)}`;
         const floors = svc.getChildren(sec.id);
         html += '<ul class="ml-2">';
         for (const fl of floors) {
           const plan = svc.getPlanForFloor(fl.id);
-          const active = _selectedFloorId === fl.id ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800" : "hover:bg-slate-100 dark:hover:bg-slate-800";
+          const active = _selectedFloorId === fl.id ? "bg-brand-soft text-brand" : "hover:bg-slate-100 dark:hover:bg-slate-800";
           const mark = (plan == null ? void 0 : plan.pdf_url) ? "📄" : "⚠️";
           html += `<li>
             <button type="button" data-c2-floor="${_escape(fl.id)}"
@@ -6012,14 +6012,14 @@ function _zoomToolbarHtml(prefix) {
     <button type="button" data-c2-zoom-in="${prefix}"
       class="w-8 h-8 rounded-lg text-[16px] font-black text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_in", "Увеличить"))}">+</button>
     <button type="button" data-c2-zoom-fit="${prefix}"
-      class="px-2.5 h-8 rounded-lg text-[9px] font-black uppercase text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
+      class="px-2.5 h-8 rounded-lg text-rbi-caption font-black uppercase text-white/90 hover:bg-white/10" title="${_escape(_t("construction.v2.zoom_fit", "По размеру"))}">Fit</button>
   </div>`;
 }
 function _fullscreenIconBtn() {
   const fs = _escape(_t("construction.v2.fullscreen", "На весь экран"));
   return `<button type="button" data-c2-fullscreen
-    class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center
-           text-slate-600 dark:text-slate-200 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+    class="w-9 h-9 rounded-xl border border-surface flex items-center justify-center
+           text-ink bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
     title="${fs}" aria-label="${fs}">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
@@ -6028,7 +6028,7 @@ function _fullscreenIconBtn() {
 }
 function _renderPlanChrome(svc) {
   if (!_selectedFloorId) {
-    return `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[12px] font-medium px-4 text-center">
+    return `<div class="flex items-center justify-center h-full min-h-[240px] text-muted text-rbi-body font-medium px-4 text-center">
       ${_t("construction.v2.select_floor", "Выберите этаж слева")}
     </div>`;
   }
@@ -6037,33 +6037,33 @@ function _renderPlanChrome(svc) {
   const path = svc.getPath(_selectedFloorId).map((n) => n.displayName).join(" / ");
   if (!(plan == null ? void 0 : plan.pdf_url)) {
     return `<div class="p-6">
-      <div class="text-[11px] font-bold text-slate-500 mb-2">${_escape(path)}</div>
-      <div class="text-amber-600 font-bold text-[13px]">${_t("construction.v2.no_pdf", "Нет PDF-плана на этом этаже")}</div>
-      <p class="text-[11px] text-slate-500 mt-2">${_t("construction.v2.no_pdf_hint", "Загрузите план в Настройках → «Объекты и планы».")}</p>
+      <div class="text-rbi-label font-bold text-muted mb-2">${_escape(path)}</div>
+      <div class="text-amber-600 font-bold text-rbi-body">${_t("construction.v2.no_pdf", "Нет PDF-плана на этом этаже")}</div>
+      <p class="text-rbi-label text-muted mt-2">${_t("construction.v2.no_pdf_hint", "Загрузите план в Настройках → «Объекты и планы».")}</p>
     </div>`;
   }
-  const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
+  const addCls = _addMode ? "bg-brand text-white border-brand" : "bg-transparent text-brand border-brand-soft";
   const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
   return `<div class="flex flex-col h-full min-h-[320px]" id="c2-plan-chrome">
-    <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
-      <div class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+    <div class="px-3 py-2 border-b border-surface flex items-center justify-between gap-2 flex-wrap">
+      <div class="text-rbi-body font-semibold text-ink min-w-0 truncate">
         ${_escape(path || (floor == null ? void 0 : floor.displayName) || "")}
       </div>
       <div class="flex gap-1.5 shrink-0 items-center">
         <button type="button" data-c2-zone-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+          class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold ${zoneCls}">
           ${_zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона")}
         </button>
         <button type="button" data-c2-add-mode
-          class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+          class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold ${addCls}">
           ${_addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание")}
         </button>
         ${_fullscreenIconBtn()}
       </div>
     </div>
-    <div class="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700" data-c2-pin-filters-host="plan"></div>
+    <div class="px-3 py-1.5 border-b border-surface" data-c2-pin-filters-host="plan"></div>
     <div class="flex-1 relative bg-slate-100 dark:bg-slate-900 min-h-[280px]" id="c2-plan-host"></div>
-    <div class="px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+    <div class="px-3 py-1.5 text-rbi-caption text-muted border-t border-surface flex justify-end">
       <span id="c2-overlay-count"></span>
     </div>
   </div>`;
@@ -6222,7 +6222,7 @@ async function _mountViewerIfNeeded(svc) {
       _mountedPdfUrl = plan.pdf_url;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      host.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">Ошибка плана: ${_escape(msg)}</div>`;
+      host.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">Ошибка плана: ${_escape(msg)}</div>`;
       _viewer = null;
       _mountedPdfUrl = null;
       return;
@@ -6248,18 +6248,18 @@ function _syncModeButtons() {
     const btn = el;
     btn.textContent = _addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание");
     if (inFs && btn.closest("#c2-plan-fs")) {
-      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
+      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-brand text-white border-brand" : "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-white/10 text-white border-white/30";
     } else {
-      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-indigo-600 text-white border-indigo-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-indigo-600 border-indigo-200 dark:border-indigo-800";
+      btn.className = _addMode ? "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-brand text-white border-brand" : "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-transparent text-brand border-brand-soft";
     }
   });
   document.querySelectorAll("[data-c2-zone-mode]").forEach((el) => {
     const btn = el;
     btn.textContent = _zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона");
     if (inFs && btn.closest("#c2-plan-fs")) {
-      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-white/10 text-white border-white/30";
+      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-white/10 text-white border-white/30";
     } else {
-      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-[10px] font-bold bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
+      btn.className = _zoneMode ? "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-emerald-600 text-white border-emerald-600" : "px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold bg-transparent text-emerald-700 border-emerald-200 dark:border-emerald-800";
     }
   });
 }
@@ -6324,25 +6324,25 @@ function _openPlanFullscreen() {
   overlay.id = "c2-plan-fs";
   overlay.className = "fixed inset-0 flex flex-col bg-slate-900";
   overlay.style.zIndex = "1100";
-  const addCls = _addMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-white/10 text-white border-white/30";
+  const addCls = _addMode ? "bg-brand text-white border-brand" : "bg-white/10 text-white border-white/30";
   const zoneCls = _zoneMode ? "bg-emerald-600 text-white border-emerald-600" : "bg-white/10 text-white border-white/30";
   overlay.innerHTML = `
     <div class="shrink-0 flex flex-col gap-1.5 px-3 py-2.5 border-b border-white/10 bg-slate-950/90">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[11px] font-bold tracking-wide text-indigo-300">${_t("construction.v2.fs_title", "План · весь экран")}</div>
+        <div class="text-rbi-label font-bold tracking-wide text-indigo-300">${_t("construction.v2.fs_title", "План · весь экран")}</div>
         <div class="flex items-center gap-2 flex-wrap">
-          <span id="c2-fs-overlay-count" class="text-[10px] font-medium text-slate-400 hidden sm:inline"></span>
+          <span id="c2-fs-overlay-count" class="text-rbi-caption font-medium text-muted hidden sm:inline"></span>
           ${_zoomToolbarHtml("fs")}
           <button type="button" data-c2-zone-mode
-            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${zoneCls}">
+            class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold ${zoneCls}">
             ${_zoneMode ? _t("construction.v2.zone_picking", "2 клика…") : _t("construction.v2.zone", "Зона")}
           </button>
           <button type="button" data-c2-add-mode
-            class="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold ${addCls}">
+            class="px-2.5 py-1.5 rounded-xl border text-rbi-caption font-bold ${addCls}">
             ${_addMode ? _t("construction.v2.add_picking", "Кликни…") : _t("construction.v2.add_defect", "+ Замечание")}
           </button>
           <button type="button" data-c2-fs-close
-            class="px-3 py-1.5 rounded-xl border text-[10px] font-bold bg-white text-slate-800 border-white">${_t("construction.v2.fs_close", "Закрыть")}</button>
+            class="px-3 py-1.5 rounded-xl border text-rbi-caption font-bold bg-white text-ink border-white">${_t("construction.v2.fs_close", "Закрыть")}</button>
         </div>
       </div>
       <div data-c2-pin-filters-host="fs"></div>
@@ -6488,7 +6488,7 @@ async function renderConstructionV2() {
   teardownTransferUi();
   const svc = _loc();
   if (!svc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">service.locations не загружен</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">service.locations не загружен</div>`;
     return;
   }
   const dSvc = _defects();
@@ -6532,9 +6532,9 @@ async function renderConstructionV2() {
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
         <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
           <div id="c2-tree">${_renderTree(svc)}</div>
-          ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
+          ${!dSvc ? `<div class="mt-3 text-rbi-caption text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
         </aside>
         <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-defects-host"></main>
       </div>`;
@@ -6567,13 +6567,13 @@ async function renderConstructionV2() {
     });
   });
   const svcMissingHtml = `
-    ${!dSvc ? `<div class="mt-3 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
-    ${!aSvc ? `<div class="mt-1 text-[10px] text-amber-600 font-bold">${_t("construction.v2.svc_acc_missing", "constructionAcceptance не загружен")}</div>` : ""}`;
+    ${!dSvc ? `<div class="mt-3 text-rbi-caption text-amber-600 font-bold">${_t("construction.v2.svc_defects_missing", "constructionDefects не загружен")}</div>` : ""}
+    ${!aSvc ? `<div class="mt-1 text-rbi-caption text-amber-600 font-bold">${_t("construction.v2.svc_acc_missing", "constructionAcceptance не загружен")}</div>` : ""}`;
   if (isDesktopViewport()) {
     root.innerHTML = `
       <div class="flex flex-col md:flex-row gap-3 h-full min-h-[420px]">
         <aside class="md:w-72 shrink-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3 overflow-y-auto max-h-[70vh]">
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand mb-2">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
           <div id="c2-tree">${renderPlanTreeDesktop(svc, _selectedFloorId)}</div>
           ${svcMissingHtml}
         </aside>
@@ -6587,11 +6587,11 @@ async function renderConstructionV2() {
       <div class="flex flex-col h-full min-h-[420px]">
         <button type="button" data-c2-plan-picker-open
           class="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-left shrink-0">
-          <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 shrink-0">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</span>
-          <span class="flex-1 min-w-0 truncate text-[12px] font-semibold text-slate-700 dark:text-slate-200">
+          <span class="text-rbi-caption font-black uppercase tracking-widest text-brand shrink-0">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</span>
+          <span class="flex-1 min-w-0 truncate text-rbi-body font-semibold text-ink">
             ${path ? _escape(path) : _t("construction.v2.select_floor_cta", "Выбрать этаж")}
           </span>
-          <span class="text-[10px] font-black uppercase text-indigo-600 shrink-0">${_t("construction.v2.change", "Изменить")}</span>
+          <span class="text-rbi-caption font-black uppercase text-brand shrink-0">${_t("construction.v2.change", "Изменить")}</span>
         </button>
         <main class="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden relative" id="c2-plan">
           ${_renderPlanChrome(svc)}
@@ -6601,9 +6601,9 @@ async function renderConstructionV2() {
         class="fixed inset-0 z-[6000] hidden items-end bg-black/40 p-3">
         <div class="w-full max-h-[75vh] bg-[var(--card-bg)] rounded-t-2xl shadow-2xl border border-[var(--card-border)] overflow-hidden flex flex-col">
           <div class="px-4 py-3 border-b border-[var(--card-border)] flex items-center justify-between shrink-0">
-            <div class="text-[11px] font-black uppercase tracking-widest text-indigo-600">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
+            <div class="text-rbi-label font-black uppercase tracking-widest text-brand">${_t("construction.v2.hierarchy", "Иерархия (v2)")}</div>
             <button type="button" data-c2-plan-picker-close
-              class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
           </div>
           <div class="p-3 overflow-y-auto">
             <div id="c2-tree">${_renderTree(svc)}</div>
@@ -6727,11 +6727,11 @@ function mountConstructionV2Shell() {
     <div class="p-3 sm:p-4">
       <div class="flex items-center justify-between mb-3 gap-2">
         <div class="min-w-0">
-          <h2 class="text-[14px] font-bold tracking-tight text-slate-800 dark:text-slate-100">Стройконтроль в2</h2>
-          <p class="text-[10px] text-slate-400 mt-0.5">Тестовый контур · основной СК не затронут</p>
+          <h2 class="text-rbi-title font-bold tracking-tight text-ink">Стройконтроль в2</h2>
+          <p class="text-rbi-caption text-muted mt-0.5">Тестовый контур · основной СК не затронут</p>
         </div>
         <a href="#/construction/defects"
-          class="shrink-0 text-[10px] font-bold text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-xl">Старый СК</a>
+          class="shrink-0 text-rbi-caption font-bold text-brand border border-brand-soft px-2.5 py-1.5 rounded-xl">Старый СК</a>
       </div>
       <div id="construction-v2-root"></div>
     </div>`;

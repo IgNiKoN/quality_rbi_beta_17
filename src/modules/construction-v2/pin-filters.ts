@@ -55,8 +55,8 @@ const STATUS_STYLES: Record<
   { active: string; badgeActive: string }
 > = {
   issued: {
-    active: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400',
-    badgeActive: 'bg-red-600 text-white'
+    active: 'bg-danger-soft text-danger border-danger-soft',
+    badgeActive: 'bg-danger text-white'
   },
   in_progress: {
     active: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400',
@@ -71,7 +71,7 @@ const STATUS_STYLES: Record<
     badgeActive: 'bg-green-600 text-white'
   },
   rejected: {
-    active: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300',
+    active: 'bg-slate-100 text-ink border-surface dark:bg-slate-800',
     badgeActive: 'bg-slate-500 text-white'
   }
 };
@@ -164,10 +164,10 @@ export function renderPinFiltersHtml(
 
   const inactiveClass = darkFs
     ? 'bg-white/10 text-slate-300 border-white/20'
-    : 'bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+    : 'bg-surface text-muted border-surface';
   const inactiveBadge = darkFs
     ? 'bg-white/10 text-slate-400'
-    : 'bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500 border border-slate-200 dark:border-slate-700';
+    : 'bg-slate-100 text-muted dark:bg-slate-900 border border-surface';
 
   const chips = ALL_PIN_STATUSES.map((statusKey) => {
     const isActive = filters.statuses.includes(statusKey);
@@ -176,9 +176,9 @@ export function renderPinFiltersHtml(
     const badgeClass = visuallyActive ? STATUS_STYLES[statusKey].badgeActive : inactiveBadge;
     const pad = compact ? 'px-2 py-1' : 'px-2.5 py-1.5';
     return `<button type="button" data-c2-pin-status="${statusKey}"
-      class="shrink-0 ${pad} rounded-xl border text-[9px] font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
+      class="shrink-0 ${pad} rounded-xl border text-rbi-caption font-bold uppercase transition-all flex items-center gap-1 active:scale-95 ${btnClass}">
       ${_statusLabel(statusKey)}
-      <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-[8px] font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
+      <span class="${badgeClass} px-1.5 py-0.5 rounded-md text-rbi-caption font-black min-w-[18px] text-center">${counts[statusKey] || 0}</span>
     </button>`;
   }).join('');
 
@@ -194,19 +194,19 @@ export function renderPinFiltersHtml(
       const cls = on
         ? darkFs
           ? 'bg-white text-slate-900'
-          : 'bg-indigo-600 text-white'
+          : 'bg-brand text-white'
         : darkFs
           ? 'bg-white/10 text-slate-300 hover:bg-white/20'
-          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+          : 'bg-slate-100 text-ink dark:bg-slate-800';
       return `<button type="button" data-c2-pin-category="${key}"
-        class="px-2 py-1 rounded-lg text-[9px] font-bold transition-colors ${cls}">${label}</button>`;
+        class="px-2 py-1 rounded-lg text-rbi-caption font-bold transition-colors ${cls}">${label}</button>`;
     })
     .join('');
 
   return `<div data-c2-pin-filters class="flex flex-col gap-1.5 w-full min-w-0">
     <div class="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">${chips}</div>
     <div class="flex gap-1 items-center">
-      <span class="text-[8px] font-bold uppercase tracking-wider text-slate-400 shrink-0">${_t('construction.pin.cat', 'Кат.')}</span>
+      <span class="text-rbi-caption font-bold uppercase tracking-wider text-muted shrink-0">${_t('construction.pin.cat', 'Кат.')}</span>
       <div class="flex gap-0.5">${catBtns}</div>
     </div>
   </div>`;

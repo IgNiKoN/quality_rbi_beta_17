@@ -303,11 +303,11 @@ function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boo
     const label = id || _t('construction.v2.acc.contractor_unlinked', 'не привязан');
     return `
       <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
+        <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
         <input type="hidden" id="c2-acc-contractor" value="${_escape(id)}">
-        <div class="input-base text-[12px] font-bold w-full bg-slate-50 dark:bg-slate-900 text-slate-600">${_escape(
+        <div class="input-base text-rbi-body font-bold w-full bg-slate-50 dark:bg-slate-900 text-ink">${_escape(
           label
-        )} <span class="text-[9px] font-bold uppercase text-slate-400">${_escape(_t('construction.v2.acc.contractor_yours', '(ваш)'))}</span></div>
+        )} <span class="text-rbi-caption font-bold uppercase text-muted">${_escape(_t('construction.v2.acc.contractor_yours', '(ваш)'))}</span></div>
       </div>`;
   }
   const svc = window.RBI?.services?.contractors as
@@ -327,8 +327,8 @@ function _contractorSelectHtml(selectedId?: string | null, opts?: { locked?: boo
       .join('');
   return `
     <div>
-      <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))} *</label>
-      <select id="c2-acc-contractor" class="input-base text-[12px] font-bold w-full border-indigo-300">${optsHtml}</select>
+      <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape(_t('construction.form.contractor', 'Подрядчик'))} *</label>
+      <select id="c2-acc-contractor" class="input-base text-rbi-body font-bold w-full border-brand-soft">${optsHtml}</select>
     </div>`;
 }
 
@@ -407,21 +407,21 @@ export function openCreateAcceptanceForm(
     ctx.mode === 'apartment' || _locationNodeType(ctx.locationId) === 'apartment';
   const path = _floorLabel(ctx.locationId);
   const zoneBadge = isApartment
-    ? `<span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-[8px] font-black border border-violet-200">${_escape(_t('construction.v2.acc.badge_apartment', 'Квартира'))}</span>`
-    : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black border border-blue-200">${_escape(_t('construction.v2.acc.badge_zone', '✅ Зона выделена'))}</span>`;
+    ? `<span class="bg-brand-soft text-brand px-2 py-0.5 rounded text-rbi-caption font-black border border-brand-soft">${_escape(_t('construction.v2.acc.badge_apartment', 'Квартира'))}</span>`
+    : `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-rbi-caption font-black border border-blue-200">${_escape(_t('construction.v2.acc.badge_zone', '✅ Зона выделена'))}</span>`;
   const roomVolHtml = isApartment
     ? `<div>
-         <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
-         <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
+         <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
+         <input type="text" id="c2-acc-vol" class="input-base text-rbi-body w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
        </div>`
     : `<div class="grid grid-cols-2 gap-2">
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.axes', 'Оси / Захватка'))}</label>
-           <input type="text" id="c2-acc-room" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.axes_ph', 'Напр: Оси А-Б'))}" value="${_escape(ctx.zone.room || '')}">
+           <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape(_t('construction.v2.acc.axes', 'Оси / Захватка'))}</label>
+           <input type="text" id="c2-acc-room" class="input-base text-rbi-body w-full" placeholder="${_escape(_t('construction.v2.acc.axes_ph', 'Напр: Оси А-Б'))}" value="${_escape(ctx.zone.room || '')}">
          </div>
          <div>
-           <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
-           <input type="text" id="c2-acc-vol" class="input-base text-[12px] w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
+           <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</label>
+           <input type="text" id="c2-acc-vol" class="input-base text-rbi-body w-full" placeholder="${_escape(_t('construction.v2.acc.volume_ph', 'Напр: 45 м2'))}">
          </div>
        </div>`;
 
@@ -433,39 +433,39 @@ export function openCreateAcceptanceForm(
   const html = `
     <div id="c2-acc-request-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-[var(--card-border)]" data-c2-acc-panel>
-        <div class="p-4 bg-indigo-600 border-b border-indigo-700 flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase text-white">${isApartment ? _escape(_t('construction.v2.acc.title_apartment', '📝 Приёмка квартиры (v2)')) : _escape(_t('construction.v2.acc.title_request', '📝 Заявка на приемку (v2)'))}</h3>
-          <button type="button" data-c2-acc-close class="text-indigo-200 hover:text-white font-black text-lg leading-none">✕</button>
+        <div class="p-4 bg-brand border-b border-brand-hover flex justify-between items-center">
+          <h3 class="font-black text-rbi-body uppercase text-white">${isApartment ? _escape(_t('construction.v2.acc.title_apartment', '📝 Приёмка квартиры (v2)')) : _escape(_t('construction.v2.acc.title_request', '📝 Заявка на приемку (v2)'))}</h3>
+          <button type="button" data-c2-acc-close class="text-white/80 hover:text-white font-black text-lg leading-none">✕</button>
         </div>
         <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div class="text-[10px] font-black text-indigo-500 uppercase mb-1 flex justify-between">
+          <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-surface">
+            <div class="text-rbi-caption font-black text-brand uppercase mb-1 flex justify-between">
               <span>${_escape(_t('construction.v2.acc.location', 'Локация'))}</span>
               ${zoneBadge}
             </div>
-            <div class="text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escape(path)}</div>
+            <div class="text-rbi-body font-bold text-ink">${_escape(path)}</div>
           </div>
           <div>
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-1 block">${_escape(_t('construction.v2.acc.work_type', 'Вид работ *'))}</label>
-            <select id="c2-acc-work" class="input-base text-[12px] font-bold mb-2 border-indigo-300 w-full">
+            <label class="text-rbi-caption font-black text-brand uppercase mb-1 block">${_escape(_t('construction.v2.acc.work_type', 'Вид работ *'))}</label>
+            <select id="c2-acc-work" class="input-base text-rbi-body font-bold mb-2 border-brand-soft w-full">
               ${_tmplOptions()}
             </select>
             ${roomVolHtml}
           </div>
           ${contractorHtml}
-          <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label class="text-[10px] font-black text-indigo-500 uppercase mb-2 block">${_escape(_t('construction.v2.acc.when_ready', 'Когда готовы сдать?'))}</label>
+          <div class="pt-2 border-t border-surface">
+            <label class="text-rbi-caption font-black text-brand uppercase mb-2 block">${_escape(_t('construction.v2.acc.when_ready', 'Когда готовы сдать?'))}</label>
             <div class="grid grid-cols-2 gap-2">
-              <input type="date" id="c2-acc-date" class="input-base text-[12px] font-bold w-full" value="${_today()}">
-              <select id="c2-acc-time" class="input-base text-[12px] font-bold w-full">
+              <input type="date" id="c2-acc-date" class="input-base text-rbi-body font-bold w-full" value="${_today()}">
+              <select id="c2-acc-time" class="input-base text-rbi-body font-bold w-full">
                 ${slotTimeOptionsHtml('14:00')}
               </select>
             </div>
           </div>
         </div>
         <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/50 flex gap-2">
-          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-[11px] font-bold uppercase border border-slate-200">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
-          <button type="button" data-c2-acc-save class="flex-[1.5] bg-indigo-600 text-white py-3 rounded-xl text-[11px] font-black uppercase shadow-md">${_escape(_t('construction.v2.acc.submit', 'Отправить'))}</button>
+          <button type="button" data-c2-acc-close class="flex-1 bg-slate-100 text-ink py-3 rounded-xl text-rbi-label font-bold uppercase border border-surface">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
+          <button type="button" data-c2-acc-save class="flex-[1.5] bg-brand text-white py-3 rounded-xl text-rbi-label font-black uppercase shadow-md">${_escape(_t('construction.v2.acc.submit', 'Отправить'))}</button>
         </div>
       </div>
     </div>`;
@@ -558,29 +558,29 @@ export function openAcceptanceDetails(
     if (isEngineer) {
       actions = `
         <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-[var(--card-border)]">
-          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
+          <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
           <div class="flex gap-2">
-            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>
-            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
+            <button type="button" data-c2-acc-status="accepted" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-3 rounded-xl font-bold text-rbi-caption uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>
+            <button type="button" data-c2-acc-status="rejected" class="flex-1 bg-danger-soft text-danger border border-danger-soft py-3 rounded-xl font-bold text-rbi-caption uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
           </div>
         </div>`;
     } else if (role !== 'guest') {
       actions = `
         <div class="mt-4 pt-4 border-t border-[var(--card-border)] text-center">
-          <div class="text-[11px] font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape(_t('construction.v2.acc.engineer_reviewing', '⏳ Инженер проверяет заявку...'))}</div>
-          <button type="button" data-c2-acc-revoke class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-red-200">${_escape(_t('construction.v2.acc.revoke', 'Отозвать заявку'))}</button>
+          <div class="text-rbi-label font-bold text-blue-500 uppercase tracking-widest mb-3">${_escape(_t('construction.v2.acc.engineer_reviewing', '⏳ Инженер проверяет заявку...'))}</div>
+          <button type="button" data-c2-acc-revoke class="w-full bg-danger-soft text-danger py-3 rounded-xl font-bold text-rbi-caption uppercase border border-danger-soft">${_escape(_t('construction.v2.acc.revoke', 'Отозвать заявку'))}</button>
         </div>`;
     }
   } else if (isEngineer) {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase mb-2">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
-        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-[10px] uppercase border border-slate-200">${_escape(_t('construction.v2.acc.return_pending', 'Вернуть в pending'))}</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase mb-2">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
+        <button type="button" data-c2-acc-status="pending" class="w-full bg-slate-100 text-ink py-3 rounded-xl font-bold text-rbi-caption uppercase border border-surface">${_escape(_t('construction.v2.acc.return_pending', 'Вернуть в pending'))}</button>
       </div>`;
   } else {
     actions = `
       <div class="mt-4 pt-4 border-t border-[var(--card-border)]">
-        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-slate-700 border border-slate-300 py-3 rounded-xl font-black text-[11px] uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
+        <button type="button" data-c2-acc-focus class="w-full bg-slate-100 text-ink border border-surface py-3 rounded-xl font-black text-rbi-label uppercase">${_escape(_t('construction.v2.acc.show_on_plan', '🗺️ Показать на плане'))}</button>
       </div>`;
   }
 
@@ -588,19 +588,19 @@ export function openAcceptanceDetails(
     <div id="c2-acc-details-modal" class="fixed inset-0 bg-slate-900/80 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[var(--card-border)]" data-c2-acc-panel>
         <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-          <h3 class="font-black text-[13px] uppercase">${_escape(_t('construction.v2.acc.details_title', 'Заявка · {status}', { status }))}</h3>
-          <button type="button" data-c2-acc-dclose class="text-slate-400 font-black text-lg">✕</button>
+          <h3 class="font-black text-rbi-body uppercase">${_escape(_t('construction.v2.acc.details_title', 'Заявка · {status}', { status }))}</h3>
+          <button type="button" data-c2-acc-dclose class="text-muted font-black text-lg">✕</button>
         </div>
-        <div class="p-4 text-[12px] space-y-2 max-h-[75vh] overflow-y-auto">
-          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.location', 'Локация'))}</span><div class="font-bold">${_escape(path)}</div></div>
-          <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.work_type_view', 'Вид работ'))}</span><div class="font-bold">${_escape(item.work_type || '—')}</div></div>
+        <div class="p-4 text-rbi-body space-y-2 max-h-[75vh] overflow-y-auto">
+          <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.location', 'Локация'))}</span><div class="font-bold">${_escape(path)}</div></div>
+          <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.work_type_view', 'Вид работ'))}</span><div class="font-bold">${_escape(item.work_type || '—')}</div></div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</span><div class="font-bold">${_escape(item.volume || '—')}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.axes_view', 'Оси'))}</span><div class="font-bold">${_escape(item.zone?.room || '—')}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.volume', 'Объем'))}</span><div class="font-bold">${_escape(item.volume || '—')}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.axes_view', 'Оси'))}</span><div class="font-bold">${_escape(item.zone?.room || '—')}</div></div>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.date', 'Дата'))}</span><div class="font-bold">${_escape(item.requested_date || '—')}</div></div>
-            <div><span class="text-[10px] font-black uppercase text-slate-400">${_escape(_t('construction.v2.acc.time', 'Время'))}</span><div class="font-bold">${_escape(item.requested_time || '—')}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.date', 'Дата'))}</span><div class="font-bold">${_escape(item.requested_date || '—')}</div></div>
+            <div><span class="text-rbi-caption font-black uppercase text-muted">${_escape(_t('construction.v2.acc.time', 'Время'))}</span><div class="font-bold">${_escape(item.requested_time || '—')}</div></div>
           </div>
           ${renderChecklistSectionHtml(item, { editable, batchFailCount: batchCandidates.length })}
           ${actions}

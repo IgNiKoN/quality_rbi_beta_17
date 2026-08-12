@@ -39,21 +39,39 @@ function countItems(groups) {
   return n;
 }
 
+function _templatesSvc() {
+  return (window.RBI && window.RBI.services && window.RBI.services.templates) || null;
+}
+
+/** Указатель официальной версии для sys-ключа, если есть (иначе null). */
+function officialPointerFor(key) {
+  const companySvc = window.RBI && window.RBI.services && window.RBI.services.company;
+  if (!companySvc || typeof companySvc.getOfficialTemplates !== 'function') return null;
+  const ptr = companySvc.getOfficialTemplates()[key];
+  return ptr && ptr.type === 'user' ? ptr : null;
+}
+
 function listChecklists() {
   const out = [];
   const sys = window.SYSTEM_TEMPLATES || {};
+  const templatesSvc = _templatesSvc();
   Object.keys(sys)
     .sort(function (a, b) {
       return String(sys[a].title || a).localeCompare(String(sys[b].title || b), 'ru');
     })
     .forEach(function (key) {
       const t = sys[key];
+      const ptr = officialPointerFor(key);
+      const eff = templatesSvc && typeof templatesSvc.getEffectiveTemplate === 'function'
+        ? templatesSvc.getEffectiveTemplate(key)
+        : null;
       out.push({
         id: 'sys_' + key,
         slug: key,
         kind: 'sys',
         title: (t && t.title) || key,
-        itemCount: countItems(t && t.groups)
+        itemCount: countItems((eff && eff.groups) || (t && t.groups)),
+        officialPointer: ptr
       });
     });
 
@@ -544,10 +562,14 @@ function paintRail(rail, viewer) {
     row.className = 'kb-desk-cl-list-row';
     row.setAttribute('data-checklist-id', cl.id);
     row.setAttribute('data-checklist-kind', cl.kind);
+    const officialBadge = cl.officialPointer
+      ? ' <span title="изменён компанией, v' +
+        escapeHtml(String(cl.officialPointer.version)) + '">✎</span>'
+      : '';
     row.innerHTML =
       '<span class="kb-desk-cl-list-text">' +
       '<span class="kb-desk-cl-list-title">' +
-      escapeHtml(cl.title) +
+      escapeHtml(cl.title) + officialBadge +
       '</span>' +
       '<span class="kb-desk-cl-list-sub">' +
       (cl.kind === 'user' ? 'Свой · ' : '') +

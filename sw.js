@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.59.0';
-const SW_VERSION = '18.59.57';
+const SW_VERSION = '18.59.58';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 /**
@@ -212,6 +212,7 @@ const urlsToCache = [
   './js/modules/settings/features/cloud-orphan-urls-ui.js',
   './js/modules/settings/features/role-matrix-ui.js',
   './js/modules/settings/features/enabled-modules-ui.js',
+  './js/modules/settings/features/official-templates-ui.js',
   './js/modules/settings/features/location-directory-ui.js',
   './js/modules/settings/index.js',
   './js/dist/rbi-locations.js',

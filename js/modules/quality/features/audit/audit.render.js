@@ -458,10 +458,21 @@ import { AuditActions } from './audit.actions.js';
       var fakeUserGroup = document.getElementById('fake-user-group');
 
       var _st = _templates().getSystemTemplates();
+      var _companyForBadge = window.RBI && window.RBI.services && window.RBI.services.company;
+      var _officialMap = (_companyForBadge && typeof _companyForBadge.getOfficialTemplates === 'function')
+        ? _companyForBadge.getOfficialTemplates()
+        : {};
       var sysKeys = Object.keys(_st).sort(function (a, b) {
         return _st[a].title.localeCompare(_st[b].title, 'ru');
       });
       var sysHtml = sysKeys.map(function (key) {
+        var _ptr = _officialMap[key];
+        if (_ptr && _ptr.type === 'user') {
+          var _dateStr = '';
+          try { _dateStr = _ptr.updatedAt ? new Date(_ptr.updatedAt).toLocaleDateString('ru') : ''; } catch (_e) { /* ignore */ }
+          var _badgeTitle = _t('quality.audit.checklist.official_badge', 'изменён компанией, v{version} от {date}', { version: _ptr.version, date: _dateStr });
+          return '<option value="sys_' + key + '" title="' + _badgeTitle.replace(/"/g, '&quot;') + '">' + _st[key].title + ' ✎</option>';
+        }
         return '<option value="sys_' + key + '">' + _st[key].title + '</option>';
       }).join('');
 

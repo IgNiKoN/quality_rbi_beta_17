@@ -312,7 +312,7 @@ function emit(eventName, detail) {
     // --- ИСПРАВЛЕНИЕ ЛОГИКИ IMPACT SCORE ---
     // Формируем надежную базу (первые 7 проверок), затем сравниваем с текущим срезом (последние 3)
     // Итого нужно минимум 10 проверок для объективной оценки влияния.
-    if (checks.length < 10) return { score: 0, trend: 'Сбор базы (нужно 10)', color: 'text-slate-500' };
+    if (checks.length < 10) return { score: 0, trend: 'Сбор базы (нужно 10)', color: 'text-muted' };
 
     const baseChecks = checks.slice(0, 7); // Фундамент (Базовый рейтинг)
     const currentChecks = checks.slice(-3); // Текущее состояние после работы инженера
@@ -322,7 +322,7 @@ function emit(eventName, detail) {
     const baseMetrics = getContractorMetrics(baseChecks, _templates().getUserTemplates(), false);
     const currMetrics = getContractorMetrics(currentChecks, _templates().getUserTemplates(), false);
 
-    if (!baseMetrics || !currMetrics) return { score: 0, trend: 'Ошибка расчета', color: 'text-slate-500' };
+    if (!baseMetrics || !currMetrics) return { score: 0, trend: 'Ошибка расчета', color: 'text-muted' };
 
     let deltaUrk = Math.max(-1, Math.min(1, (currMetrics.finalC - baseMetrics.finalC) / 100));
     let deltaStab = Math.max(-1, Math.min(1, (currMetrics.stabilityIndex - baseMetrics.stabilityIndex) / 100));
@@ -330,9 +330,9 @@ function emit(eventName, detail) {
 
     const impactScore = (deltaUrk * 0.5) + (deltaStab * 0.3) + (deltaB3 * 0.2);
 
-    let trend = "Стабильно"; let color = "text-slate-500";
+    let trend = "Стабильно"; let color = "text-muted";
     if (impactScore > 0.2) { trend = "Улучшение"; color = "text-green-600"; }
-    else if (impactScore < -0.2) { trend = "Ухудшение"; color = "text-red-600"; }
+    else if (impactScore < -0.2) { trend = "Ухудшение"; color = "text-danger"; }
 
     return { score: impactScore, trend, color, baseUrk: baseMetrics.finalC, currUrk: currMetrics.finalC };
   };
@@ -739,7 +739,7 @@ function emit(eventName, detail) {
       const recentChecks = _allInspections.filter(c => new Date(c.date) >= lastMonth);
 
       if (recentChecks.length === 0) {
-        document.getElementById('manager-audit-list').innerHTML = `<div class="text-center py-10 text-slate-500 font-bold text-xs uppercase bg-white dark:bg-slate-800 rounded-xl border border-slate-200">${_t('quality.game.toast.no_checks', 'Проверок не найдено')}</div>`;
+        document.getElementById('manager-audit-list').innerHTML = `<div class="text-center py-10 text-muted font-bold text-xs uppercase bg-surface rounded-xl border border-slate-200">${_t('quality.game.toast.no_checks', 'Проверок не найдено')}</div>`;
         return;
       }
 
@@ -785,7 +785,7 @@ function emit(eventName, detail) {
             });
           }
           if (!hasPhotoOrComment) {
-            anomalies.push({ check: c, type: _t('quality.game.anomaly.b3', 'B3 без фото и комментария'), color: 'bg-red-100 text-red-800 border-red-200' });
+            anomalies.push({ check: c, type: _t('quality.game.anomaly.b3', 'B3 без фото и комментария'), color: 'bg-danger-soft text-danger border-danger-soft' });
             checkedInspectors.add(c.inspectorName);
           }
         }
@@ -798,7 +798,7 @@ function emit(eventName, detail) {
           const inspChecks = recentChecks.filter(c => c.inspectorName === insp);
           if (inspChecks.length > 0) {
             const randCheck = inspChecks[Math.floor(Math.random() * inspChecks.length)];
-            anomalies.push({ check: randCheck, type: _t('quality.game.anomaly.cross', 'Плановый перекрёстный аудит'), color: 'bg-slate-100 text-slate-700 border-slate-300' });
+            anomalies.push({ check: randCheck, type: _t('quality.game.anomaly.cross', 'Плановый перекрёстный аудит'), color: 'bg-slate-100 text-ink border-slate-300' });
           }
         }
       });
@@ -812,29 +812,29 @@ function emit(eventName, detail) {
       uniqueAnomalies.forEach((item, idx) => {
         const c = item.check;
         html += `
-            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm flex flex-col hover:border-indigo-400 transition-colors">
+            <div class="bg-surface border border-surface rounded-xl p-4 shadow-sm flex flex-col hover:border-brand transition-colors">
                 <div class="flex justify-between items-start mb-2">
-                    <span class="px-2 py-1 rounded text-[9px] font-black uppercase border ${item.color}">${item.type}</span>
-                    <span class="text-[10px] font-bold text-slate-400">#${idx + 1}</span>
+                    <span class="px-2 py-1 rounded text-rbi-caption font-black uppercase border ${item.color}">${item.type}</span>
+                    <span class="text-rbi-caption font-bold text-muted">#${idx + 1}</span>
                 </div>
-                <div class="text-[14px] font-black text-slate-800 dark:text-white mb-1 leading-tight">${c.contractorName}</div>
-                <div class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mb-3">${c.location} | ${c.templateTitle}</div>
+                <div class="text-rbi-title font-black text-ink dark:text-white mb-1 leading-tight">${c.contractorName}</div>
+                <div class="text-rbi-label font-bold text-brand mb-3">${c.location} | ${c.templateTitle}</div>
                 
-                <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-2.5 border border-slate-100 dark:border-slate-800 flex justify-between items-center mt-auto mb-3">
+                <div class="bg-surface rounded-lg p-2.5 border border-surface flex justify-between items-center mt-auto mb-3">
                     <div>
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">${_t('quality.game.audit.who', 'Кого проверяем:')}</div>
-                        <div class="text-[12px] font-black text-slate-700 dark:text-slate-300">${c.inspectorName || _t('quality.game.audit.unknown', 'Неизвестно')}</div>
+                        <div class="text-rbi-caption uppercase font-bold text-muted mb-0.5">${_t('quality.game.audit.who', 'Кого проверяем:')}</div>
+                        <div class="text-rbi-body font-black text-ink">${c.inspectorName || _t('quality.game.audit.unknown', 'Неизвестно')}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">${_t('quality.game.audit.score', 'Оценка инженера:')}</div>
-                        <div class="text-[16px] font-black ${c.metrics.final < 70 ? 'text-red-500' : (c.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${c.metrics.final}%</div>
+                        <div class="text-rbi-caption uppercase font-bold text-muted mb-0.5">${_t('quality.game.audit.score', 'Оценка инженера:')}</div>
+                        <div class="text-[16px] font-black ${c.metrics.final < 70 ? 'text-danger' : (c.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${c.metrics.final}%</div>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="closeManagerPanel(); showHistoryDetail('${c.id}');" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-95 border border-slate-200">
+                    <button onclick="closeManagerPanel(); showHistoryDetail('${c.id}');" class="flex-1 bg-slate-100 text-muted py-2.5 rounded-lg text-rbi-caption font-black uppercase active:scale-95 border border-slate-200">
                         ${_t('quality.game.audit.open_act', '👁️ Открыть Акт')}
                     </button>
-                    <button onclick="closeManagerPanel(); startInspectionWithValues('${c.contractorName.replace(/'/g, "\\'")}', '${c.templateKey}', null, '${c.projectName.replace(/'/g, "\\'")}', ${c.id});" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-md">
+                    <button onclick="closeManagerPanel(); startInspectionWithValues('${c.contractorName.replace(/'/g, "\\'")}', '${c.templateKey}', null, '${c.projectName.replace(/'/g, "\\'")}', ${c.id});" class="flex-1 bg-brand text-white py-2.5 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shadow-md">
     ${_t('quality.game.audit.do_audit', '⚖️ Провести аудит')}
 </button>
                 </div>
@@ -1010,15 +1010,15 @@ function emit(eventName, detail) {
 
     // Показываем лоадер
     const modal = document.getElementById('modal-overlay');
-    document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-indigo-200 animate-pulse">🤖</div>`;
+    document.getElementById('modal-icon').innerHTML = `<div class="w-14 h-14 bg-brand-soft text-brand rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-brand-soft animate-pulse">🤖</div>`;
     document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.game.qd.building_title', 'Сборка Дня Качества')}</div>`;
     document.getElementById('modal-body').innerHTML = `
         <div class="flex flex-col items-center justify-center py-4">
-            <div class="text-[11px] font-bold text-slate-500 text-center space-y-2">
+            <div class="text-rbi-label font-bold text-muted text-center space-y-2">
                 <div>${_t('quality.game.qd.step_metrics', '📥 Агрегируем метрики подрядчиков...')}</div>
                 <div>${_t('quality.game.qd.step_impact', '📊 Рассчитываем Impact Score команды...')}</div>
                 <div>${_t('quality.game.qd.step_practices', '🏆 Выбираем лучшие практики...')}</div>
-                <div class="text-indigo-600 font-black mt-2">${_t('quality.game.qd.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
+                <div class="text-brand font-black mt-2">${_t('quality.game.qd.step_ai', 'DeepSeek пишет управленческое резюме...')}</div>
             </div>
         </div>
     `;
@@ -1271,55 +1271,55 @@ function emit(eventName, detail) {
         photoHtml = `
             <div class="relative w-16 h-16 mt-2 group">
                 <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(def.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(def.photo) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
-                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
+                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-danger text-white w-5 h-5 rounded-full flex items-center justify-center text-rbi-caption font-bold shadow-md">✕</button>
             </div>`;
       } else {
         photoHtml = `
             <div class="mt-2 w-16">
-                <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
-                <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
+                <div class="text-rbi-caption text-muted italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
+                <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-muted py-1 rounded border border-slate-300 text-rbi-caption font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
             </div>`;
       }
       return `
-        <tr class="fmea-row bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors" data-idx="${idx}">
+        <tr class="fmea-row bg-surface hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors" data-idx="${idx}">
             <input type="hidden" class="f-contr" value="${def.contractor}">
             <input type="hidden" class="f-work" value="${def.workTitle}">
             <input type="hidden" class="f-defect" value="${def.defectName}">
             <input type="hidden" class="f-photo" value="${def.photo || ''}">
             <input type="hidden" class="f-count" value="${def.count}">
             
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[150px]">
-                <div class="text-[9px] font-bold text-slate-400 uppercase leading-tight mb-0.5">${def.workTitle}</div>
-                <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight mb-1">${def.contractor}</div>
-                <div class="text-[10px] text-slate-600 dark:text-slate-300 font-medium leading-snug">
+            <td class="p-2 border border-surface align-top min-w-[150px]">
+                <div class="text-rbi-caption font-bold text-muted uppercase leading-tight mb-0.5">${def.workTitle}</div>
+                <div class="text-rbi-label font-black text-ink dark:text-white leading-tight mb-1">${def.contractor}</div>
+                <div class="text-rbi-caption text-muted font-medium leading-snug">
                     <b>${def.defectName}</b> ${_t('quality.game.fmea.times', '({n} раз)', { n: def.count })}
                 </div>
                 ${photoHtml}
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[120px]">
-                <select class="f-stage input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50 dark:bg-slate-900 dark:text-slate-200">
+            <td class="p-2 border border-surface align-top min-w-[120px]">
+                <select class="f-stage input-base !py-1.5 !text-rbi-caption font-bold w-full bg-surface">
                     <option value="Ошибки СМР" ${def.stage === 'Ошибки СМР' ? 'selected' : ''}>${_t('quality.game.fmea.stage.smr', 'Ошибки СМР')}</option>
                     <option value="Проект" ${def.stage === 'Проект' ? 'selected' : ''}>${_t('quality.game.fmea.stage.project', 'Проектная ошибка')}</option>
                     <option value="Материалы" ${def.stage === 'Материалы' ? 'selected' : ''}>${_t('quality.game.fmea.stage.materials', 'Материалы / Завод')}</option>
                     <option value="Условия" ${def.stage === 'Условия' ? 'selected' : ''}>${_t('quality.game.fmea.stage.conditions', 'Внешние условия')}</option>
                 </select>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-cause input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.cause', 'Коренная причина...')}">${def.cause || ''}</textarea>
+            <td class="p-2 border border-surface align-top min-w-[180px]">
+                <textarea class="f-cause input-base w-full h-20 resize-none text-rbi-caption p-2" placeholder="${_t('quality.game.fmea.ph.cause', 'Коренная причина...')}">${def.cause || ''}</textarea>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-effect input-base w-full h-20 resize-none text-[10px] p-2 dark:bg-slate-900 dark:text-slate-200" placeholder="${_t('quality.game.fmea.ph.effect', 'Последствия (Риски)...')}">${def.effect || ''}</textarea>
+            <td class="p-2 border border-surface align-top min-w-[180px]">
+                <textarea class="f-effect input-base w-full h-20 resize-none text-rbi-caption p-2" placeholder="${_t('quality.game.fmea.ph.effect', 'Последствия (Риски)...')}">${def.effect || ''}</textarea>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-fix input-base w-full h-20 resize-none text-[10px] p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="${_t('quality.game.fmea.ph.fix', 'Как устранить сейчас...')}">${def.fix || ''}</textarea>
+            <td class="p-2 border border-surface align-top min-w-[180px]">
+                <textarea class="f-fix input-base w-full h-20 resize-none text-rbi-caption p-2 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-200" placeholder="${_t('quality.game.fmea.ph.fix', 'Как устранить сейчас...')}">${def.fix || ''}</textarea>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[180px]">
-                <textarea class="f-prevent input-base w-full h-20 resize-none text-[10px] p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="${_t('quality.game.fmea.ph.prevent', 'Системное предотвращение...')}">${def.prevent || ''}</textarea>
+            <td class="p-2 border border-surface align-top min-w-[180px]">
+                <textarea class="f-prevent input-base w-full h-20 resize-none text-rbi-caption p-2 bg-green-50 dark:bg-green-900/20 dark:text-green-200" placeholder="${_t('quality.game.fmea.ph.prevent', 'Системное предотвращение...')}">${def.prevent || ''}</textarea>
             </td>
-            <td class="p-2 border border-slate-200 dark:border-slate-700 align-top min-w-[80px]">
+            <td class="p-2 border border-surface align-top min-w-[80px]">
                 <div class="text-center">
-                    <div class="text-[8px] font-bold text-slate-400 mb-1">RPN</div>
-                    <input type="number" class="f-rpn input-base text-center font-black text-lg text-purple-700 dark:text-purple-400 !py-2 dark:bg-slate-900" placeholder="0" value="${def.rpn || 0}">
+                    <div class="text-rbi-caption font-bold text-muted mb-1">RPN</div>
+                    <input type="number" class="f-rpn input-base text-center font-black text-lg text-purple-700 dark:text-purple-400 !py-2" placeholder="0" value="${def.rpn || 0}">
                 </div>
             </td>
         </tr>`;
@@ -1327,32 +1327,32 @@ function emit(eventName, detail) {
 
     const workspace = document.getElementById('fmea-workspace');
     workspace.innerHTML = `
-        <div class="bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4">
+        <div class="bg-surface border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4">
             <div class="flex justify-between items-center mb-3">
-                <div class="text-[11px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                <div class="text-rbi-label font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
                     ${_t('quality.game.fmea.edit_title', 'Редактирование: {title}', { title: record.title })}
                 </div>
             </div>
-            <div class="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div class="overflow-x-auto custom-scrollbar border border-surface rounded-xl">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase text-[9px] font-bold">
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
+                        <tr class="bg-surface text-muted uppercase text-rbi-caption font-bold">
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
+                            <th class="p-2 border border-surface text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
+                            <th class="p-2 border border-surface text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
+                            <th class="p-2 border border-surface text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>
-             <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 dark:border-slate-600 active:scale-95 transition-colors flex items-center justify-center gap-2">
+             <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-surface text-muted py-3 rounded-xl font-black text-rbi-caption uppercase border border-surface active:scale-95 transition-colors flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.game.fmea.add_row_short', 'Добавить строку')}
             </button>
-            <button onclick="rbi_saveFmea('${record ? record.periodName : 'Ручной ввод'}')" class="w-full mt-3 bg-purple-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <button onclick="rbi_saveFmea('${record ? record.periodName : 'Ручной ввод'}')" class="w-full mt-3 bg-purple-600 text-white py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> ${_t('quality.game.fmea.save_report', '💾 Сохранить отчет в Систему')}
             </button>
         </div>
@@ -1435,7 +1435,7 @@ function emit(eventName, detail) {
           photoDiv.outerHTML = `
             <div class="relative w-16 h-16 mt-2 group">
                 <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(def.photo, { preferThumb: true }) : ('src="' + window.getPhotoSrc(def.photo) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${def.photo}')">
-                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
+                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-danger text-white w-5 h-5 rounded-full flex items-center justify-center text-rbi-caption font-bold shadow-md">✕</button>
             </div>`;
         }
       }
@@ -1576,7 +1576,7 @@ function emit(eventName, detail) {
         targetDiv.outerHTML = `
             <div class="relative w-16 h-16 mt-2 group">
                 <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(localUrl, { preferThumb: true }) : ('src="' + window.getPhotoSrc(localUrl) + '"')} class="w-full h-full object-cover rounded-lg border border-slate-300 cursor-pointer" onclick="openPhotoViewer('${localUrl}')">
-                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">✕</button>
+                <button onclick="rbi_removeFmeaPhoto(this)" class="absolute -top-2 -right-2 bg-danger text-white w-5 h-5 rounded-full flex items-center justify-center text-rbi-caption font-bold shadow-md">✕</button>
             </div>`;
       }
       event.target.value = '';
@@ -1596,8 +1596,8 @@ function emit(eventName, detail) {
     const idx = row.dataset.idx;
     targetDiv.outerHTML = `
         <div class="mt-2 w-16">
-            <div class="text-[9px] text-slate-400 italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
-            <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-slate-500 py-1 rounded border border-slate-300 text-[9px] font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
+            <div class="text-rbi-caption text-muted italic mb-1 text-center border border-dashed border-slate-300 rounded p-1">${_t('quality.game.fmea.no_photo', 'Нет фото')}</div>
+            <button onclick="document.getElementById('fmea-photo-upload').click(); window.currentFmeaRowIdx=${idx};" class="w-full bg-slate-100 text-muted py-1 rounded border border-slate-300 text-rbi-caption font-bold uppercase active:scale-95 transition-colors">📷 Добавить</button>
         </div>`;
   };
 
@@ -1609,27 +1609,27 @@ function emit(eventName, detail) {
     currentEditingFmeaId = null; // Сбрасываем ID, чтобы сохранился как новый
 
     workspace.innerHTML = `
-        <div class="bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4 animate-fadeIn">
+        <div class="bg-surface border border-purple-300 dark:border-purple-700 rounded-2xl shadow-sm p-4 mb-4 animate-fadeIn">
             <div class="flex justify-between items-center mb-3">
-                <div class="text-[11px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                <div class="text-rbi-label font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
                     ${_t('quality.game.fmea.new_manual', 'Новый ручной FMEA-Анализ')}
                 </div>
-                <button onclick="window.RBI.services.ai.rbi_fillFmeaWithAi()" id="btn-fmea-ai" class="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200 border border-purple-200 dark:border-purple-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">
+                <button onclick="window.RBI.services.ai.rbi_fillFmeaWithAi()" id="btn-fmea-ai" class="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200 border border-purple-200 dark:border-purple-700 px-3 py-1.5 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.game.fmea.autofill', 'Автозаполнение (ИИ)')}
             </button>
             </div>
             
-            <div class="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div class="overflow-x-auto custom-scrollbar border border-surface rounded-xl">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase text-[9px] font-bold tracking-wider">
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
-                            <th class="p-2 border border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
+                        <tr class="bg-surface text-muted uppercase text-rbi-caption font-bold tracking-wider">
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.problem', '1. Подрядчик / Проблема')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.stage', '2. Этап возникновения')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.cause', '3. Коренная причина')}</th>
+                            <th class="p-2 border border-surface">${_t('quality.game.fmea.th.effect', '4. Последствия (Риски)')}</th>
+                            <th class="p-2 border border-surface text-blue-600 dark:text-blue-300">${_t('quality.game.fmea.th.fix', '5. Устранение (Fix)')}</th>
+                            <th class="p-2 border border-surface text-green-600 dark:text-green-300">${_t('quality.game.fmea.th.prevent', '6. Предотвращение')}</th>
+                            <th class="p-2 border border-surface text-purple-600 dark:text-purple-300 text-center">7. RPN</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1637,10 +1637,10 @@ function emit(eventName, detail) {
                     </tbody>
                 </table>
             </div>
-            <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-black text-[10px] uppercase border border-slate-300 dark:border-slate-600 active:scale-95 transition-colors flex items-center justify-center gap-2">
+            <button onclick="rbi_addManualFmeaRow()" class="w-full mt-3 bg-surface text-muted py-3 rounded-xl font-black text-rbi-caption uppercase border border-surface active:scale-95 transition-colors flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.game.fmea.add_row', '➕ Добавить строку вручную')}
             </button>
-            <button onclick="rbi_saveFmea('Ручной ввод')" class="w-full mt-4 bg-purple-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <button onclick="rbi_saveFmea('Ручной ввод')" class="w-full mt-4 bg-purple-600 text-white py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> ${_t('quality.game.fmea.save_report', '💾 Сохранить отчет в Систему')}
             </button>
         </div>
@@ -1672,12 +1672,12 @@ function emit(eventName, detail) {
     if (!container) return;
 
     if (!window.supabaseClient) {
-      container.innerHTML = '<div class="text-center py-4 text-xs text-red-500">Облако не подключено</div>';
+      container.innerHTML = '<div class="text-center py-4 text-xs text-danger">Облако не подключено</div>';
       return;
     }
 
     const pCode = window.syncConfig?.projectCode || 'RBI';
-    container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400 animate-pulse">Загрузка подрядчиков...</div>';
+    container.innerHTML = '<div class="text-center py-4 text-xs text-muted animate-pulse">Загрузка подрядчиков...</div>';
 
     try {
       const { data, error } = await window.supabaseClient
@@ -1690,52 +1690,52 @@ function emit(eventName, detail) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400">Справочник подрядчиков пуст</div>';
+        container.innerHTML = '<div class="text-center py-4 text-xs text-muted">Справочник подрядчиков пуст</div>';
         return;
       }
 
       const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '\\\'');
 
       container.innerHTML = data.map(c => `
-            <div class="bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 mb-3 shadow-sm flex flex-col">
-                <div class="flex justify-between items-start gap-2 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+            <div class="bg-surface border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 mb-3 shadow-sm flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2 border-b border-surface pb-2">
                     <div class="min-w-0 flex-1">
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white truncate">
+                        <div class="text-rbi-body font-black text-ink dark:text-white truncate">
                             ${esc(c.display_name)}
                         </div>
-                        <div class="text-[9px] text-slate-400 font-mono truncate mt-0.5">
+                        <div class="text-rbi-caption text-muted font-mono truncate mt-0.5">
                             ID: ${esc(c.canonical_key)}
                         </div>
                     </div>
                     <div class="flex gap-1.5 shrink-0">
-                        <button onclick="gameEditContractor('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
-                        <button onclick="gameDeleteContractor('${esc(c.canonical_key)}')" class="bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/30 dark:border-red-800 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
+                        <button onclick="gameEditContractor('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 px-3 py-1.5 rounded-lg text-rbi-caption font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
+                        <button onclick="gameDeleteContractor('${esc(c.canonical_key)}')" class="bg-danger-soft text-danger border border-danger-soft/30 px-3 py-1.5 rounded-lg text-rbi-caption font-bold active:scale-95 transition-transform shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
                     </div>
                 </div>
                 
-                <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
-                    <div class="text-[8px] font-bold text-slate-500 uppercase mb-1.5 flex justify-between items-center">
+                <div class="bg-surface/50 p-2 rounded-lg border border-surface">
+                    <div class="text-rbi-caption font-bold text-muted uppercase mb-1.5 flex justify-between items-center">
                         <span>Синонимы для ПК СК:</span>
-                        <button onclick="window.RBI.services.ai.gameGenerateContractorSynonymsAI('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="text-indigo-500 hover:text-indigo-700 font-black flex items-center gap-1 active:scale-95 transition-transform bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-200"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI-Генерация</button>
+                        <button onclick="window.RBI.services.ai.gameGenerateContractorSynonymsAI('${esc(c.canonical_key)}', '${esc(c.display_name)}')" class="text-brand hover:text-brand font-black flex items-center gap-1 active:scale-95 transition-transform bg-brand-soft/30 px-1.5 py-0.5 rounded border border-brand-soft"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI-Генерация</button>
                     </div>
                     
                     <div class="flex flex-wrap gap-1 mb-2">
                         ${Array.isArray(c.synonyms) && c.synonyms.length > 0
-          ? c.synonyms.map(s => `<span class="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-medium inline-flex items-center gap-1">${esc(s)}</span>`).join('')
-          : '<span class="text-[9px] text-slate-400 italic">Синонимов пока нет</span>'
+          ? c.synonyms.map(s => `<span class="bg-surface text-muted px-2 py-0.5 rounded border border-surface text-rbi-caption font-medium inline-flex items-center gap-1">${esc(s)}</span>`).join('')
+          : '<span class="text-rbi-caption text-muted italic">Синонимов пока нет</span>'
         }
                     </div>
                     
-                    <div class="flex gap-1.5 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                        <input type="text" id="alias_contr_input_${esc(c.canonical_key)}" class="input-base !py-1.5 text-[10px] flex-1 bg-white dark:bg-slate-800 shadow-inner" placeholder="Напр: СК Ромашка">
-                        <button onclick="window.RBI.services.ai.gameAddContractorAliasInline('${esc(c.canonical_key)}')" class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-transform shrink-0">+ Добавить</button>
+                    <div class="flex gap-1.5 mt-2 pt-2 border-t border-surface">
+                        <input type="text" id="alias_contr_input_${esc(c.canonical_key)}" class="input-base !py-1.5 text-rbi-caption flex-1 bg-surface shadow-inner" placeholder="Напр: СК Ромашка">
+                        <button onclick="window.RBI.services.ai.gameAddContractorAliasInline('${esc(c.canonical_key)}')" class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-rbi-caption font-black uppercase border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-transform shrink-0">+ Добавить</button>
                     </div>
                 </div>
             </div>
         `).join('');
     } catch (e) {
       console.error('[gameLoadContractorDirectory]', e);
-      container.innerHTML = '<div class="text-center py-4 text-xs text-red-500">Ошибка загрузки подрядчиков</div>';
+      container.innerHTML = '<div class="text-center py-4 text-xs text-danger">Ошибка загрузки подрядчиков</div>';
     }
   };
 
@@ -1823,12 +1823,12 @@ function emit(eventName, detail) {
     if (!container) return;
 
     if (!window.supabaseClient) {
-      container.innerHTML = '<div class="text-center py-4 text-xs text-red-500">Облако не подключено</div>';
+      container.innerHTML = '<div class="text-center py-4 text-xs text-danger">Облако не подключено</div>';
       return;
     }
 
     const pCode = window.syncConfig?.projectCode || 'RBI';
-    container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400">Загрузка заявок подрядчиков...</div>';
+    container.innerHTML = '<div class="text-center py-4 text-xs text-muted">Загрузка заявок подрядчиков...</div>';
 
     try {
       // 1. Получаем саму очередь заявок
@@ -1844,7 +1844,7 @@ function emit(eventName, detail) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400">Заявок на подрядчиков нет</div>';
+        container.innerHTML = '<div class="text-center py-4 text-xs text-muted">Заявок на подрядчиков нет</div>';
         return;
       }
 
@@ -1862,16 +1862,16 @@ function emit(eventName, detail) {
       const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
       container.innerHTML = data.map(q => `
-            <div class="bg-white dark:bg-slate-800 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 mb-2 shadow-sm">
-                <div class="text-[12px] font-black text-slate-800 dark:text-white">
+            <div class="bg-surface border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 mb-2 shadow-sm">
+                <div class="text-rbi-body font-black text-ink dark:text-white">
                     ${esc(q.raw_name)}
                 </div>
-                <div class="text-[9px] text-slate-400 mt-1">
+                <div class="text-rbi-caption text-muted mt-1">
                     Автор: ${esc(q.created_by || 'не указан')} · Статус: ${esc(q.status || 'ожидает')}
                 </div>
                 
-                <div class="mt-3 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-700 pt-2">
-                    <select id="contr_req_action_${esc(q.id)}" class="input-base !py-1.5 !text-[10px] font-bold w-full bg-slate-50 dark:bg-slate-900">
+                <div class="mt-3 flex flex-col gap-2 border-t border-surface pt-2">
+                    <select id="contr_req_action_${esc(q.id)}" class="input-base !py-1.5 !text-rbi-caption font-bold w-full bg-surface">
                         <option value="create">✨ Создать как нового подрядчика</option>
                         <optgroup label="Связать со справочником:">
                             ${dirOptions}
@@ -1881,11 +1881,11 @@ function emit(eventName, detail) {
                     
                     <div class="flex gap-2">
                         <button onclick="gameResolveContractorRequest('${esc(q.id)}')"
-                            class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-sm flex-1">
+                            class="bg-brand text-white px-3 py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shadow-sm flex-1">
                             Применить
                         </button>
                         <button onclick="gameDeleteContractorRequest('${esc(q.id)}')"
-                            class="bg-slate-100 text-red-600 border border-slate-200 dark:bg-slate-700 dark:border-slate-600 px-3 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95">
+                            class="bg-slate-100 text-danger border border-slate-200 px-3 py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95">
                             Удалить
                         </button>
                     </div>
@@ -1894,7 +1894,7 @@ function emit(eventName, detail) {
         `).join('');
     } catch (e) {
       console.error('[gameLoadContractorRequests]', e);
-      container.innerHTML = '<div class="text-center py-4 text-xs text-red-500">Ошибка загрузки заявок подрядчиков</div>';
+      container.innerHTML = '<div class="text-center py-4 text-xs text-danger">Ошибка загрузки заявок подрядчиков</div>';
     }
   };
 
@@ -2100,11 +2100,11 @@ function emit(eventName, detail) {
     if (!accessContainer && !teamContainer) return;
 
     if (accessContainer) {
-      accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">' + _t('quality.game.roles.loading_req', 'Загрузка заявок...') + '</div>';
+      accessContainer.innerHTML = '<div class="text-center py-4 text-rbi-caption text-muted animate-pulse">' + _t('quality.game.roles.loading_req', 'Загрузка заявок...') + '</div>';
     }
 
     if (teamContainer && teamContainer !== accessContainer) {
-      teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400 animate-pulse">' + _t('quality.game.roles.loading_team', 'Загрузка команды...') + '</div>';
+      teamContainer.innerHTML = '<div class="text-center py-4 text-rbi-caption text-muted animate-pulse">' + _t('quality.game.roles.loading_team', 'Загрузка команды...') + '</div>';
     }
 
     if (oldContainer && oldContainer !== accessContainer && oldContainer !== teamContainer) {
@@ -2157,8 +2157,8 @@ function emit(eventName, detail) {
       const users = Array.isArray(data) ? data : [];
 
       if (users.length === 0) {
-        if (accessContainer) accessContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">' + _t('quality.game.roles.no_req', 'Заявок на доступ нет') + '</div>';
-        if (teamContainer) teamContainer.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-400">' + _t('quality.game.roles.no_users', 'Активных пользователей нет') + '</div>';
+        if (accessContainer) accessContainer.innerHTML = '<div class="text-center py-4 text-rbi-caption text-muted">' + _t('quality.game.roles.no_req', 'Заявок на доступ нет') + '</div>';
+        if (teamContainer) teamContainer.innerHTML = '<div class="text-center py-4 text-rbi-caption text-muted">' + _t('quality.game.roles.no_users', 'Активных пользователей нет') + '</div>';
         return;
       }
 
@@ -2203,11 +2203,11 @@ function emit(eventName, detail) {
 
         let statusBadge = '';
         if (cloudStatus === 'pending') {
-          statusBadge = '<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.pending', 'Ожидает') + '</span>';
+          statusBadge = '<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase">' + _t('quality.game.roles.pending', 'Ожидает') + '</span>';
         } else if (cloudStatus === 'approved') {
-          statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.active', 'Активен') + '</span>';
+          statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase">' + _t('quality.game.roles.active', 'Активен') + '</span>';
         } else {
-          statusBadge = '<span class="bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">' + _t('quality.game.roles.blocked', 'Заблок.') + '</span>';
+          statusBadge = '<span class="bg-danger-soft text-danger border border-danger-soft px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase">' + _t('quality.game.roles.blocked', 'Заблок.') + '</span>';
         }
 
         var _permSvc2 = (GameActions._ctx && GameActions._ctx.permissions) || window.RBI.services.permissions;
@@ -2216,7 +2216,7 @@ function emit(eventName, detail) {
 
         const requestedProjectsHtml = requestedProjects.length ? `
                 <div class="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-2">
-                    <div class="text-[9px] font-black text-orange-700 uppercase mb-2">
+                    <div class="text-rbi-caption font-black text-orange-700 uppercase mb-2">
                         Заявки на объекты (${requestedProjects.length})
                     </div>
 
@@ -2228,10 +2228,10 @@ function emit(eventName, detail) {
                         if (req.request_type === 'unassign') {
                             return `
                         <div class="mb-2 p-2 bg-white rounded-lg border border-orange-100">
-                            <div class="text-[10px] font-black text-slate-700 mb-1">
+                            <div class="text-rbi-caption font-black text-ink mb-1">
                                 ⬅️ Снять объект: ${esc(req.raw_name || req.display_name || 'Без названия')}
                             </div>
-                            <select id="req_action_${domId}_${idx}" class="input-base !py-1.5 !text-[10px]">
+                            <select id="req_action_${domId}_${idx}" class="input-base !py-1.5 !text-rbi-caption">
                                 <option value="ignore">Оставить в ожидании</option>
                                 <option value="unassign_confirm">Подтвердить снятие объекта</option>
                                 <option value="reject">Отклонить (оставить объект)</option>
@@ -2241,11 +2241,11 @@ function emit(eventName, detail) {
                         }
                         return `
                         <div class="mb-2 p-2 bg-white rounded-lg border border-orange-100">
-                            <div class="text-[10px] font-black text-slate-700 mb-1">
+                            <div class="text-rbi-caption font-black text-ink mb-1">
                                 ${esc(req.raw_name || req.display_name || 'Без названия')}
                             </div>
 
-                            <select id="req_action_${domId}_${idx}" class="input-base !py-1.5 !text-[10px]">
+                            <select id="req_action_${domId}_${idx}" class="input-base !py-1.5 !text-rbi-caption">
                                 <option value="ignore">Оставить в ожидании</option>
                                 ${projectObjects.map(o => `
                                     <option value="link_${esc(o.id || o.canonical_key)}">
@@ -2279,14 +2279,14 @@ function emit(eventName, detail) {
                                 ${engineerName.charAt(0).toUpperCase()}
                             </div>
                             <div class="min-w-0 flex flex-col justify-center">
-                                <div class="font-black text-[11px] sm:text-[12px] text-slate-800 dark:text-white uppercase truncate leading-tight">${esc(engineerName)}</div>
+                                <div class="font-black text-rbi-label sm:text-rbi-body text-ink dark:text-white uppercase truncate leading-tight">${esc(engineerName)}</div>
                                 <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 text-slate-500 leading-none">${roleDisplay}</span>
+                                    <span class="text-rbi-caption font-black uppercase px-1.5 py-0.5 rounded border border-surface bg-surface text-muted leading-none">${roleDisplay}</span>
                                     ${statusBadge}
                                 </div>
                             </div>
                         </div>
-                        <div class="shrink-0 text-slate-400 transition-transform duration-300 group-open:rotate-180 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-full border border-slate-200 dark:border-slate-700">
+                        <div class="shrink-0 text-muted transition-transform duration-300 group-open:rotate-180 bg-surface p-1.5 rounded-full border border-surface">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </summary>
@@ -2297,8 +2297,8 @@ function emit(eventName, detail) {
                         <!-- Селекты (в ряд) -->
                         <div class="grid grid-cols-2 gap-2 mb-2">
                             <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] shadow-sm">
-                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">${_t('quality.game.roles.role_label', 'Роль сотрудника')}</label>
-                                <select id="role_select_${domId}" class="input-base !py-1 !px-1.5 !text-[10px] font-bold" onchange="
+                                <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_t('quality.game.roles.role_label', 'Роль сотрудника')}</label>
+                                <select id="role_select_${domId}" class="input-base !py-1 !px-1.5 !text-rbi-caption font-bold" onchange="
                                     const r = this.value;
                                     const objBlock = document.getElementById('obj_block_${domId}');
                                     const _p = (window.GameActions && window.GameActions._ctx && window.GameActions._ctx.permissions) || window.RBI.services.permissions;
@@ -2318,8 +2318,8 @@ function emit(eventName, detail) {
                             </div>
 
                             <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] shadow-sm">
-                                <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block">${_t('quality.game.roles.cloud_access', 'Доступ к облаку')}</label>
-                                <select id="status_select_${domId}" class="input-base !py-1 !px-1.5 !text-[10px] font-bold">
+                                <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">${_t('quality.game.roles.cloud_access', 'Доступ к облаку')}</label>
+                                <select id="status_select_${domId}" class="input-base !py-1 !px-1.5 !text-rbi-caption font-bold">
                                     <option value="pending" ${cloudStatus === 'pending' ? 'selected' : ''}>${_t('quality.game.roles.opt.pending', 'Ожидает')}</option>
                                     <option value="approved" ${cloudStatus === 'approved' ? 'selected' : ''}>${_t('quality.game.roles.opt.approved', 'Разрешён')}</option>
                                     <option value="blocked" ${cloudStatus === 'blocked' ? 'selected' : ''}>${_t('quality.game.roles.opt.blocked', 'Заблокирован')}</option>
@@ -2328,23 +2328,23 @@ function emit(eventName, detail) {
                         </div>
 
                         <div class="bg-[var(--card-bg)] p-2 rounded-lg border border-[var(--card-border)] mb-2 shadow-sm">
-                            <label class="text-[8px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">
+                            <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block flex justify-between">
                                 <span>${_t('quality.game.roles.contr_bind', 'Привязка к подрядчику')}</span>
-                                <span class="text-[7px] text-slate-400 font-normal lowercase">${_t('quality.game.roles.contr_hint', '(для роли "Подрядчик")')}</span>
+                                <span class="text-rbi-caption text-muted font-normal lowercase">${_t('quality.game.roles.contr_hint', '(для роли "Подрядчик")')}</span>
                             </label>
-                            <select id="contr_input_${domId}" class="input-base !py-1.5 !text-[10px]">
+                            <select id="contr_input_${domId}" class="input-base !py-1.5 !text-rbi-caption">
                                 <option value="">${_t('quality.game.roles.unassigned', '— Не назначен —')}</option>
                                 ${contractorDirectory.map(c => `<option value="${esc(c.canonical_key)}" data-display="${esc(c.display_name)}" ${contrName === c.canonical_key || contrName === c.display_name ? 'selected' : ''}>${esc(c.display_name)}</option>`).join('')}
                             </select>
                         </div>
 
-                        <div id="obj_block_${domId}" style="display: ${displayObjects};" class="bg-indigo-50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800/50 mb-2 shadow-sm">
+                        <div id="obj_block_${domId}" style="display: ${displayObjects};" class="bg-brand-soft/10 p-2 rounded-lg border border-brand-soft/50 mb-2 shadow-sm">
                             <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-[8px] font-black text-indigo-700 dark:text-indigo-400 uppercase block">${_t('quality.game.roles.assigned_objs', 'Закреплённые объекты')}</label>
-                                <button onclick="document.getElementById('proj_input_${domId}').value=''; gameRenderAssignedProjectChips('${domId}')" class="text-[8px] text-red-500 font-bold hover:underline">${_t('quality.game.roles.clear_all', 'Очистить всё')}</button>
+                                <label class="text-rbi-caption font-black text-brand uppercase block">${_t('quality.game.roles.assigned_objs', 'Закреплённые объекты')}</label>
+                                <button onclick="document.getElementById('proj_input_${domId}').value=''; gameRenderAssignedProjectChips('${domId}')" class="text-rbi-caption text-danger font-bold hover:underline">${_t('quality.game.roles.clear_all', 'Очистить всё')}</button>
                             </div>
                             <input type="hidden" id="proj_input_${domId}" value="${projectsJsonStr}">
-                            <select class="input-base !py-1.5 !text-[10px] mb-2 bg-white dark:bg-slate-800" onchange="gameAddAssignedProjectFromSelect('${domId}', this.value); this.value='';">
+                            <select class="input-base !py-1.5 !text-rbi-caption mb-2 bg-surface" onchange="gameAddAssignedProjectFromSelect('${domId}', this.value); this.value='';">
                                 <option value="">${_t('quality.game.roles.add_obj', '+ Добавить объект из справочника')}</option>
                                 ${projectObjects.map(o => `<option value="${esc(o.id || o.canonical_key)}">${esc(o.display_name)}</option>`).join('')}
                             </select>
@@ -2356,11 +2356,11 @@ function emit(eventName, detail) {
                         <!-- Кнопки управления -->
                         
                         <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--card-border)]">
-                            <button onclick="gameHandleUserAccessRemove('${escJs(inspectorId)}', '${escJs(engineerName)}', '${escJs(cloudStatus || '')}', '${escJs(role || '')}')" class="bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-95 transition-transform flex items-center justify-center gap-1.5 shadow-sm">
+                            <button onclick="gameHandleUserAccessRemove('${escJs(inspectorId)}', '${escJs(engineerName)}', '${escJs(cloudStatus || '')}', '${escJs(role || '')}')" class="bg-danger-soft text-danger border border-danger-soft py-2.5 rounded-lg text-rbi-caption font-black uppercase active:scale-95 transition-transform flex items-center justify-center gap-1.5 shadow-sm">
     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
     ${cloudStatus === 'approved' ? 'Заблокировать' : 'Удалить заявку'}
 </button>
-                            <button onclick="gameSaveUserAccess('${escJs(inspectorId)}', '${escJs(engineerName)}')" class="bg-indigo-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase shadow-md active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                            <button onclick="gameSaveUserAccess('${escJs(inspectorId)}', '${escJs(engineerName)}')" class="bg-brand text-white py-2.5 rounded-lg text-rbi-caption font-black uppercase shadow-md active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> Сохранить
                             </button>
                         </div>
@@ -2389,14 +2389,14 @@ function emit(eventName, detail) {
       if (objectRequestRows.length > 0) {
         summaryHtml = `
             <div class="mb-3 bg-orange-50 border border-orange-200 rounded-xl p-3 shadow-sm">
-              <div class="text-[10px] font-black text-orange-800 uppercase tracking-wide mb-2">
+              <div class="text-rbi-caption font-black text-orange-800 uppercase tracking-wide mb-2">
                 Заявки на объекты (${objectRequestRows.length}) — откройте карточку инженера ниже и обработайте
               </div>
               <div class="space-y-1 max-h-40 overflow-y-auto">
                 ${objectRequestRows.map(r => `
-                  <div class="text-[10px] text-slate-700 flex gap-2 items-start">
+                  <div class="text-rbi-caption text-ink flex gap-2 items-start">
                     <span class="font-black shrink-0">${esc(r.engineer)}</span>
-                    <span class="text-slate-400">${r.type === 'unassign' ? '⬅️ снять' : '➡️ доступ'}</span>
+                    <span class="text-muted">${r.type === 'unassign' ? '⬅️ снять' : '➡️ доступ'}</span>
                     <span class="font-bold">${esc(r.raw)}</span>
                   </div>
                 `).join('')}
@@ -2410,10 +2410,10 @@ function emit(eventName, detail) {
           accessContainer.innerHTML = summaryHtml + pendingUsers.map(u => renderUserRow(u, 'pending')).join('');
         } else {
           accessContainer.innerHTML = summaryHtml
-            || '<div class="text-center py-4 text-[10px] text-slate-400">Заявок на доступ нет</div>';
+            || '<div class="text-center py-4 text-rbi-caption text-muted">Заявок на доступ нет</div>';
           if (summaryHtml && pendingUsers.length === 0) {
             accessContainer.innerHTML = summaryHtml
-              + '<div class="text-center py-2 text-[10px] text-slate-400">Заявок на доступ в облако нет — есть заявки на объекты у активных (см. Команда)</div>';
+              + '<div class="text-center py-2 text-rbi-caption text-muted">Заявок на доступ в облако нет — есть заявки на объекты у активных (см. Команда)</div>';
           }
         }
       }
@@ -2423,7 +2423,7 @@ function emit(eventName, detail) {
           teamContainer.innerHTML = summaryHtml + activeUsers.map(u => renderUserRow(u, 'active')).join('');
         } else {
           teamContainer.innerHTML = summaryHtml
-            || '<div class="text-center py-4 text-[10px] text-slate-400">Активных пользователей нет</div>';
+            || '<div class="text-center py-4 text-rbi-caption text-muted">Активных пользователей нет</div>';
         }
       }
 
@@ -2438,11 +2438,11 @@ function emit(eventName, detail) {
       console.error('[gameLoadRoles]', e);
 
       if (accessContainer) {
-        accessContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">' + _t('quality.game.roles.err_req', 'Ошибка загрузки заявок') + '</div>';
+        accessContainer.innerHTML = '<div class="text-center py-4 text-xs text-danger font-bold">' + _t('quality.game.roles.err_req', 'Ошибка загрузки заявок') + '</div>';
       }
 
       if (teamContainer && teamContainer !== accessContainer) {
-        teamContainer.innerHTML = '<div class="text-center py-4 text-xs text-red-500 font-bold">' + _t('quality.game.roles.err_team', 'Ошибка загрузки команды') + '</div>';
+        teamContainer.innerHTML = '<div class="text-center py-4 text-xs text-danger font-bold">' + _t('quality.game.roles.err_team', 'Ошибка загрузки команды') + '</div>';
       }
     }
   };
@@ -2768,7 +2768,7 @@ function emit(eventName, detail) {
       }
 
       if (activeItems.length === 0) {
-        container.innerHTML = '<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">' + _t('quality.game.aikb.empty', 'База знаний пуста или ничего не найдено') + '</div>';
+        container.innerHTML = '<div class="text-center py-6 text-muted text-rbi-caption font-bold uppercase bg-surface rounded-xl border border-dashed border-surface">' + _t('quality.game.aikb.empty', 'База знаний пуста или ничего не найдено') + '</div>';
         return;
       }
 
@@ -2779,21 +2779,21 @@ function emit(eventName, detail) {
         // Обрезаем длинный текст для превью (ОПТИМИЗАЦИЯ!)
         const shortAnswer = item.answer.length > 120 ? item.answer.substring(0, 120) + '...' : item.answer;
         return `
-            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm mb-3">
-                <div class="flex justify-between items-start mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-                    <div class="font-black text-[12px] text-slate-800 dark:text-white leading-tight pr-2 flex-1">📌 ${item.question}</div>
+            <div class="bg-surface border border-surface rounded-xl p-3 shadow-sm mb-3">
+                <div class="flex justify-between items-start mb-2 border-b border-surface pb-2">
+                    <div class="font-black text-rbi-body text-ink dark:text-white leading-tight pr-2 flex-1">📌 ${item.question}</div>
                     <div class="flex gap-1.5 shrink-0">
-                        <button onclick="gameOpenAiKbModal('${item.id}')" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 active:scale-95 shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
-                        <button onclick="gameDeleteAiKb('${item.id}')" class="text-[9px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 active:scale-95 shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
+                        <button onclick="gameOpenAiKbModal('${item.id}')" class="text-rbi-caption font-bold text-brand bg-brand-soft px-2 py-1 rounded border border-brand-soft active:scale-95 shadow-sm">${_t('quality.game.aikb.edit_btn', 'Изменить')}</button>
+                        <button onclick="gameDeleteAiKb('${item.id}')" class="text-rbi-caption font-bold text-danger bg-danger-soft px-2 py-1 rounded border border-danger-soft active:scale-95 shadow-sm">${_t('quality.game.aikb.del_btn', 'Удалить')}</button>
                     </div>
                 </div>
-                <div class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">${shortAnswer}</div>
-                ${item.tags && item.tags.length > 0 ? `<div class="mt-2 flex gap-1 flex-wrap">${item.tags.map(t => `<span class="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">${t}</span>`).join('')}</div>` : ''}
+                <div class="text-rbi-label text-muted leading-relaxed font-medium">${shortAnswer}</div>
+                ${item.tags && item.tags.length > 0 ? `<div class="mt-2 flex gap-1 flex-wrap">${item.tags.map(t => `<span class="bg-surface text-muted px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase">${t}</span>`).join('')}</div>` : ''}
             </div>
             `;
       }).join('');
     } catch (e) {
-      container.innerHTML = '<div class="text-center py-4 text-red-500 font-bold text-xs">' + _t('quality.game.aikb.load_err', 'Ошибка загрузки базы') + '</div>';
+      container.innerHTML = '<div class="text-center py-4 text-danger font-bold text-xs">' + _t('quality.game.aikb.load_err', 'Ошибка загрузки базы') + '</div>';
     }
   };
 
@@ -2928,20 +2928,20 @@ function emit(eventName, detail) {
         const safeName2 = d.c2.display_name.replace(/['"«»]/g, '');
 
         return `
-            <div id="dup-row-${idx}" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl mb-3 shadow-sm">
-                <div class="text-[10px] text-center font-black text-indigo-500 uppercase mb-2">${_t('quality.game.dups.match', 'Совпадение: {n}%', { n: d.score })}</div>
+            <div id="dup-row-${idx}" class="bg-surface border border-surface p-3 rounded-xl mb-3 shadow-sm">
+                <div class="text-rbi-caption text-center font-black text-brand uppercase mb-2">${_t('quality.game.dups.match', 'Совпадение: {n}%', { n: d.score })}</div>
                 <div class="flex items-center gap-2 mb-3">
-                    <div class="flex-1 bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                        <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight">${d.c1.display_name}</div>
+                    <div class="flex-1 bg-surface p-2 rounded-lg border border-surface text-center">
+                        <div class="text-rbi-label font-black text-ink dark:text-white leading-tight">${d.c1.display_name}</div>
                     </div>
-                    <div class="text-slate-400 font-bold">VS</div>
-                    <div class="flex-1 bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                        <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight">${d.c2.display_name}</div>
+                    <div class="text-muted font-bold">VS</div>
+                    <div class="flex-1 bg-surface p-2 rounded-lg border border-surface text-center">
+                        <div class="text-rbi-label font-black text-ink dark:text-white leading-tight">${d.c2.display_name}</div>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="gameExecuteContractorMerge('${d.c1.canonical_key}', '${d.c2.canonical_key}', '${safeName2}', 'dup-row-${idx}')" class="flex-1 bg-indigo-50 text-indigo-600 border border-indigo-200 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 transition-colors">Влить правое в Левое ⬅️</button>
-                    <button onclick="gameExecuteContractorMerge('${d.c2.canonical_key}', '${d.c1.canonical_key}', '${safeName1}', 'dup-row-${idx}')" class="flex-1 bg-indigo-50 text-indigo-600 border border-indigo-200 py-2 rounded-lg text-[9px] font-black uppercase active:scale-95 transition-colors">➡️ Влить левое в Правое</button>
+                    <button onclick="gameExecuteContractorMerge('${d.c1.canonical_key}', '${d.c2.canonical_key}', '${safeName2}', 'dup-row-${idx}')" class="flex-1 bg-brand-soft text-brand border border-brand-soft py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95 transition-colors">Влить правое в Левое ⬅️</button>
+                    <button onclick="gameExecuteContractorMerge('${d.c2.canonical_key}', '${d.c1.canonical_key}', '${safeName1}', 'dup-row-${idx}')" class="flex-1 bg-brand-soft text-brand border border-brand-soft py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95 transition-colors">➡️ Влить левое в Правое</button>
                 </div>
             </div>
             `;
@@ -2951,11 +2951,11 @@ function emit(eventName, detail) {
             <div id="dup-modal-overlay" class="fixed inset-0 bg-slate-900/80 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
                 <div class="bg-[var(--card-bg)] w-full max-w-md rounded-2xl shadow-2xl border border-[var(--card-border)] overflow-hidden flex flex-col max-h-[85vh]">
                     <div class="p-4 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--hover-bg)] shrink-0">
-                        <h3 class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">${_t('quality.game.dups.title', '🤖 Слияние дубликатов')}</h3>
-                        <button onclick="document.getElementById('dup-modal-overlay').remove(); document.body.classList.remove('modal-open');" class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-700">✕</button>
+                        <h3 class="font-black text-rbi-body uppercase tracking-tight text-ink dark:text-white flex items-center gap-2">${_t('quality.game.dups.title', '🤖 Слияние дубликатов')}</h3>
+                        <button onclick="document.getElementById('dup-modal-overlay').remove(); document.body.classList.remove('modal-open');" class="w-8 h-8 bg-surface rounded-full flex items-center justify-center text-muted active:scale-90 shadow-sm border border-surface">✕</button>
                     </div>
-                    <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-slate-50 dark:bg-slate-900/50">
-                        <div class="text-[10px] text-slate-500 mb-4 text-center leading-relaxed">
+                    <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-surface/50">
+                        <div class="text-rbi-caption text-muted mb-4 text-center leading-relaxed">
                             ${_t('quality.game.dups.desc', 'Выберите, какое название правильное. Неправильное будет удалено, а его имя добавится как синоним к правильному. История объединится автоматически.')}
                         </div>
                         ${html}
@@ -3144,10 +3144,10 @@ function emit(eventName, detail) {
         <div class="bg-[var(--card-bg)] w-full max-w-xs p-5 rounded-2xl shadow-2xl transition-transform border border-[var(--card-border)]"
             onclick="event.stopPropagation()">
             <div
-                class="font-black text-[13px] uppercase tracking-tight mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 text-slate-800 dark:text-white flex justify-between items-center">
+                class="font-black text-rbi-body uppercase tracking-tight mb-4 border-b border-surface pb-3 text-ink dark:text-white flex justify-between items-center">
                 ${_t('quality.game.contr.status_title', '⚙️ Статус подрядчика')}
                 <button onclick="document.getElementById('task-status-modal').style.display='none'"
-                    class="text-slate-400 font-black px-2">✕</button>
+                    class="text-muted font-black px-2">✕</button>
             </div>
             <div id="task-status-actions" class="space-y-2">
                 <!-- Кнопки вставляются через JS -->

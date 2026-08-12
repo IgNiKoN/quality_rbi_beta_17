@@ -147,14 +147,14 @@ export function slotBoardHtml(
         .filter(Boolean)
         .join('; ');
       return `<div class="rounded-xl border px-2 py-1.5 text-center ${cls}" title="${_escape(tip)}">
-        <div class="text-[10px] font-black">${o.time}</div>
-        <div class="text-[8px] font-bold uppercase tracking-wide">${_escape(label)}</div>
+        <div class="text-rbi-caption font-black">${o.time}</div>
+        <div class="text-rbi-caption font-bold uppercase tracking-wide">${_escape(label)}</div>
       </div>`;
     })
     .join('');
   return `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-3">
-      <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">${_escape(title)}</div>
+      <div class="text-rbi-caption font-black uppercase tracking-widest text-brand mb-2">${_escape(title)}</div>
       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">${cells}</div>
     </div>`;
 }

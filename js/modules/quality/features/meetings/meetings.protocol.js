@@ -13,7 +13,8 @@ export const AGENDA_KIND = Object.freeze({
     B2: 'B2',
     SK: 'SK',
     CARRY: 'CARRY',
-    REOPENED: 'REOPENED'
+    REOPENED: 'REOPENED',
+    MANUAL: 'MANUAL'
 });
 
 const TITLE_B3 = 'Крит. деф. (B3)';

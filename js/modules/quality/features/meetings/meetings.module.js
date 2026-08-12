@@ -17,6 +17,7 @@
 
 import {
     AGENDA_KIND,
+    agendaItemSourceKey,
     buildMeetingAgenda,
     buildMeetingProtocolHtml,
     collectAgendaFromDom,
@@ -489,12 +490,99 @@ function _carryVisual(item) {
     };
 }
 
+let _manualAgendaSeq = 0;
+/** Уникальный id для вручную добавленного пункта повестки (используется и как основа sourceKey). */
+function _makeManualAgendaId() {
+    _manualAgendaSeq += 1;
+    return `ag_manual_${Date.now()}_${_manualAgendaSeq}`;
+}
+
+/** Пересчитать disabled-состояние кнопок ▲/▼ на границах каждой agenda-группы. */
+function _refreshAgendaGroupBoundaries(root) {
+    root.querySelectorAll('[data-agenda-group-body]').forEach(groupBody => {
+        const rows = Array.from(groupBody.querySelectorAll(':scope > .meeting-agenda-row'));
+        rows.forEach((row, i) => {
+            const upBtn = row.querySelector('[data-agenda-action="up"]');
+            const downBtn = row.querySelector('[data-agenda-action="down"]');
+            if (upBtn) {
+                const disabled = i === 0;
+                upBtn.disabled = disabled;
+                upBtn.classList.toggle('opacity-20', disabled);
+                upBtn.classList.toggle('pointer-events-none', disabled);
+            }
+            if (downBtn) {
+                const disabled = i === rows.length - 1;
+                downBtn.disabled = disabled;
+                downBtn.classList.toggle('opacity-20', disabled);
+                downBtn.classList.toggle('pointer-events-none', disabled);
+            }
+        });
+    });
+}
+
+/**
+ * Один делегированный click-обработчик editor'а повестки на контейнере воркспейса
+ * (add/remove/up/down пункта). Перевешивается на каждый рендер workspace (container
+ * переиспользуется между открытиями), без новых window.*-точек/inline onclick.
+ */
+function _bindAgendaEditorDelegation(container, renderAgendaRow) {
+    if (container.__agendaClickHandler) {
+        container.removeEventListener('click', container.__agendaClickHandler);
+    }
+    const handler = (e) => {
+        const btn = e.target.closest('[data-agenda-action]');
+        if (!btn || btn.disabled) return;
+        const action = btn.dataset.agendaAction;
+
+        if (action === 'add') {
+            const groupKey = btn.dataset.agendaGroup || '';
+            const groupBody = Array.from(container.querySelectorAll('[data-agenda-group-body]'))
+                .find(el => el.dataset.agendaGroupBody === groupKey);
+            if (!groupBody) return;
+            const id = _makeManualAgendaId();
+            const contr = (groupKey === '__misc__' || groupKey === '—') ? '' : groupKey;
+            const newItem = {
+                id, contr, kind: AGENDA_KIND.MANUAL, title: '', defect: '', details: [],
+                count: 1, isDone: false, date: '', resp: '', comment: '', reopened: false, resolvedAt: null
+            };
+            newItem.sourceKey = agendaItemSourceKey({ contr, kind: AGENDA_KIND.MANUAL, name: id });
+            groupBody.insertAdjacentHTML('beforeend', renderAgendaRow(newItem));
+            _refreshAgendaGroupBoundaries(container);
+            const newRow = groupBody.lastElementChild;
+            const textarea = newRow && newRow.querySelector('.agenda-manual-text');
+            if (textarea) textarea.focus();
+            return;
+        }
+
+        const row = btn.closest('.meeting-agenda-row');
+        if (!row) return;
+        if (action === 'remove') {
+            if (!window.confirm(_t('quality.meetings.confirm.remove_agenda_item', 'Удалить этот пункт повестки?'))) return;
+            row.remove();
+            _refreshAgendaGroupBoundaries(container);
+            return;
+        }
+        if (action === 'up' || action === 'down') {
+            const groupBody = row.parentElement;
+            if (!groupBody) return;
+            const rows = Array.from(groupBody.querySelectorAll(':scope > .meeting-agenda-row'));
+            const idx = rows.indexOf(row);
+            if (action === 'up' && idx > 0) groupBody.insertBefore(row, rows[idx - 1]);
+            if (action === 'down' && idx >= 0 && idx < rows.length - 1) groupBody.insertBefore(rows[idx + 1], row);
+            _refreshAgendaGroupBoundaries(container);
+        }
+    };
+    container.__agendaClickHandler = handler;
+    container.addEventListener('click', handler);
+}
+
 /** Корзина типа для UI-блоков (не сводки). */
 function _agendaTypeBucket(item) {
     if (!item) return null;
     const k = item.kind;
     const t = String(item.title || '');
     const ok = item.originKind || (String(item.sourceKey || '').split('|')[1] || '');
+    if (k === AGENDA_KIND.MANUAL) return 'MANUAL';
     if (k === AGENDA_KIND.CARRY) {
         return _carryDebtKind(item) === 'SK' ? 'CARRY_SK' : 'CARRY_AUDIT';
     }
@@ -1836,6 +1924,9 @@ export function createMeeting(customData = null) {
         : '<span class="text-[10px] text-slate-400 font-bold">' + _t('quality.meetings.workspace.no_critical', 'Критических нет') + '</span>';
 
     const badgeFor = (item) => {
+        if (item.kind === AGENDA_KIND.MANUAL) {
+            return '<span class="text-[9px] bg-slate-600 text-white dark:bg-slate-500 px-1.5 py-0.5 rounded font-black">' + _t('quality.meetings.badge.manual', '✎ Вручную') + '</span>';
+        }
         if (item.kind === AGENDA_KIND.B3 || (item.reopened && item.title && /b3/i.test(item.title))) {
             return '<span class="text-[9px] bg-red-600 text-white dark:bg-red-500 px-1.5 py-0.5 rounded font-black">B3</span>';
         }
@@ -1853,6 +1944,9 @@ export function createMeeting(customData = null) {
     };
 
     const borderFor = (item) => {
+        if (item.kind === AGENDA_KIND.MANUAL) {
+            return 'border-slate-400 bg-slate-50 dark:border-slate-500 dark:bg-slate-800/60';
+        }
         if (item.kind === AGENDA_KIND.B3 || (item.reopened && item.title && /b3/i.test(item.title))) {
             return 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-950/40';
         }
@@ -2006,6 +2100,7 @@ export function createMeeting(customData = null) {
     const renderAgendaRow = (item) => {
         const details = Array.isArray(item.details) ? item.details : [];
         const typeBucket = _agendaTypeBucket(item);
+        const isManual = typeBucket === 'MANUAL';
         const isSk = typeBucket === 'SK';
         const isCarry = typeBucket === 'CARRY_SK' || typeBucket === 'CARRY_AUDIT' || item.kind === AGENDA_KIND.CARRY;
         const isB3 = typeBucket === 'B3';
@@ -2013,7 +2108,10 @@ export function createMeeting(customData = null) {
         const title = item.title || '';
         let bodyHtml = '';
         let displayTitleHtml = _escUi(title || item.defect || '');
-        if (isSk && details.length) {
+        if (isManual) {
+            displayTitleHtml = '';
+            bodyHtml = `<textarea class="agenda-meta-defect agenda-manual-text input-base mt-1 h-16 resize-none text-[11px] !bg-white dark:!bg-slate-900" placeholder="${_t('quality.meetings.ph.manual_item', 'Текст пункта повестки...')}">${_escUi(item.defect || '')}</textarea>`;
+        } else if (isSk && details.length) {
             displayTitleHtml = _renderSkTitleHtml(title || _t('quality.meetings.label.sk_remarks', 'Просроченные замечания в ПК СК'), item, details);
             bodyHtml = _detailsBulletList(details);
         } else if (isB3 || isB2) {
@@ -2069,11 +2167,17 @@ export function createMeeting(customData = null) {
             ? '<span class="text-[9px] bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-bold">' + _t('quality.meetings.badge.reopened', '↻ повторно') + '</span>'
             : '';
         const detailsJson = JSON.stringify(details).replace(/"/g, '&quot;');
+        // MANUAL: сам текст пункта — видимая .agenda-meta-defect textarea в bodyHtml (та же
+        // читается collectAgendaFromDom без правок), скрытое hidden-поле для неё не рендерим,
+        // иначе querySelector('.agenda-meta-defect') находил бы первым hidden-инпут.
+        const defectHiddenField = isManual
+            ? ''
+            : `<input type="hidden" class="agenda-meta-defect" value="${String(item.defect || '').replace(/"/g, '&quot;')}">`;
 
         return `
                 <div class="meeting-agenda-row relative">
                     <input type="hidden" class="agenda-meta-contr" value="${String(item.contr || '').replace(/"/g, '&quot;')}">
-                    <input type="hidden" class="agenda-meta-defect" value="${String(item.defect || '').replace(/"/g, '&quot;')}">
+                    ${defectHiddenField}
                     <input type="hidden" class="agenda-meta-kind" value="${item.kind || ''}">
                     <input type="hidden" class="agenda-meta-source-key" value="${String(item.sourceKey || '').replace(/"/g, '&quot;')}">
                     <input type="hidden" class="agenda-meta-count" value="${item.count || 1}">
@@ -2083,7 +2187,13 @@ export function createMeeting(customData = null) {
                     <input type="hidden" class="agenda-meta-details" value="${detailsJson}">
                     <input type="hidden" class="agenda-meta-origin-kind" value="${String(item.originKind || '').replace(/"/g, '&quot;')}">
 
-                    <div class="border-l-2 ${borderFor(item)} pl-2 py-1.5 rounded-r-lg">
+                    <div class="absolute top-0.5 right-0.5 flex items-center gap-0.5 z-10">
+                        <button type="button" data-agenda-action="up" title="${_t('quality.meetings.btn.agenda_up', '▲ Вверх')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-90 transition-colors">▲</button>
+                        <button type="button" data-agenda-action="down" title="${_t('quality.meetings.btn.agenda_down', '▼ Вниз')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-90 transition-colors">▼</button>
+                        <button type="button" data-agenda-action="remove" title="${_t('quality.meetings.btn.agenda_remove', '✕ Удалить')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-red-600 dark:hover:text-red-400 active:scale-90 transition-colors">✕</button>
+                    </div>
+
+                    <div class="border-l-2 ${borderFor(item)} pl-2 py-1.5 pr-16 rounded-r-lg">
                         <div class="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-snug">
                             <div class="font-bold flex items-center gap-1.5 flex-wrap text-slate-800 dark:text-slate-100">${badgeFor(item)} <span class="min-w-0">${displayTitleHtml}</span> ${reopenBadge}</div>
                             ${bodyHtml}
@@ -2113,6 +2223,11 @@ export function createMeeting(customData = null) {
         byContrUi[c].push(item);
     });
 
+    const _addAgendaItemBtnHtml = (groupKey) => `
+        <div class="px-3 pb-3">
+            <button type="button" data-agenda-action="add" data-agenda-group="${_escUi(groupKey)}" class="w-full bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-1.5 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_agenda_item', '+ Добавить пункт повестки')}</button>
+        </div>`;
+
     let agendaHtml = '';
     Object.keys(byContrUi).forEach(cName => {
         const items = byContrUi[cName];
@@ -2124,13 +2239,26 @@ export function createMeeting(customData = null) {
                         ${_contrTypeSummaryHtml(items)}
                     </div>
                 </div>
-                <div class="p-3 space-y-3">
+                <div class="p-3 space-y-3" data-agenda-group-body="${_escUi(cName)}">
                     ${items.map(renderAgendaRow).join('')}
                 </div>
+                ${_addAgendaItemBtnHtml(cName)}
             </div>`;
     });
 
     if (!agendaHtml) agendaHtml = `<div class="text-[11px] text-green-600 font-bold text-center py-4 bg-white rounded-xl border border-dashed border-[var(--card-border)]">${_t('quality.meetings.workspace.no_defects', 'Дефектов за {period} не выявлено. Идеально!', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>`;
+
+    // «Разное» — отдельная всегда доступная группа для вручную добавленных пунктов без
+    // привязки к подрядчику (не путать с '—' — авто-группой уже сгенерированных пунктов без contr).
+    const MISC_AGENDA_GROUP = '__misc__';
+    agendaHtml += `
+        <div class="bg-white dark:bg-slate-800 rounded-xl mb-3 border border-dashed border-slate-300 dark:border-slate-600 shadow-sm overflow-hidden">
+            <div class="px-3 pt-2.5 pb-2 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700">
+                <div class="text-[12px] font-black text-slate-600 dark:text-slate-300 uppercase">📝 ${_t('quality.meetings.workspace.misc_group', 'Разное')}</div>
+            </div>
+            <div class="p-3 space-y-3 empty:p-0" data-agenda-group-body="${MISC_AGENDA_GROUP}"></div>
+            ${_addAgendaItemBtnHtml(MISC_AGENDA_GROUP)}
+        </div>`;
 
     const html = `
     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm relative animate-fadeIn overflow-hidden flex flex-col max-h-[85vh]">
@@ -2235,6 +2363,8 @@ export function createMeeting(customData = null) {
     </div>`;
 
     container.innerHTML = html;
+    _bindAgendaEditorDelegation(container, renderAgendaRow);
+    _refreshAgendaGroupBoundaries(container);
 
     const FD = window.RBIFormDraft;
     if (FD) {

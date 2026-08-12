@@ -72,19 +72,19 @@ function _categoryLabel(c: string): string {
 function _categoryBar(c: string): string {
   const v = String(c || '').toUpperCase();
   if (v === 'B1' || v === 'MINOR') return 'bg-blue-500';
-  if (v === 'B3' || v === 'CRITICAL') return 'bg-red-600';
+  if (v === 'B3' || v === 'CRITICAL') return 'bg-danger';
   return 'bg-orange-500';
 }
 
 function _statusChip(status: string): string {
   const st = String(status || '').toLowerCase();
-  let cls = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+  let cls = 'bg-slate-100 text-ink dark:bg-slate-800';
   if (st === 'issued' || st === 'open') cls = 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300';
   else if (st === 'in_progress') cls = 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300';
   else if (st === 'fixed') cls = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
   else if (st === 'closed') cls = 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300';
-  else if (st === 'rejected' || st === 'cancelled') cls = 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
-  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${cls}">${_escape(
+  else if (st === 'rejected' || st === 'cancelled') cls = 'bg-slate-100 text-muted dark:bg-slate-800';
+  return `<span class="inline-block px-1.5 py-0.5 rounded-md text-rbi-caption font-bold ${cls}">${_escape(
     _statusLabel(st)
   )}</span>`;
 }
@@ -128,7 +128,7 @@ export function renderDefectsRegistryDesktop(
   const filters = opts.filters || pinFiltersState;
 
   if (!floorId) {
-    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-slate-400 text-[13px] font-medium px-6 text-center">
+    host.innerHTML = `<div class="flex items-center justify-center h-full min-h-[240px] text-muted text-rbi-body font-medium px-6 text-center">
       ${_escape(_t('construction.v2.registry.select_floor', 'Выберите этаж слева, чтобы увидеть реестр замечаний'))}
     </div>`;
     return;
@@ -141,12 +141,12 @@ export function renderDefectsRegistryDesktop(
   filtered = _sortRegistry(filtered);
 
   const overdueChipCls = _overdueOnly
-    ? 'bg-red-600 text-white border-red-600'
-    : 'bg-white dark:bg-slate-900 text-red-600 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30';
+    ? 'bg-danger text-white border-danger'
+    : 'bg-surface text-danger border-danger-soft hover:bg-danger-soft';
 
   const rows =
     filtered.length === 0
-      ? `<tr><td colspan="6" class="p-8 text-center text-slate-400 text-[13px] font-medium">
+      ? `<tr><td colspan="6" class="p-8 text-center text-muted text-rbi-body font-medium">
           ${_escape(_t('construction.v2.registry.empty_filter', 'Нет замечаний по выбранному фильтру'))}
         </td></tr>`
       : filtered
@@ -156,36 +156,36 @@ export function renderDefectsRegistryDesktop(
             ).slice(0, 200);
             const dl = _deadlineMeta(d);
             const openDays = daysOpen(d);
-            const dlCls = dl.overdue ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-slate-500 dark:text-slate-400';
+            const dlCls = dl.overdue ? 'text-danger font-semibold' : 'text-muted';
             const bar = _categoryBar(String(d.category));
-            const rowBg = dl.overdue ? 'bg-red-50/40 dark:bg-red-950/15' : '';
-            return `<tr class="${rowBg} hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800">
+            const rowBg = dl.overdue ? 'bg-danger-soft' : '';
+            return `<tr class="${rowBg} hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-surface">
               <td class="p-0 w-1"><div class="w-1 h-full ${bar}"></div></td>
               <td class="px-3 py-2.5 align-top">
                 <button type="button" data-c2-def-row="${_escape(d.id)}" class="text-left w-full flex items-start gap-2.5">
-                  <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300
-                               flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
+                  <span class="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-ink
+                               flex items-center justify-center text-rbi-caption font-bold">${i + 1}</span>
                   <span class="min-w-0">
-                    <span class="block text-[10px] font-bold text-slate-500 mb-0.5">${_escape(_categoryLabel(String(d.category)))}</span>
+                    <span class="block text-rbi-caption font-bold text-muted mb-0.5">${_escape(_categoryLabel(String(d.category)))}</span>
                     ${_statusChip(String(d.status))}
                   </span>
                 </button>
               </td>
               <td class="px-3 py-2.5 align-top">
                 <button type="button" data-c2-def-row="${_escape(d.id)}" class="text-left w-full">
-                  <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">${_escape(desc)}</span>
+                  <span class="block text-rbi-body font-medium text-ink line-clamp-2 leading-snug">${_escape(desc)}</span>
                 </button>
               </td>
               <td class="px-3 py-2.5 align-top whitespace-nowrap">
-                <span class="text-[12px] ${dlCls}">${_escape(dl.label)}</span>
-                ${dl.overdue ? `<span class="block text-[10px] text-red-600 dark:text-red-400 font-bold">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
+                <span class="text-rbi-body ${dlCls}">${_escape(dl.label)}</span>
+                ${dl.overdue ? `<span class="block text-rbi-caption text-danger font-bold">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
               </td>
-              <td class="px-3 py-2.5 align-top whitespace-nowrap text-[12px] ${dl.overdue ? 'text-red-600 dark:text-red-400 font-bold' : 'text-slate-500 dark:text-slate-400'}">
+              <td class="px-3 py-2.5 align-top whitespace-nowrap text-rbi-body ${dl.overdue ? 'text-danger font-bold' : 'text-muted'}">
                 ${openDays != null ? `${openDays} ${_escape(_t('construction.v2.registry.days_short', 'дн.'))}` : '—'}
               </td>
               <td class="px-3 py-2.5 align-top text-right">
                 <button type="button" data-c2-def-on-plan="${_escape(d.id)}" data-c2-def-loc="${_escape(d.locationId)}"
-                  class="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  class="shrink-0 px-2.5 py-1.5 rounded-lg text-rbi-caption font-bold text-brand hover:bg-brand-soft"
                   title="${_escape(_t('construction.v2.registry.show_on_plan', 'Показать на плане'))}">${_escape(_t('construction.v2.registry.on_plan', 'На плане'))}</button>
               </td>
             </tr>`;
@@ -194,17 +194,17 @@ export function renderDefectsRegistryDesktop(
 
   host.innerHTML = `
     <div class="flex flex-col h-full min-h-[320px]">
-      <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+      <div class="px-4 py-3 border-b border-surface flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <div class="text-[13px] font-semibold text-slate-700 dark:text-slate-200 min-w-0 truncate">
+          <div class="text-rbi-body font-semibold text-ink min-w-0 truncate">
             ${_escape(floorLabel || _t('construction.v2.registry.floor', 'Этаж'))}
           </div>
-          <div class="text-[11px] text-slate-400 shrink-0">${_escape(_t('construction.v2.registry.shown_count', 'Показано {shown} из {total}', { shown: filtered.length, total: defects.length }))}</div>
+          <div class="text-rbi-label text-muted shrink-0">${_escape(_t('construction.v2.registry.shown_count', 'Показано {shown} из {total}', { shown: filtered.length, total: defects.length }))}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="min-w-0 flex-1" data-c2-pin-filters-host="registry">${renderPinFiltersHtml(defects, filters, { compact: true })}</div>
           <button type="button" data-c2-reg-overdue
-            class="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border ${overdueChipCls}"
+            class="shrink-0 px-2.5 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide border ${overdueChipCls}"
             title="${_escape(_t('construction.v2.registry.overdue_only_title', 'Только просроченные (issued / в работе / на проверке)'))}">${_escape(_t('construction.v2.registry.overdue_chip', 'Просроч.'))}</button>
         </div>
       </div>

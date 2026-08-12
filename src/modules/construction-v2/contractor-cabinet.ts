@@ -82,13 +82,13 @@ function _statusLabel(s: string): string {
 function _kpi(label: string, value: number, tone = ''): string {
   const toneCls =
     tone === 'danger'
-      ? 'border-red-200 dark:border-red-900/50'
+      ? 'border-danger-soft'
       : tone === 'warn'
         ? 'border-amber-200 dark:border-amber-900/40'
         : 'border-[var(--card-border)]';
   return `<div class="min-w-[6.5rem] flex-1 bg-[var(--card-bg)] border ${toneCls} rounded-2xl px-3 py-2.5">
-    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">${_escape(label)}</div>
-    <div class="text-[18px] font-black text-slate-800 dark:text-slate-100 leading-none">${value}</div>
+    <div class="text-rbi-caption font-black uppercase tracking-widest text-muted mb-1">${_escape(label)}</div>
+    <div class="text-[18px] font-black text-ink leading-none">${value}</div>
   </div>`;
 }
 
@@ -98,15 +98,15 @@ function _defectRow(d: ConstructionDefectV2): string {
   return `<li>
     <button type="button" data-c2-cab-def="${_escape(d.id)}"
       class="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
-        overdue ? 'bg-red-50/40 dark:bg-red-950/15' : ''
+        overdue ? 'bg-danger-soft' : ''
       }">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[10px] font-bold text-slate-500">${_escape(String(d.category || ''))}</span>
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape(_statusLabel(String(d.status)))}</span>
-        ${overdue ? `<span class="text-[9px] font-bold uppercase text-red-600">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
+        <span class="text-rbi-caption font-bold text-muted">${_escape(String(d.category || ''))}</span>
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape(_statusLabel(String(d.status)))}</span>
+        ${overdue ? `<span class="text-rbi-caption font-bold uppercase text-danger">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2">${_escape(desc)}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape(_pathLabel(d.locationId))}</span>
+      <span class="block text-rbi-body font-medium text-ink line-clamp-2">${_escape(desc)}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape(_pathLabel(d.locationId))}</span>
     </button>
   </li>`;
 }
@@ -114,17 +114,17 @@ function _defectRow(d: ConstructionDefectV2): string {
 function _accRow(a: ConstructionAcceptanceV2): string {
   return `<li>
     <button type="button" data-c2-cab-acc="${_escape(a.id)}"
-      class="w-full text-left px-3 py-2.5 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors">
+      class="w-full text-left px-3 py-2.5 hover:bg-brand-soft transition-colors">
       <span class="flex flex-wrap items-center gap-1.5 mb-0.5">
-        <span class="text-[9px] font-bold uppercase text-indigo-600">${_escape(_statusLabel(String(a.status)))}</span>
-        <span class="text-[10px] font-bold text-slate-500">${_escape(a.requested_date || '—')} ${_escape(
+        <span class="text-rbi-caption font-bold uppercase text-brand">${_escape(_statusLabel(String(a.status)))}</span>
+        <span class="text-rbi-caption font-bold text-muted">${_escape(a.requested_date || '—')} ${_escape(
           a.requested_time || ''
         )}</span>
       </span>
-      <span class="block text-[13px] font-medium text-slate-800 dark:text-slate-100">${_escape(
+      <span class="block text-rbi-body font-medium text-ink">${_escape(
         a.work_type || _t('construction.v2.kanban.no_work_type', 'Без вида работ')
       )}</span>
-      <span class="block text-[10px] text-slate-400 mt-0.5">${_escape(_pathLabel(a.locationId))}</span>
+      <span class="block text-rbi-caption text-muted mt-0.5">${_escape(_pathLabel(a.locationId))}</span>
     </button>
   </li>`;
 }
@@ -132,13 +132,13 @@ function _accRow(a: ConstructionAcceptanceV2): string {
 function _section(title: string, rows: string, empty: string): string {
   return `
     <section class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
-      <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(
+      <div class="px-3 py-2 border-b border-surface text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(
         title
       )}</div>
       ${
         rows
           ? `<ul class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</ul>`
-          : `<div class="p-4 text-center text-slate-400 text-[12px]">${_escape(empty)}</div>`
+          : `<div class="p-4 text-center text-muted text-rbi-body">${_escape(empty)}</div>`
       }
     </section>`;
 }
@@ -158,7 +158,7 @@ export function renderContractorCabinet(
   if (!myId) {
     host.innerHTML = `
       <div class="p-6 max-w-lg mx-auto">
-        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-[13px] font-medium text-amber-900 dark:text-amber-100">
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-rbi-body font-medium text-amber-900 dark:text-amber-100">
           ${_escape(_t('construction.v2.cabinet.unbound', 'Подрядчик не привязан к профилю. Обратитесь к администратору, чтобы назначить карточку подрядчика — иначе кабинет, реестр и пины будут пустыми.'))}
         </div>
       </div>`;
@@ -189,8 +189,8 @@ export function renderContractorCabinet(
   host.innerHTML = `
     <div class="space-y-3 p-1 sm:p-2">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.cabinet.title', 'Кабинет подрядчика'))}</div>
-        <div class="text-[10px] text-slate-400 font-bold truncate max-w-[14rem]" title="${_escape(myId)}">${_escape(_t('construction.v2.cabinet.my_id', 'мой id · {id}', { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(_t('construction.v2.cabinet.title', 'Кабинет подрядчика'))}</div>
+        <div class="text-rbi-caption text-muted font-bold truncate max-w-[14rem]" title="${_escape(myId)}">${_escape(_t('construction.v2.cabinet.my_id', 'мой id · {id}', { id: myId.length > 10 ? `${myId.slice(0, 8)}…` : myId }))}</div>
       </div>
       <div class="flex flex-wrap gap-2">
         ${_kpi(_t('construction.v2.cabinet.kpi_open', 'Открытые'), open.length)}

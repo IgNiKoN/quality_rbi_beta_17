@@ -1,7 +1,7 @@
 /**
  * RBI UI — общий слой примитивов и desktop-strip.
  *
- * Расширять постепенно при касании модулей (см. .cursor/rules/rbi-refactor.mdc).
+ * Расширять постепенно при касании модулей (см. .cursor/rules/rbi-ui-design.mdc).
  * Не переписывать весь Tailwind-markup «за один раз».
  */
 

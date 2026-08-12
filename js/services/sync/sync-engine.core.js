@@ -806,26 +806,45 @@ window.triggerSync = async function (mode = 'silent') {
                 : 'rbi';
             const { data: cSet, error: cSetErr } = await window.supabaseClient
                 .from('rbi_company_settings')
-                .select('company_id, role_matrix_overrides, updated_at')
+                .select('company_id, role_matrix_overrides, official_templates, updated_at')
                 .eq('company_id', companyId)
                 .maybeSingle();
 
             if (cSetErr) {
                 // Таблица ещё не создана (012 не применён) — не ломаем sync.
                 console.warn('[Sync] rbi_company_settings pull:', cSetErr.message || cSetErr);
-            } else if (companySvc && typeof companySvc.applyRoleMatrixOverridesFromCloud === 'function') {
-                const overrides = (cSet && cSet.role_matrix_overrides && typeof cSet.role_matrix_overrides === 'object')
-                    ? cSet.role_matrix_overrides
-                    : {};
-                const applied = companySvc.applyRoleMatrixOverridesFromCloud(
-                    overrides,
-                    cSet && cSet.updated_at ? cSet.updated_at : null
-                );
-                if (applied && applied.skippedDirty) {
-                    console.log('[Sync] company role-matrix: skip pull (local dirty)');
-                } else {
-                    console.log('[Sync] company role-matrix overrides applied',
-                        Object.keys(overrides || {}).length);
+            } else {
+                if (companySvc && typeof companySvc.applyRoleMatrixOverridesFromCloud === 'function') {
+                    const overrides = (cSet && cSet.role_matrix_overrides && typeof cSet.role_matrix_overrides === 'object')
+                        ? cSet.role_matrix_overrides
+                        : {};
+                    const applied = companySvc.applyRoleMatrixOverridesFromCloud(
+                        overrides,
+                        cSet && cSet.updated_at ? cSet.updated_at : null
+                    );
+                    if (applied && applied.skippedDirty) {
+                        console.log('[Sync] company role-matrix: skip pull (local dirty)');
+                    } else {
+                        console.log('[Sync] company role-matrix overrides applied',
+                            Object.keys(overrides || {}).length);
+                    }
+                }
+                // Редактор системных чек-листов Блок 1: указатель официальной версии
+                // (колонка sql/013 — та же строка, отдельный dirty/apply-путь).
+                if (companySvc && typeof companySvc.applyOfficialTemplatesFromCloud === 'function') {
+                    const officialTemplates = (cSet && cSet.official_templates && typeof cSet.official_templates === 'object')
+                        ? cSet.official_templates
+                        : {};
+                    const appliedOfficial = companySvc.applyOfficialTemplatesFromCloud(
+                        officialTemplates,
+                        cSet && cSet.updated_at ? cSet.updated_at : null
+                    );
+                    if (appliedOfficial && appliedOfficial.skippedDirty) {
+                        console.log('[Sync] official templates: skip pull (local dirty)');
+                    } else {
+                        console.log('[Sync] official templates applied',
+                            Object.keys(officialTemplates || {}).length);
+                    }
                 }
             }
         } catch (e) {
@@ -2118,6 +2137,50 @@ window.triggerSync = async function (mode = 'silent') {
                 }
             } catch (e) {
                 console.warn('[Sync] company role-matrix push failed:', e && e.message ? e.message : e);
+                pushErrors++;
+            }
+
+            // =====================================================
+            // 4.9b. PUSH: official templates pointer (редактор системных
+            // чек-листов Блок 1). Отдельный upsert — НЕ объединять с
+            // role_matrix_overrides в одном вызове (риск затирания при
+            // гонке двух функций одной строки, см. current_plan.md).
+            // =====================================================
+            try {
+                const companySvcPush2 = window.RBI && window.RBI.services && window.RBI.services.company;
+                const permsPush2 = window.RBI && window.RBI.services && window.RBI.services.permissions;
+                const canManageOfficial = !!(permsPush2 && (
+                    (typeof permsPush2.isAdmin === 'function' && permsPush2.isAdmin()) ||
+                    (typeof permsPush2.canManageRoles === 'function' && permsPush2.canManageRoles())
+                ));
+                if (companySvcPush2 && canManageOfficial &&
+                    typeof companySvcPush2.isOfficialTemplatesDirty === 'function' &&
+                    companySvcPush2.isOfficialTemplatesDirty()) {
+                    const companyIdPush2 = (typeof companySvcPush2.getCompanyId === 'function')
+                        ? companySvcPush2.getCompanyId()
+                        : 'rbi';
+                    const officialPush = (typeof companySvcPush2.getOfficialTemplates === 'function')
+                        ? companySvcPush2.getOfficialTemplates()
+                        : {};
+                    const updatedAtPush2 = new Date().toISOString();
+                    const { error: cPushErr2 } = await window.supabaseClient
+                        .from('rbi_company_settings')
+                        .upsert({
+                            company_id: companyIdPush2,
+                            official_templates: officialPush,
+                            updated_at: updatedAtPush2
+                        }, { onConflict: 'company_id' });
+                    if (cPushErr2) {
+                        console.warn('[Sync] official templates push:', cPushErr2.message || cPushErr2);
+                        pushErrors++;
+                        localStorage.setItem('rbi_cloud_dirty', '1');
+                    } else if (typeof companySvcPush2.markOfficialTemplatesSynced === 'function') {
+                        companySvcPush2.markOfficialTemplatesSynced(updatedAtPush2);
+                        console.log('[Sync] official templates pushed');
+                    }
+                }
+            } catch (e) {
+                console.warn('[Sync] official templates push failed:', e && e.message ? e.message : e);
                 pushErrors++;
             }
 

@@ -16,6 +16,7 @@ import { mountCloudDeletedPurgeUI } from './features/cloud-deleted-purge-ui.js';
 import { mountCloudOrphanUrlsUI } from './features/cloud-orphan-urls-ui.js';
 import { mountRoleMatrixUI } from './features/role-matrix-ui.js';
 import { mountEnabledModulesUI } from './features/enabled-modules-ui.js';
+import { mountOfficialTemplatesUI } from './features/official-templates-ui.js';
 
 var SettingsRender = {
     // =====================================================================
@@ -1062,6 +1063,29 @@ var SettingsRender = {
                     <div id="contractor-id-backfill-root"></div>
                     <div id="project-id-backfill-root" class="border-t border-amber-200 dark:border-amber-800"></div>
                 </details>
+
+                <!-- РЕДАКТОР СИСТЕМНЫХ ЧЕК-ЛИСТОВ: ОФИЦИАЛЬНЫЕ ВЕРСИИ (Блок 1) -->
+                <details id="settings-official-templates-section"
+                    class="bg-[var(--card-bg)] border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm group [&_summary::-webkit-details-marker]:hidden mb-3 hidden">
+                    <summary
+                        class="p-4 font-black text-[12px] text-amber-700 dark:text-amber-400 uppercase tracking-tight cursor-pointer flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 transition-colors select-none group-open:border-b border-amber-200 dark:border-amber-800 rounded-2xl group-open:rounded-b-none">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                </path>
+                            </svg>
+                            <span data-i18n="settings.accordion.official_templates">Официальные версии чек-листов</span>
+                        </span>
+                        <span class="transition-transform group-open:rotate-180 text-amber-400">▼</span>
+                    </summary>
+                    <div class="p-3">
+                        <p class="text-[10px] text-[var(--text-muted)] leading-relaxed mb-2" data-i18n="settings.official_templates.intro">
+                            Назначьте команде официальную (изменённую компанией) версию системного вида работ — синхронизируется на все устройства.
+                        </p>
+                        <div id="settings-official-templates-root"></div>
+                    </div>
+                </details>
             </div>
             <div id="settings-panel-quality" data-settings-panel="quality" class="space-y-3" hidden>
                 <!-- БАЗА ЗНАНИЙ -->
@@ -2038,6 +2062,11 @@ console.log('[SettingsRender] settings.render.js markup mounted');
         if (typeof mountEnabledModulesUI === 'function') {
             mountEnabledModulesUI().catch(function (e) {
                 console.warn('[settings] enabled-modules UI:', e);
+            });
+        }
+        if (typeof mountOfficialTemplatesUI === 'function') {
+            mountOfficialTemplatesUI().catch(function (e) {
+                console.warn('[settings] official-templates UI:', e);
             });
         }
 

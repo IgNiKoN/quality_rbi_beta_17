@@ -105,52 +105,52 @@ export function openUnitCard(
   wrap.className = 'fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 p-3';
   wrap.style.zIndex = '1050';
   wrap.innerHTML = `
-    <div data-c2-unit-card-panel class="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 overflow-hidden">
+    <div data-c2-unit-card-panel class="w-full max-w-md bg-surface rounded-2xl shadow-2xl border border-surface overflow-hidden">
       <div class="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
         <div>
-          <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.unit.apartment', 'Квартира'))}</div>
-          <div class="text-[18px] font-black text-slate-800 dark:text-slate-100">${_escape(unit.type || 'КВ')} ${_escape(
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(_t('construction.v2.unit.apartment', 'Квартира'))}</div>
+          <div class="text-[18px] font-black text-ink">${_escape(unit.type || 'КВ')} ${_escape(
             unit.name
           )}</div>
-          <div class="text-[11px] font-bold text-slate-400 mt-0.5">${_escape(path)}</div>
+          <div class="text-rbi-label font-bold text-muted mt-0.5">${_escape(path)}</div>
         </div>
-        <button type="button" data-c2-unit-card-close class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[20px] leading-none px-1" aria-label="${_escape(_t('construction.form.close', 'Закрыть'))}">×</button>
+        <button type="button" data-c2-unit-card-close class="text-muted hover:text-ink text-[20px] leading-none px-1" aria-label="${_escape(_t('construction.form.close', 'Закрыть'))}">×</button>
       </div>
       <div class="px-4 pb-4 space-y-3">
         <label class="block">
-          <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape(_t('construction.v2.unit.transfer_status', 'Статус передачи'))}</span>
+          <span class="text-rbi-caption font-black uppercase tracking-widest text-muted">${_escape(_t('construction.v2.unit.transfer_status', 'Статус передачи'))}</span>
           <select id="c2-unit-card-status" data-c2-unit-id="${_escape(unit.id)}"
-            class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-[12px] font-bold"
+            class="mt-1 w-full rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold"
             ${guest ? 'disabled' : ''}>
             ${statusOpts}
           </select>
         </label>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">${_escape(_t('construction.v2.unit.plan_pdf', 'План квартиры (PDF)'))}</div>
+        <div class="rounded-xl border border-surface p-3 space-y-2">
+          <div class="text-rbi-caption font-black uppercase tracking-widest text-muted">${_escape(_t('construction.v2.unit.plan_pdf', 'План квартиры (PDF)'))}</div>
           ${
             hasPdf
-              ? `<div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${_escape(
+              ? `<div class="text-rbi-label font-bold text-ink truncate">${_escape(
                   unit.pdf_name || 'plan.pdf'
                 )}${unit.pdf_size ? ` · ${_escape(String(unit.pdf_size))} B` : ''}</div>
                  <div class="flex flex-wrap gap-2">
                    <a href="${_escape(String(unit.pdf_url))}" target="_blank" rel="noopener"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase border border-indigo-200">${_escape(_t('construction.v2.unit.open', 'Открыть'))}</a>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-brand-soft text-brand text-rbi-caption font-black uppercase border border-brand-soft">${_escape(_t('construction.v2.unit.open', 'Открыть'))}</a>
                    <button type="button" data-c2-unit-apt-plan="${_escape(unit.id)}"
-                     class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase border border-indigo-600">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>
+                     class="inline-flex items-center px-3 py-2 rounded-lg bg-brand text-white text-rbi-caption font-black uppercase border border-brand">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>
                  </div>`
-              : `<div class="text-[11px] text-slate-400 font-bold">${_escape(_t('construction.v2.unit.plan_missing', 'План не загружен'))}</div>
-                 <div class="text-[10px] text-slate-400 font-bold">${_escape(_t('construction.v2.unit.plan_upload_hint', 'Загрузка PDF — в Настройках → справочник локаций'))}</div>
+              : `<div class="text-rbi-label text-muted font-bold">${_escape(_t('construction.v2.unit.plan_missing', 'План не загружен'))}</div>
+                 <div class="text-rbi-caption text-muted font-bold">${_escape(_t('construction.v2.unit.plan_upload_hint', 'Загрузка PDF — в Настройках → справочник локаций'))}</div>
                  <button type="button" disabled
-                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black uppercase border border-slate-200 cursor-not-allowed opacity-70">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>`
+                   class="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-muted text-rbi-caption font-black uppercase border border-surface cursor-not-allowed opacity-70">${_escape(_t('construction.v2.unit.defects_on_plan', 'Замечания на плане'))}</button>`
           }
         </div>
         <button type="button" data-c2-unit-acceptance="${_escape(unit.id)}"
-          class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-white bg-violet-600 border border-violet-600 ${guest ? 'opacity-50 cursor-not-allowed' : ''}"
+          class="w-full py-2.5 rounded-xl text-rbi-label font-black uppercase text-white bg-brand border border-brand ${guest ? 'opacity-50 cursor-not-allowed' : ''}"
           ${guest ? 'disabled' : ''}>${_escape(_t('construction.v2.unit.acceptance', 'Приёмка'))}</button>
         ${
           canDel
             ? `<button type="button" data-c2-unit-delete="${_escape(unit.id)}"
-                class="w-full py-2.5 rounded-xl text-[11px] font-black uppercase text-red-600 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">${_escape(_t('construction.v2.unit.delete_room', 'Удалить помещение'))}</button>`
+                class="w-full py-2.5 rounded-xl text-rbi-label font-black uppercase text-danger border border-danger-soft bg-danger-soft">${_escape(_t('construction.v2.unit.delete_room', 'Удалить помещение'))}</button>`
             : ''
         }
       </div>

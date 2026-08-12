@@ -65,11 +65,11 @@ function _knowledgeSvc(): KnowledgeHelpSvc | undefined {
 function _helpButtonsHtml(): string {
   return `<div class="flex gap-2 mt-2" data-c2-help-actions>
       <button type="button" data-c2-item-help
-        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+        class="flex-1 px-2 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide bg-brand-soft text-brand border border-brand-soft">
         ${_escape(_t('construction.form.btn_help', 'Справка'))}
       </button>
       <button type="button" data-c2-item-norm
-        class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600">
+        class="flex-1 px-2 py-1.5 rounded-lg text-rbi-caption font-black uppercase tracking-wide bg-slate-100 text-ink border border-surface">
         ${_escape(_t('construction.form.btn_norm', 'Норматив'))}
       </button>
     </div>`;
@@ -404,15 +404,15 @@ function _contractorOptionsHtml(selected?: string | null): string {
 
 function _renderGallery(photos: string[]): string {
   if (!photos.length) {
-    return `<div class="text-[10px] text-slate-400 mb-2" data-c2-photo-empty>${_escape(_t('construction.form.no_photos', 'Нет фото'))}</div>`;
+    return `<div class="text-rbi-caption text-muted mb-2" data-c2-photo-empty>${_escape(_t('construction.form.no_photos', 'Нет фото'))}</div>`;
   }
   return `<div class="grid grid-cols-3 gap-2 mb-2" data-c2-photo-grid>
     ${photos
       .map(
-        (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" data-c2-photo-idx="${i}">
+        (p, i) => `<div class="relative aspect-square rounded-xl overflow-hidden border border-surface" data-c2-photo-idx="${i}">
       <img src="${_escape(_photoSrc(p))}" alt="" class="w-full h-full object-cover cursor-pointer" data-c2-photo-view="${_escape(p)}" />
       <button type="button" data-c2-photo-remove="${i}"
-        class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[11px] font-black">✕</button>
+        class="absolute top-1 right-1 w-6 h-6 rounded-full bg-danger text-white text-rbi-label font-black">✕</button>
     </div>`
       )
       .join('')}
@@ -492,7 +492,7 @@ function _bindItemSearch(panel: HTMLElement) {
     const tmplKey = tmpl?.value || '';
     if (!tmplKey) {
       dd.innerHTML =
-        `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape(_t('construction.form.select_work_first', 'Сначала выберите вид работ'))}</div>`;
+        `<div class="p-3 text-rbi-caption text-muted font-bold text-center">${_escape(_t('construction.form.select_work_first', 'Сначала выберите вид работ'))}</div>`;
       dd.classList.remove('hidden');
       return;
     }
@@ -503,17 +503,17 @@ function _bindItemSearch(panel: HTMLElement) {
     );
     if (!matched.length) {
       dd.innerHTML =
-        `<div class="p-3 text-[10px] text-slate-500 font-bold text-center">${_escape(_t('construction.form.search_empty', 'Ничего не найдено'))}</div>`;
+        `<div class="p-3 text-rbi-caption text-muted font-bold text-center">${_escape(_t('construction.form.search_empty', 'Ничего не найдено'))}</div>`;
       dd.classList.remove('hidden');
       return;
     }
     dd.innerHTML = matched
       .map((i) => {
         const w = Number(i.w) || 2;
-        return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+        return `<button type="button" class="w-full text-left p-2 border-b border-slate-100 dark:border-slate-700 hover:bg-brand-soft"
           data-c2-pick-item data-id="${_escape(i.id)}" data-name="${_escape(i.n)}" data-w="${w}" data-norm="${_escape(i.t || '')}">
-          <div class="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
-            <span class="text-[9px] font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape(i.n)}
+          <div class="text-rbi-label font-bold text-ink leading-tight">
+            <span class="text-rbi-caption font-black text-white bg-slate-400 px-1 rounded mr-1">B${w}</span>${_escape(i.n)}
           </div>
         </button>`;
       })
@@ -603,13 +603,13 @@ function _historyHtml(history: unknown): string {
           `<img src="${_escape(_photoSrc(String(p)))}" class="w-10 h-10 object-cover rounded border cursor-pointer mt-1" data-c2-photo-view="${_escape(String(p))}" alt="" />`
       )
       .join('');
-    return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px]">
-      <div class="flex justify-between font-bold mb-1"><span class="text-indigo-600">${_escape(stName)}</span><span class="text-slate-400">${_escape(dDate)}</span></div>
-      <div class="text-slate-600 dark:text-slate-300">${_escape(h.user || '')}${h.comment ? ` — <i>${_escape(String(h.comment))}</i>` : ''}</div>
+    return `<div class="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-rbi-caption">
+      <div class="flex justify-between font-bold mb-1"><span class="text-brand">${_escape(stName)}</span><span class="text-muted">${_escape(dDate)}</span></div>
+      <div class="text-ink">${_escape(h.user || '')}${h.comment ? ` — <i>${_escape(String(h.comment))}</i>` : ''}</div>
       <div class="flex gap-1 flex-wrap">${photosHtml}</div>
     </div>`;
   });
-  return `<div class="w-full mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2 max-h-36 overflow-y-auto" data-c2-history>
+  return `<div class="w-full mt-3 pt-3 border-t border-surface flex flex-col gap-2 max-h-36 overflow-y-auto" data-c2-history>
     ${rows.join('')}
   </div>`;
 }
@@ -643,58 +643,58 @@ export function openCreateDefectForm(
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape(_t('construction.form.new_defect', 'Новое замечание'))}</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
+      <h3 class="text-rbi-body font-black uppercase tracking-tight">${_escape(_t('construction.form.new_defect', 'Новое замечание'))}</h3>
+      <button type="button" data-c2-defect-close class="text-muted text-rbi-label font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.work_type_label', 'Вид работ (чек-лист) *'))}</label>
-    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+    <p class="text-rbi-caption text-muted mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: coords.x.toFixed(1), y: coords.y.toFixed(1) }))}</p>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.work_type_label', 'Вид работ (чек-лист) *'))}</label>
+    <select data-c2-template class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">
       ${_templateOptionsHtml(prefill?.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.violation_label', 'Нарушение *'))}</label>
+      <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.violation_label', 'Нарушение *'))}</label>
       <input type="text" data-c2-item-search autocomplete="off" placeholder="${_escape(_t('construction.form.violation_placeholder', 'Начните вводить нарушение...'))}"
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"
+        class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"
         value="${_escape(prefill?.item_name || '')}" />
       <input type="hidden" data-c2-item-id value="${_escape(prefill?.item_id || '')}" />
       <input type="hidden" data-c2-item-name value="${_escape(prefill?.item_name || '')}" />
-      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-surface shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${prefillNormRaw || prefill?.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+    <div data-c2-norm-block class="${prefillNormRaw || prefill?.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-surface p-2.5 rounded-xl mb-3">
+      <div class="text-rbi-caption font-black uppercase text-brand mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
+      <div data-c2-norm-text class="text-rbi-caption text-muted font-medium"></div>
       ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
-        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]">
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body">
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape(deadlineDefault)}"
-          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]" />
+          class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body" />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
-    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">
       ${_contractorOptionsHtml()}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3">${_escape(prefillDesc)}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
+      class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3">${_escape(prefillDesc)}</textarea>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery([])}</div>
     <input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
-      class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      class="w-full mb-4 bg-slate-50 dark:bg-slate-900 border border-dashed border-surface text-muted py-3 rounded-xl text-rbi-caption font-bold uppercase">
       + ${_escape(_t('construction.form.add_photo', '+ Добавить фото'))}
     </button>
     <div class="flex gap-2 justify-end">
-      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
-      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-[11px] font-black uppercase bg-indigo-600 text-white">${_escape(_t('construction.form.save', 'Сохранить'))}</button>
+      <button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-rbi-label font-bold uppercase text-muted">${_escape(_t('construction.form.cancel', 'Отмена'))}</button>
+      <button type="button" data-c2-defect-save class="px-4 py-2 rounded-xl text-rbi-label font-black uppercase bg-brand text-white">${_escape(_t('construction.form.save', 'Сохранить'))}</button>
     </div>`;
 
   root.classList.remove('hidden');
@@ -764,35 +764,35 @@ function _actionButtonsHtml(defect: ConstructionDefectV2): string {
   const st = String(defect.status || 'issued');
   if (st === 'issued') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape(_t('construction.form.action_in_progress', 'В работу'))}</button>
-        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_fixed_photo', 'Устранено (Фото)'))}</button>`;
+      return `<button type="button" data-c2-status="in_progress" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-rbi-label font-bold uppercase">${_escape(_t('construction.form.action_in_progress', 'В работу'))}</button>
+        <button type="button" data-c2-status="fixed" class="flex-[1.5] bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.action_fixed_photo', 'Устранено (Фото)'))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-delete class="bg-red-50 text-red-600 py-2.5 px-3 rounded-xl text-[11px] font-bold uppercase border border-red-200">🗑️</button>
-        <button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
+      return `<button type="button" data-c2-defect-delete class="bg-danger-soft text-danger py-2.5 px-3 rounded-xl text-rbi-label font-bold uppercase border border-danger-soft">🗑️</button>
+        <button type="button" data-c2-defect-save class="flex-1 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
     }
   } else if (st === 'in_progress') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_fixed_attach', 'Устранено (Приложить фото)'))}</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.action_fixed_attach', 'Устранено (Приложить фото)'))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-blue-500 py-2">${_escape(_t('construction.form.contractor_working', 'Подрядчик взял в работу'))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-bold text-blue-500 py-2">${_escape(_t('construction.form.contractor_working', 'Подрядчик взял в работу'))}</div>`;
   } else if (st === 'fixed') {
     if (isEngineer) {
-      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-[11px] font-bold uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
-        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>`;
+      return `<button type="button" data-c2-status="rejected" class="flex-1 bg-danger-soft text-danger border border-danger-soft py-2.5 rounded-xl text-rbi-label font-bold uppercase">${_escape(_t('construction.form.action_reject', '❌ Отклонить'))}</button>
+        <button type="button" data-c2-status="closed" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.action_accept', '✅ Принять'))}</button>`;
     }
-    return `<div class="text-center w-full text-[11px] font-bold text-green-500 py-2">${_escape(_t('construction.form.awaiting_review', 'Ожидает проверки инженером'))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-bold text-green-500 py-2">${_escape(_t('construction.form.awaiting_review', 'Ожидает проверки инженером'))}</div>`;
   } else if (st === 'closed') {
-    return `<div class="text-center w-full text-[11px] font-black text-green-600 py-2">${_escape(_t('construction.form.defect_closed', 'Дефект закрыт'))}</div>`;
+    return `<div class="text-center w-full text-rbi-label font-black text-green-600 py-2">${_escape(_t('construction.form.defect_closed', 'Дефект закрыт'))}</div>`;
   } else if (st === 'rejected') {
     if (isContractor) {
-      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.resubmit_photo', 'Повторно предъявить (Фото)'))}</button>`;
+      return `<button type="button" data-c2-status="fixed" class="w-full bg-orange-500 text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.resubmit_photo', 'Повторно предъявить (Фото)'))}</button>`;
     }
     if (isEngineer) {
-      return `<button type="button" data-c2-defect-save class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-[11px] font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
+      return `<button type="button" data-c2-defect-save class="flex-1 bg-brand text-white py-2.5 rounded-xl text-rbi-label font-black uppercase">${_escape(_t('construction.form.action_update', '💾 Обновить'))}</button>`;
     }
   }
-  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-[11px] font-bold uppercase text-slate-500">${_escape(_t('construction.form.close', 'Закрыть'))}</button>`;
+  return `<button type="button" data-c2-defect-close class="px-3 py-2 rounded-xl text-rbi-label font-bold uppercase text-muted">${_escape(_t('construction.form.close', 'Закрыть'))}</button>`;
 }
 
 export function openViewDefectForm(
@@ -828,55 +828,55 @@ export function openViewDefectForm(
 
   panel.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[13px] font-black uppercase tracking-tight">${_escape(_t('construction.form.defect_title', 'Замечание'))}</h3>
-      <button type="button" data-c2-defect-close class="text-slate-400 text-[11px] font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
+      <h3 class="text-rbi-body font-black uppercase tracking-tight">${_escape(_t('construction.form.defect_title', 'Замечание'))}</h3>
+      <button type="button" data-c2-defect-close class="text-muted text-rbi-label font-bold uppercase">${_escape(_t('construction.form.close', 'Закрыть'))}</button>
     </div>
-    <p class="text-[10px] text-slate-400 mb-1">${_escape(_t('construction.form.status_line', 'Статус: {status}', { status: _statusLabel(String(defect.status)) }))}</p>
-    <p class="text-[10px] text-slate-400 mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.work_type_view', 'Вид работ'))}</label>
-    <select data-c2-template class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+    <p class="text-rbi-caption text-muted mb-1">${_escape(_t('construction.form.status_line', 'Статус: {status}', { status: _statusLabel(String(defect.status)) }))}</p>
+    <p class="text-rbi-caption text-muted mb-3">${_escape(_t('construction.form.coords', 'Координаты: {x}% × {y}%', { x: Number(defect.x).toFixed(1), y: Number(defect.y).toFixed(1) }))}</p>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.work_type_view', 'Вид работ'))}</label>
+    <select data-c2-template class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>
       ${_templateOptionsHtml(defect.template_key)}
     </select>
     <div class="relative mb-3">
-      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.violation_view', 'Нарушение'))}</label>
+      <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.violation_view', 'Нарушение'))}</label>
       <input type="text" data-c2-item-search autocomplete="off" value="${_escape(defect.item_name || '')}"
-        class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+        class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled} />
       <input type="hidden" data-c2-item-id value="${_escape(defect.item_id || '')}" />
       <input type="hidden" data-c2-item-name value="${_escape(defect.item_name || '')}" />
-      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
+      <div data-c2-item-dd class="absolute top-[48px] left-0 right-0 bg-white dark:bg-slate-800 border border-surface shadow-2xl rounded-xl z-[150] hidden max-h-48 overflow-y-auto"></div>
     </div>
-    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl mb-3">
-      <div class="text-[9px] font-black uppercase text-indigo-500 mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
-      <div data-c2-norm-text class="text-[10px] text-slate-600 dark:text-slate-400 font-medium"></div>
+    <div data-c2-norm-block class="${defect.norm_text || defect.item_id ? '' : 'hidden'} bg-slate-50 dark:bg-slate-900 border border-surface p-2.5 rounded-xl mb-3">
+      <div class="text-rbi-caption font-black uppercase text-brand mb-1">${_escape(_t('construction.form.norm_ref', 'Справочно (Норматив)'))}</div>
+      <div data-c2-norm-text class="text-rbi-caption text-muted font-medium"></div>
       ${_helpButtonsHtml()}
     </div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
-        <select data-c2-defect-cat class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled}>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.category', 'Категория'))}</label>
+        <select data-c2-defect-cat class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled}>
           ${catOpts}
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
+        <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.deadline', 'Срок'))}</label>
         <input type="date" data-c2-defect-deadline value="${_escape(deadlineVal)}"
-          class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px]"${disabled} />
+          class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body"${disabled} />
       </div>
     </div>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
-    <select data-c2-defect-contractor class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.contractor', 'Подрядчик'))}</label>
+    <select data-c2-defect-contractor class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>
       ${_contractorOptionsHtml(defect.contractorId)}
     </select>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.description', 'Описание'))}</label>
     <textarea data-c2-defect-desc rows="3"
-      class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[12px] mb-3"${disabled}>${_escape(_stripHtml(String(defect.description || '')))}</textarea>
-    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
+      class="w-full rounded-xl border border-surface bg-transparent px-3 py-2 text-rbi-body mb-3"${disabled}>${_escape(_stripHtml(String(defect.description || '')))}</textarea>
+    <label class="block text-rbi-caption font-bold uppercase text-muted mb-1">${_escape(_t('construction.form.photos', 'Фото'))}</label>
     <div data-c2-photo-host>${_renderGallery(photosRef.current)}</div>
     ${
       canEditFields
         ? `<input type="file" accept="image/*" multiple class="hidden" data-c2-photo-input />
     <button type="button" data-c2-photo-add
-      class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 py-3 rounded-xl text-[10px] font-bold uppercase">
+      class="w-full mb-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-surface text-muted py-3 rounded-xl text-rbi-caption font-bold uppercase">
       + ${_escape(_t('construction.form.add_photo', '+ Добавить фото'))}
     </button>`
         : `<div class="mb-3"></div>`

@@ -168,7 +168,7 @@ function _cellBg(status: string): string {
     return 'bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:border-green-800';
   }
   if (st === 'has_defects' || st === 'defects') {
-    return 'bg-red-50 text-red-700 border-red-300 dark:bg-red-900/30 dark:border-red-800';
+    return 'bg-danger-soft text-danger border-danger-soft';
   }
   if (st === 'shareholder_defects') {
     return 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:border-orange-800';
@@ -179,7 +179,7 @@ function _cellBg(status: string): string {
   if (st === 'finishing' || st === 'ready') {
     return 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:border-blue-800';
   }
-  return 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+  return 'bg-surface text-ink border-surface';
 }
 
 let _objectId: string | null = null;
@@ -188,19 +188,19 @@ let _bound = false;
 
 function _renderLegend(): string {
   const items: { st: UnitStatusV2; swatch: string }[] = [
-    { st: 'not_inspected', swatch: 'bg-white border border-slate-300 dark:bg-slate-700 dark:border-slate-600' },
+    { st: 'not_inspected', swatch: 'bg-surface border border-surface' },
     { st: 'finishing', swatch: 'bg-blue-100 border border-blue-300' },
-    { st: 'has_defects', swatch: 'bg-red-100 border border-red-300' },
+    { st: 'has_defects', swatch: 'bg-danger-soft border border-danger-soft' },
     { st: 'ready_for_transfer', swatch: 'bg-amber-100 border border-amber-300' },
     { st: 'transferred', swatch: 'bg-green-100 border border-green-300' },
     { st: 'shareholder_defects', swatch: 'bg-orange-100 border border-orange-300' }
   ];
   return `
-    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="flex flex-wrap gap-3 mb-4 justify-center bg-surface p-2 rounded-xl border border-surface shadow-sm">
       ${items
         .map(
           (it) =>
-            `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-[9px] font-bold text-slate-500 uppercase">${_escape(
+            `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${it.swatch}"></span><span class="text-rbi-caption font-bold text-muted uppercase">${_escape(
               _unitStatusLabel(it.st)
             )}</span></div>`
         )
@@ -210,11 +210,11 @@ function _renderLegend(): string {
 
 function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
   if (!_buildingId) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape(_t('construction.v2.transfer.select_building', 'Выберите корпус для просмотра шахматки'))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape(_t('construction.v2.transfer.select_building', 'Выберите корпус для просмотра шахматки'))}</div>`;
   }
   const floors = _floorsForBuilding(_buildingId, loc);
   if (!floors.length) {
-    return `<div class="text-center py-10 text-slate-400 font-bold text-[11px] uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">${_escape(_t('construction.v2.transfer.no_floors', 'В этом корпусе ещё не созданы этажи'))}</div>`;
+    return `<div class="text-center py-10 text-muted font-bold text-rbi-label uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">${_escape(_t('construction.v2.transfer.no_floors', 'В этом корпусе ещё не созданы этажи'))}</div>`;
   }
   const bldUnits = uSvc.listForBuilding(_buildingId);
   let html = _renderLegend();
@@ -227,30 +227,30 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
     const floorLabel = floor.displayName || floor.id;
     html += `
       <div class="flex items-center gap-2">
-        <div class="w-14 shrink-0 text-center font-black text-[10px] text-slate-400 bg-[var(--hover-bg)] py-3.5 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape(
+        <div class="w-14 shrink-0 text-center font-black text-rbi-caption text-muted bg-[var(--hover-bg)] py-3.5 rounded-lg border border-[var(--card-border)] uppercase tracking-tight">${_escape(
           floorLabel
         )}</div>
         <div class="flex gap-1.5 flex-wrap flex-1">`;
     if (!floorUnits.length) {
-      html += `<div class="text-[9px] text-slate-300 italic py-3">${_escape(_t('construction.v2.transfer.no_rooms', 'Помещений нет'))}</div>`;
+      html += `<div class="text-rbi-caption text-muted italic py-3">${_escape(_t('construction.v2.transfer.no_rooms', 'Помещений нет'))}</div>`;
     } else {
       for (const u of floorUnits) {
         const bg = _cellBg(String(u.status || 'not_inspected'));
-        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>` : '';
+        const pdfDot = u.pdf_url ? `<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-brand"></span>` : '';
         const b = _bForUnit(u);
         let bTint = '';
         let bBadge = '';
         if (b) {
           const ring =
             b.final < 70
-              ? 'ring-2 ring-red-400/70'
+              ? 'ring-2 ring-danger/70'
               : b.final < 85
                 ? 'ring-2 ring-amber-400/70'
                 : 'ring-2 ring-emerald-400/60';
           bTint = ` ${ring}`;
-          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-[7px] font-black leading-none py-0.5 ${
+          bBadge = `<span class="absolute bottom-0 left-0 right-0 text-rbi-caption font-black leading-none py-0.5 ${
             b.final < 70
-              ? 'bg-red-500/90 text-white'
+              ? 'bg-danger/90 text-white'
               : b.final < 85
                 ? 'bg-amber-500/90 text-white'
                 : 'bg-emerald-600/90 text-white'
@@ -261,8 +261,8 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
             class="relative ${bg}${bTint} border rounded-lg w-[54px] h-[54px] flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform active:scale-95 overflow-hidden">
             ${pdfDot}
             ${bBadge}
-            <span class="text-[13px] font-black">${_escape(u.name)}</span>
-            <span class="text-[9px] opacity-60 font-bold">${_escape(u.type || 'КВ')}</span>
+            <span class="text-rbi-body font-black">${_escape(u.name)}</span>
+            <span class="text-rbi-caption opacity-60 font-bold">${_escape(u.type || 'КВ')}</span>
           </button>`;
       }
     }
@@ -273,7 +273,7 @@ function _renderGrid(uSvc: UnitsSvc, loc: LocSvc): string {
   if (_canManage() && bldUnits.length === 0) {
     html += `
       <button type="button" data-c2-tr-desk-generate-grid
-        class="mt-4 w-full bg-indigo-50 text-indigo-600 border border-indigo-200 py-3.5 rounded-xl text-[10px] font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+        class="mt-4 w-full bg-brand-soft text-brand border border-brand-soft py-3.5 rounded-xl text-rbi-caption font-black uppercase shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
         ${_escape(_t('construction.v2.transfer.generate_grid', 'Сгенерировать сетку квартир (8 на этаж)'))}
       </button>`;
   }
@@ -299,10 +299,10 @@ function _selectorsHtml(loc: LocSvc): string {
   }
   return `
     <div class="flex gap-2 mb-4 max-w-xl">
-      <select id="c2-tr-desk-object" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold">
+      <select id="c2-tr-desk-object" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold">
         ${objOpts}
       </select>
-      <select id="c2-tr-desk-building" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[12px] font-bold" ${_objectId ? '' : 'disabled'}>
+      <select id="c2-tr-desk-building" class="flex-1 rounded-xl border border-surface bg-surface px-3 py-2.5 text-rbi-body font-bold" ${_objectId ? '' : 'disabled'}>
         ${bldOpts}
       </select>
     </div>`;
@@ -317,11 +317,11 @@ export async function renderTransferBoardDesktop(root: HTMLElement): Promise<voi
   const loc = _loc();
   const uSvc = _units();
   if (!loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.svc_locations_missing', 'service.locations не загружен'))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape(_t('construction.v2.svc_locations_missing', 'service.locations не загружен'))}</div>`;
     return;
   }
   if (!uSvc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.svc_units_missing', 'service.constructionUnits не загружен'))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape(_t('construction.v2.svc_units_missing', 'service.constructionUnits не загружен'))}</div>`;
     return;
   }
   await loc.init();
@@ -344,8 +344,8 @@ export async function renderTransferBoardDesktop(root: HTMLElement): Promise<voi
   root.innerHTML = `
     <div class="w-full">
       <div class="mb-3">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.transfer.title', 'Передача · шахматка v2'))}</div>
-        <p class="text-[11px] text-slate-400 font-bold mt-0.5">${_escape(_t('construction.v2.transfer.hint', 'Клик по клетке — карточка квартиры{guest}', { guest: _isGuest() ? _t('construction.v2.transfer.guest_view', ' (только просмотр)') : '' }))}</p>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(_t('construction.v2.transfer.title', 'Передача · шахматка v2'))}</div>
+        <p class="text-rbi-label text-muted font-bold mt-0.5">${_escape(_t('construction.v2.transfer.hint', 'Клик по клетке — карточка квартиры{guest}', { guest: _isGuest() ? _t('construction.v2.transfer.guest_view', ' (только просмотр)') : '' }))}</p>
       </div>
       ${_selectorsHtml(loc)}
       <div id="c2-tr-desk-grid">${_renderGrid(uSvc, loc)}</div>

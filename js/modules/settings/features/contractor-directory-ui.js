@@ -219,6 +219,10 @@ function _renderRootHtml() {
         return `<div class="p-4 text-[10px] text-slate-500 font-bold">${_escapeHtml(_t('settings.admin.contractors.denied', 'Справочник подрядчиков доступен руководителям и администраторам.'))}</div>`;
     }
     const canEdit = _canEdit();
+    const findDupsBtn = canEdit ? `
+        <div class="flex justify-end mb-2">
+            <button type="button" data-contractor-dir-action="find-dups" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase active:scale-95 shadow-md flex items-center gap-1">${_escapeHtml(_t('settings.admin.contractors.find_dups', '🤖 Поиск дублей'))}</button>
+        </div>` : '';
     const createBlock = canEdit ? `
         <div class="flex flex-col sm:flex-row gap-2 mb-3">
             <input type="text" id="contractor-dir-new-name" class="input-base !py-2 text-[10px] bg-white dark:bg-slate-800 flex-1" placeholder="${_escapeHtml(_t('settings.admin.contractors.ph_new_name', 'Новый подрядчик (напр: ООО Каменный город)'))}">
@@ -231,6 +235,7 @@ function _renderRootHtml() {
             <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl mb-3 text-[10px] text-blue-800 dark:text-blue-300 leading-relaxed">
                 ${_escapeHtml(_t('settings.admin.contractors.intro', 'Канонические карточки подрядчиков проекта. Стабильный UUID id используется для будущего dual-write осмотров. Сейчас осмотры по-прежнему пишут строковое имя / canonical_key. Юр.поля и договоры уходят в облачные contractors / contracts.'))}
             </div>
+            ${findDupsBtn}
             ${createBlock}
             <div id="contractor-directory-list" class="max-h-[50vh] overflow-y-auto custom-scrollbar">
                 ${_renderListHtml(canEdit)}
@@ -390,6 +395,16 @@ async function _onSaveContract(contractId) {
     }
 }
 
+function _onFindDuplicates() {
+    if (!_canEdit()) return _toast(_t('settings.admin.contractors.need_admin', '⚠️ Нет прав (нужен admin)'));
+    const findFn = window.gameFindContractorDuplicates;
+    if (typeof findFn !== 'function') {
+        _toast(_t('settings.admin.contractors.dups_svc_missing', '❌ Функция поиска дублей недоступна'));
+        return;
+    }
+    findFn();
+}
+
 async function _onDeleteContract(contractId) {
     if (!_canEdit()) return _toast(_t('settings.admin.contractors.need_admin', '⚠️ Нет прав (нужен admin)'));
     if (!confirm(_t('settings.admin.contractors.confirm_delete_contract', 'Удалить договор?'))) return;
@@ -420,6 +435,7 @@ function bindContractorDirectoryDelegation() {
         const id = el.dataset.contractorId;
         const contractId = el.dataset.contractId;
         if (action === 'create') { e.preventDefault(); _onCreate(); }
+        else if (action === 'find-dups') { e.preventDefault(); _onFindDuplicates(); }
         else if (action === 'save' && id) { e.preventDefault(); _onSave(id); }
         else if (action === 'add-alias' && id) { e.preventDefault(); _onAddAlias(id); }
         else if (action === 'delete' && id) { e.preventDefault(); _onDelete(id); }

@@ -1050,9 +1050,17 @@ function renderReferenceTab() {
     if (!selectedKey) return;
 
     let checklist = [];
+    let officialInfo = null;
     const type = selectedKey.split('_')[0];
     const key = selectedKey.replace(type + '_', '');
-    if (type === 'sys' && window.SYSTEM_TEMPLATES[key]) checklist = window.SYSTEM_TEMPLATES[key].groups;
+    if (type === 'sys' && window.SYSTEM_TEMPLATES[key]) {
+        var templatesSvcRef = _templatesService();
+        var eff = templatesSvcRef && typeof templatesSvcRef.getEffectiveTemplate === 'function'
+            ? templatesSvcRef.getEffectiveTemplate(key)
+            : null;
+        checklist = eff ? eff.groups : window.SYSTEM_TEMPLATES[key].groups;
+        if (eff && eff.isOfficialOverride) officialInfo = eff;
+    }
     else if (type === 'user' && userTemplates[key]) checklist = userTemplates[key].groups;
 
     const searchTerm = document.getElementById('ref-search')?.value.toLowerCase() || "";
@@ -1064,11 +1072,22 @@ function renderReferenceTab() {
 
     let html = '';
 
+    // Редактор системных чек-листов Блок 1: бейдж «изменён компанией»
+    let officialBadgeHtml = '';
+    if (officialInfo) {
+        let dateStr = '';
+        try { dateStr = officialInfo.officialUpdatedAt ? new Date(officialInfo.officialUpdatedAt).toLocaleDateString('ru') : ''; } catch (_e) { /* ignore */ }
+        officialBadgeHtml = `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-full px-2 py-0.5 mb-2"
+            title="изменён компанией, v${officialInfo.officialVersion} от ${dateStr}">
+            ✎ v${officialInfo.officialVersion}</span>`;
+    }
+
     // --- ШАПКА: СТАТИСТИКА И ОБЩИЕ ИНСТРУКЦИИ ---
     html += `
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 shadow-sm mb-4 relative overflow-hidden">
             <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Требования по виду работ</div>
-            <div class="text-[16px] font-black text-slate-800 dark:text-white leading-tight mb-4">${refSelect.options[refSelect.selectedIndex].text.replace('▼', '').trim()}</div>
+            <div class="text-[16px] font-black text-slate-800 dark:text-white leading-tight mb-1">${refSelect.options[refSelect.selectedIndex].text.replace('▼', '').trim()}</div>
+            ${officialBadgeHtml ? `<div class="mb-3">${officialBadgeHtml}</div>` : ''}
             
             <div class="flex gap-4 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
                 <div class="text-[10px] font-bold text-slate-600 dark:text-slate-400"><span class="text-indigo-600 text-[14px] font-black mr-1">${globalCards.length}</span> общих инстр.</div>

@@ -87,42 +87,42 @@ function _cardHtml(r: ConstructionAcceptanceV2, loc: LocSvc): string {
   const progress = computeChecklistProgress(r.template_key, r.checklist_results);
   const progressHtml =
     progress.total > 0 && (r.checklist_results || progress.done > 0)
-      ? `<div class="mt-1.5 text-[9px] font-black uppercase tracking-wide text-indigo-600">${_escape(progressLine(progress))}${
+      ? `<div class="mt-1.5 text-rbi-caption font-black uppercase tracking-wide text-brand">${_escape(progressLine(progress))}${
           progress.fail ? ` · FAIL ${progress.fail}` : ''
         }</div>`
       : progress.total > 0
-        ? `<div class="mt-1.5 text-[9px] font-bold text-slate-400">${_escape(_t('construction.v2.kanban.checklist_progress', 'Чек-лист 0/{total}', { total: progress.total }))}</div>`
+        ? `<div class="mt-1.5 text-rbi-caption font-bold text-muted">${_escape(_t('construction.v2.kanban.checklist_progress', 'Чек-лист 0/{total}', { total: progress.total }))}</div>`
         : '';
   return `
-    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
+    <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 mb-3 shadow-sm cursor-pointer hover:border-brand transition-colors"
          data-c2-acc-card="${_escape(r.id)}">
       <div class="flex justify-between items-start gap-2 mb-1">
-        <div class="text-[11px] font-black text-slate-800 dark:text-slate-100 leading-tight">${_escape(r.work_type || _t('construction.v2.kanban.no_work_type', 'Без вида работ'))}</div>
-        ${overdue ? `<span class="text-[8px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
+        <div class="text-rbi-label font-black text-ink leading-tight">${_escape(r.work_type || _t('construction.v2.kanban.no_work_type', 'Без вида работ'))}</div>
+        ${overdue ? `<span class="text-rbi-caption font-black uppercase text-danger bg-danger-soft px-1.5 py-0.5 rounded">${_escape(_t('construction.v2.registry.overdue', 'просрочено'))}</span>` : ''}
       </div>
-      <div class="text-[10px] text-slate-500 font-bold mb-2">${_escape(path || r.locationId)}</div>
-      <div class="flex justify-between items-center text-[10px]">
-        <span class="font-bold text-slate-600">${_escape(r.requested_date || '—')} ${_escape(r.requested_time || '')}</span>
+      <div class="text-rbi-caption text-muted font-bold mb-2">${_escape(path || r.locationId)}</div>
+      <div class="flex justify-between items-center text-rbi-caption">
+        <span class="font-bold text-ink">${_escape(r.requested_date || '—')} ${_escape(r.requested_time || '')}</span>
         <button type="button" data-c2-acc-plan="${_escape(r.id)}"
-          class="text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded text-[9px] font-bold">${_escape(_t('construction.v2.kanban.plan_btn', 'План'))}</button>
+          class="text-brand bg-white border border-brand-soft px-2 py-1 rounded text-rbi-caption font-bold">${_escape(_t('construction.v2.kanban.plan_btn', 'План'))}</button>
       </div>
-      ${r.volume ? `<div class="mt-1 text-[9px] text-slate-400 font-bold">${_escape(r.volume)}</div>` : ''}
+      ${r.volume ? `<div class="mt-1 text-rbi-caption text-muted font-bold">${_escape(r.volume)}</div>` : ''}
       ${progressHtml}
     </div>`;
 }
 
 function _column(title: string, color: string, items: ConstructionAcceptanceV2[], loc: LocSvc): string {
   return `
-    <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700 p-2">
+    <div class="flex-1 min-w-[220px] bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-surface p-2">
       <div class="flex items-center justify-between px-1 mb-2">
-        <span class="text-[10px] font-black uppercase tracking-widest ${color}">${_escape(title)}</span>
-        <span class="bg-white dark:bg-slate-800 text-slate-600 px-1.5 py-0.5 rounded shadow-sm border border-slate-200 text-[10px] font-bold">${items.length}</span>
+        <span class="text-rbi-caption font-black uppercase tracking-widest ${color}">${_escape(title)}</span>
+        <span class="bg-surface text-ink px-1.5 py-0.5 rounded shadow-sm border border-surface text-rbi-caption font-bold">${items.length}</span>
       </div>
       <div class="max-h-[55vh] overflow-y-auto">
         ${
           items.length
             ? items.map((r) => _cardHtml(r, loc)).join('')
-            : `<div class="text-center py-4 text-[10px] font-bold text-slate-400 border border-dashed border-slate-300 rounded-xl">${_escape(_t('construction.v2.kanban.no_requests', 'Заявок нет'))}</div>`
+            : `<div class="text-center py-4 text-rbi-caption font-bold text-muted border border-dashed border-surface rounded-xl">${_escape(_t('construction.v2.kanban.no_requests', 'Заявок нет'))}</div>`
         }
       </div>
     </div>`;
@@ -132,7 +132,7 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
   const acc = _acc();
   const loc = _loc();
   if (!acc || !loc) {
-    root.innerHTML = `<div class="p-6 text-red-500 text-[12px] font-bold">${_escape(_t('construction.v2.kanban.svc_missing', 'constructionAcceptance / locations не загружены'))}</div>`;
+    root.innerHTML = `<div class="p-6 text-danger text-rbi-body font-bold">${_escape(_t('construction.v2.kanban.svc_missing', 'constructionAcceptance / locations не загружены'))}</div>`;
     return;
   }
   await loc.init();
@@ -161,19 +161,19 @@ export async function renderAcceptanceKanban(root: HTMLElement): Promise<void> {
   root.innerHTML = `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-600">${_escape(_t('construction.v2.kanban.title', 'Канбан приёмки (v2)'))}</div>
-        <select id="c2-acc-obj-filter" class="input-base text-[11px] font-bold max-w-[220px]">${objOpts}</select>
+        <div class="text-rbi-caption font-black uppercase tracking-widest text-brand">${_escape(_t('construction.v2.kanban.title', 'Канбан приёмки (v2)'))}</div>
+        <select id="c2-acc-obj-filter" class="input-base text-rbi-label font-bold max-w-[220px]">${objOpts}</select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="text-[10px] font-black uppercase text-slate-500" for="c2-acc-slots-date">${_escape(_t('construction.v2.kanban.slots_day', 'Слоты дня'))}</label>
-        <input type="date" id="c2-acc-slots-date" class="input-base text-[11px] font-bold max-w-[160px]" value="${_escape(
+        <label class="text-rbi-caption font-black uppercase text-muted" for="c2-acc-slots-date">${_escape(_t('construction.v2.kanban.slots_day', 'Слоты дня'))}</label>
+        <input type="date" id="c2-acc-slots-date" class="input-base text-rbi-label font-bold max-w-[160px]" value="${_escape(
           slotsDate
         )}">
       </div>
       ${slotBoardHtml(occupancy, { title: _t('construction.v2.slots.occupancy', 'Занятость {date}', { date: slotsDate }) })}
       <div class="flex flex-col lg:flex-row gap-3">
         ${_column(_t('construction.v2.kanban.col_pending', 'Ожидают'), 'text-blue-600', pending, loc)}
-        ${_column(_t('construction.v2.kanban.col_rejected', 'Отклонены'), 'text-red-600', rejected, loc)}
+        ${_column(_t('construction.v2.kanban.col_rejected', 'Отклонены'), 'text-danger', rejected, loc)}
         ${_column(_t('construction.v2.kanban.col_accepted', 'Приняты'), 'text-green-600', accepted, loc)}
       </div>
     </div>`;

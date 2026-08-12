@@ -303,8 +303,8 @@ function paintDesktopCharts(data, model) {
 }
 
 function metricColorClass(v) {
-  if (v == null || Number.isNaN(v)) return 'text-slate-400';
-  if (v < 70) return 'text-red-600';
+  if (v == null || Number.isNaN(v)) return 'text-muted';
+  if (v < 70) return 'text-danger';
   if (v < 85) return 'text-orange-500';
   return 'text-green-600';
 }
@@ -409,18 +409,18 @@ function buildKpiHtml(data) {
   return ''
     + '<div class="ana-desk-kpi-strip">'
     + '  <div><div class="k">' + _t('quality.analytics.kpi.avg_urk', 'Ср. УрК') + '</div><div class="v ' + metricColorClass(m.avgUrk) + '">' + m.avgUrk + '%</div></div>'
-    + '  <div><div class="k">' + _t('quality.analytics.desk.kpi_doc', 'УрК док.') + '</div><div class="v ' + (m.avgDoc == null ? 'text-slate-400' : metricColorClass(m.avgDoc)) + '">'
+    + '  <div><div class="k">' + _t('quality.analytics.desk.kpi_doc', 'УрК док.') + '</div><div class="v ' + (m.avgDoc == null ? 'text-muted' : metricColorClass(m.avgDoc)) + '">'
     + (m.avgDoc == null ? '—' : m.avgDoc + '%') + '</div></div>'
-    + '  <div><div class="k">' + _t('quality.analytics.kpi.reliability', 'Надёжность') + '</div><div class="v ' + (m.relN > 0 ? metricColorClass(m.avgRel) : 'text-slate-400') + '">'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.reliability', 'Надёжность') + '</div><div class="v ' + (m.relN > 0 ? metricColorClass(m.avgRel) : 'text-muted') + '">'
     + (m.relN > 0 ? m.avgRel + '%' : _t('quality.analytics.kpi.collecting', 'СБОР')) + '</div></div>'
-    + '  <div><div class="k">' + _t('quality.analytics.kpi.contractors', 'Подрядчики') + '</div><div class="v text-slate-800 dark:text-white">' + m.contrCount + '</div></div>'
-    + '  <div><div class="k">' + _t('quality.analytics.kpi.checks', 'Проверок') + '</div><div class="v text-slate-800 dark:text-white">' + m.checks + '</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.contractors', 'Подрядчики') + '</div><div class="v text-ink dark:text-white">' + m.contrCount + '</div></div>'
+    + '  <div><div class="k">' + _t('quality.analytics.kpi.checks', 'Проверок') + '</div><div class="v text-ink dark:text-white">' + m.checks + '</div></div>'
     + '</div>'
     + gap
     + '<div class="ana-desk-sev-strip">'
     + '  <div><div class="k">B1</div><div class="v text-blue-600">' + m.sumB1 + '</div></div>'
     + '  <div><div class="k">B2</div><div class="v text-orange-500">' + m.sumB2 + '</div></div>'
-    + '  <div><div class="k">B3</div><div class="v text-red-600">' + m.sumB3 + '</div></div>'
+    + '  <div><div class="k">B3</div><div class="v text-danger">' + m.sumB3 + '</div></div>'
     + '</div>';
 }
 
@@ -510,9 +510,9 @@ function paintContextZones(opts) {
     + '<details class="ana-desk-evidence" id="analytics-photos-details-desk"' + openAttr + '>'
     + '  <summary>' + _t('quality.analytics.desk.gallery_summary', 'Фотогалерея B3 / B2 / OK — раскрыть') + '</summary>'
     + '  <div class="ana-desk-evidence-body">'
-    + '    <div class="ev-h b3">' + _t('quality.analytics.gallery.b3_title', 'Критический брак (B3)') + '</div><div id="lazy-gallery-desk_b3" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
-    + '    <div class="ev-h b2">' + _t('quality.analytics.defect.b2', 'Значимые (B2)') + '</div><div id="lazy-gallery-desk_b2" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
-    + '    <div class="ev-h ok">' + _t('quality.analytics.desk.gallery_ok', 'Эталон (OK)') + '</div><div id="lazy-gallery-desk_ok" class="text-xs text-slate-400">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
+    + '    <div class="ev-h b3">' + _t('quality.analytics.gallery.b3_title', 'Критический брак (B3)') + '</div><div id="lazy-gallery-desk_b3" class="text-xs text-muted">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
+    + '    <div class="ev-h b2">' + _t('quality.analytics.defect.b2', 'Значимые (B2)') + '</div><div id="lazy-gallery-desk_b2" class="text-xs text-muted">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
+    + '    <div class="ev-h ok">' + _t('quality.analytics.desk.gallery_ok', 'Эталон (OK)') + '</div><div id="lazy-gallery-desk_ok" class="text-xs text-muted">' + _t('quality.analytics.desk.gallery_open', 'Откройте блок…') + '</div>'
     + '  </div>'
     + '</details>';
 
@@ -816,13 +816,13 @@ function paintContractorsTable() {
       + '<span class="ana-desk-work">' + escapeAttr(c.workType)
       + (isPrelim ? ' · ' + _t('quality.analytics.desk.collecting_suffix', 'сбор') : '') + '</span></td>'
       + '<td><span class="ana-desk-metric ' + metricColorClass(urk) + '">' + urk + '%</span></td>'
-      + '<td><span class="ana-desk-metric ' + (doc == null ? 'text-slate-400' : metricColorClass(doc)) + '">'
+      + '<td><span class="ana-desk-metric ' + (doc == null ? 'text-muted' : metricColorClass(doc)) + '">'
       + (doc == null ? '—' : doc + '%') + '</span></td>'
-      + '<td><span class="ana-desk-metric ' + (rel == null ? 'text-slate-400' : metricColorClass(rel)) + '">'
+      + '<td><span class="ana-desk-metric ' + (rel == null ? 'text-muted' : metricColorClass(rel)) + '">'
       + (rel == null ? '—' : rel + '%') + '</span></td>'
-      + '<td><span class="ana-desk-metric text-slate-700 dark:text-slate-200">' + m.count + '</span></td>'
-      + '<td><span class="ana-desk-metric text-slate-600">' + c.b1 + '/' + c.b2 + '/' + c.b3 + '</span></td>'
-      + '<td><span class="ana-desk-metric text-slate-700">' + stab + '</span></td>'
+      + '<td><span class="ana-desk-metric text-ink">' + m.count + '</span></td>'
+      + '<td><span class="ana-desk-metric text-muted">' + c.b1 + '/' + c.b2 + '/' + c.b3 + '</span></td>'
+      + '<td><span class="ana-desk-metric text-ink">' + stab + '</span></td>'
       + '</tr>';
   });
 
@@ -1042,7 +1042,7 @@ function updateFallbackNote(tabId) {
     return;
   }
   note.classList.remove('hidden');
-  note.innerHTML = '<div class="mb-3 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-[12px] text-amber-800 dark:text-amber-200 font-medium">'
+  note.innerHTML = '<div class="mb-3 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-rbi-body text-amber-800 dark:text-amber-200 font-medium">'
     + _t('quality.analytics.desk.mobile_fallback_note', 'Подвкладка на ПК пока в mobile-рендере внутри широкой оболочки. Отдельный desktop — в следующих блоках.')
     + '</div>';
 }
@@ -1646,7 +1646,7 @@ function wrapAsPanel(titleText, bodyNode, extraClass) {
 function heatBgByDefectRate(defectRate) {
   let bg = 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:border-green-800';
   if (defectRate > 1.5) {
-    bg = 'bg-red-100 text-red-800 border-red-300 font-black dark:bg-red-900/40 dark:border-red-700';
+    bg = 'bg-danger-soft text-danger border-danger font-black/40';
   } else if (defectRate > 0.5) {
     bg = 'bg-yellow-50 text-yellow-700 border-yellow-200 font-bold dark:bg-yellow-900/20 dark:border-yellow-800';
   }
@@ -2469,7 +2469,7 @@ function bindDesktopHooks() {
           el.classList.toggle('active', isOn);
           el.classList.toggle('bg-white', isOn);
           el.classList.toggle('shadow-sm', isOn);
-          el.classList.toggle('text-indigo-600', isOn);
+          el.classList.toggle('text-brand', isOn);
           el.classList.toggle('text-[var(--text-muted)]', !isOn);
         });
         try { updateFallbackNote(tabId); } catch (_) { /* ignore */ }
