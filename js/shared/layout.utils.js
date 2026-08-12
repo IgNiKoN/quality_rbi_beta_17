@@ -49,14 +49,41 @@ function updateBodyPadding() {
         if (isNavTop && navEl && !hasNav2) totalTop += navEl.offsetHeight;
 
         if (headerEl && headerEl.style.display !== 'none') {
+            // paddingTop всегда от РАЗВЁРНУТОЙ высоты.
+            // 1) collapsed → кэш (не снимаем класс — иначе мигание).
+            // 2) mid CSS-transition при expand/collapse → offsetHeight занижен;
+            //    не переписываем кэш меньшим значением.
             const wasCollapsed = headerEl.classList.contains('header-collapsed');
-            // Временно убираем класс, чтобы браузер мог посчитать реальную высоту
-            if (wasCollapsed) headerEl.classList.remove('header-collapsed');
-
-            // Если мы в режиме стройконтроля, высота шапки будет меньше
-            totalTop += headerEl.offsetHeight;
-
-            if (wasCollapsed) headerEl.classList.add('header-collapsed');
+            let expandedH = 0;
+            const cached = window._rbiExpandedHeaderHeight || 0;
+            if (wasCollapsed && cached > 0) {
+                expandedH = cached;
+            } else if (wasCollapsed) {
+                const collapsibles = headerEl.querySelectorAll('.header-collapsible');
+                const savedTransitions = [];
+                for (let i = 0; i < collapsibles.length; i++) {
+                    savedTransitions.push(collapsibles[i].style.transition);
+                    collapsibles[i].style.transition = 'none';
+                }
+                headerEl.classList.remove('header-collapsed');
+                void headerEl.offsetHeight;
+                expandedH = headerEl.offsetHeight;
+                headerEl.classList.add('header-collapsed');
+                void headerEl.offsetHeight;
+                for (let j = 0; j < collapsibles.length; j++) {
+                    collapsibles[j].style.transition = savedTransitions[j];
+                }
+                window._rbiExpandedHeaderHeight = expandedH;
+            } else {
+                const measured = headerEl.offsetHeight;
+                if (cached > 0 && measured < cached * 0.9) {
+                    expandedH = cached;
+                } else {
+                    expandedH = measured;
+                    window._rbiExpandedHeaderHeight = measured;
+                }
+            }
+            totalTop += expandedH;
         }
 
         document.body.style.paddingTop = `${totalTop + 15}px`;

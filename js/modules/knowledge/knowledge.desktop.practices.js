@@ -32,8 +32,12 @@ function escapeHtml(s) {
 
 function getCurrentEngineer() {
   try {
+    var perms = window.RBI && window.RBI.services && window.RBI.services.permissions;
+    if (perms && typeof perms.getCurrentEngineerName === 'function') {
+      return perms.getCurrentEngineerName() || 'Инженер';
+    }
     if (window.RBI && window.RBI.services && window.RBI.services.settings) {
-      return window.RBI.services.settings.getSetting('engineerName') || 'Инженер';
+      return window.RBI.services.settings.get('engineerName') || 'Инженер';
     }
   } catch (_) { /* ignore */ }
   return 'Инженер';
@@ -706,7 +710,7 @@ async function paintEtalonPreview(viewer, item, gen) {
     }
   );
 
-  const isOwner = item.inspectorName === getCurrentEngineer();
+  const isOwner = (item.owner || item.inspectorName) === getCurrentEngineer();
   addViewerBtn(actions, '⋯', 'is-muted', function () {
     if (typeof window.openUniversalActionSheet === 'function') {
       window.openUniversalActionSheet(

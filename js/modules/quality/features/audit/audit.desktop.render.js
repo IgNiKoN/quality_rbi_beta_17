@@ -28,6 +28,7 @@ let _localeBound = false;
 let _shellApplied = false;
 let _previewToken = 0;
 let _origRenderAudit = null;
+let _chromeRO = null;
 
 function _t(key, fallback, vars) {
   try {
@@ -268,20 +269,16 @@ function ensureShell() {
       + '  <div class="audit-desk-topbar-tpl" data-audit-desk-slot-checklist></div>'
       + '</div>';
 
+    // Компактная шапка (как строка фильтров у Аналитики): 1 плоская карточка,
+    // без заголовков/подсказок над блоками — строка полей объекта, ниже (если
+    // есть) строка групп пунктов чек-листа.
     const chrome = document.createElement('section');
     chrome.id = CHROME_ID;
     chrome.className = 'audit-desk-chrome';
     chrome.innerHTML = ''
       + '<div class="audit-desk-chrome-body">'
-      + '  <div class="audit-desk-zone audit-desk-zone-object">'
-      + '    <div class="audit-desk-zone-head">'
-      + '      <div class="audit-desk-zone-label">' + _t('quality.desk.audit.zone_object_label', 'Объект проверки') + '</div>'
-      + '      <p class="audit-desk-zone-hint">' + _t('quality.desk.audit.zone_object_hint', 'Подрядчик, место и привязка к плану') + '</p>'
-      + '    </div>'
-      + '    <div class="audit-desk-chrome-form" data-audit-desk-slot-data></div>'
-      + '  </div>'
-      + '  <div class="audit-desk-zone audit-desk-zone-groups" data-audit-desk-slot-nav-wrap>'
-      + '    <div class="audit-desk-zone-label">' + _t('quality.desk.audit.zone_groups_label', 'Группы пунктов') + '</div>'
+      + '  <div class="audit-desk-chrome-row audit-desk-chrome-row-fields" data-audit-desk-slot-data></div>'
+      + '  <div class="audit-desk-chrome-row audit-desk-chrome-row-groups" data-audit-desk-slot-nav-wrap>'
       + '    <div data-audit-desk-slot-nav></div>'
       + '  </div>'
       + '</div>';
@@ -579,6 +576,28 @@ async function renderPdfPreview(stage, pdfUrl, pin, token) {
   }
 }
 
+// Chrome (объект проверки + группы пунктов) закреплён (position: sticky) —
+// высота динамическая (группы могут занимать 1-2 строки), поэтому реальную
+// высоту пишем в CSS-переменную на shell: от неё зависит top у .audit-desk-side,
+// иначе план заезжал бы под закреплённую шапку.
+function syncChromeHeightVar() {
+  const shell = document.getElementById(SHELL_ID);
+  const chrome = document.getElementById(CHROME_ID);
+  if (!shell || !chrome) return;
+  const h = chrome.offsetHeight || 0;
+  shell.style.setProperty('--audit-desk-chrome-h', h + 'px');
+}
+
+function bindChromeResizeObserver() {
+  const chrome = document.getElementById(CHROME_ID);
+  if (!chrome || _chromeRO) return;
+  if (typeof ResizeObserver !== 'function') return;
+  _chromeRO = new ResizeObserver(function () {
+    syncChromeHeightVar();
+  });
+  _chromeRO.observe(chrome);
+}
+
 export function showAuditDesktop() {
   if (!isDesktopViewport() || !isAuditActive()) {
     teardownAuditDesktop();
@@ -592,11 +611,18 @@ export function showAuditDesktop() {
   // Catalog/locale may become ready after first shell build (DOMContentLoaded race).
   try { refreshAuditDeskChromeI18n(); } catch (_) { /* ignore */ }
   paintPlanPanel();
+  bindChromeResizeObserver();
+  syncChromeHeightVar();
 }
 
 export function teardownAuditDesktop() {
   _previewToken += 1;
   const auditStill = isAuditActive();
+
+  if (_chromeRO) {
+    try { _chromeRO.disconnect(); } catch (_) { /* ignore */ }
+    _chromeRO = null;
+  }
 
   if (_shellApplied) {
     restoreTabAudit();
@@ -637,13 +663,6 @@ function refreshAuditDeskChromeI18n() {
 
   const label = document.querySelector('.audit-desk-topbar-label');
   if (label) label.textContent = _t('quality.desk.audit.strip_label', 'Осмотр');
-
-  const zoneObj = document.querySelector('.audit-desk-zone-object .audit-desk-zone-label');
-  if (zoneObj) zoneObj.textContent = _t('quality.desk.audit.zone_object_label', 'Объект проверки');
-  const zoneObjHint = document.querySelector('.audit-desk-zone-object .audit-desk-zone-hint');
-  if (zoneObjHint) zoneObjHint.textContent = _t('quality.desk.audit.zone_object_hint', 'Подрядчик, место и привязка к плану');
-  const zoneGrp = document.querySelector('.audit-desk-zone-groups > .audit-desk-zone-label');
-  if (zoneGrp) zoneGrp.textContent = _t('quality.desk.audit.zone_groups_label', 'Группы пунктов');
 
   const planTitle = document.querySelector('.audit-desk-plan-title');
   if (planTitle) planTitle.textContent = _t('quality.desk.audit.plan_title', 'План этажа');

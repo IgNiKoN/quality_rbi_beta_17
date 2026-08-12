@@ -283,7 +283,60 @@ window.removeAssignedProject = async function (val) {
     }
 };
 
-window.initCloudConnection = async function () {
+// UI-фидбек на кнопку «Подключиться к облаку» (Auth Gate + Настройки).
+// Раньше клик не давал никакого визуального отклика, а если сервер не
+// отвечал (нет сети / упал Supabase) — весь экран просто "висел" до
+// бесконечности без единого сообщения. Теперь: кнопка блокируется и
+// показывает спиннер-текст на время запроса, а сам запрос ограничен
+// таймаутом — если сервер молчит дольше CLOUD_CONNECT_TIMEOUT_MS,
+// пользователь получает понятную ошибку вместо замороженного экрана.
+const CLOUD_CONNECT_TIMEOUT_MS = 15000;
+
+function setCloudConnectBtnLoading(btn, loading) {
+    if (!btn) return;
+    if (loading) {
+        if (btn.dataset.origLabel === undefined) btn.dataset.origLabel = btn.textContent;
+        btn.disabled = true;
+        btn.classList.add('opacity-70');
+        btn.style.cursor = 'wait';
+        btn.textContent = '⏳ Подключаемся…';
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-70');
+        btn.style.cursor = '';
+        if (btn.dataset.origLabel !== undefined) {
+            btn.textContent = btn.dataset.origLabel;
+            delete btn.dataset.origLabel;
+        }
+    }
+}
+
+function withTimeout(promise, ms, message) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+window.initCloudConnection = async function (btnEl) {
+    setCloudConnectBtnLoading(btnEl, true);
+    try {
+        return await withTimeout(
+            runCloudConnection(),
+            CLOUD_CONNECT_TIMEOUT_MS,
+            'Сервер не отвечает. Проверьте соединение и попробуйте снова.'
+        );
+    } catch (err) {
+        console.error('[Sync] initCloudConnection:', err);
+        safeToast('❌ ' + (err && err.message ? err.message : 'Не удалось подключиться к облаку'));
+        throw err;
+    } finally {
+        setCloudConnectBtnLoading(btnEl, false);
+    }
+};
+
+async function runCloudConnection() {
     const name = document.getElementById('sync-name').value.trim();
     const code = document.getElementById('sync-code').value.trim();
     const pin = document.getElementById('sync-pin').value.trim();
@@ -467,7 +520,7 @@ window.initCloudConnection = async function () {
     }
 
     window.applySyncConnect(name, code, hashedPin);
-};
+}
 
 window.showPinPromptModal = function (name, code, correctHash) {
     const html = `

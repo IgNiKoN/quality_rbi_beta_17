@@ -484,7 +484,8 @@
       copyField('gate-sync-pin', 'sync-pin');
 
       if (typeof window.initCloudConnection !== 'function') return;
-      var result = window.initCloudConnection();
+      var btn = document.querySelector('[data-shell-action="submitAuthGateConnect"]');
+      var result = window.initCloudConnection(btn);
       if (result && typeof result.then === 'function') {
         result.then(function () { self.hideAuthGate(); }).catch(function () { self.hideAuthGate(); });
       } else {

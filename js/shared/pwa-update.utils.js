@@ -25,6 +25,29 @@
 }());
 
 let newWorker;
+let swRegistration;
+
+function showUpdateBanner() {
+    const banner = document.getElementById('pwa-update-banner');
+    if (banner) banner.style.display = 'flex';
+}
+
+// Общий биндинг «этот воркер — кандидат на обновление»: вызывается и из
+// updatefound (обнова скачалась в этой сессии), и сразу при регистрации,
+// если registration.waiting уже был выставлен ДО текущей загрузки страницы
+// (вкладка была открыта в фоне, обнова докачалась без updatefound в этой
+// сессии) — раньше в этом случае newWorker оставался undefined навсегда,
+// и клик по «Обновить» не срабатывал вообще без единой ошибки в консоли.
+function bindNewWorker(worker) {
+    if (!worker || worker === newWorker) return;
+    newWorker = worker;
+    worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+        }
+    });
+}
+
 // Логика ручной проверки обновлений
 window.checkForUpdates = function() {
     if ('serviceWorker' in navigator) {
@@ -40,6 +63,8 @@ window.checkForUpdates = function() {
                             if (typeof showToast === 'function') showToast("✅ У вас установлена самая актуальная версия!");
                         }
                     }, 1500);
+                }).catch(() => {
+                    if (typeof showToast === 'function') showToast("❌ Не удалось проверить обновления — нет связи с сервером");
                 });
             } else {
                 if (typeof showToast === 'function') showToast("❌ Ошибка: Service Worker не активен");
@@ -49,13 +74,29 @@ window.checkForUpdates = function() {
         if (typeof showToast === 'function') showToast("Ваш браузер не поддерживает обновления");
     }
 };
+
 // Логика нажатия на кнопку "Обновить"
-document.getElementById('pwa-update-btn')?.addEventListener('click', () => {
-    if (newWorker) {
-        // Отправляем команду в sw.js, которую мы написали на Шаге 1
-        newWorker.postMessage('SKIP_WAITING');
-    }
-});
+(function bindUpdateBtn() {
+    const btn = document.getElementById('pwa-update-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        // К моменту клика newWorker может быть уже устаревшей ссылкой
+        // (браузер иногда пересобирает installing/waiting) — на всякий
+        // случай дотягиваемся до актуального через registration.
+        const worker = newWorker
+            || (swRegistration && (swRegistration.waiting || swRegistration.installing));
+        btn.disabled = true;
+        btn.textContent = 'Обновляем…';
+        if (worker) {
+            worker.postMessage('SKIP_WAITING');
+        }
+        // Страховка: если controllerchange по какой-то причине не пришёл
+        // (нет связи с воркером / браузер не отработал переключение) —
+        // всё равно перезагружаем страницу через sw.js уже должен быть
+        // обновлён на сервере, свежий index.html подхватит актуальный код.
+        setTimeout(() => { window.location.reload(); }, 4000);
+    });
+}());
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -63,17 +104,19 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
             .then(registration => {
                 console.log('Service Worker успешно зарегистрирован:', registration.scope);
-                
+                swRegistration = registration;
+
+                // Обнова уже была скачана ДО этой загрузки страницы (вкладка
+                // висела открытой в фоне, или предыдущая checkForUpdates уже
+                // всё скачала) — updatefound в этой сессии не произойдёт.
+                if (registration.waiting && hadControllerAtLoad) {
+                    bindNewWorker(registration.waiting);
+                    showUpdateBanner();
+                }
+
                 // Следим за появлением нового файла sw.js (нового кэша)
                 registration.addEventListener('updatefound', () => {
-                    newWorker = registration.installing;
-                    newWorker.addEventListener('statechange', () => {
-                        // Когда новый кэш скачан и готов к работе
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // Показываем нашу красивую плашку
-                            document.getElementById('pwa-update-banner').style.display = 'flex';
-                        }
-                    });
+                    bindNewWorker(registration.installing);
                 });
             })
             .catch(error => {

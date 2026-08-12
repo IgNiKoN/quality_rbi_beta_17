@@ -49,9 +49,20 @@ window.mergeCloudData = async function (newInspections, newProfiles, newTasks, n
                 const cloudTime = data.session.timestamp || 0;
 
                 if (cloudTime > localTime) {
-                    await dbPut('app_state', data.session);
-                    if (typeof restoreSession === 'function') {
-                        setTimeout(() => { restoreSession(); safeToast("📥 Черновик подтянут из облака!"); }, 500);
+                    // Как sync-engine draft pull: на активном Осмотре облако не трогает UI.
+                    const isAuditActive = document.getElementById('tab-audit')?.classList.contains('active');
+                    if (isAuditActive) {
+                        console.log('[Sync] 🛡️ Осмотр активен — mergeCloudData не вызывает restoreSession');
+                    } else {
+                        await dbPut('app_state', data.session);
+                        if (typeof restoreSession === 'function') {
+                            setTimeout(() => {
+                                if (!document.getElementById('tab-audit')?.classList.contains('active')) {
+                                    restoreSession();
+                                    safeToast("📥 Черновик подтянут из облака!");
+                                }
+                            }, 500);
+                        }
                     }
                 }
             }

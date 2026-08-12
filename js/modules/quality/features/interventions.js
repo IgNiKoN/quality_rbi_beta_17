@@ -391,7 +391,7 @@ function renderManualPracticeModalMarkup() {
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                         </path>
                     </svg>
-                    Новая практика
+                    <span id="man-prac-modal-title">Новая практика</span>
                 </div>
                 <button data-interventions-action="rbi_closeManualPracticeModal"
                     class="w-8 h-8 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-600">
@@ -945,7 +945,7 @@ window.rbi_renderPracticesTab = async function () {
     };
 
     const renderEtalonItem = (item) => {
-        const isOwner = item.inspectorName === currentEngineer;
+        const isOwner = (item.owner || item.inspectorName) === currentEngineer;
         const safeContr = String(item.contractorName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const inspectorShort = item.inspectorName ? item.inspectorName.split(' ')[0] : 'Инженер';
         const etalonLabel = `Эталон${item.source_kind === 'act_v18' ? ' (Бета)' : (item.source_kind === 'act_v18b' ? ' (Бета 2, ПК)' : '')}`;
@@ -1423,7 +1423,47 @@ function _rbiApplyManualPracticeDraft(p) {
     renderPracticeDocsUI();
 }
 
+// Редактирование существующей практики (детектор-практики и ручные — единой
+// формой manual-practice-modal, т.к. она не требует привязки к intervention).
+window.rbi_editPractice = function (id) {
+    const p = window.rbi_practicesData.find(x => x.id === id);
+    if (!p) return;
+    var _perms = window.RBI && window.RBI.services && window.RBI.services.permissions;
+    if (_perms && typeof _perms.canEdit === 'function' && !_perms.canEdit(p.owner || p.author)) {
+        return showToast("⚠️ Редактировать можно только свою практику.");
+    }
+
+    window._rbiPracEditId = id;
+    const titleEl = document.getElementById('man-prac-modal-title');
+    if (titleEl) titleEl.textContent = 'Изменить практику';
+
+    document.getElementById('man-prac-title').value = p.title || '';
+    document.getElementById('man-prac-problem').value = p.problem || '';
+    document.getElementById('man-prac-solution').value = p.solution || '';
+    const takeawayEl = document.getElementById('man-prac-takeaway');
+    if (takeawayEl) takeawayEl.value = p.takeaway || '';
+
+    window._manPracState = {
+        photosBefore: Array.isArray(p.photosBefore) && p.photosBefore.length ? p.photosBefore.slice() : (p.photoBefore ? [p.photoBefore] : []),
+        photosProcess: Array.isArray(p.photosProcess) ? p.photosProcess.slice() : [],
+        photosAfter: Array.isArray(p.photosAfter) && p.photosAfter.length ? p.photosAfter.slice() : (p.photoAfter ? [p.photoAfter] : []),
+        docs: Array.isArray(p.docs) ? p.docs.slice() : []
+    };
+    rbi_renderPracPhotosUI('before');
+    rbi_renderPracPhotosUI('process');
+    rbi_renderPracPhotosUI('after');
+    renderPracticeDocsUI();
+
+    const modal = document.getElementById('manual-practice-modal');
+    modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
+};
+
 window.rbi_openManualPracticeModal = function () {
+    window._rbiPracEditId = null;
+    const titleEl = document.getElementById('man-prac-modal-title');
+    if (titleEl) titleEl.textContent = 'Новая практика';
+
     const FD = window.RBIFormDraft;
     const draftKey = FD ? FD.KEYS.PRACTICE_MANUAL : null;
 
@@ -1456,11 +1496,14 @@ window.rbi_openManualPracticeModal = function () {
 
 window.rbi_closeManualPracticeModal = function () {
     const FD = window.RBIFormDraft;
-    if (FD) {
+    // При редактировании существующей практики черновик-автосейв не нужен —
+    // он предназначен только для формы создания новой записи.
+    if (FD && !window._rbiPracEditId) {
         const draftKey = FD.KEYS.PRACTICE_MANUAL;
         FD.saveNow(draftKey, _rbiCollectManualPracticeDraft);
         FD.unbindAutoSave(draftKey);
     }
+    window._rbiPracEditId = null;
     document.getElementById('manual-practice-modal').style.display = 'none';
     document.body.classList.remove('modal-open');
 };
@@ -1588,6 +1631,40 @@ window.rbi_saveManualPractice = async function () {
     if (!title) return showToast("⚠️ Введите Название Практики!");
 
     const st = window._manPracState || { photosBefore: [], photosProcess: [], photosAfter: [], docs: [] };
+
+    const editId = window._rbiPracEditId;
+    if (editId) {
+        const pIndex = window.rbi_practicesData.findIndex(p => p.id === editId);
+        if (pIndex === -1) { window._rbiPracEditId = null; return; }
+        const existing = window.rbi_practicesData[pIndex];
+        existing.title = title;
+        existing.problem = document.getElementById('man-prac-problem').value.trim();
+        existing.solution = document.getElementById('man-prac-solution').value.trim();
+        existing.takeaway = (document.getElementById('man-prac-takeaway')?.value || '').trim();
+        existing.photosBefore = (st.photosBefore || []).slice();
+        existing.photosProcess = (st.photosProcess || []).slice();
+        existing.photosAfter = (st.photosAfter || []).slice();
+        existing.docs = (st.docs || []).slice();
+        existing.photoBefore = (st.photosBefore && st.photosBefore[0]) || null;
+        existing.photoAfter = (st.photosAfter && st.photosAfter[0]) || null;
+        existing.updatedAt = new Date().toISOString();
+        existing.source = 'local';
+        existing.syncStatus = 'not_synced';
+        existing.sync_status = 'not_synced';
+
+        await _storage().put(_storage().stores().PRACTICES, existing);
+        _syncEnqueue('SAVE_PRACTICE', existing);
+
+        window._rbiPracEditId = null;
+        showToast("✅ Практика обновлена");
+        document.getElementById('manual-practice-modal').style.display = 'none';
+        document.body.classList.remove('modal-open');
+        rbi_renderPracticesTab();
+
+        localStorage.setItem('rbi_cloud_dirty', '1');
+        _sync('silent');
+        return;
+    }
 
     const practice = {
         id: 'prac_' + Date.now().toString(36),
@@ -1772,6 +1849,16 @@ window.openUniversalActionSheet = function (id, type, title, isOwner, extraData)
         </button>`;
     }
 
+    // Кнопка: Изменить (Только Практики, только автор)
+    if (type === 'practice' && isOwner) {
+        btnsHtml += `
+        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+            <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
+            </div>
+            <span class="text-[12px] font-bold">Изменить</span>
+        </button>`;
+    }
     // Кнопка: Опубликовать (Только Практики, только автор, если еще не опубликовано)
     if (type === 'practice' && isOwner && extraData !== 'published') {
         btnsHtml += `
@@ -1924,6 +2011,7 @@ window.handleUasAction = function (id, type, action) {
             if (action === 'print') rbi_printPracticePdf(id, 'browser');
             if (action === 'pptx' && typeof window.rbi_exportPracticePptx === 'function') window.rbi_exportPracticePptx(id);
             if (action === 'publish') rbi_publishPractice(id);
+            if (action === 'edit') rbi_editPractice(id);
             if (action === 'delete') rbi_deletePractice(id);
         }
         // --- ДЕЙСТВИЯ ЭТАЛОНОВ ---

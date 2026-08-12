@@ -193,11 +193,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         let lastScroll = 0;
         window.addEventListener('scroll', () => {
+            if (!headerEl) {
+                lastScroll = window.scrollY;
+                return;
+            }
             const currentScroll = window.scrollY;
-            if (currentScroll > 50 && currentScroll > lastScroll) {
-                if (headerEl) headerEl.classList.add('header-collapsed');
-            } else if (currentScroll < 50) {
-                if (headerEl) headerEl.classList.remove('header-collapsed');
+            const isCollapsed = headerEl.classList.contains('header-collapsed');
+            let nextCollapsed = isCollapsed;
+            if (currentScroll > 50 && currentScroll > lastScroll) nextCollapsed = true;
+            else if (currentScroll < 50) nextCollapsed = false;
+
+            if (nextCollapsed !== isCollapsed) {
+                // Высота шапки меняется — синхронизируем body.paddingTop.
+                // updateBodyPadding всегда меряет развёрнутую высоту (см. layout.utils),
+                // поэтому после collapse запас сверху сохраняется и пункт не уезжает под шапку.
+                if (nextCollapsed) headerEl.classList.add('header-collapsed');
+                else headerEl.classList.remove('header-collapsed');
+                if (typeof updateBodyPadding === 'function') {
+                    try { updateBodyPadding(); } catch (_) { /* ignore */ }
+                }
             }
             lastScroll = currentScroll;
         }, { passive: true });

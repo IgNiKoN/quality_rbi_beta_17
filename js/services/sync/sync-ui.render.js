@@ -342,7 +342,7 @@ window.renderSyncUI = function () {
                 </div>
             </div>
             <div class="p-4 bg-[var(--hover-bg)]">
-                <button onclick="window.initCloudConnection()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 transition-transform">${_t('settings.sync.form.connect', 'Подключиться к облаку')}</button>
+                <button onclick="window.initCloudConnection(this)" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 transition-transform">${_t('settings.sync.form.connect', 'Подключиться к облаку')}</button>
             </div>
         `;
     }

@@ -2650,6 +2650,20 @@ window.triggerSync = async function (mode = 'silent') {
                             .from('rbi_tasks')
                             .upsert(upsertData, { onConflict: 'id' });
 
+                        if (taskError) {
+                            // ВРЕМЕННАЯ ДИАГНОСТИКА RLS-403 на rbi_tasks (снять после подтверждения фикса):
+                            // показывает роль/имя устройства и есть ли в батче задачи с "чужим" engineer_name —
+                            // чтобы не гадать по SQL, что реально пыталось уйти в облако.
+                            const foreignRows = upsertData.filter(r => r.engineer_name && r.engineer_name !== iName);
+                            console.error('[Sync][DEBUG rbi_tasks upsert failed]', {
+                                error: taskError,
+                                pushRole: taskPushRole,
+                                currentEngineer: iName,
+                                batchSize: upsertData.length,
+                                foreignEngineerRows: foreignRows.map(r => ({ id: r.id, engineer_name: r.engineer_name, project_code: r.project_code }))
+                            });
+                        }
+
                         if (taskError) throw taskError;
                         // После успешной отправки задач помечаем локальные ручные задачи как синхронизированные
                         for (const task of batch) {
@@ -4052,8 +4066,19 @@ window.triggerSync = async function (mode = 'silent') {
         window.syncDirtyFlags.tasks = true;
         window.syncDirtyFlags.session = true;
         window.syncDirtyFlags.reference = true; // <-- ДОБАВИЛИ ФЛАГ СПРАВОЧНИКА
-        // Перезагружаем Справочник объектов в память, если он прилетел из облака
-        if (typeof ObjectDirectory !== 'undefined') await ObjectDirectory.init();
+        // Справочник объектов: данные в память всегда; initUI (поля Осмотра +
+        // updateBodyPadding) — НЕ на активной вкладке Осмотр: иначе тихий sync
+        // через несколько секунд даёт скачок шапки/списка (регресс §5).
+        if (typeof ObjectDirectory !== 'undefined') {
+            const auditLive = !!(document.getElementById('tab-audit')?.classList.contains('active'));
+            if (auditLive && typeof ObjectDirectory.rebuildFromLocations === 'function') {
+                try { await ObjectDirectory.rebuildFromLocations(); } catch (e) {
+                    console.warn('[Sync] ObjectDirectory rebuild skipped UI:', e);
+                }
+            } else {
+                await ObjectDirectory.init();
+            }
+        }
 
         // === АВТОГЕНЕРАЦИЯ И СИНХРОНИЗАЦИЯ ЗАДАЧ ===
         // Запускаем пересчет только если не открыто модальное окно

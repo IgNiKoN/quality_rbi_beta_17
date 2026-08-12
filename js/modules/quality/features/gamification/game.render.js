@@ -1713,9 +1713,16 @@ let gameChartInstance = null;
   function _fmeaResolveDisplayName(key) {
     const raw = String(key || '').trim();
     if (!raw) return '';
+    // assignedProjects хранит UUID узла locations.object (§ object-directory) —
+    // прямое сравнение по canonical_key/display_name его не резолвит.
+    var od = _objects();
+    if (od && typeof od.getDisplayForAssignedRef === 'function') {
+      const resolved = String(od.getDisplayForAssignedRef(raw) || '').trim();
+      if (resolved && resolved !== raw) return resolved;
+    }
     var objList = _objectList();
     if (objList.length) {
-      const obj = objList.find(o => o.canonical_key === raw || o.display_name === raw);
+      const obj = objList.find(o => o.id === raw || o.canonical_key === raw || o.display_name === raw);
       if (obj) return String(obj.display_name || obj.canonical_key || raw).trim();
     }
     const hit = _getAllInspections().find(c =>
@@ -1730,8 +1737,15 @@ let gameChartInstance = null;
   function _fmeaResolveCanonicalKey(displayOrKey) {
     const raw = String(displayOrKey || '').trim();
     if (!raw || raw === 'Все объекты') return '';
+    var od2 = _objects();
+    if (od2 && typeof od2.resolveObjectRef === 'function') {
+      const obj = od2.resolveObjectRef(raw);
+      if (obj && obj.canonical_key) return String(obj.canonical_key).trim();
+    }
     var objList2 = _objectList();
     if (objList2.length) {
+      const byId = objList2.find(o => o.id === raw);
+      if (byId) return String(byId.canonical_key || '').trim();
       const byKey = objList2.find(o => o.canonical_key === raw);
       if (byKey) return String(byKey.canonical_key || '').trim();
       const byName = objList2.find(o => o.display_name === raw);

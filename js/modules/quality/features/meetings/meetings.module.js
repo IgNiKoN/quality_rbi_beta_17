@@ -1347,9 +1347,16 @@ function _meetingGetAssignedProjectKeys() {
 function _meetingResolveProjectDisplayName(key) {
     const raw = String(key || '').trim();
     if (!raw) return '';
+    // assignedProjects хранит UUID узла locations.object (§ object-directory) —
+    // прямое сравнение по canonical_key/display_name его не резолвит.
+    var od = _objects();
+    if (od && typeof od.getDisplayForAssignedRef === 'function') {
+        const resolved = String(od.getDisplayForAssignedRef(raw) || '').trim();
+        if (resolved && resolved !== raw) return resolved;
+    }
     var meetObjList = _objectList();
     if (meetObjList.length) {
-        const obj = meetObjList.find(o => o.canonical_key === raw || o.display_name === raw);
+        const obj = meetObjList.find(o => o.id === raw || o.canonical_key === raw || o.display_name === raw);
         if (obj) return String(obj.display_name || obj.canonical_key || raw).trim();
     }
     const hit = _getAllInspections().find(c =>
@@ -1403,8 +1410,15 @@ function _meetingFormatProjectNameForSave(isAll, selected) {
 function _meetingResolveCanonicalKey(displayOrKey) {
     const raw = String(displayOrKey || '').trim();
     if (!raw || raw === 'Все объекты') return '';
+    var od = _objects();
+    if (od && typeof od.resolveObjectRef === 'function') {
+        const obj = od.resolveObjectRef(raw);
+        if (obj && obj.canonical_key) return String(obj.canonical_key).trim();
+    }
     var meetObjList2 = _objectList();
     if (meetObjList2.length) {
+        const byId = meetObjList2.find(o => o.id === raw);
+        if (byId) return String(byId.canonical_key || '').trim();
         const byKey = meetObjList2.find(o => o.canonical_key === raw);
         if (byKey) return String(byKey.canonical_key || '').trim();
         const byName = meetObjList2.find(o => o.display_name === raw);

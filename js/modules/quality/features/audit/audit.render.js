@@ -649,9 +649,17 @@ import { AuditActions } from './audit.actions.js';
       itemData._justRendered = true;
 
       var _twiCards = _getTwiCards();
+      // Совпадает с openItemHelpMenu: вид работ целиком = itemId 'ALL' или пустой.
+      var _isItemOrAll = function (c) {
+        return String(c.itemId) === String(id) || c.itemId === 'ALL' || !c.itemId;
+      };
       var inspectorCard = _twiCards.find(function (c) { return c.type === 'INSPECTOR' && String(c.itemId) === String(id); });
-      var workerCard = _twiCards.find(function (c) { return c.type === 'WORKER' && c.checklistKey === AuditState.currentTemplateKey && (String(c.itemId) === String(id) || c.itemId === 'ALL'); });
-      var pdfCard = _twiCards.find(function (c) { return c.type === 'PDF' && c.checklistKey === AuditState.currentTemplateKey && (String(c.itemId) === String(id) || c.itemId === 'ALL'); });
+      var workerCard = _twiCards.find(function (c) {
+        return c.type === 'WORKER' && c.checklistKey === AuditState.currentTemplateKey && _isItemOrAll(c);
+      });
+      var pdfCard = _twiCards.find(function (c) {
+        return c.type === 'PDF' && c.checklistKey === AuditState.currentTemplateKey && _isItemOrAll(c);
+      });
 
       var hasAnyHelp = inspectorCard || workerCard || pdfCard;
 

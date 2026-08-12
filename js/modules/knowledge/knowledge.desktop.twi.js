@@ -35,8 +35,12 @@ function escapeHtml(s) {
 
 function getCurrentEngineer() {
   try {
+    var perms = window.RBI && window.RBI.services && window.RBI.services.permissions;
+    if (perms && typeof perms.getCurrentEngineerName === 'function') {
+      return perms.getCurrentEngineerName() || 'Инженер';
+    }
     if (window.RBI && window.RBI.services && window.RBI.services.settings) {
-      return window.RBI.services.settings.getSetting('engineerName') || 'Инженер';
+      return window.RBI.services.settings.get('engineerName') || 'Инженер';
     }
   } catch (_) { /* ignore */ }
   return 'Инженер';

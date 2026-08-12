@@ -37,23 +37,73 @@ body.rbi-audit-desktop-wide #audit-desktop-shell {
   display: flex;
 }
 
-/* ===== CHROME — как subtabs у аналитики/БЗ: sticky full-bleed под desk topbar ===== */
+/* Реальный запас высоты под закреплённой шапкой (topbar + strip + chrome,
+   chrome-h — JS-измерение, см. audit.desktop.render.js:syncChromeHeightVar).
+   Общая переменная для .audit-desk-side И .audit-desk-plan — раньше план
+   считал свой max-height от голых vh (без учёта высоты шапки), из-за чего
+   на невысоких экранах (ноутбук, MacBook Air 15 и т.п.) план оказывался
+   выше, чем реально остаётся места под sticky-шапкой, и его SVG-иконка +
+   подпись обрезались снизу overflow:hidden. */
+body.rbi-audit-desktop-wide.has-desk-topbar #audit-desktop-shell {
+  --audit-desk-avail-h: calc(100vh - var(--desk-topbar-h, 52px) - var(--rbi-strip-h, 48px) - var(--audit-desk-chrome-h, 0px));
+}
+
+body.rbi-audit-desktop-wide:not(.has-desk-topbar) #audit-desktop-shell {
+  --audit-desk-avail-h: calc(100vh - var(--rbi-strip-h, 48px) - var(--audit-desk-chrome-h, 0px));
+}
+
+/* ===== CHROME — как subtabs у аналитики/БЗ: sticky full-bleed под desk topbar =====
+   Закреплена вся верхняя часть (объект проверки + группы пунктов чек-листа) —
+   при скролле чек-листа/плана остаётся на экране. Высота динамическая (группы
+   могут занимать 1-2 строки), поэтому реальную высоту меряет JS
+   (audit.desktop.render.js:syncChromeHeightVar) и пишет в --audit-desk-chrome-h
+   на shell — от неё зависит top у .audit-desk-side (см. ниже), чтобы план не
+   уезжал под закреплённую шапку. */
 .audit-desk-chrome {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   flex-shrink: 0;
-  background: transparent;
+  background: var(--bg-main);
   border: 0;
   border-radius: 0;
-  padding: 0;
+  padding: 0.6rem 0 0.7rem;
+  position: sticky;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px));
+  z-index: 10;
+  box-shadow: 0 6px 10px -8px rgba(0, 0, 0, 0.18);
 }
 
+body:not(.has-desk-topbar) .audit-desk-chrome {
+  top: var(--rbi-strip-h, 48px);
+}
+
+/* Единая плоская карточка (как строка фильтров у Аналитики) вместо двух
+   боксов с заголовками/подсказками — строка полей объекта + (если есть)
+   строка групп пунктов ниже, разделённые тонкой линией. */
 .audit-desk-chrome-body {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.5rem;
   min-width: 0;
+  background: var(--card-bg, var(--card-bg));
+  border: 1px solid var(--card-border, var(--card-border));
+  border-radius: var(--rbi-radius-lg);
+  padding: 0.65rem 0.75rem;
+}
+
+.audit-desk-chrome-row {
+  min-width: 0;
+}
+
+.audit-desk-chrome-row-groups {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--card-border, var(--card-border));
+}
+
+.audit-desk-chrome-row-groups:has(#audit-group-nav:empty),
+.audit-desk-chrome-row-groups:has([data-audit-desk-slot-nav]:empty) {
+  display: none;
 }
 
 /* Sticky audit topbar-strip — css/rbi-ui.css (layout inner + brand ниже) */
@@ -91,43 +141,6 @@ body.rbi-audit-desktop-wide #audit-desktop-shell {
   flex: 0 1 320px;
   min-width: 180px;
   max-width: 360px;
-}
-
-.audit-desk-zone {
-  background: var(--card-bg, var(--card-bg));
-  border: 1px solid var(--card-border, var(--card-border));
-  border-radius: var(--rbi-radius-lg);
-  padding: 0.75rem 0.9rem 0.85rem;
-  min-width: 0;
-}
-
-.audit-desk-zone-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 0 0 0.45rem;
-}
-
-.audit-desk-zone-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem 1rem;
-  margin-bottom: 0.65rem;
-}
-
-.audit-desk-zone-head .audit-desk-zone-label {
-  margin: 0;
-}
-
-.audit-desk-zone-hint {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
 }
 
 /* legacy headstrip (на случай старого DOM до rebuild) */
@@ -264,10 +277,6 @@ body.rbi-audit-desktop-wide .audit-desk-tpl-chev {
   flex-shrink: 0;
 }
 
-.audit-desk-zone-object .audit-desk-chrome-form {
-  min-width: 0;
-}
-
 body.rbi-audit-desktop-wide #data-block-content {
   display: grid !important;
   /* 5 полей + кнопка «на плане» — одна строка */
@@ -361,10 +370,6 @@ body.rbi-audit-desktop-wide #quality-plan-pin-indicator {
   max-width: 480px;
 }
 
-.audit-desk-zone-groups {
-  padding-bottom: 0.7rem;
-}
-
 body.rbi-audit-desktop-wide #audit-group-nav {
   margin: 0 !important;
   width: 100%;
@@ -376,11 +381,6 @@ body.rbi-audit-desktop-wide #audit-group-nav {
 }
 
 body.rbi-audit-desktop-wide #audit-group-nav:empty {
-  display: none;
-}
-
-.audit-desk-zone-groups:has(#audit-group-nav:empty),
-.audit-desk-zone-groups:has([data-audit-desk-slot-nav]:empty) {
   display: none;
 }
 
@@ -405,7 +405,11 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   width: 100%;
 }
 
-/* Правая колонка: план (пропорция) + метрики под ним */
+/* Правая колонка: план (пропорция) + метрики под ним.
+   Sticky, чтобы план оставался виден, пока левая колонка (чек-лист)
+   скроллится отдельно на всю свою длину. Отступ сверху учитывает высоту
+   закреплённого .audit-desk-chrome (--audit-desk-chrome-h, JS-измерение),
+   иначе план на старте скролла заезжал бы под шапку. */
 .audit-desk-side,
 #audit-desktop-side {
   display: flex;
@@ -413,6 +417,18 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   gap: 0.75rem;
   min-width: 0;
   width: 100%;
+  position: sticky;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px) + var(--audit-desk-chrome-h, 0px) + 0.75rem);
+  align-self: start;
+  max-height: calc(var(--audit-desk-avail-h, 100vh) - 1.5rem);
+  overflow: auto;
+  z-index: 1;
+}
+
+body:not(.has-desk-topbar) .audit-desk-side,
+body:not(.has-desk-topbar) #audit-desktop-side {
+  top: calc(var(--rbi-strip-h, 48px) + var(--audit-desk-chrome-h, 0px) + 0.75rem);
+  max-height: calc(var(--audit-desk-avail-h, 100vh) - 1.5rem);
 }
 
 #audit-desktop-plan,
@@ -422,7 +438,18 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   max-width: none;
   aspect-ratio: 4 / 3;
   height: auto;
-  max-height: min(62vh, 820px);
+  /* Тот же бюджет высоты, что у .audit-desk-side, минус запас под метрики
+     ниже плана (заголовок + подсказка + хотя бы одна строка КПИ) — иначе на
+     невысоких экранах план мог требовать больше места, чем реально остаётся
+     под sticky-шапкой, и содержимое (SVG + подпись) обрезалось. */
+  max-height: min(calc(var(--audit-desk-avail-h, 100vh) - 10rem), 820px);
+  min-height: 220px;
+  /* Внутри .audit-desk-side (flex-column, max-height + overflow:auto) при
+     нехватке места должны сжиматься метрики (у них нет критичного контента,
+     который нельзя обрезать — карточки и так доступны через скролл side), а
+     не план — иначе flex-shrink на плане проваливал его до min-height и
+     обрезал SVG-иконку/подпись даже когда формально было куда расти. */
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--card-bg, var(--card-bg));
@@ -482,17 +509,19 @@ body.rbi-audit-desktop-wide #audit-group-nav:empty {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 1.25rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
   text-align: center;
   color: var(--text-muted);
+  overflow-y: auto;
   background:
     radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
     var(--bg-main);
 }
 
 .audit-desk-plan-art {
-  width: min(72%, 280px);
+  width: min(42%, 150px);
+  flex-shrink: 0;
   opacity: 0.95;
   filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--text-main) 8%, transparent));
 }
@@ -700,7 +729,7 @@ body.rbi-audit-desktop-wide #dash-expanded-view .text-\[9px\] {
 @media (min-width: 1600px) {
   #audit-desktop-plan,
   .audit-desk-plan {
-    max-height: min(68vh, 920px);
+    max-height: min(calc(var(--audit-desk-avail-h, 100vh) - 10rem), 920px);
   }
 }
 
