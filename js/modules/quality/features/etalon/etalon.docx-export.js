@@ -372,6 +372,21 @@ async function _buildNodePhotoChildren(photoRefs, nodeNo, nodeName, contentW) {
     return children;
 }
 
+// Читает и старый строковый формат participants (свободный текст), и новый
+// массив {role, name} из конструктора «Комиссия (Участники)».
+function _formatEtalonParticipantsText(value) {
+    if (Array.isArray(value)) {
+        const parts = value.map(function (p) {
+            const name = (p && p.name) || '';
+            const role = (p && p.role) || '';
+            if (name && role) return name + ' — ' + role;
+            return name || role;
+        }).filter(Boolean);
+        return parts.join('; ');
+    }
+    return value || '';
+}
+
 function _metaRow(label, value) {
     const D = _lib();
     const labelW = Math.floor(CONTENT_W * 0.32);
@@ -537,7 +552,7 @@ async function _buildDocument(record) {
             _metaRow('Подрядная организация', record.contractorName),
             _metaRow('Вид работ', record.templateTitle),
             _metaRow('Участок (локация)', record.location),
-            _metaRow('Участники приёмки', d.participants),
+            _metaRow('Участники приёмки', _formatEtalonParticipantsText(d.participants)),
             _metaRow('Инженер СК', record.inspectorName || record.author || _getSetting('engineerName') || '—')
         ]
     }));

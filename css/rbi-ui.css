@@ -257,11 +257,11 @@ body.rbi-knowledge-desktop-wide #reference-subtabs-block .sub-tab-btn.active {
  */
 @media (min-width: 1280px) {
   :root {
-    --rbi-modal-sm: 32rem;   /* was ~24rem */
-    --rbi-modal-md: 40rem;   /* was ~28rem */
-    --rbi-modal-lg: 48rem;   /* was ~32rem */
-    --rbi-modal-xl: 56rem;   /* was ~36rem */
-    --rbi-modal-2xl: 64rem;  /* was ~42rem */
+    --rbi-modal-sm: 36rem;   /* was ~24rem, затем 32rem */
+    --rbi-modal-md: 46rem;   /* was ~28rem, затем 40rem */
+    --rbi-modal-lg: 56rem;   /* was ~32rem, затем 48rem */
+    --rbi-modal-xl: 64rem;   /* was ~36rem, затем 56rem */
+    --rbi-modal-2xl: 72rem;  /* was ~42rem, затем 64rem */
   }
 
   .modal-content {

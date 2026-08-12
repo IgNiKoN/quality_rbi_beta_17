@@ -4,6 +4,8 @@
  * Шапка с brandLogo, реквизиты, повестка; HTML/markdown (** / <b>) → реальный bold в Word.
  */
 
+import { collectMeetingSignatories } from './meetings.protocol.js';
+
 const root = typeof globalThis !== 'undefined' ? globalThis : window;
 
 const FONT = 'Times New Roman';
@@ -658,128 +660,73 @@ async function _buildDocument(meet) {
         rows: [headerRow].concat(bodyRows)
     }));
 
-    // —— Подписи ——
-    children.push(new D.Paragraph({
-        spacing: { before: 480, after: 200 },
-        children: [
-            new D.TextRun({
-                text: 'Подписи',
-                font: FONT,
-                bold: true,
-                size: 22,
-                color: COLOR_INK
-            })
-        ]
-    }));
+    // —— Подписи: слева должность/ФИО ответственных, справа поле для подписи ——
+    children.push(_heading('Подписи', { before: 320, after: 160 }));
 
-    const sigW = Math.floor(CONTENT_W / 2) - 200;
-    const sigGap = CONTENT_W - sigW * 2;
-    const sigBorders = {
-        top: { style: D.BorderStyle.SINGLE, size: 8, color: COLOR_INK },
-        bottom: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-        left: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-        right: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-    };
+    const sigLeftW = Math.floor(CONTENT_W * 0.55);
+    const sigRightW = CONTENT_W - sigLeftW;
+    const signatories = collectMeetingSignatories(meet);
     children.push(new D.Table({
         width: { size: CONTENT_W, type: D.WidthType.DXA },
-        columnWidths: [sigW, sigGap, sigW],
-        rows: [
-            new D.TableRow({
+        columnWidths: [sigLeftW, sigRightW],
+        rows: signatories.map(function (s) {
+            return new D.TableRow({
                 children: [
-                    new D.TableCell({
-                        width: { size: sigW, type: D.WidthType.DXA },
-                        borders: sigBorders,
-                        children: [
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 80 },
-                                children: [
-                                    new D.TextRun({
-                                        text: 'Составил',
-                                        font: FONT,
-                                        bold: true,
-                                        size: 16,
-                                        color: COLOR_MUTED
-                                    })
-                                ]
-                            }),
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 40 },
-                                children: [
-                                    new D.TextRun({
-                                        text: author,
-                                        font: FONT,
-                                        size: 18,
-                                        color: COLOR_INK
-                                    })
-                                ]
-                            }),
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 40 },
-                                children: [
-                                    new D.TextRun({
-                                        text: '________________ / подпись /',
-                                        font: FONT,
-                                        size: 16,
-                                        color: '64748b'
-                                    })
-                                ]
-                            })
-                        ]
-                    }),
-                    new D.TableCell({
-                        width: { size: sigGap, type: D.WidthType.DXA },
+                    _cell([
+                        new D.Paragraph({
+                            spacing: { after: 30 },
+                            children: [
+                                new D.TextRun({
+                                    text: s.role,
+                                    font: FONT,
+                                    bold: true,
+                                    size: 15,
+                                    color: COLOR_MUTED,
+                                    allCaps: true
+                                })
+                            ]
+                        }),
+                        new D.Paragraph({
+                            children: [
+                                new D.TextRun({
+                                    text: s.name,
+                                    font: FONT,
+                                    bold: true,
+                                    size: 21,
+                                    color: COLOR_INK
+                                })
+                            ]
+                        })
+                    ], sigLeftW, {
                         borders: _noBorder(),
-                        children: [new D.Paragraph({ children: [] })]
+                        margins: { top: 160, bottom: 160, left: 0, right: 260 }
                     }),
-                    new D.TableCell({
-                        width: { size: sigW, type: D.WidthType.DXA },
-                        borders: sigBorders,
-                        children: [
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 80 },
-                                children: [
-                                    new D.TextRun({
-                                        text: 'Ознакомлен',
-                                        font: FONT,
-                                        bold: true,
-                                        size: 16,
-                                        color: COLOR_MUTED
-                                    })
-                                ]
-                            }),
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 40 },
-                                children: [
-                                    new D.TextRun({
-                                        text: 'Участники совещания',
-                                        font: FONT,
-                                        size: 18,
-                                        color: COLOR_INK
-                                    })
-                                ]
-                            }),
-                            new D.Paragraph({
-                                alignment: D.AlignmentType.CENTER,
-                                spacing: { before: 40 },
-                                children: [
-                                    new D.TextRun({
-                                        text: '________________ / подпись /',
-                                        font: FONT,
-                                        size: 16,
-                                        color: '64748b'
-                                    })
-                                ]
-                            })
-                        ]
+                    _cell([
+                        new D.Paragraph({
+                            spacing: { after: 40 },
+                            border: {
+                                bottom: { style: D.BorderStyle.SINGLE, size: 6, color: COLOR_INK }
+                            },
+                            children: [new D.TextRun({ text: ' ', font: FONT, size: 18 })]
+                        }),
+                        new D.Paragraph({
+                            alignment: D.AlignmentType.CENTER,
+                            children: [
+                                new D.TextRun({
+                                    text: 'подпись',
+                                    font: FONT,
+                                    size: 15,
+                                    color: '94a3b8'
+                                })
+                            ]
+                        })
+                    ], sigRightW, {
+                        borders: _noBorder(),
+                        margins: { top: 160, bottom: 160, left: 0, right: 0 }
                     })
                 ]
-            })
-        ]
+            });
+        })
     }));
 
     return new D.Document({

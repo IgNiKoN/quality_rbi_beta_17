@@ -54,6 +54,8 @@ let _fmeaDeskSel = { project: null, fmeaId: null, editing: false };
 let _fmeaEditReopenGuard = false;
 let _origViewFmea = null;
 let _origLoadFmeaToWorkspace = null;
+let _origCreateEmptyFmea = null;
+let _origGenerateFmeaTable = null;
 
 function isDesktopViewport() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN;
@@ -1224,6 +1226,17 @@ function paintMeetingsChrome() {
   const container = document.getElementById('rbi-meeting-container');
   if (!container) return;
   container.classList.add('eng-desk-meet-host');
+
+  // «Совещание в процессе» (Meeting Workspace: повестка + подвал Сохранить/PDF/ИИ) —
+  // самостоятельный full-width экран, не список сохранённых протоколов. Split-шасси
+  // (rail+viewer) сюда не накладывается — иначе под подвалом остаётся лишний
+  // пустой rail/viewer (баг: пустые поля под кнопкой «Сохранить» на десктопе).
+  if (container.querySelector('#meeting-footer-btn')) {
+    container.querySelectorAll(':scope > .eng-desk-split').forEach(function (el) {
+      el.remove();
+    });
+    return;
+  }
 
   const liveGroup = Array.from(container.children).find(function (el) {
     return (
@@ -2451,6 +2464,38 @@ function wrapEngineerFns() {
           stealFmeaWorkspaceIntoViewer(viewer, (rec && rec.id) || fmeaId || _fmeaDeskSel.fmeaId);
         }
       });
+    };
+  }
+  // «Пустой бланк» / «Сформировать» пишут новый черновик в #fmea-workspace, но на
+  // десктопе paintFmeaChrome() при непустом архиве держит #fmea-workspace hidden
+  // (запаркован рядом с rail+viewer split) — без явного steal-в-viewer после
+  // генерации черновик оставался невидимым (баг: кнопки «не реагируют» на ПК,
+  // на мобильном работает, т.к. там нет split-шасси).
+  function stealNewFmeaDraftIntoViewer() {
+    if (!_shellApplied || currentSubId() !== 'eng-sub-fmea') return;
+    _fmeaDeskSel.editing = true;
+    _fmeaDeskSel.fmeaId = null;
+    paintFmeaChrome();
+    const viewer = document.querySelector('#fmea-registry-list .eng-desk-viewer');
+    const ws = document.getElementById('fmea-workspace');
+    if (viewer && ws && ws.innerHTML.trim()) {
+      stealFmeaWorkspaceIntoViewer(viewer, null);
+    }
+  }
+  if (typeof window.rbi_createEmptyFmea === 'function' && !_origCreateEmptyFmea) {
+    _origCreateEmptyFmea = window.rbi_createEmptyFmea;
+    window.rbi_createEmptyFmea = function () {
+      const r = _origCreateEmptyFmea.apply(this, arguments);
+      Promise.resolve(r).finally(stealNewFmeaDraftIntoViewer);
+      return r;
+    };
+  }
+  if (typeof window.rbi_generateFmeaTable === 'function' && !_origGenerateFmeaTable) {
+    _origGenerateFmeaTable = window.rbi_generateFmeaTable;
+    window.rbi_generateFmeaTable = function () {
+      const r = _origGenerateFmeaTable.apply(this, arguments);
+      Promise.resolve(r).finally(stealNewFmeaDraftIntoViewer);
+      return r;
     };
   }
   const gameDash =

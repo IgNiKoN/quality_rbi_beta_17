@@ -124,6 +124,69 @@
     });
   }
 
+  // ── Конструктор «Комиссия (Участники)» — построчный ввод (Должность/ФИО),
+  // 1-в-1 паттерн с meetings.module.js/etalon-v18.actions.js. Старые записи хранят
+  // participants как строку (свободный текст) — не переписываем на месте, только
+  // приводим к массиву при открытии на редактирование (см. _normalizeEtalonParticipants).
+  function _renderEtalonParticipantRowHtml(p) {
+    var role = _escapeHtml((p && p.role) || '');
+    var name = _escapeHtml((p && p.name) || '');
+    return '' +
+      '<div class="etalon-participant-row flex gap-2 items-center">' +
+      '<input type="text" class="eap-role input-base !py-1.5 !text-[11px] w-[38%]" placeholder="' + _t('quality.etalon.ph.participant_role', 'Должность') + '" value="' + role + '">' +
+      '<input type="text" class="eap-name input-base !py-1.5 !text-[11px] flex-1" placeholder="' + _t('quality.etalon.ph.participant_name', 'ФИО') + '" value="' + name + '">' +
+      '</div>';
+  }
+
+  function _collectEtalonParticipantsFromDom() {
+    var list = document.getElementById('etalon-participants-list');
+    if (!list) return [];
+    var out = [];
+    list.querySelectorAll('.etalon-participant-row').forEach(function (row) {
+      var role = (row.querySelector('.eap-role') && row.querySelector('.eap-role').value || '').trim();
+      var name = (row.querySelector('.eap-name') && row.querySelector('.eap-name').value || '').trim();
+      if (!role && !name) return;
+      out.push({ role: role, name: name });
+    });
+    return out;
+  }
+
+  // Легаси-записи хранят participants как свободный текст — оборачиваем в один
+  // ряд (весь текст в ФИО), чтобы ничего не потерять при открытии на редактирование.
+  function _normalizeEtalonParticipants(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) return [{ role: '', name: value.trim() }];
+    return [];
+  }
+
+  // Для контекстов простого текста (просмотрщик, PDF, Word meta-строка) —
+  // читает и старый строковый, и новый массивный формат.
+  function _formatEtalonParticipantsText(value) {
+    if (Array.isArray(value)) {
+      var parts = value.map(function (p) {
+        var name = (p && p.name) || '';
+        var role = (p && p.role) || '';
+        if (name && role) return name + ' — ' + role;
+        return name || role;
+      }).filter(Boolean);
+      return parts.length ? parts.join('; ') : '';
+    }
+    return value || '';
+  }
+
+  function _addEtalonParticipantRow() {
+    var list = document.getElementById('etalon-participants-list');
+    if (!list) return;
+    list.insertAdjacentHTML('beforeend', _renderEtalonParticipantRowHtml());
+  }
+
+  function _removeLastEtalonParticipantRow() {
+    var list = document.getElementById('etalon-participants-list');
+    if (!list) return;
+    var rows = list.querySelectorAll('.etalon-participant-row');
+    if (rows.length > 1) rows[rows.length - 1].remove();
+  }
+
   // Перенесено 1:1 из etalon.js (Фаза 76: изоляция userTemplates через
   // TemplateService с fallback).
   function _templates() {
@@ -213,17 +276,19 @@
         contractor: document.getElementById('etalon-contractor')?.value || '',
         templateKey: document.getElementById('etalon-template')?.value || '',
         location: document.getElementById('etalon-location')?.value || '',
-        participants: document.getElementById('etalon-participants')?.value || '',
+        participants: _collectEtalonParticipantsFromDom(),
         deviations: document.getElementById('etalon-deviations')?.value || '',
         elements: elements,
         pdfData: pdfPreview?.dataset?.pdf || '',
         pdfName: document.getElementById('etalon-pdf-name')?.innerText || '',
         statusKey: _context.statusKey || ''
       };
-      const defaultParticipants = document.getElementById('inp-inspector')?.value || '';
+      const defaultInspectorName = (document.getElementById('inp-inspector')?.value || '').trim();
+      const participantsChanged = p.participants.length > 1 ||
+        (p.participants.length === 1 && (p.participants[0].role || p.participants[0].name !== defaultInspectorName));
       const meaningful = !!(
         (p.location || '').trim() ||
-        ((p.participants || '').trim() && (p.participants || '').trim() !== (defaultParticipants || '').trim()) ||
+        participantsChanged ||
         (p.deviations || '').trim() ||
         elements.length > 0 ||
         p.pdfData ||
@@ -244,7 +309,13 @@
       if (p.contractor != null) document.getElementById('etalon-contractor').value = p.contractor;
       if (p.templateKey && tmplSelect) tmplSelect.value = p.templateKey;
       if (p.location != null) document.getElementById('etalon-location').value = p.location;
-      if (p.participants != null) document.getElementById('etalon-participants').value = p.participants;
+      const participantsList = document.getElementById('etalon-participants-list');
+      if (participantsList && p.participants != null) {
+        const normalized = _normalizeEtalonParticipants(p.participants);
+        participantsList.innerHTML = normalized.length
+          ? normalized.map(_renderEtalonParticipantRowHtml).join('')
+          : _renderEtalonParticipantRowHtml();
+      }
       if (p.deviations != null) document.getElementById('etalon-deviations').value = p.deviations;
 
       document.getElementById('etalon-elements-container').innerHTML = '';
@@ -297,7 +368,13 @@
       if (FD) FD.unbindAutoSave(FD.KEYS.ETALON_NEW);
 
       document.getElementById('etalon-location').value = '';
-      document.getElementById('etalon-participants').value = document.getElementById('inp-inspector')?.value || '';
+      const newParticipantsList = document.getElementById('etalon-participants-list');
+      if (newParticipantsList) {
+        newParticipantsList.innerHTML = _renderEtalonParticipantRowHtml({
+          role: '',
+          name: document.getElementById('inp-inspector')?.value || ''
+        });
+      }
       document.getElementById('etalon-deviations').value = '';
       document.getElementById('etalon-elements-container').innerHTML = '';
 
@@ -589,12 +666,12 @@
       const selTemplateTitle = document.getElementById('etalon-template').options[document.getElementById('etalon-template').selectedIndex]?.text.replace(/\[.*?\]\s*/, '') || '';
 
       const location = document.getElementById('etalon-location').value.trim();
-      const participants = document.getElementById('etalon-participants').value.trim();
+      const participants = _collectEtalonParticipantsFromDom();
       const deviations = document.getElementById('etalon-deviations').value.trim() || DEVIATIONS_DEFAULT_RU;
       const myName = _getSetting('engineerName') || 'Инженер';
 
       if (!selProject || !selContractor || !selTemplateKey) return showToast(_t('quality.etalon.toast.required_fields', '⚠️ Укажите Объект, Подрядчика и Вид работ!'));
-      if (!location || !participants) return showToast(_t('quality.etalon.toast.required_location', '⚠️ Заполните локацию и участников!'));
+      if (!location || !participants.length) return showToast(_t('quality.etalon.toast.required_location', '⚠️ Заполните локацию и участников!'));
 
       const elements = [];
       document.querySelectorAll('.etalon-item').forEach(el => {
@@ -821,7 +898,7 @@
             </div>
             <div class="bg-white dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                 <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${_t('quality.etalon.viewer.participants', 'Участники')}</div>
-                <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">${_escapeHtml(d.participants || '-')}</div>
+                <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">${_escapeHtml(_formatEtalonParticipantsText(d.participants) || '-')}</div>
             </div>
         </div>
 
@@ -931,7 +1008,15 @@
 
       // Заполняем поля
       document.getElementById('etalon-location').value = record.location || '';
-      document.getElementById('etalon-participants').value = record.details.participants || '';
+      const editParticipantsList = document.getElementById('etalon-participants-list');
+      if (editParticipantsList) {
+        // Легаси-записи хранят participants строкой — оборачиваем в один ряд,
+        // ничего не теряя (см. _normalizeEtalonParticipants).
+        const normalized = _normalizeEtalonParticipants(record.details.participants);
+        editParticipantsList.innerHTML = normalized.length
+          ? normalized.map(_renderEtalonParticipantRowHtml).join('')
+          : _renderEtalonParticipantRowHtml();
+      }
       document.getElementById('etalon-deviations').value = record.details.deviations || '';
 
       // Очищаем и заполняем элементы
@@ -1079,6 +1164,8 @@
   window.editEtalonAct            = EtalonActions.editAct.bind(EtalonActions);
   window.handleEtalonPdfUpload    = EtalonActions.handlePdfUpload.bind(EtalonActions);
   window.removeEtalonPdf          = EtalonActions.removePdf.bind(EtalonActions);
+  window.rbi_addEtalonParticipantRow    = _addEtalonParticipantRow;
+  window.rbi_removeEtalonParticipantRow = _removeLastEtalonParticipantRow;
 
   console.log('[EtalonActions] etalon.actions.js loaded (owner-module: full business logic)');
 }());

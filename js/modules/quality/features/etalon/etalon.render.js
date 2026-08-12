@@ -158,8 +158,11 @@ function renderConstructorMarkup() {
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.participants', 'Комиссия (Участники) *')}</label>
-                    <textarea id="etalon-participants" class="input-base text-[11px] h-14 resize-none"
-                        placeholder="${_etalonRenderT('quality.etalon.placeholder.participants', 'ФИО, Должности представителей...')}"></textarea>
+                    <div id="etalon-participants-list" class="space-y-2 mb-2"></div>
+                    <div class="flex gap-2">
+                        <button type="button" data-etalon-action="rbi_addEtalonParticipantRow" class="flex-1 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95">+ ${_etalonRenderT('quality.etalon.btn.add_participant', 'Участника')}</button>
+                        <button type="button" data-etalon-action="rbi_removeEtalonParticipantRow" class="px-4 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95">− ${_etalonRenderT('quality.etalon.btn.remove', 'Удалить')}</button>
+                    </div>
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">${_etalonRenderT('quality.etalon.label.deviations', 'Допущения (Если есть)')}</label>

@@ -631,6 +631,19 @@ export async function buildMeetingProtocolHtml(meet) {
         }).join('');
     }
 
+    const signatories = collectMeetingSignatories(meet);
+    const signRowsHtml = signatories.map(s => `
+                    <tr>
+                        <td style="width: 55%; padding: 12px 16px 12px 0; vertical-align: bottom;">
+                            <div style="font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; font-weight: 700;">${_esc(s.role)}</div>
+                            <div style="font-size: 12px; color: #0f172a; font-weight: 700; margin-top: 2px;">${_esc(s.name)}</div>
+                        </td>
+                        <td style="width: 45%; padding: 12px 0; vertical-align: bottom;">
+                            <div style="border-bottom: 1px solid #0f172a; height: 22px;"></div>
+                            <div style="font-size: 9px; color: #94a3b8; margin-top: 4px; text-align: center;">подпись</div>
+                        </td>
+                    </tr>`).join('');
+
     const meetDate = (function (raw) {
         const s = String(raw || '').trim();
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -677,15 +690,69 @@ export async function buildMeetingProtocolHtml(meet) {
             </table>
 
             <div style="margin-top: 40px; page-break-inside: avoid;">
+                <h3 style="font-size: 13px; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 14px;">Подписи</h3>
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                    <tr>
-                        <td style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">${author}</td>
-                        <td style="width: 20%;"></td>
-                        <td style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Подпись участников (Ознакомлен)</td>
-                    </tr>
+                    ${signRowsHtml}
                 </table>
             </div>
         `;
+}
+
+/**
+ * Список подписантов протокола: автор («Составил») + участники совещания,
+ * введённые в конструкторе (meet.participants — {role, name}[]). Если явный
+ * список участников не заполнен (старые протоколы) — fallback на уникальных
+ * ответственных из повестки («Ответственный»), как раньше.
+ * Общий источник для Word- и PDF/печатной верстки подписей
+ * (слева должность/ФИО, справа поле для подписи).
+ * @param {object} meet
+ * @returns {Array<{role: string, name: string}>}
+ */
+export function collectMeetingSignatories(meet) {
+    const author = String((meet && meet.author) || '').trim();
+    const seen = new Set();
+    const list = [];
+    if (author) {
+        list.push({ role: 'Составил', name: author });
+        seen.add(author.toLowerCase());
+    }
+    const participants = Array.isArray(meet && meet.participants) ? meet.participants : [];
+    participants.forEach(p => {
+        const name = String((p && p.name) || '').trim();
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        list.push({ role: String((p && p.role) || '').trim() || 'Участник', name });
+    });
+    if (!participants.length) {
+        const agenda = Array.isArray(meet && meet.agenda) ? meet.agenda : [];
+        agenda.forEach(a => {
+            const resp = String((a && a.resp) || '').trim();
+            if (!resp) return;
+            const key = resp.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            list.push({ role: 'Ответственный', name: resp });
+        });
+    }
+    if (!list.length) list.push({ role: 'Участник', name: '—' });
+    return list;
+}
+
+/** Собрать участников совещания (должность + ФИО) с DOM конструктора/редактора. */
+export function collectParticipantsFromDom(root) {
+    const scope = root || (typeof document !== 'undefined' ? document : null);
+    if (!scope) return [];
+    const rows = scope.querySelectorAll('.meeting-participant-row');
+    const out = [];
+    rows.forEach(row => {
+        const role = (row.querySelector('.mp-role')?.value || '').trim();
+        const name = (row.querySelector('.mp-name')?.value || '').trim();
+        if (!role && !name) return;
+        out.push({ role, name });
+    });
+    return out;
 }
 
 /** Собрать AgendaItem[] с DOM workspace (включая meta-поля v2). */
@@ -749,6 +816,9 @@ export function collectMeetingDraftFromDom(opts) {
         title: o.title || `Совещание (черновик)`,
         memoText: (memoEl && memoEl.value) || o.memoText || '',
         agenda: collectAgendaFromDom(),
+        participants: collectParticipantsFromDom(
+            typeof document !== 'undefined' ? document.getElementById('meeting-participants-list') : null
+        ),
         notes: (notesEl && notesEl.value.trim()) || '',
         qDayPhoto: (photoBox && photoBox.dataset && photoBox.dataset.photo) || null
     };

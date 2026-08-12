@@ -664,7 +664,16 @@ function etalonMetaRows(item) {
   if (item.location || a.objectAddress) {
     rows.push(['Локация', item.location || a.objectAddress || '—']);
   }
-  if (d.participants) rows.push(['Участники', d.participants]);
+  if (d.participants && (!Array.isArray(d.participants) || d.participants.length)) {
+    const participantsText = Array.isArray(d.participants)
+      ? d.participants.map(function (p) {
+        const name = (p && p.name) || '';
+        const role = (p && p.role) || '';
+        return (name && role) ? (name + ' — ' + role) : (name || role);
+      }).filter(Boolean).join('; ')
+      : d.participants;
+    if (participantsText) rows.push(['Участники', participantsText]);
+  }
   if (d.deviations) rows.push(['Отклонения', d.deviations]);
   if (a.objectAddress && !item.location) {
     /* already added */

@@ -2,7 +2,7 @@
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 // ОБЯЗАТЕЛЬНО МЕНЯЕМ ВЕРСИЮ при любых изменениях в коде!
 const APP_VERSION = '18.59.0';
-const SW_VERSION = '18.59.56';
+const SW_VERSION = '18.59.57';
 const CACHE_NAME = `rbi-quality-v${SW_VERSION}`;
 
 /**

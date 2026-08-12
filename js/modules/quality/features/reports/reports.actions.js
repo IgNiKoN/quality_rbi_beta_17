@@ -9386,7 +9386,7 @@ export const ReportsActions = {
                 </tr>
                 <tr>
                     <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;vertical-align:top;">Участники приёмки</td>
-                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:600;white-space:pre-wrap;line-height:1.45;">${esc(d.participants || '—')}</td>
+                    <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:600;white-space:pre-wrap;line-height:1.45;">${esc((Array.isArray(d.participants) ? d.participants.map(p => (p && p.name && p.role) ? (p.name + ' — ' + p.role) : ((p && p.name) || (p && p.role) || '')).filter(Boolean).join('; ') : d.participants) || '—')}</td>
                 </tr>
                 <tr>
                     <td style="padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:800;color:#475569;">Инженер СК</td>

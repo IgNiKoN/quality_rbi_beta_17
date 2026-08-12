@@ -20,7 +20,8 @@ import {
     buildMeetingAgenda,
     buildMeetingProtocolHtml,
     collectAgendaFromDom,
-    collectMeetingDraftFromDom
+    collectMeetingDraftFromDom,
+    collectParticipantsFromDom
 } from './meetings.protocol.js';
 import './meetings.docx-export.js'; // side-effect: публикует exportMeetingDocx / rbi_exportMeetingDocx
 
@@ -216,7 +217,8 @@ function _collectMeetingEditorSnapshot() {
         });
     });
     agenda.sort(function (a, b) { return a.idx - b.idx; });
-    return JSON.stringify({ memo: memo, notes: notes, agenda: agenda });
+    const participants = collectParticipantsFromDom(document.getElementById('saved-participants-list'));
+    return JSON.stringify({ memo: memo, notes: notes, agenda: agenda, participants: participants });
 }
 
 function _meetingEditorIsDirty() {
@@ -232,6 +234,36 @@ async function _flushMeetingEditorIfDirty(promptMsg) {
     return true;
 }
 
+/** Строка «Должность | ФИО | ✕» конструктора участников совещания. */
+function _renderParticipantRowHtml(p) {
+    const role = _escTa((p && p.role) || '');
+    const name = _escTa((p && p.name) || '');
+    return `
+        <div class="meeting-participant-row flex gap-2 items-center">
+            <input type="text" class="mp-role input-base !py-1.5 !text-[10px] w-[38%]" placeholder="${_t('quality.meetings.ph.participant_role', 'Должность')}" value="${role}">
+            <input type="text" class="mp-name input-base !py-1.5 !text-[10px] flex-1" placeholder="${_t('quality.meetings.ph.participant_name', 'ФИО')}" value="${name}">
+            <button type="button" onclick="rbi_removeMeetingParticipantRow(this)" class="text-slate-400 hover:text-red-500 active:scale-90 font-black px-1.5 shrink-0">✕</button>
+        </div>`;
+}
+
+/** Добавить пустую строку участника в список (конструктор совещания или редактор). */
+export function addMeetingParticipantRow(listId) {
+    const list = document.getElementById(listId || 'meeting-participants-list');
+    if (!list) return;
+    list.insertAdjacentHTML('beforeend', _renderParticipantRowHtml());
+}
+
+/** Убрать строку участника (оставить минимум одну пустую строку в списке). */
+export function removeMeetingParticipantRow(btn) {
+    const row = btn && btn.closest('.meeting-participant-row');
+    if (!row) return;
+    const list = row.parentElement;
+    row.remove();
+    if (list && !list.querySelector('.meeting-participant-row')) {
+        list.insertAdjacentHTML('beforeend', _renderParticipantRowHtml());
+    }
+}
+
 function _rbiCollectMeetingWsDraft() {
     const notesEl = document.getElementById('rbi-meeting-notes');
     if (!notesEl) return null;
@@ -239,9 +271,10 @@ function _rbiCollectMeetingWsDraft() {
     const memo = document.getElementById('rbi-meeting-memo-text')?.value.trim() || '';
     const photo = document.getElementById('meeting-photo-preview')?.dataset?.photo || '';
     const agenda = collectAgendaFromDom();
+    const participants = collectParticipantsFromDom(document.getElementById('meeting-participants-list'));
     const agendaTouched = agenda.some(a => a.isDone || a.date || a.resp || a.comment);
-    if (!notes && !memo && !photo && !agendaTouched) return null;
-    return { notes, memo, photo, agenda };
+    if (!notes && !memo && !photo && !agendaTouched && !participants.length) return null;
+    return { notes, memo, photo, agenda, participants };
 }
 
 function _rbiApplyMeetingWsDraft(payload) {
@@ -263,6 +296,12 @@ function _rbiApplyMeetingWsDraft(payload) {
                     if (img && realSrc) img.src = realSrc;
                 });
             }
+        }
+    }
+    if (Array.isArray(payload.participants) && payload.participants.length) {
+        const list = document.getElementById('meeting-participants-list');
+        if (list) {
+            list.innerHTML = payload.participants.map(_renderParticipantRowHtml).join('');
         }
     }
     if (Array.isArray(payload.agenda)) {
@@ -981,6 +1020,18 @@ export async function openSavedMeeting(id) {
             </div>
         </div>
 
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
+            <div class="text-[12px] font-black uppercase text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+                ${_t('quality.meetings.workspace.participants', 'Участники совещания')}
+            </div>
+            <div id="saved-participants-list" class="space-y-2 mb-2">${
+                (Array.isArray(meet.participants) && meet.participants.length
+                    ? meet.participants.map(_renderParticipantRowHtml).join('')
+                    : _renderParticipantRowHtml({ role: '', name: meet.author || _meetingCurrentEngineerName() }))
+            }</div>
+            <button type="button" onclick="rbi_addMeetingParticipantRow('saved-participants-list')" class="w-full bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
+        </div>
+
         ${photoHtml}
 
         <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
@@ -1072,6 +1123,10 @@ export async function saveEditedMeeting() {
     const notesEl = document.getElementById('saved-notes-text');
     if (memoEl) meet.memoText = memoEl.value;
     if (notesEl) meet.notes = notesEl.value;
+    const savedParticipantsList = document.getElementById('saved-participants-list');
+    if (savedParticipantsList) {
+        meet.participants = collectParticipantsFromDom(savedParticipantsList);
+    }
 
     if (Array.isArray(meet.agenda)) {
         document.querySelectorAll('[data-agenda-idx]').forEach(function (row) {
@@ -2090,7 +2145,14 @@ export function createMeeting(customData = null) {
         
         <!-- ЕДИНАЯ КОЛОНКА (СВЕРХУ ИНФО, СНИЗУ ДЕФЕКТЫ) -->
         <div class="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4">
-            
+
+            <!-- УЧАСТНИКИ (в начале, как в оффлайн-протоколе) -->
+            <div class="bg-[var(--hover-bg)] p-3 rounded-xl border border-[var(--card-border)] mb-5">
+                <label class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2 block">${_t('quality.meetings.workspace.participants', 'Участники совещания')}</label>
+                <div id="meeting-participants-list" class="space-y-2 mb-2">${_renderParticipantRowHtml({ role: '', name: _meetingCurrentEngineerName() })}</div>
+                <button type="button" onclick="rbi_addMeetingParticipantRow()" class="w-full bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
+            </div>
+
             <!-- БЛОК АНАЛИТИКИ -->
             <div class="mb-5">
                 <div class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2">${_t('quality.meetings.workspace.status_of', '📈 Статус Объекта ({period})', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>
@@ -2304,6 +2366,7 @@ export async function saveMeetingMemo() {
         if (a.isDone && !a.resolvedAt) a.resolvedAt = meetDate;
     });
 
+    const participants = collectParticipantsFromDom(document.getElementById('meeting-participants-list'));
     const extraNotes = document.getElementById('rbi-meeting-notes')?.value.trim() || '';
     const author = document.getElementById('inp-inspector')?.value.trim() || 'Инженер';
 
@@ -2334,6 +2397,7 @@ export async function saveMeetingMemo() {
         title: `Совещание от ${new Date().toLocaleDateString('ru-RU')}`,
         memoText: text,
         agenda: agendaData,
+        participants: participants,
         notes: extraNotes,
         period: window._meetingSetupPeriod || 'WEEK',
         periodText: window._meetingSetupPeriodText || '7 дней',
@@ -2531,6 +2595,8 @@ if (typeof window !== 'undefined') {
     window.rbi_createMeeting          = createMeeting;
     window.rbi_handleMeetingPhotoUpload = handleMeetingPhotoUpload;
     window.rbi_saveMeetingMemo        = saveMeetingMemo;
+    window.rbi_addMeetingParticipantRow = addMeetingParticipantRow;
+    window.rbi_removeMeetingParticipantRow = removeMeetingParticipantRow;
     window.rbi_previewMeetingProtocol = previewMeetingProtocol;
     window.rbi_printMeetingDraftBrowser = printMeetingDraftBrowser;
     window.rbi_printSavedMeetingDirty = printSavedMeetingDirty;

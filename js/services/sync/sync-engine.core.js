@@ -2650,46 +2650,6 @@ window.triggerSync = async function (mode = 'silent') {
                             .from('rbi_tasks')
                             .upsert(upsertData, { onConflict: 'id' });
 
-                        if (taskError) {
-                            // ВРЕМЕННАЯ ДИАГНОСТИКА RLS-403 на rbi_tasks (снять после подтверждения фикса):
-                            // rbi_current_project_code()/rbi_get_my_name() читают public.rbi_engineer_profiles
-                            // по auth.uid() (проверено — профиль чист, дублей нет), т.е. это не протухший JWT.
-                            // USING-условие политики UPDATE проверяется на УЖЕ СУЩЕСТВУЮЩЕЙ в облаке строке —
-                            // если у неё project_code/engineer_name/inspector_name отличаются от текущих
-                            // (например, эта же id уже была ранее записана с другим project_code до фикса
-                            // или из другого источника), обновление упадёт независимо от того, что мы
-                            // сейчас пытаемся записать. Поэтому здесь логируем полный список id батча и
-                            // сразу делаем SELECT по этим id, чтобы увидеть, что реально хранится в облаке
-                            // под этими же id (если SELECT-политика разрешает — увидим точные значения;
-                            // если нет — сам факт "0 строк вернулось" тоже диагностический).
-                            const foreignRows = upsertData.filter(r => r.engineer_name && r.engineer_name !== iName);
-                            const batchIds = upsertData.map(r => r.id);
-                            let existingRows = null;
-                            let existingRowsError = null;
-                            try {
-                                const { data, error } = await window.supabaseClient
-                                    .from('rbi_tasks')
-                                    .select('id, project_code, engineer_name, inspector_name, assigned_to_auth_user_id, updated_at')
-                                    .in('id', batchIds);
-                                existingRows = data;
-                                existingRowsError = error;
-                            } catch (selErr) {
-                                existingRowsError = selErr;
-                            }
-                            console.error('[Sync][DEBUG rbi_tasks upsert failed]', {
-                                error: taskError,
-                                pushRole: taskPushRole,
-                                currentEngineer: iName,
-                                clientProjectCode: pCode,
-                                batchSize: upsertData.length,
-                                batchIds,
-                                outgoingRows: upsertData.map(r => ({ id: r.id, engineer_name: r.engineer_name, inspector_name: r.inspector_name, project_code: r.project_code })),
-                                foreignEngineerRows: foreignRows.map(r => ({ id: r.id, engineer_name: r.engineer_name, project_code: r.project_code })),
-                                existingCloudRowsForSameIds: existingRows,
-                                existingCloudRowsSelectError: existingRowsError
-                            });
-                        }
-
                         if (taskError) throw taskError;
                         // После успешной отправки задач помечаем локальные ручные задачи как синхронизированные
                         for (const task of batch) {
