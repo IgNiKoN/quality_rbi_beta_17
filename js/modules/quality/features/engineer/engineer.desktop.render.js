@@ -149,7 +149,7 @@ function syncSubtabActive(subId) {
     btn.classList.remove(
       'bg-white',
       'shadow-sm',
-      'text-indigo-600',
+      'text-brand',
       'dark:bg-slate-700',
       'dark:text-indigo-400',
       'text-orange-600',
@@ -158,12 +158,12 @@ function syncSubtabActive(subId) {
     );
     if (on) {
       if (deskChrome) {
-        btn.classList.add('text-indigo-600');
+        btn.classList.add('text-brand');
       } else {
         btn.classList.add(
           'bg-white',
           'shadow-sm',
-          'text-indigo-600',
+          'text-brand',
           'dark:bg-slate-700',
           'dark:text-indigo-400'
         );
@@ -1511,10 +1511,10 @@ async function buildFmeaPreviewHtml(record) {
     const d = defects[i];
     let rpnColor = 'text-green-600 bg-green-50 border-green-200';
     if ((d.rpn || 0) >= 300) rpnColor = 'text-orange-600 bg-orange-50 border-orange-200';
-    if ((d.rpn || 0) >= 600) rpnColor = 'text-red-600 bg-red-50 border-red-200';
+    if ((d.rpn || 0) >= 600) rpnColor = 'text-danger bg-danger-soft border-danger-soft';
 
     let photoHtml =
-      '<div class="text-[9px] text-slate-400 italic border border-dashed border-slate-300 p-2 rounded text-center">' + _t('quality.engineer.desk.empty.no_photo', 'Нет фото') + '</div>';
+      '<div class="text-rbi-caption text-muted italic border border-dashed border-slate-300 p-2 rounded text-center">' + _t('quality.engineer.desk.empty.no_photo', 'Нет фото') + '</div>';
     if (d.photo) {
       let realSrc = '';
       try {

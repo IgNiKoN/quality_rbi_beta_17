@@ -505,9 +505,9 @@ export const AnalyticsActions = {
         // Скрываем все секции
         document.querySelectorAll('.analytics-sub-section').forEach(el => el.classList.add('hidden'));
 
-        // Сбрасываем стили всех кнопок (в т.ч. legacy `active` с Подрядчиков в markup)
+        // Сбрасываем стили всех кнопок (в т.ч. legacy `active`/`bg-white` с Подрядчиков в markup)
         document.querySelectorAll('#analytics-subtabs-block .sub-tab-btn').forEach(el => {
-            el.classList.remove('bg-surface', 'shadow-sm', 'text-brand', 'active');
+            el.classList.remove('bg-surface', 'bg-white', 'shadow-sm', 'text-brand', 'active');
             el.classList.add('text-[var(--text-muted)]');
         });
 

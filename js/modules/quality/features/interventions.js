@@ -210,41 +210,41 @@ function _templates() {
 function renderRbiInterventionModalMarkup() {
     return `
     <div id="rbi-intervention-modal"
-        class="fixed inset-0 bg-slate-900/80 z-[8000] hidden items-center justify-center p-4 backdrop-blur-sm"
+        class="fixed inset-0 bg-surface/80 z-[8000] hidden items-center justify-center p-4 backdrop-blur-sm"
         data-interventions-action="rbi_closeInterventionModal">
         <div class="bg-[var(--card-bg)] w-full max-w-sm rounded-2xl shadow-2xl transition-transform border border-[var(--card-border)] overflow-hidden flex flex-col"
             onclick="event.stopPropagation()">
             <div
                 class="p-4 border-b border-[var(--card-border)] bg-[var(--hover-bg)] flex justify-between items-center shrink-0">
                 <div
-                    class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
+                    class="font-black text-rbi-body uppercase tracking-tight text-ink flex items-center gap-2">
                     <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                     </svg> Фиксация Воздействия
                 </div>
                 <button data-interventions-action="rbi_closeInterventionModal"
-                    class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-700">✕</button>
+                    class="w-8 h-8 bg-surface rounded-full flex items-center justify-center text-muted active:scale-90 shadow-sm border border-surface">✕</button>
             </div>
             <div class="p-4 space-y-3">
                 <div
                     class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/50 mb-2">
-                    <div class="text-[10px] text-blue-800 dark:text-blue-300 font-medium leading-snug">Зафиксируйте
+                    <div class="text-rbi-caption text-blue-800 dark:text-blue-300 font-medium leading-snug">Зафиксируйте
                         проведенную работу с подрядчиком. Система автоматически отследит, улучшилось ли его качество
                         (УрК) после ваших действий, и начислит <b>Impact Score</b>.</div>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Подрядчик (Из
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block">Подрядчик (Из
                         истории проверок)</label>
                     <select id="rbi-int-contractor" class="input-base"
                         data-interventions-action="rbi_updateInterventionTemplates" data-action-event="change"></select>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Вид работ</label>
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block">Вид работ</label>
                     <select id="rbi-int-template" class="input-base"></select>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Примененный
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block">Примененный
                         инструмент</label>
                     <select id="rbi-int-type" class="input-base">
                         <option value="1.5">Разбор с бригадой (TWI-сессия) [Коэф. x1.5]</option>
@@ -257,13 +257,13 @@ function renderRbiInterventionModalMarkup() {
                     </select>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Краткий
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block">Краткий
                         комментарий (Факт)</label>
-                    <textarea id="rbi-int-comment" class="input-base h-16 resize-none text-[11px]"
+                    <textarea id="rbi-int-comment" class="input-base h-16 resize-none text-rbi-label"
                         placeholder="Напр: Провел показательную сборку угла..."></textarea>
                 </div>
                 <button data-interventions-action="rbi_saveIntervention"
-                    class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2 transition-transform">
+                    class="w-full bg-green-600 text-white py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2 transition-transform">
                     Сохранить Воздействие
                 </button>
             </div>
@@ -275,14 +275,14 @@ function renderRbiInterventionModalMarkup() {
 function renderRbiPracticeModalMarkup() {
     return `
     <div id="rbi-practice-modal"
-        class="fixed inset-0 bg-slate-900/80 z-[9000] hidden items-center justify-center p-4 backdrop-blur-sm"
+        class="fixed inset-0 bg-surface/80 z-[9000] hidden items-center justify-center p-4 backdrop-blur-sm"
         data-interventions-action="rbi_closePracticeModal">
         <div class="bg-[var(--card-bg)] w-full max-w-md rounded-2xl shadow-2xl transition-transform border border-[var(--card-border)] overflow-hidden flex flex-col max-h-[90vh]"
             onclick="event.stopPropagation()">
             <div
                 class="p-4 border-b border-[var(--card-border)] bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 flex justify-between items-center shrink-0">
                 <div
-                    class="font-black text-[13px] uppercase tracking-tight text-yellow-800 dark:text-yellow-500 flex items-center gap-2">
+                    class="font-black text-rbi-body uppercase tracking-tight text-yellow-800 dark:text-yellow-500 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M21.666 4.756c.962-.203 1.934-.377 2.916-.52a6.003 6.003 0 00-5.395 4.972">
@@ -290,11 +290,11 @@ function renderRbiPracticeModalMarkup() {
                     </svg> Оформление Практики
                 </div>
                 <button data-interventions-action="rbi_closePracticeModal"
-                    class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-700">✕</button>
+                    class="w-8 h-8 bg-surface rounded-full flex items-center justify-center text-muted active:scale-90 shadow-sm border border-surface">✕</button>
             </div>
             <div class="p-4 overflow-y-auto custom-scrollbar space-y-4">
                 <div
-                    class="text-[11px] bg-yellow-100/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-500 p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 font-medium">
+                    class="text-rbi-label bg-yellow-100/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-500 p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 font-medium">
                     Система обнаружила улучшение УрК на <b id="rbi-prac-delta" class="text-green-600">+0%</b> после
                     вашего воздействия. Давайте кристаллизуем этот опыт!
                 </div>
@@ -302,9 +302,9 @@ function renderRbiPracticeModalMarkup() {
 
                 <div>
                     <label
-                        class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex justify-between">
+                        class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block flex justify-between">
                         <span>Название (Суть)</span>
-                        <button data-action="rbi_generatePracticeTitleAi" class="text-indigo-500 hover:text-indigo-600">🤖
+                        <button data-action="rbi_generatePracticeTitleAi" class="text-brand hover:text-brand">🤖
                             AI-генерация</button>
                     </label>
                     <input type="text" id="rbi-prac-title" class="input-base"
@@ -313,53 +313,53 @@ function renderRbiPracticeModalMarkup() {
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-[10px] font-bold text-red-500 uppercase mb-1 block">Проблема (ДО)</label>
-                        <textarea id="rbi-prac-problem" class="input-base h-16 resize-none text-[11px]"
+                        <label class="text-rbi-caption font-bold text-danger uppercase mb-1 block">Проблема (ДО)</label>
+                        <textarea id="rbi-prac-problem" class="input-base h-16 resize-none text-rbi-label"
                             placeholder="Что было на площадке — своими словами"></textarea>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-green-600 uppercase mb-1 block">Решение (ПОСЛЕ)</label>
-                        <textarea id="rbi-prac-solution" class="input-base h-16 resize-none text-[11px]"
+                        <label class="text-rbi-caption font-bold text-green-600 uppercase mb-1 block">Решение (ПОСЛЕ)</label>
+                        <textarea id="rbi-prac-solution" class="input-base h-16 resize-none text-rbi-label"
                             placeholder="Что сделали и какой результат"></textarea>
                     </div>
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-bold text-indigo-600 uppercase mb-1 block">Ключевой вывод (для презентации)</label>
-                    <textarea id="rbi-prac-takeaway" class="input-base h-14 resize-none text-[11px]"
+                    <label class="text-rbi-caption font-bold text-brand uppercase mb-1 block">Ключевой вывод (для презентации)</label>
+                    <textarea id="rbi-prac-takeaway" class="input-base h-14 resize-none text-rbi-label"
                         placeholder="1–2 предложения: чему учит эта практика на объекте"></textarea>
-                    <div class="text-[9px] text-slate-400 font-medium mt-1">На печати A3 фото в режиме contain (без обрезки). Было/Стало — до 4, Процесс — до 6.</div>
+                    <div class="text-rbi-caption text-muted font-medium mt-1">На печати A3 фото в режиме contain (без обрезки). Было/Стало — до 4, Процесс — до 6.</div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div class="grid grid-cols-3 gap-2 border-t border-surface pt-3">
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Было</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Было</label>
                         <div id="rbi-prac-photos-before" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button type="button" onclick="document.getElementById('rbi-prac-photo-before').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">➕</button>
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">➕</button>
                         <input type="file" id="rbi-prac-photo-before" accept="image/*" multiple class="hidden"
                             data-interventions-action="rbi_handlePracPhotoMulti" data-interventions-action-val-type="event" data-interventions-action-arg2="before" data-action-event="change">
                     </div>
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Процесс</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Процесс</label>
                         <div id="rbi-prac-photos-process" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button type="button" onclick="document.getElementById('rbi-prac-photo-process').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">➕</button>
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">➕</button>
                         <input type="file" id="rbi-prac-photo-process" accept="image/*" multiple class="hidden"
                             data-interventions-action="rbi_handlePracPhotoMulti" data-interventions-action-val-type="event" data-interventions-action-arg2="process" data-action-event="change">
                     </div>
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Стало</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Стало</label>
                         <div id="rbi-prac-photos-after" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button type="button" onclick="document.getElementById('rbi-prac-photo-after').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">➕</button>
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">➕</button>
                         <input type="file" id="rbi-prac-photo-after" accept="image/*" multiple class="hidden"
                             data-interventions-action="rbi_handlePracPhotoMulti" data-interventions-action-val-type="event" data-interventions-action-arg2="after" data-action-event="change">
                     </div>
                 </div>
 
                 <button data-interventions-action="rbi_savePractice"
-                    class="w-full bg-yellow-500 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+                    class="w-full bg-yellow-500 text-white py-3.5 rounded-xl font-black text-rbi-body uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M17.5 3h-11a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V5a2 2 0 00-2-2z"></path>
@@ -376,16 +376,16 @@ function renderRbiPracticeModalMarkup() {
 function renderManualPracticeModalMarkup() {
     return `
     <div id="manual-practice-modal"
-        class="fixed inset-0 bg-slate-900/80 z-[9000] hidden items-center justify-center p-4 backdrop-blur-sm"
+        class="fixed inset-0 bg-surface/80 z-[9000] hidden items-center justify-center p-4 backdrop-blur-sm"
         data-interventions-action="rbi_closeManualPracticeModal">
         <div class="bg-[var(--card-bg)] w-full max-w-md rounded-2xl shadow-2xl transition-transform border border-[var(--card-border)] overflow-hidden flex flex-col max-h-[90vh]"
             onclick="event.stopPropagation()">
 
             <div
-                class="p-4 border-b border-[var(--card-border)] bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                class="p-4 border-b border-[var(--card-border)] bg-surface/50 flex justify-between items-center shrink-0">
                 <div
-                    class="font-black text-[13px] uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    class="font-black text-rbi-body uppercase tracking-tight text-ink flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
@@ -394,7 +394,7 @@ function renderManualPracticeModalMarkup() {
                     <span id="man-prac-modal-title">Новая практика</span>
                 </div>
                 <button data-interventions-action="rbi_closeManualPracticeModal"
-                    class="w-8 h-8 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 active:scale-90 shadow-sm border border-slate-200 dark:border-slate-600">
+                    class="w-8 h-8 bg-surface rounded-full flex items-center justify-center text-muted active:scale-90 shadow-sm border border-surface">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -403,10 +403,10 @@ function renderManualPracticeModalMarkup() {
 
             <div class="p-4 overflow-y-auto custom-scrollbar space-y-4">
                 <div class="flex justify-between items-center">
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase block">Название
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase block">Название
                         (Суть)</label>
                     <button data-action="rbi_beautifyPracticeAi"
-                        class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 active:scale-95 flex items-center gap-1">
+                        class="text-rbi-caption font-bold text-brand bg-brand-soft px-2 py-1 rounded border border-brand-soft active:scale-95 flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg> Улучшить текст (ИИ)
@@ -417,51 +417,51 @@ function renderManualPracticeModalMarkup() {
 
                 <div class="grid grid-cols-1 gap-3">
                     <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Что делали / В чем
+                        <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">Что делали / В чем
                             проблема</label>
-                        <textarea id="man-prac-problem" class="input-base h-20 resize-none text-[11px]"
+                        <textarea id="man-prac-problem" class="input-base h-20 resize-none text-rbi-label"
                             placeholder="Опишите исходную ситуацию..."></textarea>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Результат /
+                        <label class="text-rbi-caption font-bold text-muted uppercase mb-1 block">Результат /
                             Решение</label>
-                        <textarea id="man-prac-solution" class="input-base h-20 resize-none text-[11px]"
+                        <textarea id="man-prac-solution" class="input-base h-20 resize-none text-rbi-label"
                             placeholder="Опишите, к какому выводу пришли..."></textarea>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-indigo-600 uppercase mb-1 block">Ключевой вывод (для презентации)</label>
-                        <textarea id="man-prac-takeaway" class="input-base h-14 resize-none text-[11px]"
+                        <label class="text-rbi-caption font-bold text-brand uppercase mb-1 block">Ключевой вывод (для презентации)</label>
+                        <textarea id="man-prac-takeaway" class="input-base h-14 resize-none text-rbi-label"
                             placeholder="Чему учит практика: что закрепить на других участках"></textarea>
-                        <div class="text-[9px] text-slate-400 font-medium mt-1">На печати A3 — object-fit contain. Было/Стало до 4, Процесс до 6.</div>
+                        <div class="text-rbi-caption text-muted font-medium mt-1">На печати A3 — object-fit contain. Было/Стало до 4, Процесс до 6.</div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div class="grid grid-cols-3 gap-2 border-t border-surface pt-3">
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Было</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Было</label>
                         <div id="man-prac-photos-before" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button onclick="document.getElementById('man-prac-photo-before').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                         </button>
                         <input type="file" id="man-prac-photo-before" accept="image/*" multiple class="hidden"
                             data-interventions-action="rbi_handlePracPhotoMulti" data-interventions-action-val-type="event" data-interventions-action-arg2="before" data-action-event="change">
                     </div>
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Процесс</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Процесс</label>
                         <div id="man-prac-photos-process" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button onclick="document.getElementById('man-prac-photo-process').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                         </button>
                         <input type="file" id="man-prac-photo-process" accept="image/*" multiple class="hidden"
                             data-interventions-action="rbi_handlePracPhotoMulti" data-interventions-action-val-type="event" data-interventions-action-arg2="process" data-action-event="change">
                     </div>
                     <div>
-                        <label class="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Стало</label>
+                        <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block text-center">Стало</label>
                         <div id="man-prac-photos-after" class="grid grid-cols-2 gap-1 mb-1"></div>
                         <button onclick="document.getElementById('man-prac-photo-after').click()"
-                            class="w-full h-14 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-slate-400 active:scale-95 text-[9px] font-bold">
+                            class="w-full h-14 border border-dashed border-surface rounded-lg bg-[var(--hover-bg)] flex items-center justify-center text-muted active:scale-95 text-rbi-caption font-bold">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                         </button>
                         <input type="file" id="man-prac-photo-after" accept="image/*" multiple class="hidden"
@@ -469,11 +469,11 @@ function renderManualPracticeModalMarkup() {
                     </div>
                 </div>
 
-                <div class="border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Прикрепленные PDF-документы</label>
+                <div class="border-t border-surface pt-3">
+                    <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1 block">Прикрепленные PDF-документы</label>
                     <div id="man-prac-docs-list" class="space-y-2 mb-2"></div>
                     <button onclick="document.getElementById('man-prac-doc-input').click()"
-                        class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
+                        class="w-full bg-surface text-muted py-2.5 rounded-lg border border-dashed border-surface font-bold text-rbi-caption uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">
                         📄 Прикрепить PDF
                     </button>
                     <input type="file" id="man-prac-doc-input" accept="application/pdf" multiple class="hidden"
@@ -481,7 +481,7 @@ function renderManualPracticeModalMarkup() {
                 </div>
 
                 <button data-interventions-action="rbi_saveManualPractice"
-                    class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
+                    class="w-full bg-brand text-white py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5">
@@ -637,9 +637,9 @@ window.rbi_renderImpactTab = function () {
     }
 
     const myProfile = window.currentProfileData;
-    if (!myProfile) return container.innerHTML = '<div class="text-center text-slate-500 py-4">Профиль загружается...</div>';
+    if (!myProfile) return container.innerHTML = '<div class="text-center text-muted py-4">Профиль загружается...</div>';
 
-    container.innerHTML = `<div class="flex flex-col items-center justify-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div><div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Анализ эффективности...</div></div>`;
+    container.innerHTML = `<div class="flex flex-col items-center justify-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand mb-3"></div><div class="text-rbi-caption font-bold text-muted uppercase tracking-widest">Анализ эффективности...</div></div>`;
 
     setTimeout(() => {
         try {
@@ -677,26 +677,26 @@ window.rbi_renderImpactTab = function () {
             });
 
             const avgImpact = impactCount > 0 ? (totalScore / impactCount) : 0;
-            let impactColor = avgImpact > 0.2 ? 'text-green-500' : (avgImpact < -0.2 ? 'text-red-500' : 'text-slate-400');
+            let impactColor = avgImpact > 0.2 ? 'text-green-500' : (avgImpact < -0.2 ? 'text-danger' : 'text-muted');
 
 
             let html = `
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 animate-fadeIn">
                     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center shadow-sm">
-                        <div class="text-[20px] sm:text-[24px] font-black text-indigo-600 dark:text-indigo-400 leading-none mb-1">${twiCount}</div>
-                        <div class="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-widest">TWI-сессии</div>
+                        <div class="text-[20px] sm:text-[24px] font-black text-brand leading-none mb-1">${twiCount}</div>
+                        <div class="text-rbi-caption sm:text-rbi-caption font-bold text-muted uppercase tracking-widest">TWI-сессии</div>
                     </div>
                     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center shadow-sm">
                         <div class="text-[20px] sm:text-[24px] font-black text-orange-500 leading-none mb-1">${meetCount}</div>
-                        <div class="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-widest">Совещания</div>
+                        <div class="text-rbi-caption sm:text-rbi-caption font-bold text-muted uppercase tracking-widest">Совещания</div>
                     </div>
                     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center shadow-sm">
                         <div class="text-[20px] sm:text-[24px] font-black text-blue-500 leading-none mb-1">${etalonCount}</div>
-                        <div class="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-widest">Эталоны (ОК)</div>
+                        <div class="text-rbi-caption sm:text-rbi-caption font-bold text-muted uppercase tracking-widest">Эталоны (ОК)</div>
                     </div>
                     <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 text-center shadow-sm">
                         <div class="text-[20px] sm:text-[24px] font-black text-yellow-500 leading-none mb-1">${pracCount}</div>
-                        <div class="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-widest">Практики</div>
+                        <div class="text-rbi-caption sm:text-rbi-caption font-bold text-muted uppercase tracking-widest">Практики</div>
                     </div>
                 </div>
 
@@ -705,22 +705,22 @@ window.rbi_renderImpactTab = function () {
                         <canvas id="impact-map-chart"></canvas>
                         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
                             <div class="text-[28px] font-black ${impactColor} leading-none">${avgImpact > 0 ? '+' : ''}${avgImpact.toFixed(1)}</div>
-                            <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Impact Score</div>
+                            <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mt-1">Impact Score</div>
                         </div>
                     </div>
                     <div class="w-full md:w-1/2 space-y-3 w-full">
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase mb-2 border-b border-[var(--card-border)] pb-2">Влияние на подрядчиков</div>
+                        <div class="text-rbi-body font-black text-ink uppercase mb-2 border-b border-[var(--card-border)] pb-2">Влияние на подрядчиков</div>
                         <div class="flex justify-between items-center bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg border border-green-100 dark:border-green-800/50">
-                            <span class="text-[11px] font-bold text-green-700 dark:text-green-400">Улучшили качество</span>
-                            <span class="text-[14px] font-black text-green-600">${positiveCount}</span>
+                            <span class="text-rbi-label font-bold text-green-700 dark:text-green-400">Улучшили качество</span>
+                            <span class="text-rbi-title font-black text-green-600">${positiveCount}</span>
                         </div>
-                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                            <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Без изменений</span>
-                            <span class="text-[14px] font-black text-slate-500">${neutralCount}</span>
+                        <div class="flex justify-between items-center bg-surface px-3 py-2 rounded-lg border border-surface">
+                            <span class="text-rbi-label font-bold text-ink">Без изменений</span>
+                            <span class="text-rbi-title font-black text-muted">${neutralCount}</span>
                         </div>
-                        <div class="flex justify-between items-center bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-100 dark:border-red-800/50">
-                            <span class="text-[11px] font-bold text-red-700 dark:text-red-400">Ухудшили качество</span>
-                            <span class="text-[14px] font-black text-red-600">${negativeCount}</span>
+                        <div class="flex justify-between items-center bg-danger-soft px-3 py-2 rounded-lg border border-danger-soft">
+                            <span class="text-rbi-label font-bold text-danger">Ухудшили качество</span>
+                            <span class="text-rbi-title font-black text-danger">${negativeCount}</span>
                         </div>
                     </div>
                 </div>
@@ -745,7 +745,7 @@ window.rbi_renderImpactTab = function () {
 
         } catch (e) {
             console.error("Ошибка в рендере Impact", e);
-            container.innerHTML = `<div class="text-center text-red-500 font-bold p-6 bg-red-50 rounded-xl border border-red-200">❌ Ошибка расчета эффективности. ${e.message}</div>`;
+            container.innerHTML = `<div class="text-center text-danger font-bold p-6 bg-danger-soft rounded-xl border border-danger-soft">❌ Ошибка расчета эффективности. ${e.message}</div>`;
         }
     }, 100);
 };
@@ -785,35 +785,35 @@ window.rbi_renderPracticesTab = async function () {
 
         titleContainer.innerHTML = `
             <div class="flex justify-between items-center mb-3 border-b border-[var(--card-border)] pb-2">
-                <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"></path></svg>
+                <h2 class="text-rbi-body font-black uppercase text-ink tracking-tight flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"></path></svg>
                     Библиотека Практик и Эталоны
                 </h2>
-                <button onclick="rbi_openKbCreateChoice()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
+                <button onclick="rbi_openKbCreateChoice()" class="bg-brand text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-rbi-caption font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Создать
                 </button>
             </div>
             
             <div class="flex flex-col gap-2">
-                <div class="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-2 flex-wrap">
+                <div class="flex items-center gap-1.5 border-b border-surface pb-2 flex-wrap">
                     <button type="button" role="switch" aria-pressed="${window.kbShowPractices ? 'true' : 'false'}"
                         onclick="window.kbShowPractices=!window.kbShowPractices; rbi_renderPracticesTab()"
-                        class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowPractices ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}">Практики</button>
+                        class="kb-type-chip px-2.5 py-1 rounded-full text-rbi-caption font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowPractices ? 'bg-brand text-white shadow-sm' : 'bg-surface text-muted dark:text-muted border border-surface'}">Практики</button>
                     <button type="button" role="switch" aria-pressed="${window.kbShowEtalons ? 'true' : 'false'}"
                         onclick="window.kbShowEtalons=!window.kbShowEtalons; rbi_renderPracticesTab()"
-                        class="kb-type-chip px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowEtalons ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}">Эталоны</button>
+                        class="kb-type-chip px-2.5 py-1 rounded-full text-rbi-caption font-black uppercase tracking-wider transition-all active:scale-95 ${window.kbShowEtalons ? 'bg-brand text-white shadow-sm' : 'bg-surface text-muted dark:text-muted border border-surface'}">Эталоны</button>
                 </div>
                 <div class="flex justify-between items-center gap-2">
                     <label class="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                        <span class="text-[10px] font-black uppercase tracking-widest ${window.practiceOwnerFilter === 'MY' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}">Только мои</span>
+                        <span class="text-rbi-caption font-black uppercase tracking-widest ${window.practiceOwnerFilter === 'MY' ? 'text-brand' : 'text-muted'}">Только мои</span>
                         <div class="relative">
                             <input type="checkbox" class="sr-only peer" onchange="window.practiceOwnerFilter = this.checked ? 'MY' : 'ALL'; rbi_renderPracticesTab()" ${window.practiceOwnerFilter === 'MY' ? 'checked' : ''}>
-                            <div class="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                            <div class="w-8 h-4 bg-surface rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand"></div>
                         </div>
                     </label>
                     <div class="flex items-center gap-2 shrink-0">
                         <div id="practices-view-mode-toggle" class="shrink-0"></div>
-                        <button type="button" onclick="downloadMissingCloudFiles()" class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-500 active:scale-95 shadow-sm" title="Скачать всё для офлайна" aria-label="Скачать всё для офлайна">
+                        <button type="button" onclick="downloadMissingCloudFiles()" class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-surface border border-surface text-brand active:scale-95 shadow-sm" title="Скачать всё для офлайна" aria-label="Скачать всё для офлайна">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         </button>
                     </div>
@@ -844,9 +844,9 @@ window.rbi_renderPracticesTab = async function () {
             <div class="bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-2xl p-4 shadow-lg text-white mb-6 relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 opacity-20 text-8xl">🏆</div>
                 <div class="relative z-10">
-                    <div class="text-[10px] font-black uppercase tracking-widest mb-1 opacity-90 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Автодетектор Успеха</div>
-                    <div class="text-[14px] font-bold leading-snug mb-3">Потрясающий результат! Качество подрядчика <b>${item.contractor}</b> по виду <b>${item.templateTitle}</b> выросло на <b class="text-yellow-100">+${item.deltaUrk}%</b> после вашей работы.</div>
-                    <button onclick="rbi_openCreatePracticeModal('${item.id}')" class="bg-white text-yellow-700 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest active:scale-95 shadow-sm transition-transform">Кристаллизовать опыт (+120 XP)</button>
+                    <div class="text-rbi-caption font-black uppercase tracking-widest mb-1 opacity-90 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Автодетектор Успеха</div>
+                    <div class="text-rbi-title font-bold leading-snug mb-3">Потрясающий результат! Качество подрядчика <b>${item.contractor}</b> по виду <b>${item.templateTitle}</b> выросло на <b class="text-yellow-100">+${item.deltaUrk}%</b> после вашей работы.</div>
+                    <button onclick="rbi_openCreatePracticeModal('${item.id}')" class="bg-surface text-yellow-700 px-4 py-2 rounded-xl text-rbi-label font-black uppercase tracking-widest active:scale-95 shadow-sm transition-transform">Кристаллизовать опыт (+120 XP)</button>
                 </div>
             </div>`;
     }
@@ -885,7 +885,7 @@ window.rbi_renderPracticesTab = async function () {
     mixedData.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
 
     if (mixedData.length === 0) {
-        listContainer.innerHTML = `<div class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">В библиотеке пока пусто</div>`;
+        listContainer.innerHTML = `<div class="text-center py-10 text-muted text-rbi-label font-bold uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface">В библиотеке пока пусто</div>`;
         return;
     }
 
@@ -909,21 +909,21 @@ window.rbi_renderPracticesTab = async function () {
         if (isListView) {
             const thumb = previewImg
                 ? `<img src="${previewImg}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"></path></svg></div>`;
+                : `<div class="w-full h-full flex items-center justify-center text-muted bg-surface"><svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"></path></svg></div>`;
             return `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm flex items-center gap-2.5 p-2 active:scale-[0.99] transition-transform relative cursor-pointer" onclick="rbi_openPracticeViewer('${item.id}')">
                 <div class="w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--card-border)]">${thumb}</div>
                 <div class="min-w-0 flex-1">
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white truncate leading-tight">${item.title}${!item.isPublished ? ' <span class="text-[8px] font-black text-yellow-600">ЧЕРНОВИК</span>' : ''}</div>
-                    <div class="text-[9px] font-bold text-slate-400 truncate mt-0.5">Практика · ${item.templateTitle || '—'} · ${authorShort} · ${metaRight}</div>
+                    <div class="text-rbi-body font-bold text-ink truncate leading-tight">${item.title}${!item.isPublished ? ' <span class="text-rbi-caption font-black text-yellow-600">ЧЕРНОВИК</span>' : ''}</div>
+                    <div class="text-rbi-caption font-bold text-muted truncate mt-0.5">Практика · ${item.templateTitle || '—'} · ${authorShort} · ${metaRight}</div>
                 </div>
-                <button onclick="event.stopPropagation(); openUniversalActionSheet('${item.id}', 'practice', '${safeTitle}', ${isOwner}, '${pubStatus}')" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-400 hover:bg-[var(--hover-bg)] active:scale-90">
+                <button onclick="event.stopPropagation(); openUniversalActionSheet('${item.id}', 'practice', '${safeTitle}', ${isOwner}, '${pubStatus}')" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-muted hover:bg-[var(--hover-bg)] active:scale-90">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
                 </button>
             </div>`;
         }
 
-        const previewHtml = previewImg ? `<img src="${previewImg}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-900"><svg class="w-8 h-8 opacity-40 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path></svg></div>`;
+        const previewHtml = previewImg ? `<img src="${previewImg}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-muted bg-surface"><svg class="w-8 h-8 opacity-40 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path></svg></div>`;
         return `
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col active:scale-[0.98] transition-transform relative cursor-pointer" onclick="rbi_openPracticeViewer('${item.id}')">
                 <div class="h-28 sm:h-32 border-b border-[var(--card-border)] relative">
@@ -931,14 +931,14 @@ window.rbi_renderPracticesTab = async function () {
                     <button onclick="event.stopPropagation(); openUniversalActionSheet('${item.id}', 'practice', '${safeTitle}', ${isOwner}, '${pubStatus}')" class="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white active:scale-90 transition-transform shadow-md border border-white/20">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
                     </button>
-                    ${!item.isPublished ? `<div class="absolute bottom-2 left-2 bg-yellow-500 text-white text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shadow-md">Черновик</div>` : ''}
+                    ${!item.isPublished ? `<div class="absolute bottom-2 left-2 bg-yellow-500 text-white text-rbi-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded shadow-md">Черновик</div>` : ''}
                 </div>
                 <div class="p-3 flex flex-col flex-1">
-                    <div class="text-[8px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded w-fit mb-1.5 uppercase border border-indigo-100 dark:border-indigo-800 truncate max-w-full">Практика: ${item.templateTitle}</div>
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white leading-tight line-clamp-2 mb-2">${item.title}</div>
+                    <div class="text-rbi-caption font-black text-brand bg-brand-soft dark:text-brand px-1.5 py-0.5 rounded w-fit mb-1.5 uppercase border border-brand-soft truncate max-w-full">Практика: ${item.templateTitle}</div>
+                    <div class="text-rbi-body font-bold text-ink leading-tight line-clamp-2 mb-2">${item.title}</div>
                     <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center">
-                        <div class="text-[9px] font-bold text-[var(--text-muted)] truncate pr-2"><svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> ${authorShort}</div>
-                        ${item.deltaUrk > 0 ? `<div class="text-[10px] font-black text-green-600">+${item.deltaUrk}%</div>` : `<div class="text-[10px] font-black text-indigo-500">Ручная</div>`}
+                        <div class="text-rbi-caption font-bold text-[var(--text-muted)] truncate pr-2"><svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> ${authorShort}</div>
+                        ${item.deltaUrk > 0 ? `<div class="text-rbi-caption font-black text-green-600">+${item.deltaUrk}%</div>` : `<div class="text-rbi-caption font-black text-brand">Ручная</div>`}
                     </div>
                 </div>
             </div>`;
@@ -958,10 +958,10 @@ window.rbi_renderPracticesTab = async function () {
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm flex items-center gap-2.5 p-2 active:scale-[0.99] transition-transform relative cursor-pointer" onclick="openEtalonViewer('${item.id}')">
                 <div class="w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--card-border)]">${thumb}</div>
                 <div class="min-w-0 flex-1">
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white truncate leading-tight">${item.projectName || 'Без проекта'}</div>
-                    <div class="text-[9px] font-bold text-slate-400 truncate mt-0.5">${etalonLabel} · ${item.templateTitle || '—'} · ${item.contractorName || '—'} · ${inspectorShort}</div>
+                    <div class="text-rbi-body font-bold text-ink truncate leading-tight">${item.projectName || 'Без проекта'}</div>
+                    <div class="text-rbi-caption font-bold text-muted truncate mt-0.5">${etalonLabel} · ${item.templateTitle || '—'} · ${item.contractorName || '—'} · ${inspectorShort}</div>
                 </div>
-                <button onclick="event.stopPropagation(); openUniversalActionSheet('${item.id}', 'etalon', '${safeContr}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-400 hover:bg-[var(--hover-bg)] active:scale-90">
+                <button onclick="event.stopPropagation(); openUniversalActionSheet('${item.id}', 'etalon', '${safeContr}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-muted hover:bg-[var(--hover-bg)] active:scale-90">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
                 </button>
             </div>`;
@@ -977,15 +977,15 @@ window.rbi_renderPracticesTab = async function () {
                     </button>
                 </div>
                 <div class="p-3 flex flex-col flex-1">
-                    <div class="text-[8px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded w-fit mb-1.5 uppercase border border-blue-100 dark:border-blue-800 truncate max-w-full">${etalonLabel}: ${item.templateTitle}</div>
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white leading-tight line-clamp-2 mb-1">${item.projectName || 'Без проекта'}</div>
-                    <div class="text-[10px] font-medium text-slate-500 truncate mb-2">👤 ${item.contractorName}</div>
+                    <div class="text-rbi-caption font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded w-fit mb-1.5 uppercase border border-blue-100 dark:border-blue-800 truncate max-w-full">${etalonLabel}: ${item.templateTitle}</div>
+                    <div class="text-rbi-body font-bold text-ink leading-tight line-clamp-2 mb-1">${item.projectName || 'Без проекта'}</div>
+                    <div class="text-rbi-caption font-medium text-muted truncate mb-2">👤 ${item.contractorName}</div>
                     <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center">
-                        <div class="text-[9px] font-bold text-[var(--text-muted)] truncate pr-2">
+                        <div class="text-rbi-caption font-bold text-[var(--text-muted)] truncate pr-2">
                             <svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                             ${inspectorShort}
                         </div>
-                        <div class="text-[9px] font-black text-slate-400">${new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                        <div class="text-rbi-caption font-black text-muted">${new Date(item.date).toLocaleDateString('ru-RU')}</div>
                     </div>
                 </div>
             </div>`;
@@ -1025,19 +1025,19 @@ window.rbi_renderPracticesTab = async function () {
                     }
                 ">
                     <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                        <div class="w-8 h-8 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-[10px] flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-800">
+                        <div class="w-8 h-8 bg-brand-soft text-brand rounded-[10px] flex items-center justify-center shrink-0 border border-brand-soft">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <div class="min-w-0">
-                            <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${pName}</div>
+                            <div class="text-rbi-body font-black text-ink truncate leading-tight">${pName}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0 pl-1">
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${items.length} шт</span>
-                        <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                        <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${items.length} шт</span>
+                        <svg class="w-4 h-4 text-muted transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                 </div>
-                <div id="${safeGroupId}" class="hidden border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2.5">
+                <div id="${safeGroupId}" class="hidden border-t border-[var(--card-border)] bg-surface/30 p-2.5">
                     <div class="${itemsWrapClass}">${cardsHtml}</div>
                 </div>
             </div>`;
@@ -1052,25 +1052,25 @@ window._etalonChooserPrefill = { contractor: '', templateKey: '', workTitle: '',
 
 function _etalonVersionButtonsHtml() {
     return `
-            <button type="button" onclick="window._etalonChooserOpen('classic')" class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
+            <button type="button" onclick="window._etalonChooserOpen('classic')" class="w-full text-left p-4 bg-surface border border-surface rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
                 <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg></div>
                 <div>
-                    <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-wide">Акт-Эталон</div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-0.5">Классический конструктор с фото узлов</div>
+                    <div class="text-rbi-body font-black text-ink uppercase tracking-wide">Акт-Эталон</div>
+                    <div class="text-rbi-caption text-muted font-bold mt-0.5">Классический конструктор с фото узлов</div>
                 </div>
             </button>
-            <button type="button" onclick="window._etalonChooserOpen('v18')" class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
-                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+            <button type="button" onclick="window._etalonChooserOpen('v18')" class="w-full text-left p-4 bg-surface border border-surface rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
+                <div class="w-10 h-10 bg-brand-soft text-brand rounded-lg flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
                 <div class="flex-1">
-                    <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-wide flex items-center gap-1.5">Акт-Эталон <span class="text-[8px] bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 px-1.5 py-0.5 rounded uppercase">Бета</span></div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-0.5">Полный юридический акт (11 разделов, участники, испытания)</div>
+                    <div class="text-rbi-body font-black text-ink uppercase tracking-wide flex items-center gap-1.5">Акт-Эталон <span class="text-rbi-caption bg-brand-soft text-brand dark:text-brand px-1.5 py-0.5 rounded uppercase">Бета</span></div>
+                    <div class="text-rbi-caption text-muted font-bold mt-0.5">Полный юридический акт (11 разделов, участники, испытания)</div>
                 </div>
             </button>
-            <button type="button" onclick="window._etalonChooserOpen('v18b')" class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
+            <button type="button" onclick="window._etalonChooserOpen('v18b')" class="w-full text-left p-4 bg-surface border border-surface rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
                 <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></div>
                 <div class="flex-1">
-                    <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-wide flex items-center gap-1.5">Акт-Эталон <span class="text-[8px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase">Бета 2 · ПК</span></div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-0.5">Точная копия исходной формы — только компьютер (≥768px)</div>
+                    <div class="text-rbi-body font-black text-ink uppercase tracking-wide flex items-center gap-1.5">Акт-Эталон <span class="text-rbi-caption bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase">Бета 2 · ПК</span></div>
+                    <div class="text-rbi-caption text-muted font-bold mt-0.5">Точная копия исходной формы — только компьютер (≥768px)</div>
                 </div>
             </button>`;
 }
@@ -1146,11 +1146,11 @@ window.rbi_openKbCreateChoice = function () {
     document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">Добавить в библиотеку</div>`;
     document.getElementById('modal-body').innerHTML = `
         <div class="space-y-3 mb-2">
-            <button onclick="closeModal(); rbi_openManualPracticeModal()" class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
+            <button onclick="closeModal(); rbi_openManualPracticeModal()" class="w-full text-left p-4 bg-surface border border-surface rounded-xl flex items-center gap-3 active:scale-95 transition-transform shadow-sm">
                 <div class="w-10 h-10 bg-yellow-50 text-yellow-600 rounded-lg flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></div>
                 <div>
-                    <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-wide">Лучшая Практика</div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-0.5">Поделиться решением проблемы</div>
+                    <div class="text-rbi-body font-black text-ink uppercase tracking-wide">Лучшая Практика</div>
+                    <div class="text-rbi-caption text-muted font-bold mt-0.5">Поделиться решением проблемы</div>
                 </div>
             </button>
             ${_etalonVersionButtonsHtml()}
@@ -1569,9 +1569,9 @@ window.rbi_renderPracPhotosUI = function (stage) {
     if (!containers.length) return;
     const photos = (window._manPracState && window._manPracState[stateKey]) || [];
     const html = photos.map((url, idx) => `
-        <div class="relative w-full h-14 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
+        <div class="relative w-full h-14 rounded-lg overflow-hidden border border-surface bg-surface">
             <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(url, { preferThumb: true }) : ('src="' + window.getPhotoSrc(url) + '"')} class="w-full h-full object-cover">
-            <button type="button" onclick="rbi_removePracPhoto('${stage}', ${idx})" class="absolute top-0.5 right-0.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shadow-sm active:scale-90">✕</button>
+            <button type="button" onclick="rbi_removePracPhoto('${stage}', ${idx})" class="absolute top-0.5 right-0.5 bg-danger text-white w-4 h-4 rounded-full flex items-center justify-center text-rbi-caption font-black shadow-sm active:scale-90">✕</button>
         </div>
     `).join('');
     containers.forEach(function (container) {
@@ -1611,10 +1611,10 @@ window.renderPracticeDocsUI = function () {
     const docs = window._manPracState.docs || [];
     if (docs.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = docs.map((d, idx) => `
-        <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
-            <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate flex-1">📄 ${d.name}</div>
-            <input type="text" placeholder="Описание..." value="${(d.desc || '').replace(/"/g, '&quot;')}" oninput="window._manPracState.docs[${idx}].desc = this.value" class="input-base !py-1 !text-[10px] flex-1">
-            <button onclick="rbi_removePracDoc(${idx})" class="w-6 h-6 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-[10px] font-black shrink-0">✕</button>
+        <div class="flex items-center gap-2 bg-surface border border-surface rounded-lg p-2">
+            <div class="text-rbi-label font-bold text-ink truncate flex-1">📄 ${d.name}</div>
+            <input type="text" placeholder="Описание..." value="${(d.desc || '').replace(/"/g, '&quot;')}" oninput="window._manPracState.docs[${idx}].desc = this.value" class="input-base !py-1 !text-rbi-caption flex-1">
+            <button onclick="rbi_removePracDoc(${idx})" class="w-6 h-6 bg-danger-soft text-danger rounded-full flex items-center justify-center text-rbi-caption font-black shrink-0">✕</button>
         </div>
     `).join('');
 };
@@ -1818,167 +1818,167 @@ window.openUniversalActionSheet = function (id, type, title, isOwner, extraData)
 
     // Кнопка: Просмотр (Для всех)
     btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'view')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'view')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Смотреть</span>
+            <span class="text-rbi-body font-bold">Смотреть</span>
         </button>
     `;
 
     // Кнопки выгрузки (Практики): PDF / Печать / PPTX — один строгий макет A4
     if (type === 'practice') {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
-            <div class="w-8 h-8 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
+        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
+            <div class="w-8 h-8 bg-brand-soft text-brand dark:text-brand rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Скачать PDF</span>
+            <span class="text-rbi-body font-bold">Скачать PDF</span>
         </button>
-        <button onclick="handleUasAction('${id}', '${type}', 'print')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
-            <div class="w-8 h-8 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded-lg flex items-center justify-center shrink-0">
+        <button onclick="handleUasAction('${id}', '${type}', 'print')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
+            <div class="w-8 h-8 bg-surface text-ink dark:text-muted rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Печать</span>
+            <span class="text-rbi-body font-bold">Печать</span>
         </button>
-        <button onclick="handleUasAction('${id}', '${type}', 'pptx')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'pptx')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h4M8 12h8M8 16h5"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Сохранить PPTX</span>
+            <span class="text-rbi-body font-bold">Сохранить PPTX</span>
         </button>`;
     }
 
     // Кнопка: Изменить (Только Практики, только автор)
     if (type === 'practice' && isOwner) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Изменить</span>
+            <span class="text-rbi-body font-bold">Изменить</span>
         </button>`;
     }
     // Кнопка: Опубликовать (Только Практики, только автор, если еще не опубликовано)
     if (type === 'practice' && isOwner && extraData !== 'published') {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'publish')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'publish')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Опубликовать в библиотеку</span>
+            <span class="text-rbi-body font-bold">Опубликовать в библиотеку</span>
         </button>`;
     }
     // Кнопки для Эталонов
     if (type === 'etalon') {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
-            <div class="w-8 h-8 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
+        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
+            <div class="w-8 h-8 bg-brand-soft text-brand dark:text-brand rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Скачать PDF</span>
+            <span class="text-rbi-body font-bold">Скачать PDF</span>
         </button>
-        <button onclick="handleUasAction('${id}', '${type}', 'word')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'word')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Скачать Word</span>
+            <span class="text-rbi-body font-bold">Скачать Word</span>
         </button>`;
 
         if (isOwner) {
             btnsHtml += `
-            <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+            <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
                 <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
                 </div>
-                <span class="text-[12px] font-bold">Изменить</span>
+                <span class="text-rbi-body font-bold">Изменить</span>
             </button>`;
         }
     }
     // Кнопки для Отчетов (PDF)
     if (type === 'report') {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'share')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'share')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Поделиться файлом</span>
+            <span class="text-rbi-body font-bold">Поделиться файлом</span>
         </button>`;
     }
     // Изменить (Только TWI)
     if (type === 'twi' && isOwner) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'publish')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'publish')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Изменить</span>
+            <span class="text-rbi-body font-bold">Изменить</span>
         </button>`;
     }
     // Кнопки для FMEA и Совещаний (Редактировать и PDF)
     if ((type === 'fmea' || type === 'meeting') && isOwner) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
-            <div class="w-8 h-8 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400 rounded-lg flex items-center justify-center shrink-0">
+        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
+            <div class="w-8 h-8 bg-surface text-ink dark:text-muted rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Изменить</span>
+            <span class="text-rbi-body font-bold">Изменить</span>
         </button>
-        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
-            <div class="w-8 h-8 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
+        <button onclick="handleUasAction('${id}', '${type}', 'pdf')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
+            <div class="w-8 h-8 bg-brand-soft text-brand dark:text-brand rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Скачать PDF</span>
+            <span class="text-rbi-body font-bold">Скачать PDF</span>
         </button>`;
     }
     if ((type === 'meeting' || type === 'fmea') && isOwner) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'bind')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'bind')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Привязать к объекту</span>
+            <span class="text-rbi-body font-bold">Привязать к объекту</span>
         </button>`;
     }
     // Изменить НД (автор или админ — isOwner уже расширен для админа выше)
     if (type === 'doc' && isOwner && !String(id).startsWith('sys_')) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Изменить</span>
+            <span class="text-rbi-body font-bold">Изменить</span>
         </button>`;
     }
     // Переиндексировать и отправить (Только НД, только администратор)
     if (type === 'doc' && _permSvc && _permSvc.isAdmin()) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'reindex')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'reindex')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Переиндексировать и отправить</span>
+            <span class="text-rbi-body font-bold">Переиндексировать и отправить</span>
         </button>`;
     }
     // Изменить (Только Узлы и только для автора)
     if (type === 'node' && isOwner && !id.startsWith('sys_')) {
         btnsHtml += `
-        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-700 dark:text-slate-300 active:scale-95">
+        <button onclick="handleUasAction('${id}', '${type}', 'edit')" class="w-full flex items-center gap-3 p-3 hover:bg-surface rounded-xl transition-colors text-ink active:scale-95">
             <div class="w-8 h-8 bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Изменить</span>
+            <span class="text-rbi-body font-bold">Изменить</span>
         </button>`;
     }
     // Удаление (Только для автора, не системные)
     if (isOwner && !id.startsWith('sys_')) {
         btnsHtml += `
-        <div class="border-t border-slate-100 dark:border-slate-800 my-1"></div>
-        <button onclick="handleUasAction('${id}', '${type}', 'delete')" class="w-full flex items-center gap-3 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-red-600 dark:text-red-400 active:scale-95">
-            <div class="w-8 h-8 bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-500 rounded-lg flex items-center justify-center shrink-0">
+        <div class="border-t border-surface my-1"></div>
+        <button onclick="handleUasAction('${id}', '${type}', 'delete')" class="w-full flex items-center gap-3 p-3 hover:bg-danger-soft rounded-xl transition-colors text-danger active:scale-95">
+            <div class="w-8 h-8 bg-danger-soft text-danger dark:text-danger rounded-lg flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </div>
-            <span class="text-[12px] font-bold">Удалить</span>
+            <span class="text-rbi-body font-bold">Удалить</span>
         </button>`;
     }
 
@@ -2081,7 +2081,7 @@ window.rbi_openPracticeViewer = async function (id) {
         if (!urls || urls.length === 0) return '';
         const imgs = await Promise.all(urls.map(async (url) => {
             const real = await PhotoManager.getAsyncUrl(url) || window.getPhotoSrc(url);
-            return `<img src="${real}" class="w-full h-32 object-contain bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer" onclick="openPhotoViewer('${url}')">`;
+            return `<img src="${real}" class="w-full h-32 object-contain bg-surface rounded-lg border border-surface cursor-pointer" onclick="openPhotoViewer('${url}')">`;
         }));
         return `<div class="grid grid-cols-2 gap-1.5 mt-2">${imgs.join('')}</div>`;
     };
@@ -2097,9 +2097,9 @@ window.rbi_openPracticeViewer = async function (id) {
     let docsHtml = '';
     if (p.docs && p.docs.length > 0) {
         docsHtml = `
-        <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-4">
-            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-1">📄 Прикрепленные документы</div>
-            ${p.docs.map(d => `<div class="text-[11px] font-medium text-slate-700 dark:text-slate-300 py-1"><a href="#" onclick="event.preventDefault(); openPhotoViewer('${d.url}')" class="text-indigo-600 dark:text-indigo-400 underline">${d.name}</a>${d.desc ? ` — ${d.desc}` : ''}</div>`).join('')}
+        <div class="bg-surface/50 p-3 rounded-xl border border-surface mb-4">
+            <div class="text-rbi-caption font-black text-muted uppercase tracking-widest mb-1.5 border-b border-surface pb-1">📄 Прикрепленные документы</div>
+            ${p.docs.map(d => `<div class="text-rbi-label font-medium text-ink py-1"><a href="#" onclick="event.preventDefault(); openPhotoViewer('${d.url}')" class="text-brand underline">${d.name}</a>${d.desc ? ` — ${d.desc}` : ''}</div>`).join('')}
         </div>`;
     }
 
@@ -2107,53 +2107,53 @@ window.rbi_openPracticeViewer = async function (id) {
     document.getElementById('modal-icon').innerHTML = '';
     document.getElementById('modal-title').innerHTML = `
         <div class="flex justify-between items-center w-full">
-            <span class="text-[14px] uppercase font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            <span class="text-rbi-title uppercase font-black text-ink flex items-center gap-2">
+                <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 Библиотека практик
             </span>
-            <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 active:scale-90 px-2 text-lg">✕</button>
+            <button onclick="closeModal()" class="text-muted hover:text-danger active:scale-90 px-2 text-lg">✕</button>
         </div>
     `;
 
     document.getElementById('modal-body').innerHTML = `
         <div class="text-center mb-4 border-b border-[var(--card-border)] pb-3">
-            <div class="text-[14px] font-black text-slate-800 dark:text-white uppercase leading-tight mb-1">${p.title}</div>
-            <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">${p.templateTitle}</div>
+            <div class="text-rbi-title font-black text-ink uppercase leading-tight mb-1">${p.title}</div>
+            <div class="text-rbi-caption font-bold text-brand uppercase tracking-widest">${p.templateTitle}</div>
         </div>
 
         <div class="grid grid-cols-1 gap-3 mb-4">
-            <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-1 flex items-center gap-1">
+            <div class="bg-surface/50 p-3 rounded-xl border border-surface">
+                <div class="text-rbi-caption font-black text-muted uppercase tracking-widest mb-1.5 border-b border-surface pb-1 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> 
                     ${p.deltaUrk > 0 ? 'Суть проблемы (Было)' : 'Исходная ситуация'}
                 </div>
-                <div class="text-[12px] font-medium text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">${p.problem}</div>
+                <div class="text-rbi-body font-medium text-ink leading-relaxed whitespace-pre-wrap">${p.problem}</div>
                 ${imgBeforeHtml}
             </div>
             
-            <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-1 flex items-center gap-1">
+            <div class="bg-surface/50 p-3 rounded-xl border border-surface">
+                <div class="text-rbi-caption font-black text-muted uppercase tracking-widest mb-1.5 border-b border-surface pb-1 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
                     ${p.deltaUrk > 0 ? 'Принятое решение (Стало)' : 'Решение и результат'}
                 </div>
-                <div class="text-[12px] font-medium text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">${p.solution}</div>
+                <div class="text-rbi-body font-medium text-ink leading-relaxed whitespace-pre-wrap">${p.solution}</div>
                 ${imgAfterHtml}
             </div>
             ${processUrls.length > 0 ? `
-            <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-1">🔧 Процесс</div>
+            <div class="bg-surface/50 p-3 rounded-xl border border-surface">
+                <div class="text-rbi-caption font-black text-muted uppercase tracking-widest mb-1.5 border-b border-surface pb-1">🔧 Процесс</div>
                 ${imgProcessHtml}
             </div>` : ''}
         </div>
         ${docsHtml}
         <div class="grid grid-cols-3 gap-2 w-full">
-            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'script')" class="bg-indigo-50 text-indigo-700 border border-indigo-200 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
+            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'script')" class="bg-brand-soft text-brand border border-brand-soft py-3.5 rounded-xl font-black text-rbi-caption uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
                 PDF
             </button>
-            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'browser')" class="bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-transform">
+            <button onclick="closeModal(); rbi_printPracticePdf('${p.id}', 'browser')" class="bg-brand text-white py-3.5 rounded-xl font-black text-rbi-caption uppercase tracking-widest shadow-md active:scale-95 transition-transform">
                 Печать
             </button>
-            <button onclick="closeModal(); if(window.rbi_exportPracticePptx) rbi_exportPracticePptx('${p.id}')" class="bg-orange-50 text-orange-700 border border-orange-200 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
+            <button onclick="closeModal(); if(window.rbi_exportPracticePptx) rbi_exportPracticePptx('${p.id}')" class="bg-orange-50 text-orange-700 border border-orange-200 py-3.5 rounded-xl font-black text-rbi-caption uppercase tracking-widest shadow-sm active:scale-95 transition-transform">
                 PPTX
             </button>
         </div>

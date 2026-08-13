@@ -154,7 +154,7 @@ function undecorateDeskFields() {
   });
   const selSpan = document.querySelector('#header-checklist-container > span');
   if (selSpan) {
-    selSpan.className = 'text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase flex items-center gap-1.5';
+    selSpan.className = 'text-rbi-caption font-bold text-brand uppercase flex items-center gap-1.5';
     selSpan.textContent = _t('quality.audit.checklist.chevron', 'Чек-лист ▾');
   }
   const expanded = document.getElementById('dash-expanded-view');

@@ -136,18 +136,18 @@ function _showMiniFloorPicker(floors, onPick) {
     overlay.className = 'fixed inset-0 z-[12000] bg-black/50 flex items-end sm:items-center justify-center p-3';
     const rows = floors.map(function (f) {
         return `<button type="button" data-hplan-floor="${_escAttr(f.id)}"
-            class="w-full text-left px-3 py-2.5 rounded-xl mb-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30
-                   text-[12px] font-bold text-slate-700 dark:text-slate-200 border border-transparent hover:border-indigo-100">
+            class="w-full text-left px-3 py-2.5 rounded-xl mb-1 hover:bg-brand-soft
+                   text-rbi-body font-bold text-ink border border-transparent hover:border-brand-soft">
             ${_escHtml(f.name || f.id)}
         </button>`;
     }).join('');
     overlay.innerHTML = `
-      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-          <div class="text-sm font-bold text-slate-800 dark:text-slate-100">${_t('quality.history.plan.pick_floor', 'Выбор этажа')}</div>
-          <button type="button" data-hplan-cancel class="text-slate-400 hover:text-slate-700 text-xl leading-none px-2">×</button>
+      <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-surface">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-surface">
+          <div class="text-sm font-bold text-ink">${_t('quality.history.plan.pick_floor', 'Выбор этажа')}</div>
+          <button type="button" data-hplan-cancel class="text-muted hover:text-ink text-xl leading-none px-2">×</button>
         </div>
-        <div class="overflow-y-auto p-2 flex-1">${rows || ('<div class="p-4 text-center text-[11px] text-slate-400">' + _t('quality.history.plan.empty_floors', 'Нет этажей') + '</div>')}</div>
+        <div class="overflow-y-auto p-2 flex-1">${rows || ('<div class="p-4 text-center text-rbi-label text-muted">' + _t('quality.history.plan.empty_floors', 'Нет этажей') + '</div>')}</div>
       </div>`;
     document.body.appendChild(overlay);
     const close = function () { overlay.remove(); };
@@ -478,18 +478,18 @@ function _groupPdfFloors(floors) {
 
 function _floorBtnHtml(row, count, grouped) {
     const countCls = count === 0
-        ? 'text-slate-400 dark:text-slate-500'
-        : 'text-indigo-600 dark:text-indigo-400';
+        ? 'text-muted'
+        : 'text-brand';
     const emptyHint = count === 0
-        ? ' <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">' + _t('quality.history.plan.empty_badge', 'пусто') + '</span>'
+        ? ' <span class="text-rbi-caption font-bold text-muted uppercase tracking-wider">' + _t('quality.history.plan.empty_badge', 'пусто') + '</span>'
         : '';
     return `<button type="button" data-hist-plans-floor="${_escAttr(row.id)}"
         class="w-full text-left flex items-center justify-between gap-2 px-3 py-2.5 mb-1.5 last:mb-0 rounded-xl box-border
-               bg-white dark:bg-slate-800 border border-[var(--card-border)]
-               hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20
+               bg-surface border border-[var(--card-border)]
+               hover:border-brand hover:bg-brand-soft
                transition-colors">
-        <span class="min-w-0 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">${_escHtml(_floorRowLabel(row, grouped))}</span>
-        <span class="shrink-0 text-[11px] font-black ${countCls}">${count} ${_escHtml(_pinWord(count))}${emptyHint}</span>
+        <span class="min-w-0 truncate text-rbi-body font-bold text-ink">${_escHtml(_floorRowLabel(row, grouped))}</span>
+        <span class="shrink-0 text-rbi-label font-black ${countCls}">${count} ${_escHtml(_pinWord(count))}${emptyHint}</span>
     </button>`;
 }
 
@@ -501,10 +501,10 @@ function _buildGroupedFloorRowsHtml(floors, filteredArr) {
     const parts = [];
     groups.forEach(function (b) {
         if (showBuilding && b.buildingName) {
-            parts.push(`<div class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-2 mb-1 first:mt-0">${_escHtml(b.buildingName)}</div>`);
+            parts.push(`<div class="text-rbi-caption font-black uppercase tracking-wider text-muted mt-2 mb-1 first:mt-0">${_escHtml(b.buildingName)}</div>`);
         }
         b.sections.forEach(function (s) {
-            parts.push(`<div class="text-[10px] font-bold text-indigo-600/80 dark:text-indigo-400/90 mt-1.5 mb-1 px-0.5">${_escHtml(s.sectionName)}</div>`);
+            parts.push(`<div class="text-rbi-caption font-bold text-brand/80 mt-1.5 mb-1 px-0.5">${_escHtml(s.sectionName)}</div>`);
             s.floors.forEach(function (row) {
                 const pinItems = _pinItemsOnFloor(filteredArr, row.id);
                 _histPlansFloorItems.set(String(row.id), pinItems);
@@ -564,7 +564,7 @@ function _renderHistoryPlansList(filteredArr) {
 
     const loc = _locationsSvc();
     if (!loc || typeof loc.getPlanForFloor !== 'function') {
-        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.plan.locations_unavailable', 'Справочник локаций недоступен.')}</div>`;
+        listDiv.innerHTML = `<div class="text-sm text-muted text-center bg-surface p-6 rounded-xl border border-surface">${_t('quality.history.plan.locations_unavailable', 'Справочник локаций недоступен.')}</div>`;
         return;
     }
 
@@ -614,22 +614,22 @@ function _renderHistoryPlansList(filteredArr) {
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-[14px] shadow-sm mb-2 overflow-hidden" data-hist-plans-project="${pEsc}">
             <div class="flex justify-between items-center p-2.5 cursor-pointer hover:bg-[var(--hover-bg)] active:bg-[var(--hover-bg)] transition-colors select-none rounded-t-[14px]" data-hist-plans-toggle>
                 <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                    <div class="w-8 h-8 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-[10px] flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-800">
+                    <div class="w-8 h-8 bg-brand-soft text-brand rounded-[10px] flex items-center justify-center shrink-0 border border-brand-soft">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
                     </div>
                     <div class="min-w-0">
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${_escHtml(pName)}</div>
-                        <div class="text-[9px] font-bold text-slate-400 truncate mt-[1px]">${_escHtml(floorsLabel)}</div>
+                        <div class="text-rbi-body font-black text-ink dark:text-white truncate leading-tight">${_escHtml(pName)}</div>
+                        <div class="text-rbi-caption font-bold text-muted truncate mt-[1px]">${_escHtml(floorsLabel)}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0 pl-1">
-                    <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${_escHtml(pinsLabel)}</span>
-                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${_escHtml(pinsLabel)}</span>
+                    <svg class="w-4 h-4 text-muted transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
             </div>
             <div class="rbi-acc min-w-0" data-hist-plans-project-body>
                 <div class="rbi-acc-inner">
-                    <div class="border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2.5 min-w-0">
+                    <div class="border-t border-[var(--card-border)] bg-surface p-2.5 min-w-0">
                         ${floorRows}
                     </div>
                 </div>
@@ -638,7 +638,7 @@ function _renderHistoryPlansList(filteredArr) {
     });
 
     if (!blocks.length) {
-        listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.plan.empty_filtered', 'Нет объектов с PDF-планами этажей по заданным фильтрам.')}</div>`;
+        listDiv.innerHTML = `<div class="text-sm text-muted text-center bg-surface p-6 rounded-xl border border-surface">${_t('quality.history.plan.empty_filtered', 'Нет объектов с PDF-планами этажей по заданным фильтрам.')}</div>`;
         return;
     }
     listDiv.innerHTML = blocks.join('');
@@ -681,18 +681,18 @@ function _renderHistoryRowHtml(item) {
     return `
                 <div class="flex items-center gap-1.5 mb-1.5 min-w-0 w-full max-w-full" data-hist-id="${idAttr}" data-hist-date="${ts}">
                     <input type="checkbox" class="hist-checkbox w-4 h-4 accent-indigo-600 rounded shrink-0 cursor-pointer" value="${idAttr}">
-                    <div class="flex-1 min-w-0 overflow-hidden bg-white dark:bg-slate-800 border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors active:scale-[0.98]" onclick="showHistoryDetail('${String(item.id).replace(/'/g, "\\'")}')">
+                    <div class="flex-1 min-w-0 overflow-hidden bg-surface border border-[var(--card-border)] rounded-xl p-2.5 shadow-sm cursor-pointer hover:border-brand transition-colors active:scale-[0.98]" onclick="showHistoryDetail('${String(item.id).replace(/'/g, "\\'")}')">
                         <div class="flex justify-between items-start gap-2 min-w-0">
                             <div class="min-w-0 flex-1 overflow-hidden">
                                 <div class="flex items-center gap-1 min-w-0">
-                                    <div class="text-[10px] font-bold text-slate-800 dark:text-white truncate leading-tight min-w-0 flex-1" title="${placeTitle}">${placeHtml}${photoIcon ? ' ' + photoIcon : ''}</div>
+                                    <div class="text-rbi-caption font-bold text-ink dark:text-white truncate leading-tight min-w-0 flex-1" title="${placeTitle}">${placeHtml}${photoIcon ? ' ' + photoIcon : ''}</div>
                                     <div class="shrink-0 self-center">${syncBadge}</div>
                                 </div>
-                                <div class="text-[8px] text-slate-400 truncate font-medium mt-0.5 min-w-0">${metaLine}</div>
+                                <div class="text-rbi-caption text-muted truncate font-medium mt-0.5 min-w-0">${metaLine}</div>
                             </div>
                             <div class="flex flex-col items-end gap-0.5 shrink-0">
-                                <span class="status-tag ${statusCls} !text-[9px] !px-1.5 !py-0.5 shadow-sm">${finalPct}%</span>
-                                ${(docScore !== null && docScore !== undefined) ? `<span class="text-[9px] font-bold text-indigo-400 whitespace-nowrap" title="${_t('quality.history.urk.doc_title', 'Документарный УрК')}">${_t('quality.history.urk.doc_prefix', 'Док: {pct}%', { pct: docScore })}</span>` : ''}
+                                <span class="status-tag ${statusCls} !text-rbi-caption !px-1.5 !py-0.5 shadow-sm">${finalPct}%</span>
+                                ${(docScore !== null && docScore !== undefined) ? `<span class="text-rbi-caption font-bold text-brand whitespace-nowrap" title="${_t('quality.history.urk.doc_title', 'Документарный УрК')}">${_t('quality.history.urk.doc_prefix', 'Док: {pct}%', { pct: docScore })}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -703,7 +703,7 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
     const safeWorkTypeName = `${safeContractorName}-wt-${tIndex}`;
     const wtAvgUrk = _avgFinalUrk(items);
     const wtUrkHtml = (wtAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(wtAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-wt title="${_t('quality.history.urk.avg_work', 'Средний УрК по виду работ')}">${wtAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(wtAvgUrk)} !text-rbi-caption !px-1.5 !py-0.5 shadow-sm" data-hist-urk-wt title="${_t('quality.history.urk.avg_work', 'Средний УрК по виду работ')}">${wtAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-wt></span>`;
     const reversed = [...items].sort((a, b) => new Date(b.date) - new Date(a.date));
     const visibleItems = reversed.slice(0, HIST_CONTRACTOR_VISIBLE);
@@ -712,8 +712,8 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
     const hiddenGroupId = `${safeWorkTypeName}-hidden`;
     const planBtn = _workTypeCanShowPlan(items)
         ? `<button type="button" data-hist-open-plan
-            class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
-                   bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
+            class="text-rbi-caption font-black uppercase tracking-wider text-brand
+                   bg-brand-soft border border-brand
                    px-2 py-1 rounded-md active:scale-95"
             onclick="event.stopPropagation()">${_t('quality.history.btn.plan', 'План')}</button>`
         : '';
@@ -725,21 +725,21 @@ function _renderWorkTypeBlockHtml(safeContractorName, tTitle, tIndex, items) {
                     const open = body.classList.toggle('is-open');
                     if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
                 ">
-                    <div class="text-[11px] font-bold text-indigo-600/80 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1 min-w-0">
-                        <svg class="w-2.5 h-2.5 text-indigo-400 transition-transform duration-300 chevron-icon-wt shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                    <div class="text-rbi-label font-bold text-brand/80 uppercase tracking-wide flex items-center gap-1 min-w-0">
+                        <svg class="w-2.5 h-2.5 text-brand transition-transform duration-300 chevron-icon-wt shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
                         <span class="truncate normal-case tracking-normal">${tTitle}</span>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         ${planBtn}
                         ${wtUrkHtml}
-                        <span class="text-[8px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-wt>${_t('quality.history.count.pcs', '{n} шт', { n: items.length })}</span>
+                        <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-wt>${_t('quality.history.count.pcs', '{n} шт', { n: items.length })}</span>
                     </div>
                 </div>`;
     html += `<div id="${safeWorkTypeName}" class="rbi-acc min-w-0 pl-1" data-hist-worktype="${tEsc}"><div class="rbi-acc-inner">`;
     html += visibleItems.map(_renderHistoryRowHtml).join('');
     if (hiddenItems.length > 0) {
         html += `<div id="${hiddenGroupId}" class="hidden" data-hist-hidden>${hiddenItems.map(_renderHistoryRowHtml).join('')}</div>`;
-        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">${_t('quality.history.btn.show_more', 'Показать еще проверки ({n})', { n: hiddenItems.length })}</button>`;
+        html += `<button type="button" data-hist-show-more onclick="document.getElementById('${hiddenGroupId}').classList.remove('hidden'); this.style.display='none'" class="w-full bg-[var(--hover-bg)] text-muted py-2 mt-1 mb-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]">${_t('quality.history.btn.show_more', 'Показать еще проверки ({n})', { n: hiddenItems.length })}</button>`;
     }
     html += `</div></div>`;
     return html;
@@ -757,7 +757,7 @@ function _renderContractorBlockHtml(safeGroupName, cName, cIndex, workTypesMap) 
     });
     const contrAvgUrk = _avgFinalUrk(allItems);
     const contrUrkHtml = (contrAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="${_t('quality.history.urk.avg_contractor', 'Средний УрК по подрядчику')}">${contrAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(contrAvgUrk)} !text-rbi-caption !px-1.5 !py-0.5 shadow-sm" data-hist-urk-contr title="${_t('quality.history.urk.avg_contractor', 'Средний УрК по подрядчику')}">${contrAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-contr></span>`;
     const cEsc = _escAttr(cName);
 
@@ -768,13 +768,13 @@ function _renderContractorBlockHtml(safeGroupName, cName, cIndex, workTypesMap) 
                     const open = body.classList.toggle('is-open');
                     if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
                 ">
-                    <div class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-1 min-w-0">
-                        <svg class="w-3 h-3 text-indigo-400 transition-transform duration-300 chevron-icon-sm shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                    <div class="text-rbi-caption font-black text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-1 min-w-0">
+                        <svg class="w-3 h-3 text-brand transition-transform duration-300 chevron-icon-sm shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
                         <span class="truncate">${cName}</span>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         ${contrUrkHtml}
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${_t('quality.history.count.pcs', '{n} шт', { n: allItems.length })}</span>
+                        <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-contr>${_t('quality.history.count.pcs', '{n} шт', { n: allItems.length })}</span>
                     </div>
                 </div>`;
     html += `<div id="${safeContractorName}" class="rbi-acc min-w-0" data-hist-contractor="${cEsc}"><div class="rbi-acc-inner">`;
@@ -800,7 +800,7 @@ function _renderProjectGroupHtml(pName, contractorsMap) {
     const totalChecksInGroup = allObjectItems.length;
     const objAvgUrk = _avgFinalUrk(allObjectItems);
     const objUrkHtml = (objAvgUrk !== null)
-        ? `<span class="status-tag ${_avgUrkStatusCls(objAvgUrk)} !text-[9px] !px-1.5 !py-0.5 shadow-sm" data-hist-urk-obj title="${_t('quality.history.urk.avg_project', 'Средний УрК по объекту')}">${objAvgUrk}%</span>`
+        ? `<span class="status-tag ${_avgUrkStatusCls(objAvgUrk)} !text-rbi-caption !px-1.5 !py-0.5 shadow-sm" data-hist-urk-obj title="${_t('quality.history.urk.avg_project', 'Средний УрК по объекту')}">${objAvgUrk}%</span>`
         : `<span class="hidden" data-hist-urk-obj></span>`;
     const pEsc = _escAttr(pName);
 
@@ -814,24 +814,24 @@ function _renderProjectGroupHtml(pName, contractorsMap) {
                 if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
             ">
                 <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                    <div class="w-8 h-8 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-[10px] flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-800">
+                    <div class="w-8 h-8 bg-brand-soft text-brand rounded-[10px] flex items-center justify-center shrink-0 border border-brand-soft">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                     </div>
                     <div class="min-w-0">
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${pName}</div>
-                        <div class="text-[9px] font-bold text-slate-400 truncate mt-[1px]" data-hist-contractor-count>${_t('quality.history.count.contractors', '{n} подрядч.', { n: contractorNames.length })}</div>
+                        <div class="text-rbi-body font-black text-ink dark:text-white truncate leading-tight">${pName}</div>
+                        <div class="text-rbi-caption font-bold text-muted truncate mt-[1px]" data-hist-contractor-count>${_t('quality.history.count.contractors', '{n} подрядч.', { n: contractorNames.length })}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0 pl-1">
                     ${objUrkHtml}
-                    <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-obj>${_t('quality.history.count.pcs', '{n} шт', { n: totalChecksInGroup })}</span>
-                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]" data-hist-count-obj>${_t('quality.history.count.pcs', '{n} шт', { n: totalChecksInGroup })}</span>
+                    <svg class="w-4 h-4 text-muted transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
             </div>
             
             <div id="${safeGroupName}" class="rbi-acc min-w-0" data-hist-project-body>
                 <div class="rbi-acc-inner">
-                    <div class="hist-project-list border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2 min-w-0 overflow-x-hidden">`;
+                    <div class="hist-project-list border-t border-[var(--card-border)] bg-surface p-2 min-w-0 overflow-x-hidden">`;
 
     contractorNames.forEach((cName, cIndex) => {
         groupHtml += _renderContractorBlockHtml(safeGroupName, cName, cIndex, contractorsMap[cName]);
@@ -870,7 +870,7 @@ function _histProjectListHost(pBody) {
     let host = inner.querySelector(':scope > .hist-project-list');
     if (!host) {
         host = document.createElement('div');
-        host.className = 'hist-project-list border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2 min-w-0 overflow-x-hidden';
+        host.className = 'hist-project-list border-t border-[var(--card-border)] bg-surface p-2 min-w-0 overflow-x-hidden';
         while (inner.firstChild) host.appendChild(inner.firstChild);
         inner.appendChild(host);
     }
@@ -983,7 +983,7 @@ function _enforceWorkTypeVisibleLimit(wtBody) {
         showMoreBtn = document.createElement('button');
         showMoreBtn.type = 'button';
         showMoreBtn.setAttribute('data-hist-show-more', '');
-        showMoreBtn.className = 'w-full bg-[var(--hover-bg)] text-slate-500 dark:text-slate-400 py-2 mt-1 mb-2 rounded-lg text-[9px] font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]';
+        showMoreBtn.className = 'w-full bg-[var(--hover-bg)] text-muted py-2 mt-1 mb-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors border border-dashed border-[var(--card-border)]';
         showMoreBtn.onclick = function () {
             hiddenWrap.classList.remove('hidden');
             showMoreBtn.style.display = 'none';
@@ -1010,7 +1010,7 @@ function _patchUrkEl(el, avg, title) {
         el.textContent = '';
         return;
     }
-    el.className = 'status-tag ' + _avgUrkStatusCls(avg) + ' !text-[9px] !px-1.5 !py-0.5 shadow-sm';
+    el.className = 'status-tag ' + _avgUrkStatusCls(avg) + ' !text-rbi-caption !px-1.5 !py-0.5 shadow-sm';
     el.setAttribute('title', title || '');
     el.textContent = avg + '%';
 }
@@ -1059,7 +1059,7 @@ function _syncLoadMoreFooter(listDiv) {
         return;
     }
     if (!existingBtn) {
-        listDiv.insertAdjacentHTML('beforeend', `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 py-3 mt-1 mb-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-colors border border-indigo-200 dark:border-indigo-800 shadow-sm">
+        listDiv.insertAdjacentHTML('beforeend', `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-brand-soft text-brand py-3 mt-1 mb-2 rounded-xl text-rbi-caption font-black uppercase tracking-widest active:scale-95 transition-colors border border-brand shadow-sm">
             ${_t('quality.history.btn.load_older', 'Загрузить более старые проверки')}
         </button>
         <div id="history-load-sentinel" class="h-2 -mt-2"></div>`);
@@ -1186,8 +1186,8 @@ function _ensureWorkTypePlanButton(wtBody) {
     if (!_workTypeCanShowPlan(items)) return;
     const countEl = head.querySelector('[data-hist-count-wt]');
     const btnHtml = `<button type="button" data-hist-open-plan
-            class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400
-                   bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800
+            class="text-rbi-caption font-black uppercase tracking-wider text-brand
+                   bg-brand-soft border border-brand
                    px-2 py-1 rounded-md active:scale-95"
             onclick="event.stopPropagation()">${_t('quality.history.btn.plan', 'План')}</button>`;
     if (countEl) countEl.insertAdjacentHTML('beforebegin', btnHtml);
@@ -1242,12 +1242,12 @@ function getSyncBadgeHtml(item) {
     if (syncStatus === 'blocked') {
         var reason = item.syncBlockReason || item.sync_block_reason || _t('quality.history.sync.blocked_default', 'Отправка запрещена');
         var toastMsg = _t('quality.history.sync.reason_prefix', 'Причина: {reason}', { reason: reason });
-        return '<button onclick="event.stopPropagation(); showToast(\'' + String(toastMsg).replace(/'/g, "\\'") + '\')" class="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconBlocked + _t('quality.history.sync.blocked_badge', 'Заблок.') + '</button>';
+        return '<button onclick="event.stopPropagation(); showToast(\'' + String(toastMsg).replace(/'/g, "\\'") + '\')" class="px-1.5 py-0.5 rounded bg-danger-soft text-danger border border-danger text-rbi-caption font-bold uppercase ml-1 flex items-center shadow-sm">' + iconBlocked + _t('quality.history.sync.blocked_badge', 'Заблок.') + '</button>';
     }
     if (source === 'cloud' || syncStatus === 'synced') {
-        return '<span class="px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-200 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconCloud + '</span>';
+        return '<span class="px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-200 text-rbi-caption font-bold uppercase ml-1 flex items-center shadow-sm">' + iconCloud + '</span>';
     }
-    return '<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 text-[7px] font-bold uppercase ml-1 flex items-center shadow-sm">' + iconLocal + '</span>';
+    return '<span class="px-1.5 py-0.5 rounded bg-surface text-muted border border-surface text-rbi-caption font-bold uppercase ml-1 flex items-center shadow-sm">' + iconLocal + '</span>';
 }
 
 export const HistoryRender = {
@@ -1297,7 +1297,7 @@ export const HistoryRender = {
         if (countEl) countEl.innerText = filteredArr.length;
 
         if (filteredArr.length === 0) {
-            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.empty.filtered', 'По заданным фильтрам проверок не найдено.')}</div>`;
+            listDiv.innerHTML = `<div class="text-sm text-muted text-center bg-surface p-6 rounded-xl border border-surface">${_t('quality.history.empty.filtered', 'По заданным фильтрам проверок не найдено.')}</div>`;
             return;
         }
 
@@ -1317,7 +1317,7 @@ export const HistoryRender = {
         let html = groupKeys.map((pName) => _renderProjectGroupHtml(pName, grouped[pName])).join('');
 
         if (HistoryState.pageHasMore) {
-            html += `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 py-3 mt-1 mb-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-colors border border-indigo-200 dark:border-indigo-800 shadow-sm">
+            html += `<button id="load-more-history-page-btn" onclick="window.loadMoreHistoryPage()" class="w-full bg-brand-soft text-brand py-3 mt-1 mb-2 rounded-xl text-rbi-caption font-black uppercase tracking-widest active:scale-95 transition-colors border border-brand shadow-sm">
             ${_t('quality.history.btn.load_older', 'Загрузить более старые проверки')}
         </button>
         <div id="history-load-sentinel" class="h-2 -mt-2"></div>`;
@@ -1339,7 +1339,7 @@ export const HistoryRender = {
 
         const source = HistoryState.allRecords || [];
         if (source.length === 0) {
-            listDiv.innerHTML = `<div class="text-sm text-slate-500 text-center bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">${_t('quality.history.empty.all', 'История пуста.')}</div>`;
+            listDiv.innerHTML = `<div class="text-sm text-muted text-center bg-surface p-6 rounded-xl border border-surface">${_t('quality.history.empty.all', 'История пуста.')}</div>`;
             if (countEl) countEl.innerText = '0';
             return;
         }
@@ -1545,67 +1545,67 @@ export const HistoryRender = {
             let extraData = '';
             if (item.details && item.details[i.id]) {
                 const d = item.details[i.id];
-                if (d.fact && d.tol) extraData += `<div class="text-[10px] font-bold text-orange-600 mt-1">${_t('quality.history.detail.fact_tol', 'Факт: {fact} при допуске {tol} (Превышение {x}x)', { fact: d.fact + d.unit, tol: d.tol + d.unit, x: (d.fact / d.tol).toFixed(1) })}</div>`;
-                if (d.comment) extraData += `<div class="text-[10px] text-slate-500 italic mt-1">${d.comment}</div>`;
+                if (d.fact && d.tol) extraData += `<div class="text-rbi-caption font-bold text-orange-600 mt-1">${_t('quality.history.detail.fact_tol', 'Факт: {fact} при допуске {tol} (Превышение {x}x)', { fact: d.fact + d.unit, tol: d.tol + d.unit, x: (d.fact / d.tol).toFixed(1) })}</div>`;
+                if (d.comment) extraData += `<div class="text-rbi-caption text-muted italic mt-1">${d.comment}</div>`;
             }
 
-            return `<div class="border-b border-slate-100 dark:border-slate-700 py-2.5"><div class="flex items-start justify-between gap-3"><div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-snug"><span class="weight-tag wt-${i.w}">${cat}</span> ${i.n}${extraData}</div><span class="status-tag ${stCls}">${stTxt}</span></div>${photoHtml}</div>`;
+            return `<div class="border-b border-surface py-2.5"><div class="flex items-start justify-between gap-3"><div class="text-rbi-label font-bold text-ink leading-snug"><span class="weight-tag wt-${i.w}">${cat}</span> ${i.n}${extraData}</div><span class="status-tag ${stCls}">${stTxt}</span></div>${photoHtml}</div>`;
         }).join('');
 
         const modal = document.getElementById('modal-overlay');
         const detailPlace = _placeLabelForItem(item);
         document.getElementById('modal-title').innerHTML = `
     <div class="flex justify-between items-center w-full">
-        <button class="p-2 -ml-2 text-slate-400 hover:text-indigo-600 disabled:opacity-20 active:scale-90" ${newerId ? `onclick="showHistoryDetail('${newerId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg></button>
+        <button class="p-2 -ml-2 text-muted hover:text-brand disabled:opacity-20 active:scale-90" ${newerId ? `onclick="showHistoryDetail('${newerId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg></button>
         <div class="text-center truncate flex-1 px-2 text-lg dark:text-white" title="${_escAttr(detailPlace)}">${_escHtml(detailPlace)}</div>
-        <button class="p-2 -mr-2 text-slate-400 hover:text-indigo-600 disabled:opacity-20 active:scale-90" ${olderId ? `onclick="showHistoryDetail('${olderId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg></button>
+        <button class="p-2 -mr-2 text-muted hover:text-brand disabled:opacity-20 active:scale-90" ${olderId ? `onclick="showHistoryDetail('${olderId}')"` : 'disabled'}><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg></button>
     </div>`;
 
         document.getElementById('modal-body').innerHTML = `
-        <div class="text-xs font-bold text-slate-500 mb-1">${item.contractorName}</div>
-        <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-1">${item.templateTitle}</div>
-        ${item.checkedStagesInfo ? `<div class="text-[9px] bg-slate-100 dark:bg-slate-800 p-2 rounded mt-2 mb-2 text-slate-500 dark:text-slate-400 font-bold leading-snug"><span class="text-slate-400 uppercase tracking-widest block mb-1">${_t('quality.history.detail.checked_stages', 'Проверенные этапы:')}</span> ${item.checkedStagesInfo.join('<br>')}</div>` : ''}
-        <div class="text-[10px] text-slate-400 mb-4">${new Date(item.date).toLocaleString('ru-RU')}</div>
+        <div class="text-xs font-bold text-muted mb-1">${item.contractorName}</div>
+        <div class="text-rbi-caption font-bold text-brand mb-1">${item.templateTitle}</div>
+        ${item.checkedStagesInfo ? `<div class="text-rbi-caption bg-surface p-2 rounded mt-2 mb-2 text-muted font-bold leading-snug"><span class="text-muted uppercase tracking-widest block mb-1">${_t('quality.history.detail.checked_stages', 'Проверенные этапы:')}</span> ${item.checkedStagesInfo.join('<br>')}</div>` : ''}
+        <div class="text-rbi-caption text-muted mb-4">${new Date(item.date).toLocaleString('ru-RU')}</div>
         
         <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
-                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">${_t('quality.history.detail.urk_physical', 'УрК Изделия (физика)')}</div>
-                <div class="text-3xl font-black ${item.metrics.isDanger ? 'text-red-600' : (item.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${item.metrics.final}%</div>
+            <div class="bg-surface p-3 rounded-xl border border-surface shadow-sm flex flex-col justify-center">
+                <div class="text-rbi-caption text-muted uppercase font-bold mb-1">${_t('quality.history.detail.urk_physical', 'УрК Изделия (физика)')}</div>
+                <div class="text-3xl font-black ${item.metrics.isDanger ? 'text-danger' : (item.metrics.final < 85 ? 'text-orange-500' : 'text-green-600')}">${item.metrics.final}%</div>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
-                <div class="text-[9px] text-slate-400 uppercase font-bold mb-1">${_t('quality.history.detail.urk_doc', 'УрК Документации')}</div>
-                <div class="text-3xl font-black ${detailDocScore === null ? 'text-slate-400' : (detailDocScore < 70 ? 'text-red-600' : (detailDocScore < 85 ? 'text-orange-500' : 'text-green-600'))}">${detailDocScore === null ? '—' : detailDocScore + '%'}</div>
+            <div class="bg-surface p-3 rounded-xl border border-surface shadow-sm flex flex-col justify-center">
+                <div class="text-rbi-caption text-muted uppercase font-bold mb-1">${_t('quality.history.detail.urk_doc', 'УрК Документации')}</div>
+                <div class="text-3xl font-black ${detailDocScore === null ? 'text-muted' : (detailDocScore < 70 ? 'text-danger' : (detailDocScore < 85 ? 'text-orange-500' : 'text-green-600'))}">${detailDocScore === null ? '—' : detailDocScore + '%'}</div>
             </div>
         </div>
         
-        ${item.metrics.reason ? `<div class="text-[10px] font-bold text-red-600 mb-3 bg-red-50 p-3 rounded-lg border border-red-100 shadow-sm">${item.metrics.reason}</div>` : ''}
+        ${item.metrics.reason ? `<div class="text-rbi-caption font-bold text-danger mb-3 bg-danger-soft p-3 rounded-lg border border-danger-soft shadow-sm">${item.metrics.reason}</div>` : ''}
         
         ${item.templateKey === 'sys_etalon_act'
-                ? `<div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-4 text-center shadow-sm">
-                   <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">${_t('quality.history.detail.etalon_badge', 'Это Акт-Эталон')}</div>
-                   <button onclick="closeModal(); setTimeout(() => window.printEtalonAct('${item.id}'), 300)" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
+                ? `<div class="bg-brand-soft border border-brand rounded-xl p-3 mb-4 text-center shadow-sm">
+                   <div class="text-rbi-caption font-black text-brand uppercase tracking-widest mb-2">${_t('quality.history.detail.etalon_badge', 'Это Акт-Эталон')}</div>
+                   <button onclick="closeModal(); setTimeout(() => window.printEtalonAct('${item.id}'), 300)" class="w-full bg-brand text-white py-3.5 rounded-xl font-black text-rbi-body uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
                        ${_t('quality.history.detail.print_etalon', '🖨️ РАСПЕЧАТАТЬ (PDF)')}
                    </button>
                </div>`
-                : `<button onclick="closeModal(); setTimeout(() => window.printInspectionAct('${item.id}', 'browser'), 300)" class="w-full mb-2 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
+                : `<button onclick="closeModal(); setTimeout(() => window.printInspectionAct('${item.id}', 'browser'), 300)" class="w-full mb-2 bg-brand text-white py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
                    ${_t('quality.history.detail.print_act', '🖨️ Печать акта осмотра (PDF)')}
                </button>
-               <button onclick="closeModal(); setTimeout(() => window.RBI.services.ai.generatePrescriptionAi('${item.id}'), 300)" class="w-full mb-4 bg-slate-800 text-white dark:bg-white dark:text-slate-800 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
+               <button onclick="closeModal(); setTimeout(() => window.RBI.services.ai.generatePrescriptionAi('${item.id}'), 300)" class="w-full mb-4 bg-slate-800 text-white dark:bg-surface py-3.5 rounded-xl font-black text-rbi-label uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
                    ${_t('quality.history.detail.ai_prescription', '📄 Создать предписание (ИИ)')}
                </button>`
             }
         
-        <div class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 mb-4">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">${_t('quality.history.detail.breakdown', 'Инженерный breakdown')}</div>
-            <div class="grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-300">
+        <div class="bg-surface border border-surface rounded-xl p-3 mb-4">
+            <div class="text-rbi-caption font-bold text-muted uppercase mb-2 border-b border-surface pb-1">${_t('quality.history.detail.breakdown', 'Инженерный breakdown')}</div>
+            <div class="grid grid-cols-2 gap-2 text-xs text-ink">
                 <div>${_t('quality.history.detail.checked', 'Проверено:')} <b>${nTotal} из ${item.metrics.totalCount}</b></div>
                 <div>${_t('quality.history.detail.passed', 'Соответствует:')} <b class="text-green-600">${nOk}</b></div>
-                <div>${_t('quality.history.detail.failed', 'Нарушения:')} <b class="text-red-600">${nTotal - nOk}</b></div>
-                <div class="col-span-2 text-[10px] mt-1">B1: <b>${item.metrics.n_B1_fail}</b> | B2: <b>${item.metrics.n_B2_fail}</b> | B3: <b>${item.metrics.n_B3_fail}</b></div>
-                <div class="col-span-2 text-[10px] font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded mt-1 text-center font-bold">${_t('quality.history.detail.formula', 'Формула:')} ${item.metrics.baseUrkPerc}% × ${item.metrics.kc.toFixed(2)} × ${item.metrics.kcrit.toFixed(2)} = ${item.metrics.final}%</div>
+                <div>${_t('quality.history.detail.failed', 'Нарушения:')} <b class="text-danger">${nTotal - nOk}</b></div>
+                <div class="col-span-2 text-rbi-caption mt-1">B1: <b>${item.metrics.n_B1_fail}</b> | B2: <b>${item.metrics.n_B2_fail}</b> | B3: <b>${item.metrics.n_B3_fail}</b></div>
+                <div class="col-span-2 text-rbi-caption font-mono bg-surface border border-surface p-1.5 rounded mt-1 text-center font-bold">${_t('quality.history.detail.formula', 'Формула:')} ${item.metrics.baseUrkPerc}% × ${item.metrics.kc.toFixed(2)} × ${item.metrics.kcrit.toFixed(2)} = ${item.metrics.final}%</div>
             </div>
         </div>
-        <div class="text-[11px] font-bold text-slate-400 uppercase mb-2 mt-6">${_t('quality.history.detail.items', 'Детализация проверки')}</div>
+        <div class="text-rbi-label font-bold text-muted uppercase mb-2 mt-6">${_t('quality.history.detail.items', 'Детализация проверки')}</div>
         <div class="pb-6">${resultItems}</div>
     `;
 

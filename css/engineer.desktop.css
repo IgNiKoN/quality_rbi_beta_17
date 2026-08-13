@@ -1820,11 +1820,13 @@ body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid > div {
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid > div.is-fix {
   background: #eff6ff;
   border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid > div.is-prevent {
   background: #ecfdf5;
   border-color: #a7f3d0;
+  color: #047857;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid span {
@@ -1834,6 +1836,16 @@ body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid span {
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid > div.is-fix span {
+  color: #1d4ed8;
+  opacity: 0.75;
+}
+
+body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-defect-grid > div.is-prevent span {
+  color: #047857;
+  opacity: 0.75;
 }
 
 body.rbi-engineer-desktop-wide #eng-sub-fmea .eng-desk-fmea-edit-host #fmea-workspace,

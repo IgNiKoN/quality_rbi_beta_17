@@ -103,7 +103,7 @@ body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-cl-chrome {
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #ref-sub-checklists .kb-desk-cl-chrome {
-  top: 100px !important; /* 52 desk-topbar + 48 subtabs */
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px)) !important;
 }
 
 body.rbi-knowledge-desktop-wide #ref-sub-checklists .kb-desk-cl-filters {
@@ -898,7 +898,7 @@ body.rbi-knowledge-desktop-wide #ref-sub-docs .kb-desk-docs-chrome {
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #ref-sub-docs .kb-desk-docs-chrome {
-  top: 100px !important;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px)) !important;
 }
 
 /* Две строки: 1) поиск + действия  2) типы + мои/офлайн */
@@ -1444,7 +1444,7 @@ body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-chrome {
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #ref-sub-twi .kb-desk-twi-chrome {
-  top: 100px !important;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px)) !important;
 }
 
 body.rbi-knowledge-desktop-wide #ref-sub-twi .kb-desk-twi-filters {
@@ -2412,7 +2412,7 @@ body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-chrome {
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #ref-sub-nodes .kb-desk-nodes-chrome {
-  top: 100px !important;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px)) !important;
 }
 
 body.rbi-knowledge-desktop-wide #ref-sub-nodes .kb-desk-nodes-filters {
@@ -2979,7 +2979,7 @@ body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-filters {
 }
 
 body.rbi-knowledge-desktop-wide.has-desk-topbar #ref-sub-practices .kb-desk-prac-filters {
-  top: 100px !important;
+  top: calc(var(--desk-topbar-h, 52px) + var(--rbi-strip-h, 48px)) !important;
 }
 
 body.rbi-knowledge-desktop-wide #ref-sub-practices .kb-desk-prac-src-hidden {

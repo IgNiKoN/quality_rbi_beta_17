@@ -148,9 +148,9 @@ function _meetingPhotoPlaceholder(size) {
         : 'w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100/80 dark:from-orange-950/40 dark:via-slate-900 dark:to-slate-950';
     const badge = isThumb
         ? ''
-        : '<span class="text-[9px] font-black uppercase tracking-widest text-orange-500/80 dark:text-orange-400/70">' + _t('quality.meetings.photo.none', 'Без фото') + '</span>';
+        : '<span class="text-rbi-caption font-black uppercase tracking-widest text-orange-500/80 dark:text-orange-400/70">' + _t('quality.meetings.photo.none', 'Без фото') + '</span>';
     return `<div class="${boxCls}">
-        <div class="${isThumb ? 'w-8 h-8' : 'w-11 h-11'} rounded-xl bg-white/80 dark:bg-slate-800/80 text-orange-500 dark:text-orange-400 flex items-center justify-center shadow-sm border border-orange-100 dark:border-orange-900/50">
+        <div class="${isThumb ? 'w-8 h-8' : 'w-11 h-11'} rounded-xl bg-surface text-orange-500 dark:text-orange-400 flex items-center justify-center shadow-sm border border-orange-100 dark:border-orange-900/50">
             <svg class="${iconCls}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         </div>
         ${badge}
@@ -167,36 +167,36 @@ function _ensureMeetingProtocolEditorView() {
     root.insertAdjacentHTML('beforeend', `
     <div id="meeting-protocol-editor-view"
         class="hidden bg-[var(--bg-main)] fixed inset-0 z-[3000] h-screen overflow-y-auto custom-scrollbar">
-        <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 p-3 sm:p-4 mb-4 shadow-sm sticky top-0 z-40 flex justify-between items-center gap-2">
+        <div class="bg-surface backdrop-blur-md border-b border-surface p-3 sm:p-4 mb-4 shadow-sm sticky top-0 z-40 flex justify-between items-center gap-2">
             <button type="button" onclick="rbi_closeMeetingProtocolEditor()"
-                class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 active:scale-95 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg transition-colors shrink-0">
+                class="text-rbi-label font-bold text-muted flex items-center gap-1 active:scale-95 bg-surface px-3 py-2 rounded-lg transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
                 ${_t('quality.meetings.btn.back', 'Назад')}
             </button>
             <div id="meeting-protocol-editor-title"
-                class="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest text-center flex-1 truncate px-1">
+                class="text-rbi-label sm:text-rbi-body font-black text-ink dark:text-white uppercase tracking-widest text-center flex-1 truncate px-1">
                 ${_t('quality.meetings.title.protocol', 'Протокол')}
             </div>
             <div class="flex gap-1 sm:gap-1.5 shrink-0 flex-wrap justify-end">
                 <button type="button" onclick="rbi_saveEditedMeeting()"
-                    class="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm">${_t('quality.meetings.btn.save', 'Сохранить')}</button>
+                    class="text-rbi-caption font-bold text-ink bg-surface border border-surface px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm">${_t('quality.meetings.btn.save', 'Сохранить')}</button>
                 <button type="button" onclick="rbi_printSavedMeetingDirty(window.currentEditingMeetingId,'script')"
-                    class="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm">PDF</button>
+                    class="text-rbi-caption font-bold text-brand bg-brand-soft border border-brand-soft px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm">PDF</button>
                 <button type="button" onclick="rbi_printSavedMeetingDirty(window.currentEditingMeetingId,'browser')"
-                    class="text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm hidden sm:inline-flex">${_t('quality.meetings.btn.print', 'Печать')}</button>
+                    class="text-rbi-caption font-bold text-ink bg-surface border border-surface px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-sm hidden sm:inline-flex">${_t('quality.meetings.btn.print', 'Печать')}</button>
                 <button type="button" onclick="rbi_exportMeetingDocxDirty(window.currentEditingMeetingId)"
-                    class="text-[10px] font-bold text-white bg-sky-600 px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-md">Word</button>
+                    class="text-rbi-caption font-bold text-white bg-sky-600 px-2.5 sm:px-3 py-2 rounded-lg active:scale-95 shadow-md">Word</button>
             </div>
         </div>
         <div id="meeting-protocol-editor-body" class="space-y-4 px-3 pb-28 max-w-3xl mx-auto"></div>
-        <div class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-700 backdrop-blur-md px-3 py-3 sm:hidden">
+        <div class="fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-surface backdrop-blur-md px-3 py-3 sm:hidden">
             <div class="max-w-3xl mx-auto flex gap-2">
                 <button type="button" onclick="rbi_printSavedMeetingDirty(window.currentEditingMeetingId,'browser')"
-                    class="flex-1 bg-slate-100 text-slate-700 border border-slate-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_t('quality.meetings.btn.print', 'Печать')}</button>
+                    class="flex-1 bg-surface text-ink border border-surface py-3 rounded-xl font-bold text-rbi-caption uppercase">${_t('quality.meetings.btn.print', 'Печать')}</button>
                 <button type="button" onclick="rbi_exportMeetingDocxDirty(window.currentEditingMeetingId)"
-                    class="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-md">Word</button>
+                    class="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold text-rbi-caption uppercase shadow-md">Word</button>
                 <button type="button" onclick="copyExpertText('btn-copy-saved','saved-memo-text')" id="btn-copy-saved-mobile"
-                    class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-md">${_t('quality.meetings.btn.copy_short', 'Копир.')}</button>
+                    class="flex-1 bg-brand text-white py-3 rounded-xl font-bold text-rbi-caption uppercase shadow-md">${_t('quality.meetings.btn.copy_short', 'Копир.')}</button>
             </div>
         </div>
     </div>`);
@@ -241,9 +241,9 @@ function _renderParticipantRowHtml(p) {
     const name = _escTa((p && p.name) || '');
     return `
         <div class="meeting-participant-row flex gap-2 items-center">
-            <input type="text" class="mp-role input-base !py-1.5 !text-[10px] w-[38%]" placeholder="${_t('quality.meetings.ph.participant_role', 'Должность')}" value="${role}">
-            <input type="text" class="mp-name input-base !py-1.5 !text-[10px] flex-1" placeholder="${_t('quality.meetings.ph.participant_name', 'ФИО')}" value="${name}">
-            <button type="button" onclick="rbi_removeMeetingParticipantRow(this)" class="text-slate-400 hover:text-red-500 active:scale-90 font-black px-1.5 shrink-0">✕</button>
+            <input type="text" class="mp-role input-base !py-1.5 !text-rbi-caption w-[38%]" placeholder="${_t('quality.meetings.ph.participant_role', 'Должность')}" value="${role}">
+            <input type="text" class="mp-name input-base !py-1.5 !text-rbi-caption flex-1" placeholder="${_t('quality.meetings.ph.participant_name', 'ФИО')}" value="${name}">
+            <button type="button" onclick="rbi_removeMeetingParticipantRow(this)" class="text-muted hover:text-danger active:scale-90 font-black px-1.5 shrink-0">✕</button>
         </div>`;
 }
 
@@ -290,7 +290,7 @@ function _rbiApplyMeetingWsDraft(payload) {
             box.dataset.photo = payload.photo;
             box.classList.remove('hidden');
             const src = window.getPhotoSrc(payload.photo);
-            box.innerHTML = `<img src="${src}" class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById('meeting-photo-preview').dataset.photo=''; document.getElementById('meeting-photo-preview').classList.add('hidden');" class="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>`;
+            box.innerHTML = `<img src="${src}" class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById('meeting-photo-preview').dataset.photo=''; document.getElementById('meeting-photo-preview').classList.add('hidden');" class="absolute top-2 right-2 bg-danger text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>`;
             if (typeof PhotoManager !== 'undefined' && PhotoManager.getAsyncUrl) {
                 PhotoManager.getAsyncUrl(payload.photo).then(realSrc => {
                     const img = box.querySelector('img');
@@ -442,11 +442,11 @@ function _countChipHtml(total, tone = 'blue') {
     const cls = ({
         blue: 'bg-blue-600 text-white border-blue-700 dark:bg-blue-500 dark:border-blue-400',
         purple: 'bg-purple-600 text-white border-purple-700 dark:bg-purple-500 dark:border-purple-400',
-        indigo: 'bg-indigo-600 text-white border-indigo-700 dark:bg-indigo-500 dark:border-indigo-400',
-        red: 'bg-red-600 text-white border-red-700 dark:bg-red-500 dark:border-red-400',
+        indigo: 'bg-brand text-white border-brand',
+        red: 'bg-danger text-white border-danger',
         orange: 'bg-orange-500 text-white border-orange-600 dark:bg-orange-500 dark:border-orange-400'
     })[tone] || 'bg-blue-600 text-white border-blue-700 dark:bg-blue-500 dark:border-blue-400';
-    return `<span class="text-[9px] font-black border px-1.5 py-0.5 rounded ${cls}">${total} ${_zamechWord(total)}</span>`;
+    return `<span class="text-rbi-caption font-black border px-1.5 py-0.5 rounded ${cls}">${total} ${_zamechWord(total)}</span>`;
 }
 
 /**
@@ -470,11 +470,11 @@ function _carryVisual(item) {
             tone: 'indigo',
             badgeShort: _t('quality.meetings.debt.badge_sk', 'ДОЛГ СК'),
             title: _t('quality.meetings.debt.title_sk', 'Долг ПК СК — просроч. не решены с прошлой планерки'),
-            badgeSolid: 'bg-indigo-600 text-white border-indigo-700 dark:bg-indigo-500 dark:border-indigo-400',
-            softChip: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-200 dark:border-indigo-700',
-            catChip: 'bg-white text-indigo-800 border-indigo-200 dark:bg-slate-900 dark:text-indigo-200 dark:border-indigo-700',
-            border: 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40',
-            cardBadge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200'
+            badgeSolid: 'bg-brand text-white border-brand',
+            softChip: 'bg-brand-soft text-brand border-brand-soft',
+            catChip: 'bg-surface text-brand border-brand-soft',
+            border: 'border-brand bg-brand-soft',
+            cardBadge: 'bg-brand-soft text-brand'
         };
     }
     return {
@@ -484,7 +484,7 @@ function _carryVisual(item) {
         title: _t('quality.meetings.debt.title_audit', 'Долг аудит (не решено / повторно)'),
         badgeSolid: 'bg-purple-600 text-white border-purple-700 dark:bg-purple-500 dark:border-purple-400',
         softChip: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-200 dark:border-purple-700',
-        catChip: 'bg-white text-purple-800 border-purple-200 dark:bg-slate-900 dark:text-purple-200 dark:border-purple-700',
+        catChip: 'bg-surface text-purple-800 border-purple-200 dark:text-purple-200 dark:border-purple-700',
         border: 'border-purple-500 bg-purple-50 dark:border-purple-400 dark:bg-purple-950/40',
         cardBadge: 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200'
     };
@@ -647,23 +647,23 @@ function _contrTypeSummaryHtml(items) {
     });
 
     const chip = (label, n, cls) => (n
-        ? `<span class="text-[9px] font-black border px-1.5 py-0.5 rounded ${cls}">${label} · ${n}</span>`
+        ? `<span class="text-rbi-caption font-black border px-1.5 py-0.5 rounded ${cls}">${label} · ${n}</span>`
         : '');
     const numChip = (n, cls) => (n
-        ? `<span class="text-[9px] font-black border px-1.5 py-0.5 rounded ${cls}">${n}</span>`
+        ? `<span class="text-rbi-caption font-black border px-1.5 py-0.5 rounded ${cls}">${n}</span>`
         : '');
     const group = (label, labelCls, inner) => (inner
         ? `<span class="inline-flex flex-wrap items-center gap-1">
-                <span class="text-[8px] font-black uppercase tracking-wide ${labelCls}">${label}</span>
+                <span class="text-rbi-caption font-black uppercase tracking-wide ${labelCls}">${label}</span>
                 ${inner}
            </span>`
         : '');
 
     // solid chips — одинаково читаются в light/dark
     const b2Cls = 'bg-orange-500 text-white border-orange-600 dark:bg-orange-500 dark:border-orange-400';
-    const b3Cls = 'bg-red-600 text-white border-red-700 dark:bg-red-500 dark:border-red-400';
+    const b3Cls = 'bg-danger text-white border-danger';
     const skCls = 'bg-blue-600 text-white border-blue-700 dark:bg-blue-500 dark:border-blue-400';
-    const debtSkCls = 'bg-indigo-600 text-white border-indigo-700 dark:bg-indigo-500 dark:border-indigo-400';
+    const debtSkCls = 'bg-brand text-white border-brand';
 
     const auditInner = [chip('B2', s.auditB2, b2Cls), chip('B3', s.auditB3, b3Cls)].filter(Boolean).join('');
     const debtAuditInner = [chip('B2', s.debtB2, b2Cls), chip('B3', s.debtB3, b3Cls)].filter(Boolean).join('');
@@ -671,10 +671,10 @@ function _contrTypeSummaryHtml(items) {
     const debtSkInner = numChip(s.debtSk, debtSkCls);
 
     const groups = [
-        group(_t('quality.meetings.summary.audit', 'Аудит'), 'text-slate-500 dark:text-slate-400', auditInner),
+        group(_t('quality.meetings.summary.audit', 'Аудит'), 'text-muted', auditInner),
         group(_t('quality.meetings.summary.debt_audit', 'Долг аудит'), 'text-purple-700 dark:text-purple-300', debtAuditInner),
         group(_t('quality.meetings.label.sk_overdue', 'Проср. в ПК СК'), 'text-blue-700 dark:text-blue-300', skInner),
-        group(_t('quality.meetings.summary.debt_sk', 'Долг ПК СК · не решено'), 'text-indigo-700 dark:text-indigo-300', debtSkInner)
+        group(_t('quality.meetings.summary.debt_sk', 'Долг ПК СК · не решено'), 'text-brand', debtSkInner)
     ].filter(Boolean);
 
     if (!groups.length) return '';
@@ -706,13 +706,13 @@ export function renderMeetingTab(options) {
         titleContainer.className = "sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40";
         titleContainer.innerHTML = `
             <div class="flex flex-wrap justify-between items-center gap-2">
-                <h2 class="text-[13px] font-black uppercase text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5 min-w-0">
+                <h2 class="text-rbi-body font-black uppercase text-ink dark:text-white tracking-tight flex items-center gap-1.5 min-w-0">
                     <svg class="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     <span class="truncate">${_t('quality.meetings.title.list', 'Протоколы Совещаний')}</span>
                 </h2>
                 <div class="flex flex-wrap items-center gap-2">
                     <div id="meetings-view-mode-toggle">${toggleHtml}</div>
-                    <button onclick="rbi_createMeeting()" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1">
+                    <button onclick="rbi_createMeeting()" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-rbi-caption font-black uppercase whitespace-nowrap flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> ${_t('quality.meetings.btn.new', 'Новое')}
                     </button>
                 </div>
@@ -728,7 +728,7 @@ export function renderMeetingTab(options) {
         : null;
 
     if (!window.rbi_meetingsData || window.rbi_meetingsData.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.meetings.empty.no_protocols', 'Активных протоколов нет')}</div>`;
+        container.innerHTML = `<div class="text-center py-10 text-muted text-rbi-label font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.meetings.empty.no_protocols', 'Активных протоколов нет')}</div>`;
         return;
     }
 
@@ -738,7 +738,7 @@ export function renderMeetingTab(options) {
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     if (!sorted.length) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.meetings.empty.no_protocols', 'Активных протоколов нет')}</div>`;
+        container.innerHTML = `<div class="text-center py-10 text-muted text-rbi-label font-bold uppercase tracking-widest bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] shadow-sm">${_t('quality.meetings.empty.no_protocols', 'Активных протоколов нет')}</div>`;
         return;
     }
 
@@ -794,10 +794,10 @@ export function renderMeetingTab(options) {
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-sm flex items-center gap-2.5 p-2 active:scale-[0.99] transition-transform relative cursor-pointer" onclick="rbi_openSavedMeeting('${m.id}')">
                 <div class="w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--card-border)]">${thumb}</div>
                 <div class="min-w-0 flex-1">
-                    <div class="text-[12px] font-bold text-slate-800 dark:text-white leading-snug">${m.title}</div>
-                    <div class="text-[9px] font-bold text-slate-400 mt-0.5 leading-snug">${metaLine}</div>
+                    <div class="text-rbi-body font-bold text-ink dark:text-white leading-snug">${m.title}</div>
+                    <div class="text-rbi-caption font-bold text-muted mt-0.5 leading-snug">${metaLine}</div>
                 </div>
-                <button onclick="event.stopPropagation(); openUniversalActionSheet('${m.id}', 'meeting', '${safeTitle}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-400 hover:bg-[var(--hover-bg)] active:scale-90">
+                <button onclick="event.stopPropagation(); openUniversalActionSheet('${m.id}', 'meeting', '${safeTitle}', ${isOwner})" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-muted hover:bg-[var(--hover-bg)] active:scale-90">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
                 </button>
             </div>`;
@@ -816,17 +816,17 @@ export function renderMeetingTab(options) {
                 </button>
             </div>
             <div class="p-3 flex flex-col flex-1 min-w-0">
-                <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 leading-snug">${m.title}</div>
-                <div class="text-[9px] font-bold text-[var(--text-muted)] mb-2 leading-snug">${metaLine}</div>
-                <div class="text-[10px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 mb-2 flex-1">
+                <div class="text-rbi-body font-black text-ink dark:text-white uppercase tracking-tight mb-1 leading-snug">${m.title}</div>
+                <div class="text-rbi-caption font-bold text-[var(--text-muted)] mb-2 leading-snug">${metaLine}</div>
+                <div class="text-rbi-caption text-muted leading-snug line-clamp-2 mb-2 flex-1">
                     ${memoPreview}
                 </div>
                 <div class="mt-auto border-t border-[var(--card-border)] pt-2 flex justify-between items-center gap-2">
-                    <div class="text-[9px] font-bold text-[var(--text-muted)] min-w-0 leading-snug">
+                    <div class="text-rbi-caption font-bold text-[var(--text-muted)] min-w-0 leading-snug">
                         <svg class="w-3 h-3 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         ${authorShort}
                     </div>
-                    <div class="text-[9px] font-black text-slate-400 shrink-0">${dateStr}</div>
+                    <div class="text-rbi-caption font-black text-muted shrink-0">${dateStr}</div>
                 </div>
             </div>
         </div>`;
@@ -871,15 +871,15 @@ export function renderMeetingTab(options) {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <div class="min-w-0">
-                            <div class="text-[12px] font-black text-slate-800 dark:text-white truncate leading-tight">${String(_dispProjectLabel(pName)).replace(/</g, '&lt;')}</div>
+                            <div class="text-rbi-body font-black text-ink dark:text-white truncate leading-tight">${String(_dispProjectLabel(pName)).replace(/</g, '&lt;')}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0 pl-1">
-                        <span class="text-[9px] font-bold text-slate-500 bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${_t('quality.meetings.meta.pcs', '{n} шт', { n: items.length })}</span>
-                        <svg class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                        <span class="text-rbi-caption font-bold text-muted bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border border-[var(--card-border)]">${_t('quality.meetings.meta.pcs', '{n} шт', { n: items.length })}</span>
+                        <svg class="w-4 h-4 text-muted transition-transform duration-300 transform rotate-0 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                 </div>
-                <div id="${safeGroupId}" class="hidden border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/30 p-2.5">
+                <div id="${safeGroupId}" class="hidden border-t border-[var(--card-border)] bg-surface p-2.5">
                     <div class="${itemsWrapClass}">${cardsHtml}</div>
                 </div>
             </div>`;
@@ -906,9 +906,9 @@ export async function openSavedMeeting(id) {
     if (meet.qDayPhoto) {
         const realSrc = await PhotoManager.getAsyncUrl(meet.qDayPhoto) || window.getPhotoSrc(meet.qDayPhoto);
         photoHtml = `
-            <div class="mb-4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm h-48 sm:h-56 relative bg-slate-50 dark:bg-slate-900">
+            <div class="mb-4 rounded-xl overflow-hidden border border-surface shadow-sm h-48 sm:h-56 relative bg-surface">
                 <img src="${realSrc}" class="w-full h-full object-cover cursor-pointer active:scale-95 transition-transform" onclick="setTimeout(() => openPhotoViewer('${meet.qDayPhoto}'), 100)">
-                <div class="absolute top-2 left-2 bg-black/50 text-white text-[9px] font-black uppercase px-2 py-1 rounded backdrop-blur-sm">${_t('quality.meetings.photo.capture', '📸 Фото фиксация')}</div>
+                <div class="absolute top-2 left-2 bg-black/50 text-white text-rbi-caption font-black uppercase px-2 py-1 rounded backdrop-blur-sm">${_t('quality.meetings.photo.capture', '📸 Фото фиксация')}</div>
             </div>`;
     }
 
@@ -936,7 +936,7 @@ export async function openSavedMeeting(id) {
                     count > 1 ? `×${count}` : '',
                     reopened ? '↻' : ''
                 ].filter(Boolean).join(' ');
-                return `<li class="text-[11px] text-slate-700 dark:text-slate-300 leading-snug">${head}${rest}${meta ? ` <span class="text-slate-500 font-semibold">${meta}</span>` : ''}</li>`;
+                return `<li class="text-rbi-label text-ink leading-snug">${head}${rest}${meta ? ` <span class="text-muted font-semibold">${meta}</span>` : ''}</li>`;
             }).join('');
             return items ? `<ul class="mt-1.5 list-disc pl-4 space-y-0.5">${items}</ul>` : '';
         };
@@ -977,16 +977,16 @@ export async function openSavedMeeting(id) {
                     .filter(l => l && !/:$/.test(l) && !/^(просрочено|пк\s*ск|долг с прошл|долг по аудит|долг пк)/i.test(l));
                 const total = _totalRemarks(a, dets);
                 const chips = [
-                    `<span class="text-[9px] font-bold border px-1.5 py-0.5 rounded ${vis.softChip}">${typeLabel}</span>`,
-                    catLabel ? `<span class="text-[9px] font-bold border px-1.5 py-0.5 rounded ${vis.catChip}">${catLabel.replace(/</g, '&lt;')}</span>` : '',
+                    `<span class="text-rbi-caption font-bold border px-1.5 py-0.5 rounded ${vis.softChip}">${typeLabel}</span>`,
+                    catLabel ? `<span class="text-rbi-caption font-bold border px-1.5 py-0.5 rounded ${vis.catChip}">${catLabel.replace(/</g, '&lt;')}</span>` : '',
                     _countChipHtml(total, vis.tone),
                     ...(stats ? stats.split(',').map(p => p.trim()).filter(Boolean)
                         .filter(p => !/^\d+\s*шт/i.test(p) && !/замечан/i.test(p))
-                        .map(p => `<span class="text-[9px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${p.replace(/</g, '&lt;')}</span>`) : [])
+                        .map(p => `<span class="text-rbi-caption font-bold bg-surface px-1.5 py-0.5 rounded border border-surface">${p.replace(/</g, '&lt;')}</span>`) : [])
                 ].filter(Boolean).join('');
                 defectHtml = `
                     <div class="mb-2 flex flex-wrap items-center gap-1.5">
-                        <span class="text-[9px] font-black border px-1.5 py-0.5 rounded ${vis.badgeSolid}">${vis.badgeShort}</span>
+                        <span class="text-rbi-caption font-black border px-1.5 py-0.5 rounded ${vis.badgeSolid}">${vis.badgeShort}</span>
                         <span class="font-black">${vis.title}</span>
                         ${chips}
                     </div>
@@ -998,7 +998,7 @@ export async function openSavedMeeting(id) {
                 const total = _totalRemarks(a, a.details);
                 const extra = m ? m[2].split(',').map(p => p.trim()).filter(Boolean)
                     .filter(p => !/^\d+\s*шт/i.test(p) && !/замечан/i.test(p))
-                    .map(p => `<span class="text-[9px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${p.replace(/</g, '&lt;')}</span>`).join('') : '';
+                    .map(p => `<span class="text-rbi-caption font-bold bg-surface px-1.5 py-0.5 rounded border border-surface">${p.replace(/</g, '&lt;')}</span>`).join('') : '';
                 defectHtml = `<div class="mb-1 flex flex-wrap items-center gap-1.5"><span class="font-black">${_t('quality.meetings.label.sk_overdue', 'Проср. в ПК СК')} · ${name}</span>${_countChipHtml(total, 'blue')}${extra}</div>`
                     + _bulletList(a.details);
             } else if (isB3 || isB2) {
@@ -1019,25 +1019,25 @@ export async function openSavedMeeting(id) {
             const aIdx = meet.agenda.indexOf(a);
             const dateVal = a.date ? String(a.date).slice(0, 10) : '';
             return `
-            <div class="border border-slate-200 dark:border-slate-700 p-3 rounded-xl mb-2 bg-white dark:bg-slate-900/40" data-agenda-idx="${aIdx}">
-                <div class="text-[11px] text-slate-700 dark:text-slate-300 font-medium mb-3 leading-snug">${defectHtml}</div>
+            <div class="border border-surface p-3 rounded-xl mb-2 bg-surface" data-agenda-idx="${aIdx}">
+                <div class="text-rbi-label text-ink font-medium mb-3 leading-snug">${defectHtml}</div>
                 ${reopen ? `<div class="mb-2">${reopen}</div>` : ''}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <label class="block">
-                        <span class="text-[9px] font-black uppercase text-slate-400 tracking-widest">${_t('quality.meetings.field.responsible', 'Ответственный')}</span>
-                        <input type="text" class="mpe-resp input-base text-[11px] mt-1" value="${_escTa(a.resp || '')}" placeholder="${_t('quality.meetings.ph.fio_role', 'ФИО / роль')}">
+                        <span class="text-rbi-caption font-black uppercase text-muted tracking-widest">${_t('quality.meetings.field.responsible', 'Ответственный')}</span>
+                        <input type="text" class="mpe-resp input-base text-rbi-label mt-1" value="${_escTa(a.resp || '')}" placeholder="${_t('quality.meetings.ph.fio_role', 'ФИО / роль')}">
                     </label>
                     <label class="block">
-                        <span class="text-[9px] font-black uppercase text-slate-400 tracking-widest">${_t('quality.meetings.field.deadline', 'Срок')}</span>
-                        <input type="date" class="mpe-date input-base text-[11px] mt-1" value="${_escTa(dateVal)}">
+                        <span class="text-rbi-caption font-black uppercase text-muted tracking-widest">${_t('quality.meetings.field.deadline', 'Срок')}</span>
+                        <input type="date" class="mpe-date input-base text-rbi-label mt-1" value="${_escTa(dateVal)}">
                     </label>
                 </div>
                 <label class="block mb-2">
-                    <span class="text-[9px] font-black uppercase text-slate-400 tracking-widest">${_t('quality.meetings.field.decision', 'Решение / комментарий')}</span>
-                    <textarea class="mpe-comment input-base text-[11px] mt-1 h-20 resize-none custom-scrollbar" placeholder="${_t('quality.meetings.ph.decision', 'Решение по пункту...')}">${_escTa(a.comment || '')}</textarea>
+                    <span class="text-rbi-caption font-black uppercase text-muted tracking-widest">${_t('quality.meetings.field.decision', 'Решение / комментарий')}</span>
+                    <textarea class="mpe-comment input-base text-rbi-label mt-1 h-20 resize-none custom-scrollbar" placeholder="${_t('quality.meetings.ph.decision', 'Решение по пункту...')}">${_escTa(a.comment || '')}</textarea>
                 </label>
-                <label class="inline-flex items-center gap-2 text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                    <input type="checkbox" class="mpe-done w-4 h-4 rounded border-slate-300" ${a.isDone ? 'checked' : ''}>
+                <label class="inline-flex items-center gap-2 text-rbi-label font-bold text-ink">
+                    <input type="checkbox" class="mpe-done w-4 h-4 rounded border-surface" ${a.isDone ? 'checked' : ''}>
                     ${_t('quality.meetings.checkbox.done', 'Решено')}
                 </label>
             </div>`;
@@ -1050,9 +1050,9 @@ export async function openSavedMeeting(id) {
             byContr[c].push(a);
         });
         agendaHtml = Object.keys(byContr).map(cName => `
-            <div class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-xl mb-3 shadow-sm overflow-hidden">
-                <div class="px-3 pt-2.5 pb-2 bg-slate-100/90 dark:bg-slate-900/80 border-b border-slate-300/80 dark:border-slate-600">
-                    <div class="text-[12px] font-black text-slate-800 dark:text-slate-100 uppercase">
+            <div class="bg-surface border border-surface rounded-xl mb-3 shadow-sm overflow-hidden">
+                <div class="px-3 pt-2.5 pb-2 bg-surface/90 border-b border-surface/80">
+                    <div class="text-rbi-body font-black text-ink uppercase">
                         <div>${String(cName).replace(/</g, '&lt;')}</div>
                         ${_contrTypeSummaryHtml(byContr[cName])}
                     </div>
@@ -1063,14 +1063,14 @@ export async function openSavedMeeting(id) {
             </div>
         `).join('');
     } else {
-        agendaHtml = `<div class="text-[10px] text-slate-400 italic text-center py-4 bg-white rounded-xl border border-dashed border-slate-300">${_t('quality.meetings.empty.agenda_not_saved', 'Детальная повестка не сохранена')}</div>`;
+        agendaHtml = `<div class="text-rbi-caption text-muted italic text-center py-4 bg-surface rounded-xl border border-dashed border-surface">${_t('quality.meetings.empty.agenda_not_saved', 'Детальная повестка не сохранена')}</div>`;
     }
 
     const projectLabelRaw = String(meet.projectName || meet.project || meet.project_display_name || '').trim();
     const projectLabel = _dispProjectLabel(projectLabelRaw);
     const canBind = _meetingCanBindMeeting(meet);
     const bindBtn = canBind
-        ? `<button type="button" onclick="rbi_openMeetingBindModal('${String(meet.id).replace(/'/g, "\\'")}')" class="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg text-[9px] font-black uppercase active:scale-95 shrink-0">${_t('quality.meetings.btn.change_project', 'Изменить объект')}</button>`
+        ? `<button type="button" onclick="rbi_openMeetingBindModal('${String(meet.id).replace(/'/g, "\\'")}')" class="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shrink-0">${_t('quality.meetings.btn.change_project', 'Изменить объект')}</button>`
         : '';
     const dateLabel = new Date(meet.date).toLocaleString('ru-RU', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -1089,27 +1089,27 @@ export async function openSavedMeeting(id) {
     }
 
     body.innerHTML = `
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm space-y-3">
-            <div class="text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 border-b border-slate-100 dark:border-slate-700 pb-2">
+        <div class="bg-surface border border-surface rounded-2xl p-4 shadow-sm space-y-3">
+            <div class="text-rbi-body font-black uppercase text-brand border-b border-surface pb-2">
                 ${_t('quality.meetings.section.requisites', 'Реквизиты протокола')}
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                <div><span class="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">${_t('quality.meetings.field.author', 'Автор')}</span>
-                    <span class="font-bold text-slate-800 dark:text-slate-100">${_escTa(meet.author || '—')}</span></div>
-                <div><span class="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">${_t('quality.meetings.field.composed', 'Составлено')}</span>
-                    <span class="font-bold text-slate-800 dark:text-slate-100">${_escTa(dateLabel)}</span></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-rbi-label">
+                <div><span class="text-rbi-caption font-black uppercase text-muted tracking-widest block mb-1">${_t('quality.meetings.field.author', 'Автор')}</span>
+                    <span class="font-bold text-ink">${_escTa(meet.author || '—')}</span></div>
+                <div><span class="text-rbi-caption font-black uppercase text-muted tracking-widest block mb-1">${_t('quality.meetings.field.composed', 'Составлено')}</span>
+                    <span class="font-bold text-ink">${_escTa(dateLabel)}</span></div>
             </div>
-            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
-                <div class="min-w-0 text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                    <span class="text-[9px] font-black uppercase text-slate-400 tracking-widest mr-1.5">${_t('quality.meetings.field.project', 'Объект')}</span>
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-surface border border-surface rounded-xl px-3 py-2">
+                <div class="min-w-0 text-rbi-label font-bold text-ink">
+                    <span class="text-rbi-caption font-black uppercase text-muted tracking-widest mr-1.5">${_t('quality.meetings.field.project', 'Объект')}</span>
                     <span>${projectLabel.replace(/</g, '&lt;')}</span>
                 </div>
                 ${bindBtn}
             </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
-            <div class="text-[12px] font-black uppercase text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+        <div class="bg-surface border border-surface rounded-2xl p-4 shadow-sm">
+            <div class="text-rbi-body font-black uppercase text-ink border-b border-surface pb-2 mb-3">
                 ${_t('quality.meetings.workspace.participants', 'Участники совещания')}
             </div>
             <div id="saved-participants-list" class="space-y-2 mb-2">${
@@ -1117,35 +1117,35 @@ export async function openSavedMeeting(id) {
                     ? meet.participants.map(_renderParticipantRowHtml).join('')
                     : _renderParticipantRowHtml({ role: '', name: meet.author || _meetingCurrentEngineerName() }))
             }</div>
-            <button type="button" onclick="rbi_addMeetingParticipantRow('saved-participants-list')" class="w-full bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
+            <button type="button" onclick="rbi_addMeetingParticipantRow('saved-participants-list')" class="w-full bg-surface border border-dashed border-surface text-muted py-2 rounded-lg font-bold text-rbi-caption uppercase active:scale-95 transition-colors hover:border-surface">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
         </div>
 
         ${photoHtml}
 
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
-            <div class="text-[12px] font-black uppercase text-green-600 dark:text-green-400 border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+        <div class="bg-surface border border-surface rounded-2xl p-4 shadow-sm">
+            <div class="text-rbi-body font-black uppercase text-green-600 dark:text-green-400 border-b border-surface pb-2 mb-3">
                 ${_t('quality.meetings.section.memo', '1. Итоговое решение (мемо)')}
             </div>
             <textarea id="saved-memo-text"
-                class="w-full text-[12px] leading-relaxed text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-slate-300 dark:border-slate-600 shadow-inner whitespace-pre-wrap font-medium min-h-[220px] resize-y outline-none focus:ring-2 focus:ring-indigo-300 custom-scrollbar"
+                class="w-full text-rbi-body leading-relaxed text-ink bg-surface p-3 sm:p-4 rounded-xl border border-surface shadow-inner whitespace-pre-wrap font-medium min-h-[220px] resize-y outline-none focus:ring-2 focus:ring-indigo-300 custom-scrollbar"
                 placeholder="${_t('quality.meetings.ph.memo', 'Текст итогового решения...')}">${_escTa(meet.memoText || '')}</textarea>
             <div class="mt-2 flex justify-end">
                 <button type="button" onclick="copyExpertText('btn-copy-saved','saved-memo-text')" id="btn-copy-saved"
-                    class="hidden sm:inline-flex text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg active:scale-95">${_t('quality.meetings.btn.copy_memo', 'Копировать мемо')}</button>
+                    class="hidden sm:inline-flex text-rbi-caption font-bold text-brand bg-brand-soft border border-brand-soft px-3 py-1.5 rounded-lg active:scale-95">${_t('quality.meetings.btn.copy_memo', 'Копировать мемо')}</button>
             </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
-            <div class="text-[12px] font-black uppercase text-amber-600 dark:text-amber-400 border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+        <div class="bg-surface border border-surface rounded-2xl p-4 shadow-sm">
+            <div class="text-rbi-body font-black uppercase text-amber-600 dark:text-amber-400 border-b border-surface pb-2 mb-3">
                 ${_t('quality.meetings.section.notes', '2. Дополнительные тезисы')}
             </div>
             <textarea id="saved-notes-text"
-                class="w-full text-[11px] leading-relaxed text-slate-800 dark:text-slate-100 bg-amber-50/60 dark:bg-slate-900/50 p-3 rounded-xl border border-amber-200 dark:border-slate-600 shadow-inner whitespace-pre-wrap min-h-[110px] resize-y outline-none focus:ring-2 focus:ring-amber-300 custom-scrollbar"
+                class="w-full text-rbi-label leading-relaxed text-ink bg-amber-50/60 p-3 rounded-xl border border-amber-200 shadow-inner whitespace-pre-wrap min-h-[110px] resize-y outline-none focus:ring-2 focus:ring-amber-300 custom-scrollbar"
                 placeholder="${_t('quality.meetings.ph.notes', 'Дополнительные тезисы (необязательно)...')}">${_escTa(meet.notes || '')}</textarea>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
-            <div class="text-[12px] font-black uppercase text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+        <div class="bg-surface border border-surface rounded-2xl p-4 shadow-sm">
+            <div class="text-rbi-body font-black uppercase text-ink border-b border-surface pb-2 mb-3">
                 ${_t('quality.meetings.section.agenda', '3. Повестка и решения')}
             </div>
             <div class="space-y-1">${agendaHtml}</div>
@@ -1309,16 +1309,16 @@ export function openMeetingBindModal(meetingId) {
         const safe = p.replace(/"/g, '&quot;');
         const checked = !defaultAll && defaultSelected.includes(p) ? 'checked' : '';
         return `
-            <label class="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700 shadow-sm active:scale-[0.99]">
+            <label class="flex items-center gap-3 p-3 bg-surface rounded-xl cursor-pointer border border-surface shadow-sm active:scale-[0.99]">
                 <input type="checkbox" value="${safe}" class="meet-bind-proj-cb w-5 h-5 accent-orange-600 rounded cursor-pointer" ${checked} onchange="rbi_onMeetingBindProjectChange()">
-                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 truncate">${p}</span>
+                <span class="text-rbi-body font-bold text-ink truncate">${p}</span>
             </label>`;
     }).join('');
 
     const allBlock = isAdmin ? `
         <label class="flex items-center gap-3 p-3 mb-2 bg-orange-50 dark:bg-orange-950/30 rounded-xl cursor-pointer border border-orange-200 dark:border-orange-800">
             <input type="checkbox" id="meet-bind-proj-all" class="w-5 h-5 accent-orange-600 rounded cursor-pointer" ${defaultAll ? 'checked' : ''} onchange="rbi_onMeetingBindProjectAllChange()">
-            <span class="text-[13px] font-black text-orange-700 dark:text-orange-300">${_t('quality.meetings.project.all', 'Все объекты')}</span>
+            <span class="text-rbi-body font-black text-orange-700 dark:text-orange-300">${_t('quality.meetings.project.all', 'Все объекты')}</span>
         </label>` : '';
 
     const curLabel = _dispProjectLabel(String(meet.projectName || '').trim());
@@ -1327,28 +1327,28 @@ export function openMeetingBindModal(meetingId) {
     document.getElementById('modal-icon').innerHTML = '';
     document.getElementById('modal-title').innerHTML = `
         <div class="flex justify-between items-center w-full gap-2">
-            <span class="text-[14px] uppercase font-black text-slate-800 dark:text-white">${_t('quality.meetings.bind.title', '🏗 Привязка к объекту')}</span>
-            <button onclick="rbi_closeMeetingBindModal()" class="text-slate-400 hover:text-red-500 active:scale-90 px-2 text-lg shrink-0">✕</button>
+            <span class="text-[14px] uppercase font-black text-ink dark:text-white">${_t('quality.meetings.bind.title', '🏗 Привязка к объекту')}</span>
+            <button onclick="rbi_closeMeetingBindModal()" class="text-muted hover:text-danger active:scale-90 px-2 text-lg shrink-0">✕</button>
         </div>`;
 
     document.getElementById('modal-body').innerHTML = `
         <div class="max-h-[calc(94vh-140px)] overflow-y-auto custom-scrollbar pr-0.5">
-            <div class="text-[11px] text-slate-500 mb-3 border-b border-slate-200 dark:border-slate-700 pb-3">
-                <div class="font-bold text-slate-700 dark:text-slate-200 mb-1">${String(meet.title || _t('quality.meetings.title.protocol', 'Протокол')).replace(/</g, '&lt;')}</div>
-                <div>${_t('quality.meetings.bind.current', 'Сейчас:')} <b class="text-slate-800 dark:text-slate-100">${curLabel.replace(/</g, '&lt;')}</b>
+            <div class="text-rbi-label text-muted mb-3 border-b border-surface pb-3">
+                <div class="font-bold text-ink mb-1">${String(meet.title || _t('quality.meetings.title.protocol', 'Протокол')).replace(/</g, '&lt;')}</div>
+                <div>${_t('quality.meetings.bind.current', 'Сейчас:')} <b class="text-ink">${curLabel.replace(/</g, '&lt;')}</b>
                     ${isAdmin ? '' : _t('quality.meetings.bind.only_yours', ' · доступны только ваши объекты')}
                 </div>
             </div>
-            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">${_t('quality.meetings.field.project', 'Объект')} <span class="text-orange-500">*</span></label>
+            <label class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-2 block">${_t('quality.meetings.field.project', 'Объект')} <span class="text-orange-500">*</span></label>
             ${allBlock}
             <div id="meet-bind-project-list" class="space-y-2 mb-4">
-                ${projBoxes || `<div class="text-[11px] text-slate-400 font-bold py-6 text-center">${_t('quality.meetings.bind.no_projects', 'Нет доступных объектов')}</div>`}
+                ${projBoxes || `<div class="text-rbi-label text-muted font-bold py-6 text-center">${_t('quality.meetings.bind.no_projects', 'Нет доступных объектов')}</div>`}
             </div>
-            <p class="text-[10px] text-slate-400 font-bold mb-4">${isAdmin ? _t('quality.meetings.bind.hint_admin', 'Можно выбрать все, один или несколько') : _t('quality.meetings.bind.hint_user', 'Выберите один или несколько своих объектов')}</p>
+            <p class="text-rbi-caption text-muted font-bold mb-4">${isAdmin ? _t('quality.meetings.bind.hint_admin', 'Можно выбрать все, один или несколько') : _t('quality.meetings.bind.hint_user', 'Выберите один или несколько своих объектов')}</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2 sticky bottom-0 bg-[var(--card-bg)] pt-1">
-            <button onclick="rbi_closeMeetingBindModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase border border-slate-200 dark:border-slate-700">${_t('quality.meetings.btn.cancel', 'Отмена')}</button>
-            <button onclick="rbi_saveMeetingBind('${safeId}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95">${_t('quality.meetings.bind.save', 'Сохранить привязку')}</button>
+            <button onclick="rbi_closeMeetingBindModal()" class="flex-1 bg-surface text-muted py-3.5 rounded-xl font-bold text-rbi-label uppercase border border-surface">${_t('quality.meetings.btn.cancel', 'Отмена')}</button>
+            <button onclick="rbi_saveMeetingBind('${safeId}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-rbi-label uppercase shadow-md active:scale-95">${_t('quality.meetings.bind.save', 'Сохранить привязку')}</button>
         </div>`;
 
     _setMeetingWideModalLayout(true, 'meetingBindWide');
@@ -1670,9 +1670,9 @@ export function openMeetingSetupModal(taskId = null) {
         const safe = p.replace(/"/g, '&quot;');
         const checked = !defaults.all && defaults.names.includes(p) ? 'checked' : '';
         return `
-            <label class="flex items-center gap-2.5 px-2.5 py-2 bg-white dark:bg-slate-800 rounded-lg cursor-pointer border border-slate-200 dark:border-slate-700 shadow-sm active:scale-[0.99]">
+            <label class="flex items-center gap-2.5 px-2.5 py-2 bg-surface rounded-lg cursor-pointer border border-surface shadow-sm active:scale-[0.99]">
                 <input type="checkbox" value="${safe}" class="meet-setup-proj-cb w-4 h-4 accent-orange-600 rounded cursor-pointer" ${checked} onchange="rbi_onMeetingSetupProjectChange()">
-                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">${p}</span>
+                <span class="text-rbi-label font-bold text-ink truncate">${p}</span>
             </label>`;
     }).join('');
 
@@ -1682,30 +1682,30 @@ export function openMeetingSetupModal(taskId = null) {
 
     document.getElementById('modal-body').innerHTML = `
         <div class="mb-3">
-            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">${_t('quality.meetings.field.project', 'Объект')} <span class="text-orange-500">*</span></label>
+            <label class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1.5 block">${_t('quality.meetings.field.project', 'Объект')} <span class="text-orange-500">*</span></label>
             ${_meetingIsAdmin() ? `
             <label class="flex items-center gap-2.5 px-2.5 py-2 mb-1.5 bg-orange-50 dark:bg-orange-950/30 rounded-lg cursor-pointer border border-orange-200 dark:border-orange-800">
                 <input type="checkbox" id="meet-setup-proj-all" class="w-4 h-4 accent-orange-600 rounded cursor-pointer" ${defaults.all ? 'checked' : ''} onchange="rbi_onMeetingSetupProjectAllChange()">
-                <span class="text-[11px] font-black text-orange-700 dark:text-orange-300">${_t('quality.meetings.project.all', 'Все объекты')}</span>
+                <span class="text-rbi-label font-black text-orange-700 dark:text-orange-300">${_t('quality.meetings.project.all', 'Все объекты')}</span>
             </label>` : `
-            <p class="text-[9px] text-slate-400 font-bold mb-1.5 px-0.5">${_t('quality.meetings.setup.assigned_only', 'Доступны только ваши закреплённые объекты')}</p>`}
+            <p class="text-rbi-caption text-muted font-bold mb-1.5 px-0.5">${_t('quality.meetings.setup.assigned_only', 'Доступны только ваши закреплённые объекты')}</p>`}
             <div id="meet-setup-project-list" class="space-y-1 max-h-[22vh] overflow-y-auto custom-scrollbar pr-0.5 ${uniqueProjects.length ? '' : 'hidden'}">
-                ${projBoxes || `<div class="text-[10px] text-slate-400 font-bold px-1 py-2">${_t('quality.meetings.setup.no_projects_all_only', 'Нет объектов в проверках — доступен только «Все объекты»')}</div>`}
+                ${projBoxes || `<div class="text-rbi-caption text-muted font-bold px-1 py-2">${_t('quality.meetings.setup.no_projects_all_only', 'Нет объектов в проверках — доступен только «Все объекты»')}</div>`}
             </div>
-            <p class="text-[9px] text-slate-400 font-bold mt-1 px-0.5">${_t('quality.meetings.setup.required_projects', 'Обязательно: все, один или несколько')}</p>
+            <p class="text-rbi-caption text-muted font-bold mt-1 px-0.5">${_t('quality.meetings.setup.required_projects', 'Обязательно: все, один или несколько')}</p>
         </div>
         <div class="mb-4">
-            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">${_t('quality.meetings.setup.period', 'Период')}</label>
-            <select id="meet-setup-period" class="input-base !py-2 text-[11px] font-bold" onchange="rbi_updateMeetingSetupList()">
+            <label class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1 block">${_t('quality.meetings.setup.period', 'Период')}</label>
+            <select id="meet-setup-period" class="input-base !py-2 text-rbi-label font-bold" onchange="rbi_updateMeetingSetupList()">
                 <option value="WEEK" selected>${_t('quality.meetings.setup.period_week', 'Неделя')}</option>
                 <option value="MONTH">${_t('quality.meetings.setup.period_month', 'Месяц')}</option>
                 <option value="ALL">${_t('quality.meetings.period.all', 'Всё время')}</option>
             </select>
         </div>
         
-        <div class="flex justify-between items-center mb-2 px-1 border-t border-slate-100 pt-2">
-            <span class="text-[10px] font-black uppercase text-slate-400">${_t('quality.meetings.setup.contractors', 'Список подрядчиков')}</span>
-            <button onclick="document.querySelectorAll('.meet-setup-cb').forEach(cb=>cb.checked=true)" class="text-orange-600 text-[10px] font-bold hover:underline">${_t('quality.meetings.setup.select_all', 'Выбрать всех')}</button>
+        <div class="flex justify-between items-center mb-2 px-1 border-t border-surface pt-2">
+            <span class="text-rbi-caption font-black uppercase text-muted">${_t('quality.meetings.setup.contractors', 'Список подрядчиков')}</span>
+            <button onclick="document.querySelectorAll('.meet-setup-cb').forEach(cb=>cb.checked=true)" class="text-orange-600 text-rbi-caption font-bold hover:underline">${_t('quality.meetings.setup.select_all', 'Выбрать всех')}</button>
         </div>
         
         <div id="meet-setup-checkboxes" class="space-y-2 mb-6 max-h-[30vh] overflow-y-auto custom-scrollbar pr-1">
@@ -1713,8 +1713,8 @@ export function openMeetingSetupModal(taskId = null) {
         </div>
 
         <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700">${_t('quality.meetings.btn.cancel', 'Отмена')}</button>
-            <button onclick="rbi_executeMeetingSetup('${taskId || ''}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">▶ ${_t('quality.meetings.setup.start', 'Начать разбор')}</button>
+            <button onclick="closeModal()" class="flex-1 bg-surface text-muted py-3.5 rounded-xl font-bold text-rbi-label uppercase active:scale-95 shadow-sm border border-surface">${_t('quality.meetings.btn.cancel', 'Отмена')}</button>
+            <button onclick="rbi_executeMeetingSetup('${taskId || ''}')" class="flex-1 bg-orange-500 text-white py-3.5 rounded-xl font-black text-rbi-label uppercase shadow-md active:scale-95 flex items-center justify-center gap-2">▶ ${_t('quality.meetings.setup.start', 'Начать разбор')}</button>
         </div>
     `;
 
@@ -1766,19 +1766,19 @@ export function updateMeetingSetupList() {
     const uniqueContrs = [...new Set(baseData.map(c => c.contractorName).filter(Boolean))].sort();
 
     if (!isAll && selected.length === 0) {
-        container.innerHTML = `<div class="text-center text-[10px] font-bold text-orange-500 py-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">${_t('quality.meetings.setup.pick_project', 'Выберите объект (все / один / несколько)')}</div>`;
+        container.innerHTML = `<div class="text-center text-rbi-caption font-bold text-orange-500 py-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">${_t('quality.meetings.setup.pick_project', 'Выберите объект (все / один / несколько)')}</div>`;
         return;
     }
 
     if (uniqueContrs.length === 0) {
-        container.innerHTML = `<div class="text-center text-[10px] font-bold text-slate-400 py-4 bg-[var(--hover-bg)] rounded-lg">${_t('quality.meetings.setup.no_inspections', 'Нет проверок за этот период')}</div>`;
+        container.innerHTML = `<div class="text-center text-rbi-caption font-bold text-muted py-4 bg-[var(--hover-bg)] rounded-lg">${_t('quality.meetings.setup.no_inspections', 'Нет проверок за этот период')}</div>`;
         return;
     }
 
     container.innerHTML = uniqueContrs.map(c => `
-        <label class="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700 shadow-sm active:scale-[0.98] transition-all hover:border-orange-300">
+        <label class="flex items-center gap-3 p-3 bg-surface rounded-xl cursor-pointer border border-surface shadow-sm active:scale-[0.98] transition-all hover:border-orange-300">
             <input type="checkbox" value="${c.replace(/"/g, '&quot;')}" class="meet-setup-cb w-5 h-5 accent-orange-600 rounded cursor-pointer" checked>
-            <span class="text-[12px] font-bold text-slate-700 dark:text-slate-200 truncate flex-1">${c}</span>
+            <span class="text-rbi-body font-bold text-ink truncate flex-1">${c}</span>
         </label>
     `).join('');
 }
@@ -1856,7 +1856,7 @@ export function createMeeting(customData = null) {
 
     const weekMetrics = typeof getObjectIntegralMetrics === 'function' ? getObjectIntegralMetrics(weekChecks, _templates().getUserTemplates()) : null;
     const iko = weekMetrics ? weekMetrics.IKO : '0.00';
-    const ikoColor = weekMetrics ? weekMetrics.ikoColor : 'text-slate-500';
+    const ikoColor = weekMetrics ? weekMetrics.ikoColor : 'text-muted';
 
     let defectPhotosHtml = '';
     let b3Photos = [];
@@ -1872,13 +1872,13 @@ export function createMeeting(customData = null) {
     b3Photos = b3Photos.sort(() => 0.5 - Math.random()).slice(0, 4);
     if (b3Photos.length > 0) {
         defectPhotosHtml = `
-            <div class="mt-3 bg-white dark:bg-slate-800 p-3 rounded-xl border border-[var(--card-border)] shadow-sm">
-                <div class="text-[10px] font-black text-red-600 uppercase mb-2">${_t('quality.meetings.workspace.defect_photos', '📸 Фотофиксация брака (Рандом)')}</div>
+            <div class="mt-3 bg-surface p-3 rounded-xl border border-[var(--card-border)] shadow-sm">
+                <div class="text-rbi-caption font-black text-danger uppercase mb-2">${_t('quality.meetings.workspace.defect_photos', '📸 Фотофиксация брака (Рандом)')}</div>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar">
                     ${b3Photos.map(p => `
-                        <div class="shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-red-200 relative">
+                        <div class="shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-danger-soft relative">
                             <img ${(typeof window.rbiBuildPhotoImgAttrs === 'function') ? window.rbiBuildPhotoImgAttrs(p.src, { preferThumb: true }) : ('src="' + window.getPhotoSrc(p.src) + '"')} class="w-full h-full object-cover">
-                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] truncate px-1 pb-0.5">${p.contr}</div>
+                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-rbi-caption truncate px-1 pb-0.5">${p.contr}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -1916,39 +1916,39 @@ export function createMeeting(customData = null) {
         .reduce((s, a) => s + (a.count || 1), 0);
 
     let goodContrsHtml = goodContrs.length > 0
-        ? goodContrs.map(c => `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black mr-1 mb-1 inline-block">${c}</span>`).join('')
-        : '<span class="text-[10px] text-slate-400 font-bold">' + _t('quality.meetings.workspace.no_excellent', 'Отличников нет') + '</span>';
+        ? goodContrs.map(c => `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-rbi-caption font-black mr-1 mb-1 inline-block">${c}</span>`).join('')
+        : '<span class="text-rbi-caption text-muted font-bold">' + _t('quality.meetings.workspace.no_excellent', 'Отличников нет') + '</span>';
 
     let badContrsHtml = badContrs.length > 0
-        ? badContrs.map(c => `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black mr-1 mb-1 inline-block">${c}</span>`).join('')
-        : '<span class="text-[10px] text-slate-400 font-bold">' + _t('quality.meetings.workspace.no_critical', 'Критических нет') + '</span>';
+        ? badContrs.map(c => `<span class="bg-danger-soft text-danger px-2 py-0.5 rounded text-rbi-caption font-black mr-1 mb-1 inline-block">${c}</span>`).join('')
+        : '<span class="text-rbi-caption text-muted font-bold">' + _t('quality.meetings.workspace.no_critical', 'Критических нет') + '</span>';
 
     const badgeFor = (item) => {
         if (item.kind === AGENDA_KIND.MANUAL) {
-            return '<span class="text-[9px] bg-slate-600 text-white dark:bg-slate-500 px-1.5 py-0.5 rounded font-black">' + _t('quality.meetings.badge.manual', '✎ Вручную') + '</span>';
+            return '<span class="text-rbi-caption bg-slate-600 dark:bg-slate-500 text-white px-1.5 py-0.5 rounded font-black">' + _t('quality.meetings.badge.manual', '✎ Вручную') + '</span>';
         }
         if (item.kind === AGENDA_KIND.B3 || (item.reopened && item.title && /b3/i.test(item.title))) {
-            return '<span class="text-[9px] bg-red-600 text-white dark:bg-red-500 px-1.5 py-0.5 rounded font-black">B3</span>';
+            return '<span class="text-rbi-caption bg-danger text-white px-1.5 py-0.5 rounded font-black">B3</span>';
         }
         if (item.kind === AGENDA_KIND.B2) {
-            return '<span class="text-[9px] bg-orange-500 text-white dark:bg-orange-500 px-1.5 py-0.5 rounded font-black">B2</span>';
+            return '<span class="text-rbi-caption bg-orange-500 text-white dark:bg-orange-500 px-1.5 py-0.5 rounded font-black">B2</span>';
         }
         if (item.kind === AGENDA_KIND.SK || (item.title && /пк\s*ск/i.test(item.title))) {
-            return '<span class="text-[9px] bg-blue-600 text-white dark:bg-blue-500 px-1.5 py-0.5 rounded font-black">' + _t('quality.meetings.badge.sk_short', 'Проср. ПК СК') + '</span>';
+            return '<span class="text-rbi-caption bg-blue-600 text-white dark:bg-blue-500 px-1.5 py-0.5 rounded font-black">' + _t('quality.meetings.badge.sk_short', 'Проср. ПК СК') + '</span>';
         }
         if (item.kind === AGENDA_KIND.CARRY) {
             const v = _carryVisual(item);
-            return `<span class="text-[9px] ${v.badgeSolid} border px-1.5 py-0.5 rounded font-black">${v.badgeShort}</span>`;
+            return `<span class="text-rbi-caption ${v.badgeSolid} border px-1.5 py-0.5 rounded font-black">${v.badgeShort}</span>`;
         }
-        return '<span class="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-black">↻</span>';
+        return '<span class="text-rbi-caption bg-amber-600 text-white px-1.5 py-0.5 rounded font-black">↻</span>';
     };
 
     const borderFor = (item) => {
         if (item.kind === AGENDA_KIND.MANUAL) {
-            return 'border-slate-400 bg-slate-50 dark:border-slate-500 dark:bg-slate-800/60';
+            return 'border-surface bg-surface';
         }
         if (item.kind === AGENDA_KIND.B3 || (item.reopened && item.title && /b3/i.test(item.title))) {
-            return 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-950/40';
+            return 'border-danger bg-danger-soft';
         }
         if (item.kind === AGENDA_KIND.B2) {
             return 'border-orange-500 bg-orange-50 dark:border-orange-400 dark:bg-orange-950/40';
@@ -2002,12 +2002,12 @@ export function createMeeting(customData = null) {
             count > 1 ? `×${count}` : '',
             reopened ? '↻' : ''
         ].filter(Boolean).join(' ');
-        return `<li class="text-[11px] text-slate-700 dark:text-slate-300 leading-snug">${_escUi(head)}${rest}${meta ? ` <span class="text-slate-500 dark:text-slate-400 font-semibold">${_escUi(meta)}</span>` : ''}</li>`;
+        return `<li class="text-rbi-label text-ink leading-snug">${_escUi(head)}${rest}${meta ? ` <span class="text-muted font-semibold">${_escUi(meta)}</span>` : ''}</li>`;
     };
     const _detailsBulletList = (arr) => {
         const items = (arr || []).map(_renderDetailBullet).filter(Boolean);
         return items.length
-            ? `<ul class="mt-1.5 list-disc pl-4 space-y-0.5 marker:text-slate-400 dark:marker:text-slate-500">${items.join('')}</ul>`
+            ? `<ul class="mt-1.5 list-disc pl-4 space-y-0.5 marker:text-muted dark:marker:text-muted">${items.join('')}</ul>`
             : '';
     };
 
@@ -2091,10 +2091,10 @@ export function createMeeting(customData = null) {
             m[2].split(',').map(p => p.trim()).filter(Boolean).forEach(p => {
                 // «N шт.» / «N замечаний» уже покрыто общим чипом
                 if (/^\d+\s*шт/i.test(p) || /замечан/i.test(p)) return;
-                extra.push(`<span class="text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">${_escUi(p)}</span>`);
+                extra.push(`<span class="text-rbi-caption font-bold bg-surface text-muted border border-surface px-1.5 py-0.5 rounded">${_escUi(p)}</span>`);
             });
         }
-        return `<span class="font-black text-slate-800 dark:text-slate-100">${name}</span><span class="inline-flex flex-wrap gap-1 ml-1.5 align-middle">${_countChipHtml(total, 'blue')}${extra.join('')}</span>`;
+        return `<span class="font-black text-ink">${name}</span><span class="inline-flex flex-wrap gap-1 ml-1.5 align-middle">${_countChipHtml(total, 'blue')}${extra.join('')}</span>`;
     };
 
     const renderAgendaRow = (item) => {
@@ -2110,7 +2110,7 @@ export function createMeeting(customData = null) {
         let displayTitleHtml = _escUi(title || item.defect || '');
         if (isManual) {
             displayTitleHtml = '';
-            bodyHtml = `<textarea class="agenda-meta-defect agenda-manual-text input-base mt-1 h-16 resize-none text-[11px] !bg-white dark:!bg-slate-900" placeholder="${_t('quality.meetings.ph.manual_item', 'Текст пункта повестки...')}">${_escUi(item.defect || '')}</textarea>`;
+            bodyHtml = `<textarea class="agenda-meta-defect agenda-manual-text input-base mt-1 h-16 resize-none text-rbi-label !bg-surface" placeholder="${_t('quality.meetings.ph.manual_item', 'Текст пункта повестки...')}">${_escUi(item.defect || '')}</textarea>`;
         } else if (isSk && details.length) {
             displayTitleHtml = _renderSkTitleHtml(title || _t('quality.meetings.label.sk_remarks', 'Просроченные замечания в ПК СК'), item, details);
             bodyHtml = _detailsBulletList(details);
@@ -2126,7 +2126,7 @@ export function createMeeting(customData = null) {
                 : (() => {
                     const lines = _cleanUiText(item.defect || '').split('\n').map(l => l.trim()).filter(Boolean);
                     return lines.length
-                        ? `<ul class="mt-1.5 list-disc pl-4 space-y-0.5">${lines.map(l => `<li class="text-[11px] text-slate-700 dark:text-slate-300">${_escUi(l)}</li>`).join('')}</ul>`
+                        ? `<ul class="mt-1.5 list-disc pl-4 space-y-0.5">${lines.map(l => `<li class="text-rbi-label text-ink">${_escUi(l)}</li>`).join('')}</ul>`
                         : '';
                 })();
         } else if (isCarry) {
@@ -2136,24 +2136,24 @@ export function createMeeting(customData = null) {
             const total = _totalRemarks(item, carryDetails);
             // происхождение + категория + общее число; заголовок различает аудит / ПК СК
             const chips = [
-                `<span class="text-[9px] font-bold border px-1.5 py-0.5 rounded ${vis.softChip}">${_escUi(meta.label)}</span>`,
-                meta.cat ? `<span class="text-[9px] font-bold border px-1.5 py-0.5 rounded ${vis.catChip}">${_escUi(meta.cat)}</span>` : '',
+                `<span class="text-rbi-caption font-bold border px-1.5 py-0.5 rounded ${vis.softChip}">${_escUi(meta.label)}</span>`,
+                meta.cat ? `<span class="text-rbi-caption font-bold border px-1.5 py-0.5 rounded ${vis.catChip}">${_escUi(meta.cat)}</span>` : '',
                 _countChipHtml(total, vis.tone),
                 ...(meta.stats ? meta.stats.split(',').map(p => p.trim()).filter(Boolean)
                     .filter(p => !/^\d+\s*шт/i.test(p) && !/замечан/i.test(p))
-                    .map(p => `<span class="text-[9px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">${_escUi(p)}</span>`) : [])
+                    .map(p => `<span class="text-rbi-caption font-bold bg-surface text-muted px-1.5 py-0.5 rounded border border-surface">${_escUi(p)}</span>`) : [])
             ].filter(Boolean).join('');
             displayTitleHtml = `
                 <span class="font-black">${_escUi(vis.title)}</span>
                 <span class="inline-flex flex-wrap gap-1 ml-1.5 align-middle">${chips}</span>`;
             bodyHtml = carryDetails.length
                 ? _detailsBulletList(carryDetails)
-                : `<div class="mt-1 text-[10px] text-slate-500 italic">${_t('quality.meetings.empty.no_item_detail', 'Нет детального текста пункта')}</div>`;
+                : `<div class="mt-1 text-rbi-caption text-muted italic">${_t('quality.meetings.empty.no_item_detail', 'Нет детального текста пункта')}</div>`;
         } else if (details.length) {
             bodyHtml = `<ul class="list-disc pl-4 mt-1 space-y-0.5">${details.map(d => {
                 const lines = _cleanUiText(d).split('\n').map(l => l.trim()).filter(Boolean);
                 if (lines.length <= 1) return `<li>${_escUi(lines[0] || d)}</li>`;
-                return `<li><span class="font-semibold">${_escUi(lines[0])}</span>${lines.slice(1).map(l => `<div class="text-[10px] text-slate-500 font-normal">${_escUi(l)}</div>`).join('')}</li>`;
+                return `<li><span class="font-semibold">${_escUi(lines[0])}</span>${lines.slice(1).map(l => `<div class="text-rbi-caption text-muted font-normal">${_escUi(l)}</div>`).join('')}</li>`;
             }).join('')}</ul>`;
         } else {
             const lines = _cleanUiText(item.defect || '').split('\n').map(l => l.trim()).filter(Boolean);
@@ -2164,7 +2164,7 @@ export function createMeeting(customData = null) {
         const defDeadline = item.date ? ` value="${String(item.date).split('T')[0]}"` : '';
         const defResp = item.resp ? ` value="${String(item.resp).replace(/"/g, '&quot;')}"` : '';
         const reopenBadge = item.reopened
-            ? '<span class="text-[9px] bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-bold">' + _t('quality.meetings.badge.reopened', '↻ повторно') + '</span>'
+            ? '<span class="text-rbi-caption bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-bold">' + _t('quality.meetings.badge.reopened', '↻ повторно') + '</span>'
             : '';
         const detailsJson = JSON.stringify(details).replace(/"/g, '&quot;');
         // MANUAL: сам текст пункта — видимая .agenda-meta-defect textarea в bodyHtml (та же
@@ -2188,28 +2188,28 @@ export function createMeeting(customData = null) {
                     <input type="hidden" class="agenda-meta-origin-kind" value="${String(item.originKind || '').replace(/"/g, '&quot;')}">
 
                     <div class="absolute top-0.5 right-0.5 flex items-center gap-0.5 z-10">
-                        <button type="button" data-agenda-action="up" title="${_t('quality.meetings.btn.agenda_up', '▲ Вверх')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-90 transition-colors">▲</button>
-                        <button type="button" data-agenda-action="down" title="${_t('quality.meetings.btn.agenda_down', '▼ Вниз')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-90 transition-colors">▼</button>
-                        <button type="button" data-agenda-action="remove" title="${_t('quality.meetings.btn.agenda_remove', '✕ Удалить')}" class="w-5 h-5 flex items-center justify-center text-[10px] leading-none text-slate-400 hover:text-red-600 dark:hover:text-red-400 active:scale-90 transition-colors">✕</button>
+                        <button type="button" data-agenda-action="up" title="${_t('quality.meetings.btn.agenda_up', '▲ Вверх')}" class="w-5 h-5 flex items-center justify-center text-rbi-caption leading-none text-muted hover:text-brand dark:hover:text-brand active:scale-90 transition-colors">▲</button>
+                        <button type="button" data-agenda-action="down" title="${_t('quality.meetings.btn.agenda_down', '▼ Вниз')}" class="w-5 h-5 flex items-center justify-center text-rbi-caption leading-none text-muted hover:text-brand dark:hover:text-brand active:scale-90 transition-colors">▼</button>
+                        <button type="button" data-agenda-action="remove" title="${_t('quality.meetings.btn.agenda_remove', '✕ Удалить')}" class="w-5 h-5 flex items-center justify-center text-rbi-caption leading-none text-muted hover:text-danger dark:hover:text-danger active:scale-90 transition-colors">✕</button>
                     </div>
 
                     <div class="border-l-2 ${borderFor(item)} pl-2 py-1.5 pr-16 rounded-r-lg">
-                        <div class="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-snug">
-                            <div class="font-bold flex items-center gap-1.5 flex-wrap text-slate-800 dark:text-slate-100">${badgeFor(item)} <span class="min-w-0">${displayTitleHtml}</span> ${reopenBadge}</div>
+                        <div class="text-rbi-label font-medium text-ink leading-snug">
+                            <div class="font-bold flex items-center gap-1.5 flex-wrap text-ink">${badgeFor(item)} <span class="min-w-0">${displayTitleHtml}</span> ${reopenBadge}</div>
                             ${bodyHtml}
                         </div>
                     </div>
 
                     <div class="mt-1.5 ml-0 rounded-lg border border-emerald-300 bg-emerald-50/90 dark:border-emerald-600 dark:bg-emerald-950/50 p-2.5 shadow-sm">
-                        <div class="text-[8px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 mb-1.5">${_t('quality.meetings.workspace.decision_row', 'Решение · срок · ответственный')}</div>
+                        <div class="text-rbi-caption font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 mb-1.5">${_t('quality.meetings.workspace.decision_row', 'Решение · срок · ответственный')}</div>
                         <div class="flex flex-wrap gap-2">
-                            <label class="flex items-center gap-1 text-[10px] font-bold text-emerald-900 dark:text-emerald-100 bg-white/90 dark:bg-slate-900/70 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-700 cursor-pointer active:scale-95 transition-transform">
+                            <label class="flex items-center gap-1 text-rbi-caption font-bold text-emerald-900 dark:text-emerald-100 bg-surface px-2 py-1 rounded border border-emerald-200 dark:border-emerald-700 cursor-pointer active:scale-95 transition-transform">
                                 <input type="checkbox" class="agenda-done-cb w-3.5 h-3.5 accent-emerald-600"> ${_t('quality.meetings.checkbox.done', 'Решено')}
                             </label>
-                            <input type="date" class="agenda-date input-base !py-1 !text-[10px] !w-auto flex-1 min-w-[90px] !bg-white dark:!bg-slate-900 !border-emerald-200 dark:!border-emerald-700"${defDeadline}>
-                            <input type="text" class="agenda-resp input-base !py-1 !text-[10px] !w-auto flex-1 min-w-[90px] !bg-white dark:!bg-slate-900 !border-emerald-200 dark:!border-emerald-700" placeholder="${_t('quality.meetings.ph.responsible', 'Ответственный...')}"${defResp}>
+                            <input type="date" class="agenda-date input-base !py-1 !text-rbi-caption !w-auto flex-1 min-w-[90px] !bg-surface !border-emerald-200 dark:!border-emerald-700"${defDeadline}>
+                            <input type="text" class="agenda-resp input-base !py-1 !text-rbi-caption !w-auto flex-1 min-w-[90px] !bg-surface !border-emerald-200 dark:!border-emerald-700" placeholder="${_t('quality.meetings.ph.responsible', 'Ответственный...')}"${defResp}>
                         </div>
-                        <textarea class="agenda-comment input-base mt-2 h-10 resize-none text-[10px] !bg-white dark:!bg-slate-900 !border-emerald-200 dark:!border-emerald-700" placeholder="${_t('quality.meetings.ph.block_decision', 'Что решили по этому блоку проблем...')}">${item.comment ? String(item.comment).replace(/</g, '&lt;') : ''}</textarea>
+                        <textarea class="agenda-comment input-base mt-2 h-10 resize-none text-rbi-caption !bg-surface !border-emerald-200 dark:!border-emerald-700" placeholder="${_t('quality.meetings.ph.block_decision', 'Что решили по этому блоку проблем...')}">${item.comment ? String(item.comment).replace(/</g, '&lt;') : ''}</textarea>
                     </div>
                 </div>
             `;
@@ -2225,16 +2225,16 @@ export function createMeeting(customData = null) {
 
     const _addAgendaItemBtnHtml = (groupKey) => `
         <div class="px-3 pb-3">
-            <button type="button" data-agenda-action="add" data-agenda-group="${_escUi(groupKey)}" class="w-full bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-1.5 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_agenda_item', '+ Добавить пункт повестки')}</button>
+            <button type="button" data-agenda-action="add" data-agenda-group="${_escUi(groupKey)}" class="w-full bg-surface border border-dashed border-surface text-muted py-1.5 rounded-lg font-bold text-rbi-caption uppercase active:scale-95 transition-colors hover:border-surface">${_t('quality.meetings.btn.add_agenda_item', '+ Добавить пункт повестки')}</button>
         </div>`;
 
     let agendaHtml = '';
     Object.keys(byContrUi).forEach(cName => {
         const items = byContrUi[cName];
         agendaHtml += `
-            <div class="bg-white dark:bg-slate-800 rounded-xl mb-3 border border-slate-300 dark:border-slate-500 shadow-sm overflow-hidden">
-                <div class="px-3 pt-2.5 pb-2 bg-slate-100/90 dark:bg-slate-900/80 border-b border-slate-300/80 dark:border-slate-600">
-                    <div class="text-[12px] font-black text-slate-800 dark:text-slate-100 uppercase">
+            <div class="bg-surface rounded-xl mb-3 border border-surface shadow-sm overflow-hidden">
+                <div class="px-3 pt-2.5 pb-2 bg-surface/90 border-b border-surface/80">
+                    <div class="text-rbi-body font-black text-ink uppercase">
                         <div class="flex flex-wrap items-baseline gap-x-1">👷‍♂️ ${_escUi(cName)}</div>
                         ${_contrTypeSummaryHtml(items)}
                     </div>
@@ -2246,15 +2246,15 @@ export function createMeeting(customData = null) {
             </div>`;
     });
 
-    if (!agendaHtml) agendaHtml = `<div class="text-[11px] text-green-600 font-bold text-center py-4 bg-white rounded-xl border border-dashed border-[var(--card-border)]">${_t('quality.meetings.workspace.no_defects', 'Дефектов за {period} не выявлено. Идеально!', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>`;
+    if (!agendaHtml) agendaHtml = `<div class="text-rbi-label text-green-600 font-bold text-center py-4 bg-surface rounded-xl border border-dashed border-[var(--card-border)]">${_t('quality.meetings.workspace.no_defects', 'Дефектов за {period} не выявлено. Идеально!', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>`;
 
     // «Разное» — отдельная всегда доступная группа для вручную добавленных пунктов без
     // привязки к подрядчику (не путать с '—' — авто-группой уже сгенерированных пунктов без contr).
     const MISC_AGENDA_GROUP = '__misc__';
     agendaHtml += `
-        <div class="bg-white dark:bg-slate-800 rounded-xl mb-3 border border-dashed border-slate-300 dark:border-slate-600 shadow-sm overflow-hidden">
-            <div class="px-3 pt-2.5 pb-2 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700">
-                <div class="text-[12px] font-black text-slate-600 dark:text-slate-300 uppercase">📝 ${_t('quality.meetings.workspace.misc_group', 'Разное')}</div>
+        <div class="bg-surface rounded-xl mb-3 border border-dashed border-surface shadow-sm overflow-hidden">
+            <div class="px-3 pt-2.5 pb-2 bg-surface/80 border-b border-surface">
+                <div class="text-rbi-body font-black text-muted uppercase">📝 ${_t('quality.meetings.workspace.misc_group', 'Разное')}</div>
             </div>
             <div class="p-3 space-y-3 empty:p-0" data-agenda-group-body="${MISC_AGENDA_GROUP}"></div>
             ${_addAgendaItemBtnHtml(MISC_AGENDA_GROUP)}
@@ -2265,10 +2265,10 @@ export function createMeeting(customData = null) {
         <!-- ШАПКА -->
         <div class="p-4 border-b border-[var(--card-border)] bg-[var(--hover-bg)] flex justify-between items-center shrink-0">
             <div>
-                <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">${_t('quality.meetings.workspace.kicker', 'Meeting Workspace')}</div>
-                <div class="font-black text-[14px] text-slate-800 dark:text-white uppercase">${_t('quality.meetings.workspace.plan_from', 'Планерка от {date}', { date: d.toLocaleDateString('ru-RU') })}</div>
+                <div class="text-rbi-caption font-black text-brand uppercase tracking-widest mb-0.5">${_t('quality.meetings.workspace.kicker', 'Meeting Workspace')}</div>
+                <div class="font-black text-[14px] text-ink dark:text-white uppercase">${_t('quality.meetings.workspace.plan_from', 'Планерка от {date}', { date: d.toLocaleDateString('ru-RU') })}</div>
             </div>
-            <button onclick="rbi_renderMeetingTab()" class="text-slate-400 hover:text-red-500 active:scale-95 transition-colors font-black px-2 text-lg">✕</button>
+            <button onclick="rbi_renderMeetingTab()" class="text-muted hover:text-danger active:scale-95 transition-colors font-black px-2 text-lg">✕</button>
         </div>
         
         <!-- ЕДИНАЯ КОЛОНКА (СВЕРХУ ИНФО, СНИЗУ ДЕФЕКТЫ) -->
@@ -2276,37 +2276,37 @@ export function createMeeting(customData = null) {
 
             <!-- УЧАСТНИКИ (в начале, как в оффлайн-протоколе) -->
             <div class="bg-[var(--hover-bg)] p-3 rounded-xl border border-[var(--card-border)] mb-5">
-                <label class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2 block">${_t('quality.meetings.workspace.participants', 'Участники совещания')}</label>
+                <label class="text-rbi-caption font-black text-[var(--text-muted)] uppercase mb-2 block">${_t('quality.meetings.workspace.participants', 'Участники совещания')}</label>
                 <div id="meeting-participants-list" class="space-y-2 mb-2">${_renderParticipantRowHtml({ role: '', name: _meetingCurrentEngineerName() })}</div>
-                <button type="button" onclick="rbi_addMeetingParticipantRow()" class="w-full bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg font-bold text-[10px] uppercase active:scale-95 transition-colors hover:border-slate-400">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
+                <button type="button" onclick="rbi_addMeetingParticipantRow()" class="w-full bg-surface border border-dashed border-surface text-muted py-2 rounded-lg font-bold text-rbi-caption uppercase active:scale-95 transition-colors hover:border-surface">${_t('quality.meetings.btn.add_participant', '+ Добавить участника')}</button>
             </div>
 
             <!-- БЛОК АНАЛИТИКИ -->
             <div class="mb-5">
-                <div class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2">${_t('quality.meetings.workspace.status_of', '📈 Статус Объекта ({period})', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>
+                <div class="text-rbi-label font-black text-ink dark:text-white uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2">${_t('quality.meetings.workspace.status_of', '📈 Статус Объекта ({period})', { period: _periodLabelFromCode(selectedPeriod, periodText) })}</div>
                 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                    <div class="bg-white dark:bg-slate-800 border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center">
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">${_t('quality.meetings.workspace.iko', 'Индекс Риска (ИКО)')}</div>
+                    <div class="bg-surface border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center">
+                        <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1">${_t('quality.meetings.workspace.iko', 'Индекс Риска (ИКО)')}</div>
                         <div class="text-[20px] font-black leading-none ${ikoColor}">${iko}</div>
                     </div>
-                    <div class="bg-white dark:bg-slate-800 border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center">
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">${_t('quality.meetings.label.b3', 'Крит. деф. (B3)')}</div>
-                        <div class="text-[20px] font-black leading-none ${b3Count > 0 ? 'text-red-600' : 'text-green-600'}">${b3Count}</div>
+                    <div class="bg-surface border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center">
+                        <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1">${_t('quality.meetings.label.b3', 'Крит. деф. (B3)')}</div>
+                        <div class="text-[20px] font-black leading-none ${b3Count > 0 ? 'text-danger' : 'text-green-600'}">${b3Count}</div>
                     </div>
-                    <div class="bg-white dark:bg-slate-800 border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center col-span-2 sm:col-span-1">
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">${_t('quality.meetings.workspace.sk_overdue', 'Просрочено в ПК СК')}</div>
-                        <div class="text-[20px] font-black leading-none text-red-600">${skOverdueCount}</div>
+                    <div class="bg-surface border border-[var(--card-border)] p-3 rounded-xl shadow-sm flex flex-col justify-center col-span-2 sm:col-span-1">
+                        <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1">${_t('quality.meetings.workspace.sk_overdue', 'Просрочено в ПК СК')}</div>
+                        <div class="text-[20px] font-black leading-none text-danger">${skOverdueCount}</div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
-                    <div class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 p-3 rounded-xl shadow-sm">
-                        <div class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase mb-2 tracking-widest">${_t('quality.meetings.workspace.risk_zone', '🚨 Зона риска (B3 или УрК < 70)')}</div>
+                    <div class="bg-danger-soft border border-danger-soft p-3 rounded-xl shadow-sm">
+                        <div class="text-rbi-caption font-black text-danger uppercase mb-2 tracking-widest">${_t('quality.meetings.workspace.risk_zone', '🚨 Зона риска (B3 или УрК < 70)')}</div>
                         <div>${badContrsHtml}</div>
                     </div>
                     <div class="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/50 p-3 rounded-xl shadow-sm">
-                        <div class="text-[10px] font-black text-green-600 dark:text-green-400 uppercase mb-2 tracking-widest">${_t('quality.meetings.workspace.etalon_quality', '✅ Эталонное качество')}</div>
+                        <div class="text-rbi-caption font-black text-green-600 dark:text-green-400 uppercase mb-2 tracking-widest">${_t('quality.meetings.workspace.etalon_quality', '✅ Эталонное качество')}</div>
                         <div>${goodContrsHtml}</div>
                     </div>
                 </div>
@@ -2316,46 +2316,46 @@ export function createMeeting(customData = null) {
 
             <!-- БЛОК РЕШЕНИЙ -->
             <div>
-                <div class="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2 flex items-center gap-2">${_t('quality.meetings.workspace.agenda_title', '📋 Повестка и Решения')}</div>
-                <div class="text-[10px] text-slate-500 mb-3 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">${_t('quality.meetings.workspace.agenda_hint', 'Отмечайте решенные вопросы прямо на совещании. В конце нажмите кнопку внизу — нейросеть соберет их в готовый официальный протокол.')}</div>
+                <div class="text-rbi-label font-black text-ink dark:text-white uppercase tracking-widest mb-3 border-b border-[var(--card-border)] pb-2 flex items-center gap-2">${_t('quality.meetings.workspace.agenda_title', '📋 Повестка и Решения')}</div>
+                <div class="text-rbi-caption text-muted mb-3 bg-surface p-2.5 rounded-lg border border-surface">${_t('quality.meetings.workspace.agenda_hint', 'Отмечайте решенные вопросы прямо на совещании. В конце нажмите кнопку внизу — нейросеть соберет их в готовый официальный протокол.')}</div>
                 
                 <div class="mb-4">
                     ${agendaHtml}
                 </div>
                 
                 <div class="bg-[var(--hover-bg)] p-3 rounded-xl border border-[var(--card-border)] mb-4">
-                    <label class="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2 block">${_t('quality.meetings.workspace.extra_notes', 'Дополнительные тезисы / Разное')}</label>
-                    <textarea id="rbi-meeting-notes" class="input-base h-24 resize-none text-[11px]" placeholder="${_t('quality.meetings.ph.extra_notes', 'Что еще обсудили на планерке, кроме указанных дефектов...')}"></textarea>
+                    <label class="text-rbi-caption font-black text-[var(--text-muted)] uppercase mb-2 block">${_t('quality.meetings.workspace.extra_notes', 'Дополнительные тезисы / Разное')}</label>
+                    <textarea id="rbi-meeting-notes" class="input-base h-24 resize-none text-rbi-label" placeholder="${_t('quality.meetings.ph.extra_notes', 'Что еще обсудили на планерке, кроме указанных дефектов...')}"></textarea>
                 </div>
 
                 <div class="mb-4">
-                    <button onclick="document.getElementById('meeting-photo-upload').click()" class="w-full bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-bold text-[10px] uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2 transition-colors hover:border-slate-400">
+                    <button onclick="document.getElementById('meeting-photo-upload').click()" class="w-full bg-surface border border-dashed border-surface text-muted py-3 rounded-xl font-bold text-rbi-caption uppercase shadow-sm active:scale-95 flex items-center justify-center gap-2 transition-colors hover:border-surface">
                         ${_t('quality.meetings.btn.attach_photo', '📸 Прикрепить общее фото совещания')}
                     </button>
-                    <div id="meeting-photo-preview" class="hidden mt-2 relative w-full h-40 sm:h-48 rounded-xl overflow-hidden border border-slate-200 shadow-sm" data-photo=""></div>
+                    <div id="meeting-photo-preview" class="hidden mt-2 relative w-full h-40 sm:h-48 rounded-xl overflow-hidden border border-surface shadow-sm" data-photo=""></div>
                 </div>
             </div>
 
             <!-- РЕЗУЛЬТАТ / РУЧНОЙ ВВОД -->
             <div id="rbi-meeting-result" class="border-t border-[var(--card-border)] bg-[var(--hover-bg)] p-3 sm:p-4 rounded-xl mt-4 mb-2">
                 <div class="flex justify-between items-center mb-2">
-                    <div class="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">${_t('quality.meetings.workspace.memo_title', 'Итоговый текст (Мемо)')}</div>
-                    <button onclick="copyExpertText('btn-copy-memo', 'rbi-meeting-memo-text')" id="btn-copy-memo" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-2 py-1 rounded active:scale-95 transition-colors">${_t('quality.meetings.btn.copy', '📋 Копировать')}</button>
+                    <div class="text-rbi-label font-black text-ink uppercase tracking-widest">${_t('quality.meetings.workspace.memo_title', 'Итоговый текст (Мемо)')}</div>
+                    <button onclick="copyExpertText('btn-copy-memo', 'rbi-meeting-memo-text')" id="btn-copy-memo" class="text-rbi-caption font-bold text-brand bg-brand-soft border border-brand-soft px-2 py-1 rounded active:scale-95 transition-colors">${_t('quality.meetings.btn.copy', '📋 Копировать')}</button>
                 </div>
-                <textarea id="rbi-meeting-memo-text" class="w-full bg-white dark:bg-slate-800 border border-[var(--card-border)] rounded-xl p-3 text-[11px] outline-none resize-none text-slate-800 dark:text-slate-200 h-32 shadow-inner font-medium leading-relaxed custom-scrollbar transition-all" placeholder="${_t('quality.meetings.ph.memo_workspace', 'Можно написать текст вручную или нажать кнопку ИИ внизу...')}"></textarea>
+                <textarea id="rbi-meeting-memo-text" class="w-full bg-surface border border-[var(--card-border)] rounded-xl p-3 text-rbi-label outline-none resize-none text-ink h-32 shadow-inner font-medium leading-relaxed custom-scrollbar transition-all" placeholder="${_t('quality.meetings.ph.memo_workspace', 'Можно написать текст вручную или нажать кнопку ИИ внизу...')}"></textarea>
             </div>
 
         </div>
 
         <!-- ПОДВАЛ (КНОПКИ СОХРАНЕНИЯ / PREVIEW / ИИ) -->
-        <div id="meeting-footer-btn" class="p-3 sm:p-4 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/80 shrink-0 backdrop-blur-md z-10 flex gap-2">
-            <button onclick="rbi_saveMeetingMemo()" class="flex-1 bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 py-3.5 rounded-xl font-black text-[10px] sm:text-[11px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-1.5">
+        <div id="meeting-footer-btn" class="p-3 sm:p-4 border-t border-[var(--card-border)] bg-surface shrink-0 backdrop-blur-md z-10 flex gap-2">
+            <button onclick="rbi_saveMeetingMemo()" class="flex-1 bg-surface text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 py-3.5 rounded-xl font-black text-rbi-caption sm:text-rbi-label uppercase tracking-widest shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-1.5">
                 ${_t('quality.meetings.btn.save_memo', '💾 Сохранить')}
             </button>
-            <button onclick="rbi_previewMeetingProtocol()" class="flex-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 py-3.5 rounded-xl font-black text-[10px] sm:text-[11px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-1.5">
+            <button onclick="rbi_previewMeetingProtocol()" class="flex-1 bg-surface text-brand border border-brand-soft py-3.5 rounded-xl font-black text-rbi-caption sm:text-rbi-label uppercase tracking-widest shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-1.5">
                 ${_t('quality.meetings.btn.pdf', '👁 PDF')}
             </button>
-            <button onclick="window.RBI.services.ai.rbi_generateMeetingMemo()" id="btn-gen-memo" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[10px] sm:text-[11px] uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+            <button onclick="window.RBI.services.ai.rbi_generateMeetingMemo()" id="btn-gen-memo" class="flex-[1.5] bg-brand text-white py-3.5 rounded-xl font-black text-rbi-caption sm:text-rbi-label uppercase tracking-widest shadow-md active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 <span class="truncate">${_t('quality.meetings.btn.ai_build', 'Собрать (ИИ)')}</span>
             </button>
@@ -2422,16 +2422,16 @@ export async function previewMeetingProtocol() {
     document.getElementById('modal-icon').innerHTML = '';
     document.getElementById('modal-title').innerHTML = `
         <div class="flex justify-between items-center w-full">
-            <span class="text-[14px] uppercase font-black text-slate-800 dark:text-white">${_t('quality.meetings.preview.title', '👁 Предпросмотр PDF')}</span>
-            <button onclick="rbi_closeMeetingPreviewModal()" class="text-slate-400 hover:text-red-500 active:scale-90 px-2 text-lg">✕</button>
+            <span class="text-[14px] uppercase font-black text-ink dark:text-white">${_t('quality.meetings.preview.title', '👁 Предпросмотр PDF')}</span>
+            <button onclick="rbi_closeMeetingPreviewModal()" class="text-muted hover:text-danger active:scale-90 px-2 text-lg">✕</button>
         </div>`;
     document.getElementById('modal-body').innerHTML = `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 max-h-[calc(94vh-140px)] overflow-y-auto custom-scrollbar text-slate-800 shadow-inner mb-3" id="meeting-preview-body">
+        <div class="bg-surface border border-surface rounded-xl p-4 sm:p-6 max-h-[calc(94vh-140px)] overflow-y-auto custom-scrollbar text-ink shadow-inner mb-3" id="meeting-preview-body">
             ${content}
         </div>
         <div class="flex gap-2 sticky bottom-0 bg-[var(--card-bg)] pt-1">
-            <button onclick="rbi_closeMeetingPreviewModal()" class="flex-1 bg-slate-100 text-slate-700 border border-slate-200 py-3 rounded-xl font-bold text-[10px] uppercase">${_t('quality.meetings.btn.close', 'Закрыть')}</button>
-            <button onclick="rbi_printMeetingDraftBrowser()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-md">${_t('quality.meetings.btn.print_draft', 'Печать черновика')}</button>
+            <button onclick="rbi_closeMeetingPreviewModal()" class="flex-1 bg-surface text-ink border border-surface py-3 rounded-xl font-bold text-rbi-caption uppercase">${_t('quality.meetings.btn.close', 'Закрыть')}</button>
+            <button onclick="rbi_printMeetingDraftBrowser()" class="flex-1 bg-brand text-white py-3 rounded-xl font-bold text-rbi-caption uppercase shadow-md">${_t('quality.meetings.btn.print_draft', 'Печать черновика')}</button>
         </div>`;
     _setMeetingPreviewModalLayout(true);
     // клик по затемнению / общий closeModal — тоже сбрасываем ширину
@@ -2473,7 +2473,7 @@ export function handleMeetingPhotoUpload(event) {
 
         const realSrc = await PhotoManager.getAsyncUrl(localUrl) || window.getPhotoSrc(localUrl);
 
-        box.innerHTML = `<img src="${realSrc}" class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById('meeting-photo-preview').dataset.photo=''; document.getElementById('meeting-photo-preview').classList.add('hidden');" class="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>`;
+        box.innerHTML = `<img src="${realSrc}" class="w-full h-full object-cover"><div onclick="event.stopPropagation(); document.getElementById('meeting-photo-preview').dataset.photo=''; document.getElementById('meeting-photo-preview').classList.add('hidden');" class="absolute top-2 right-2 bg-danger text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md cursor-pointer">✕</div>`;
         event.target.value = '';
         if (window.RBIFormDraft) {
             window.RBIFormDraft.saveNow(window.RBIFormDraft.KEYS.MEETING_WS, _rbiCollectMeetingWsDraft);

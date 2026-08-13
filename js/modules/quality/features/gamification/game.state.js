@@ -211,7 +211,15 @@ const GAME_XP_LOG_POLICY = {
   sk_zone_green: 'ever+target',
   impact_bonus_10: 'ever+target',
   escalation_bonus: 'ever+target',
-  plan_completed: 'ever+target'
+  plan_completed: 'ever+target',
+  // day+target (не ever+target): id дефекта — id пункта шаблона, повторяется
+  // между разными проверками одного шаблона — ever заблокировал бы честный
+  // новый комментарий на другой проверке навсегда.
+  comment_written: 'day+target',
+  // Кумулятивный бейдж «Тренер» — отдельный derived-лог на каждого РЕАЛЬНО
+  // улучшенного подрядчика (см. ensureDerivedLog в gameCalculateAllProfiles),
+  // не совпадает по смыслу с текущим live-снимком impact_maker.
+  champ_coach_contractor: 'ever+target'
 };
 
 function _gameIsPlaceholderInspector(name) {
@@ -439,7 +447,13 @@ function gameCalculateAllProfiles() {
       const topTemplate = Object.keys(templatesCount).sort((a, b) => templatesCount[b] - templatesCount[a])[0];
       const impact = calculateImpactScore(p.name, cName, topTemplate);
       if (impact.score !== 0 || impact.trend !== 'Недостаточно данных') { totalImpact += impact.score; impactCount++; }
-      if (impact.score > 0.2) improvedContrs++;
+      if (impact.score > 0.2) {
+        improvedContrs++;
+        // «Тренер»: кумулятивный derived-лог на подрядчика — в отличие от
+        // impact_maker (текущий снимок), не уменьшается, если подрядчик
+        // позже снова просядет.
+        derivedZoneLogs.push({ action: 'champ_coach_contractor', target: cName });
+      }
       if (typeof impact.baseUrk === 'number' && typeof impact.currUrk === 'number') {
         // Зоны: зелёная ≥85, красная <70 (как в аналитике/AI)
         if (impact.baseUrk < 85 && impact.currUrk >= 85) winWinCount++;
@@ -460,7 +474,8 @@ function gameCalculateAllProfiles() {
     else if (avgImpact < -0.2) p.pi = Math.max(0, p.pi - 30);
 
     p.badgesData['impact_maker'] = improvedContrs;
-    p.badgesData['champ_coach'] = improvedContrs;
+    // champ_coach считается ниже из кумулятивных champ_coach_contractor-логов
+    // (per-contractor, once ever) — не переприсваивать здесь live-снимком.
     p.badgesData['win_win'] = winWinCount;
     p.badgesData['reanimator'] = reanimatorCount;
 
@@ -496,10 +511,10 @@ function gameCalculateAllProfiles() {
     if (log.action === 'ai_generate' || log.action === 'ai_copy') { p.pi += 30; p.monthlyPI[dStr] += 30; p.badgesData['strategist']++; }
 
     // --- МЕТРИКИ ПК СТРОЙКОНТРОЛЬ ---
-    if (log.action === 'sk_import_done') { p.pi += 5; p.monthlyPI[dStr] += 5; p.badgesData['discipline']++; } // Загрузка в срок (+5 XP)
+    if (log.action === 'sk_import_done') { p.pi += 5; p.monthlyPI[dStr] += 5; } // Загрузка в срок (+5 XP); дисциплина считается по plan_completed, не по импорту
     if (log.action === 'sk_red_isd_found') { p.pi += 15; p.monthlyPI[dStr] += 15; } // Найден красный ИСД (+15 XP)
     if (log.action === 'sk_message_sent') { p.pi += 10; p.monthlyPI[dStr] += 10; } // Отправлено письмо команде (+10 XP)
-    if (log.action === 'sk_isd_improved') { p.pi += 40; p.monthlyPI[dStr] += 40; p.badgesData['win_win']++; } // Рост ИСД после работы (+40 XP)
+    if (log.action === 'sk_isd_improved') { p.pi += 40; p.monthlyPI[dStr] += 40; } // Рост ИСД после работы (+40 XP); win_win считается по факту перехода зоны, не здесь
     if (log.action === 'sk_zone_yellow') { p.pi += 25; p.monthlyPI[dStr] += 25; } // Выход из красной в желтую (+25 XP)
     if (log.action === 'sk_zone_green') { p.pi += 35; p.monthlyPI[dStr] += 35; } // Выход в зеленую (+35 XP)
     if (log.action === 'open_twi') { p.pi += 15; p.monthlyPI[dStr] += 15; p.badgesData['mentor']++; }
@@ -511,13 +526,17 @@ function gameCalculateAllProfiles() {
     // --- НОВЫЕ НАВЫКИ ИЗ ТЗ ---
     if (log.action === 'escalation_bonus') { p.pi += 10; p.monthlyPI[dStr] += 10; }
     if (log.action === 'intervention_logged') { p.pi += 30; p.monthlyPI[dStr] += 30; }
-    if (log.action === 'impact_bonus_10') { p.pi += 80; p.monthlyPI[dStr] += 80; p.badgesData['win_win']++; }
+    if (log.action === 'impact_bonus_10') { p.pi += 80; p.monthlyPI[dStr] += 80; } // win_win считается по факту перехода зоны, не здесь
     if (log.action === 'meeting_memo_created') { p.pi += 40; p.monthlyPI[dStr] += 40; p.badgesData['meeting_master']++; }
     if (log.action === 'fmea_master') { p.pi += 40; p.monthlyPI[dStr] += 40; p.badgesData['fmea_master']++; }
     if (log.action === 'practice_created') { p.pi += 120; p.monthlyPI[dStr] += 120; }
     if (log.action === 'practice_published') { p.pi += 50; p.monthlyPI[dStr] += 50; p.badgesData['initiator']++; }
-    if (log.action === 'task_completed_on_time') { p.pi += 15; p.monthlyPI[dStr] += 15; p.badgesData['discipline']++; }
+    if (log.action === 'task_completed_on_time') { p.pi += 15; p.monthlyPI[dStr] += 15; } // дисциплина считается по plan_completed (весь план без долгов), не по отдельной задаче
     if (log.action === 'etalon_accepted') { p.pi += 25; p.monthlyPI[dStr] += 25; }
+    // Закрыт весь недельный план без долгов — именно это описывает бейдж «Дисциплина»
+    if (log.action === 'plan_completed') { p.pi += 50; p.monthlyPI[dStr] += 50; p.badgesData['discipline']++; }
+    // Кумулятивный «Тренер»: +1 за каждого НОВОГО подрядчика, которого инженер когда-либо вывел в impact>0.2
+    if (log.action === 'champ_coach_contractor') { p.pi += 20; p.monthlyPI[dStr] += 20; p.badgesData['champ_coach']++; }
   });
 
   for (let name in profiles) {
@@ -593,6 +612,20 @@ function getStartOfWeek(date = new Date()) {
 // плана / отпуска / статусов подрядчиков из IndexedDB при старте.
 document.addEventListener("DOMContentLoaded", async () => {
   try {
+    // Восстановление XP-логов из IndexedDB — раньше window.gameActionLogs
+    // стартовал пустым при каждой перезагрузке (данные писались в GAME_LOGS,
+    // но никогда не перечитывались), из-за чего лог-бейджи (TWI/AI/встречи и
+    // т.п.) визуально обнулялись до следующей синхронизации. Мержим с тем,
+    // что уже накопилось в памяти на момент DOMContentLoaded (на случай, если
+    // gameLogAction успел сработать раньше), и сжимаем дубли той же функцией,
+    // что уже используется в gameCalculateAllProfiles.
+    const storedLogs = await _storage().get(_storage().stores().GAME_LOGS, 'main');
+    if (storedLogs && Array.isArray(storedLogs.data) && storedLogs.data.length > 0) {
+      const merged = (window.gameActionLogs || []).concat(storedLogs.data);
+      const norm = gameNormalizeActionLogs(merged);
+      window.gameActionLogs = norm.logs;
+    }
+
     const storedPlan = await _storage().get(_storage().stores().STATE, 'weekly_plan_data');
     if (storedPlan && storedPlan.data) {
       window.weeklyPlanData = storedPlan.data;

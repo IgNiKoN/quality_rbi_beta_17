@@ -579,8 +579,8 @@ function _t(key, fallback, vars) {
       // Soft-validation: при pin оси (inp-room) опциональны; project/contractor/section — как раньше.
       [projInput, contrInput, secInput].forEach(function (el) {
         if (el && !el.value.trim()) {
-          el.classList.add('border-red-500', 'bg-red-50');
-          setTimeout(function () { el.classList.remove('border-red-500', 'bg-red-50'); }, 3000);
+          el.classList.add('border-danger', 'bg-danger-soft');
+          setTimeout(function () { el.classList.remove('border-danger', 'bg-danger-soft'); }, 3000);
           hasError = true;
         }
       });
@@ -1108,7 +1108,7 @@ function _t(key, fallback, vars) {
       DEFECT_CAUSES.forEach(function (c) {
         var isChecked = savedCodes.includes(c.code) ? 'checked' : '';
         var causeLabel = _t('quality.audit.cause.' + String(c.code).toLowerCase(), c.name);
-        html += '<label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-700 dark:text-slate-300"><input type="checkbox" value="' + c.code + '" class="cause-checkbox w-4 h-4 accent-indigo-600 rounded cursor-pointer" ' + isChecked + '> ' + causeLabel + '</label>';
+        html += '<label class="flex items-center gap-2 cursor-pointer text-rbi-label font-bold text-ink"><input type="checkbox" value="' + c.code + '" class="cause-checkbox w-4 h-4 accent-indigo-600 rounded cursor-pointer" ' + isChecked + '> ' + causeLabel + '</label>';
       });
       if (container) container.innerHTML = html;
 
@@ -1228,7 +1228,7 @@ function _t(key, fallback, vars) {
     if (!input) return;
 
     input.removeAttribute('readonly');
-    input.classList.remove('bg-slate-100', 'dark:bg-slate-900', 'text-slate-500', 'cursor-not-allowed');
+    input.classList.remove('bg-surface', 'text-muted', 'cursor-not-allowed');
     if (lock) {
       lock.classList.add('hidden');
     }
@@ -1244,7 +1244,7 @@ function _t(key, fallback, vars) {
     if (inspInput && _getSetting('engineerName')) {
       inspInput.value = _getSetting('engineerName');
       inspInput.setAttribute('readonly', 'true');
-      inspInput.classList.add('bg-slate-100', 'dark:bg-slate-900', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+      inspInput.classList.add('bg-surface', 'text-muted', 'cursor-not-allowed', 'pointer-events-none');
       document.getElementById('lock-inp-inspector')?.classList.remove('hidden');
     } else if (inspInput) {
       inspInput.classList.remove('pointer-events-none');
@@ -1296,8 +1296,8 @@ function renderCommentModalOverlayMarkup() {
         <div class="bg-[var(--card-bg)] w-full max-w-md p-6 rounded-2xl shadow-2xl transition-transform"
             onclick="event.stopPropagation()">
             <div
-                class="font-black text-[13px] uppercase tracking-tight mb-4 border-b border-[var(--card-border)] pb-3 flex items-center gap-2 text-slate-800 dark:text-white">
-                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                class="font-black text-rbi-body uppercase tracking-tight mb-4 border-b border-[var(--card-border)] pb-3 flex items-center gap-2 text-ink dark:text-white">
+                <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
@@ -1306,25 +1306,25 @@ function renderCommentModalOverlayMarkup() {
                 ${_t('quality.audit.comment.title', 'Детали дефекта')}
             </div>
             <div class="mb-4">
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.causes_label', 'Причины дефекта (Можно выбрать несколько)')}</label>
+                <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.causes_label', 'Причины дефекта (Можно выбрать несколько)')}</label>
                 <!-- ВСТАВКА: Контейнер для чекбоксов вместо селекта -->
                 <div id="modal-cause-checkboxes" class="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto custom-scrollbar p-2 bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl" data-action="generateAiHintForDefect" data-action-event="change"></div>
                 <!-- Сюда будет падать ответ нейросети -->
                 <div id="ai-hint-block"
-                    class="mt-2 text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg p-2 hidden shadow-inner leading-snug">
+                    class="mt-2 text-rbi-caption text-brand bg-brand-soft border border-brand-soft rounded-lg p-2 hidden shadow-inner leading-snug">
                 </div>
             </div>
             <div class="mb-5">
-                <label class="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.detail_label', 'Уточняющий комментарий')}</label>
+                <label class="text-rbi-caption font-bold text-[var(--text-muted)] uppercase mb-1.5 block">${_t('quality.audit.comment.detail_label', 'Уточняющий комментарий')}</label>
                 <textarea id="modal-cause-comment"
-                    class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-[12px] outline-none h-24 resize-none text-slate-800 dark:text-slate-200"
+                    class="w-full bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl p-3 text-rbi-body outline-none h-24 resize-none text-ink"
                     placeholder="${_t('quality.audit.comment.placeholder', 'Напишите детали (величину отклонения, размеры и т.д.)...')}"></textarea>
             </div>
             <div class="flex gap-2">
                 <button data-audit-action="closeCommentModal"
-                    class="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 flex-1">${_t('quality.audit.comment.cancel', 'Отмена')}</button>
+                    class="bg-surface text-muted border border-surface px-4 py-3.5 rounded-xl font-bold text-rbi-label uppercase active:scale-95 flex-1">${_t('quality.audit.comment.cancel', 'Отмена')}</button>
                 <button data-audit-action="saveCommentModal"
-                    class="flex-1 bg-indigo-600 text-white px-4 py-3.5 rounded-xl font-bold text-[11px] uppercase shadow-md active:scale-95">${_t('quality.audit.comment.save', 'Сохранить')}</button>
+                    class="flex-1 bg-brand text-white px-4 py-3.5 rounded-xl font-bold text-rbi-label uppercase shadow-md active:scale-95">${_t('quality.audit.comment.save', 'Сохранить')}</button>
             </div>
         </div>
     </div>

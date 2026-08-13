@@ -503,13 +503,13 @@ function _showPicker(onPickFloor) {
   overlay.setAttribute('data-qpin-mode', 'picker');
   overlay.setAttribute('data-qpin-step', step);
   overlay.innerHTML = `
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+    <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-surface">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-surface">
         <div>
-          <div class="text-[11px] font-black uppercase tracking-widest text-slate-500" data-qpin-step-label>${_escape(_stepLabelText(step))}</div>
-          <div class="text-sm font-bold text-slate-800 dark:text-slate-100" data-qpin-pick-title>${_escape(_t('quality.audit.plan.pick_floor_title', 'Выбор этажа для плана'))}</div>
+          <div class="text-rbi-label font-black uppercase tracking-widest text-muted" data-qpin-step-label>${_escape(_stepLabelText(step))}</div>
+          <div class="text-sm font-bold text-ink" data-qpin-pick-title>${_escape(_t('quality.audit.plan.pick_floor_title', 'Выбор этажа для плана'))}</div>
         </div>
-        <button type="button" data-qpin-cancel class="text-slate-400 hover:text-slate-700 text-xl leading-none px-2">×</button>
+        <button type="button" data-qpin-cancel class="text-muted hover:text-ink text-xl leading-none px-2">×</button>
       </div>
       <div class="overflow-y-auto p-2 flex-1" data-qpin-list></div>
     </div>`;
@@ -559,13 +559,13 @@ function _showPicker(onPickFloor) {
   const renderList = function (items, emptyKey) {
     if (!items.length) {
       const pair = emptyPair(emptyKey);
-      listEl.innerHTML = `<div class="p-4 text-center text-[11px] text-slate-400 font-bold uppercase" data-qpin-empty-key="${pair[1]}">${_escape(pair[0])}</div>`;
+      listEl.innerHTML = `<div class="p-4 text-center text-rbi-label text-muted font-bold uppercase" data-qpin-empty-key="${pair[1]}">${_escape(pair[0])}</div>`;
       return;
     }
     listEl.innerHTML = items.map(function (it) {
       return `<button type="button" data-qpin-id="${_escape(it.id)}"
-        class="w-full text-left px-3 py-2.5 rounded-xl mb-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30
-               text-[12px] font-bold text-slate-700 dark:text-slate-200 border border-transparent hover:border-indigo-100">
+        class="w-full text-left px-3 py-2.5 rounded-xl mb-1 hover:bg-brand-soft
+               text-rbi-body font-bold text-ink border border-transparent hover:border-brand-soft">
         ${_escape(it.displayName || it.id)}
       </button>`;
     }).join('');
@@ -682,14 +682,14 @@ async function _openPlanViewer(floorId, viewerOpts) {
   const filterAllLabel = _t('quality.audit.plan.filter_all', 'Все');
   const chipsHtml = allKeys.length
     ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips>
-        ${readOnly ? '<span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-type>' + _escape(_t('quality.audit.plan.filter_type', 'Вид')) + '</span>' : ''}
+        ${readOnly ? '<span class="text-rbi-caption font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-type>' + _escape(_t('quality.audit.plan.filter_type', 'Вид')) + '</span>' : ''}
         <button type="button" data-qpin-chip="__all__"
-          class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
-                 bg-indigo-500 text-white border border-indigo-400">${_escape(filterAllLabel)}</button>
+          class="panzoom-exclude px-2 py-0.5 rounded-full text-rbi-caption font-black uppercase tracking-wider
+                 bg-brand text-white border border-brand">${_escape(filterAllLabel)}</button>
         ${allKeys.map(function (k) {
           const col = _colorForTemplate(k);
           return `<button type="button" data-qpin-chip="${_escape(k)}"
-            class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+            class="panzoom-exclude px-2 py-0.5 rounded-full text-rbi-caption font-black uppercase tracking-wider
                    text-white border border-white/30"
             style="background:${col}" title="${_escape(_templateLabel(k))}">${_escape(_templateLabel(k))}</button>`;
         }).join('')}
@@ -698,13 +698,13 @@ async function _openPlanViewer(floorId, viewerOpts) {
 
   const contractorChipsHtml = (readOnly && allContractors.length)
     ? `<div class="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 shrink-0" data-qpin-chips-contractor>
-        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-contractor>${_escape(_t('quality.audit.plan.filter_contractor', 'Подр.'))}</span>
+        <span class="text-rbi-caption font-black uppercase tracking-wider text-slate-400 self-center mr-0.5" data-qpin-filter-contractor>${_escape(_t('quality.audit.plan.filter_contractor', 'Подр.'))}</span>
         <button type="button" data-qpin-cchip="__all__"
-          class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
-                 bg-indigo-500 text-white border border-indigo-400">${_escape(filterAllLabel)}</button>
+          class="panzoom-exclude px-2 py-0.5 rounded-full text-rbi-caption font-black uppercase tracking-wider
+                 bg-brand text-white border border-brand">${_escape(filterAllLabel)}</button>
         ${allContractors.map(function (c) {
           return `<button type="button" data-qpin-cchip="${_escape(c)}"
-            class="panzoom-exclude px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
+            class="panzoom-exclude px-2 py-0.5 rounded-full text-rbi-caption font-black uppercase tracking-wider
                    text-white border border-white/30 bg-slate-600"
             title="${_escape(c)}">${_escape(c)}</button>`;
         }).join('')}
@@ -719,7 +719,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
   const confirmHtml = readOnly
     ? ''
     : `<button type="button" data-qpin-confirm
-          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-indigo-500 text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-brand text-rbi-caption font-black uppercase tracking-wider disabled:opacity-40"
           ${tempX == null ? 'disabled' : ''}>${_escape(_t('quality.audit.plan.confirm', 'Подтвердить'))}</button>`;
 
   const fsLabel = _t('quality.audit.plan.fullscreen', 'На весь экран');
@@ -733,7 +733,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
         </svg>
       </button>`
     : `<button type="button" data-qpin-cancel
-          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-[10px] font-black uppercase tracking-wider">${_escape(readOnly ? _t('quality.audit.plan.close', 'Закрыть') : _t('quality.audit.plan.cancel', 'Отмена'))}</button>`;
+          class="panzoom-exclude px-3 py-1.5 rounded-lg bg-slate-700 text-rbi-caption font-black uppercase tracking-wider">${_escape(readOnly ? _t('quality.audit.plan.close', 'Закрыть') : _t('quality.audit.plan.cancel', 'Отмена'))}</button>`;
 
   const overlay = document.createElement('div');
   overlay.id = 'quality-plan-pin-overlay';
@@ -750,10 +750,10 @@ async function _openPlanViewer(floorId, viewerOpts) {
   overlay.innerHTML = `
     <div data-qpin-chrome class="shrink-0">
       <div data-qpin-toolbar class="flex items-center justify-between px-3 py-2 text-white gap-2">
-        <div class="text-[11px] font-black uppercase tracking-widest min-w-0 truncate" data-qpin-title>${_escape(titleText)}</div>
+        <div class="text-rbi-label font-black uppercase tracking-widest min-w-0 truncate" data-qpin-title>${_escape(titleText)}</div>
         <div class="flex gap-1.5 items-center shrink-0">
           ${mountEl ? '' : `<button type="button" data-qpin-other-floor
-            class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-[9px] font-black uppercase tracking-wider whitespace-nowrap">${_escape(_t('quality.audit.plan.other_floor', 'Другой этаж'))}</button>`}
+            class="panzoom-exclude px-2 py-1.5 rounded-lg bg-slate-700 text-rbi-caption font-black uppercase tracking-wider whitespace-nowrap">${_escape(_t('quality.audit.plan.other_floor', 'Другой этаж'))}</button>`}
           <button type="button" data-qpin-zoom-out
             class="panzoom-exclude w-8 h-8 rounded-lg bg-slate-700 text-sm font-black">−</button>
           <button type="button" data-qpin-zoom-in
@@ -772,11 +772,11 @@ async function _openPlanViewer(floorId, viewerOpts) {
           <div data-qpin-pins class="absolute inset-0"></div>
         </div>
       </div>
-      <div data-qpin-loader class="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-[11px] font-bold uppercase tracking-widest text-slate-300">
+      <div data-qpin-loader class="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-rbi-label font-bold uppercase tracking-widest text-slate-300">
         ${_escape(_t('quality.audit.plan.loading', 'Загрузка плана…'))}
       </div>
     </div>
-    <div data-qpin-footer class="px-3 py-2 text-[10px] text-slate-300 shrink-0">${_escape(footerText)}</div>`;
+    <div data-qpin-footer class="px-3 py-2 text-rbi-caption text-slate-300 shrink-0">${_escape(footerText)}</div>`;
   if (mountEl) {
     mountEl.innerHTML = '';
     mountEl.appendChild(overlay);
@@ -881,7 +881,7 @@ async function _openPlanViewer(floorId, viewerOpts) {
         const col = _colorForTemplate(d.templateKey);
         return `<div data-qpin-hist="${_escape(d.id)}"
           class="absolute w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center
-                 text-white text-[10px] font-black z-20
+                 text-white text-rbi-caption font-black z-20
                  ${histPointer} panzoom-exclude"
           style="left:${d.x}%;top:${d.y}%;background:${col};transform:${PIN_TF};transition:transform 150ms ease;${histCursor}"
           title="${_escape(d.title)} #${d.num}">${d.num}</div>`;
@@ -908,13 +908,13 @@ async function _openPlanViewer(floorId, viewerOpts) {
         style="left:${avgX}%;top:${avgY}%;background:${grad};padding:3px;transform:${PIN_TF};transition:transform 150ms ease;cursor:pointer"
         title="${_escape(_t('quality.audit.plan.checks_count', 'Проверок: {total}', { total: total }))}">
         <div class="w-full h-full bg-white text-slate-800 rounded-full flex items-center justify-center
-                    text-[12px] font-black border border-slate-200 pointer-events-none">${total}</div>
+                    text-rbi-body font-black border border-slate-200 pointer-events-none">${total}</div>
       </div>`;
     }).join('');
 
     if (!readOnly && tempX != null && tempY != null) {
-      html += `<div class="absolute w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg
-        flex items-center justify-center text-white text-[10px] font-black z-40
+      html += `<div class="absolute w-6 h-6 bg-danger rounded-full border-2 border-white shadow-lg
+        flex items-center justify-center text-white text-rbi-caption font-black z-40
         pointer-events-none panzoom-exclude"
         style="left:${tempX}%;top:${tempY}%;transform:${PIN_TF}">+</div>`;
     }
@@ -991,8 +991,8 @@ async function _openPlanViewer(floorId, viewerOpts) {
         if (k === '__all__') {
           const allOn = visibleKeys.size === allKeys.length;
           b.classList.toggle('opacity-40', !allOn);
-          b.classList.toggle('bg-indigo-500', allOn);
-          b.classList.toggle('bg-slate-600', !allOn);
+          b.classList.toggle('bg-brand', allOn);
+          b.classList.toggle('bg-surface', !allOn);
         } else {
           b.classList.toggle('opacity-40', !visibleKeys.has(k));
           b.style.outline = visibleKeys.has(k) ? '2px solid #fff' : 'none';
@@ -1023,8 +1023,8 @@ async function _openPlanViewer(floorId, viewerOpts) {
         if (k === '__all__') {
           const allOn = visibleContractors.size === allContractors.length;
           b.classList.toggle('opacity-40', !allOn);
-          b.classList.toggle('bg-indigo-500', allOn);
-          b.classList.toggle('bg-slate-600', !allOn);
+          b.classList.toggle('bg-brand', allOn);
+          b.classList.toggle('bg-surface', !allOn);
         } else {
           b.classList.toggle('opacity-40', !visibleContractors.has(k));
           b.style.outline = visibleContractors.has(k) ? '2px solid #fff' : 'none';

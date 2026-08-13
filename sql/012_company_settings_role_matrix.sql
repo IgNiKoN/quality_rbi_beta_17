@@ -10,6 +10,11 @@
 -- 3. RLS как у platform v2 (anon SELECT; authenticated CRUD). Жёсткий
 --    admin-only RLS — отдельно (§23 Блок 3+); клиент уже режет push по
 --    isAdmin/canManageRoles.
+--    ЗАМЕНЕНО: политика "rbi_company_settings_write_authenticated" ниже
+--    заменена в sql/014_privilege_rls_hardening.sql на admin-only write
+--    (Security hardening roadmap, Блок 1, 2026-08-13) — открытая запись
+--    была privilege escalation (любой authenticated мог переписать
+--    role_matrix_overrides). Секция ниже оставлена как есть для истории.
 -- 4. Идемпотентно: CREATE TABLE IF NOT EXISTS + DROP/CREATE POLICY.
 
 CREATE TABLE IF NOT EXISTS rbi_company_settings (

@@ -550,8 +550,8 @@ function sk_switchView(view) {
     if (vVol) vVol.classList.add('hidden');
     if (vHr) vHr.classList.add('hidden');
 
-    var defaultBtnClass = 'shrink-0 px-4 bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 border border-[var(--card-border)] py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5';
-    var activeBtnClass = 'shrink-0 px-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5';
+    var defaultBtnClass = 'shrink-0 px-4 bg-[var(--card-bg)] text-muted border border-[var(--card-border)] py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5';
+    var activeBtnClass = 'shrink-0 px-4 bg-brand-soft text-brand border border-brand-soft py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5';
 
     var btnDash = document.getElementById('sk-btn-dashboard');
     var btnVol = document.getElementById('sk-btn-volumes');
@@ -983,17 +983,17 @@ async function sk_openContractorLinkModal() {
         <div id="sk-contractor-link-modal" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-[var(--card-bg)] w-full max-w-md rounded-2xl border border-[var(--card-border)] shadow-2xl overflow-hidden">
                 <div class="p-4 border-b border-[var(--card-border)]">
-                    <div class="text-[13px] font-black uppercase text-slate-800 dark:text-white">${modalTitle}</div>
-                    <div class="text-[10px] font-bold text-slate-500 mt-1 leading-snug">${modalDescription}</div>
+                    <div class="text-rbi-body font-black uppercase text-ink dark:text-white">${modalTitle}</div>
+                    <div class="text-rbi-caption font-bold text-muted mt-1 leading-snug">${modalDescription}</div>
                 </div>
                 <div class="p-4 space-y-3">
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.from_sk_label', 'Подрядчик из ПК СК')}</label><select id="sk-link-raw-contractor" class="input-base w-full" onchange="sk_fillContractorSuggestion()">${optionsHtml}</select></div>
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.display_name_label', 'Единое название подрядчика')}</label><input id="sk-link-display-name" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.display_name_placeholder', 'Например: ООО &quot;СК Каменный город&quot;')}"></div>
-                    <div><label class="block text-[10px] font-black uppercase text-slate-500 mb-1">${_t('quality.sk.contractor_link.canonical_key_label', 'Технический ключ')}</label><input id="sk-link-canonical-key" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.canonical_key_placeholder', 'Например: sk_kamenny_gorod')}"></div>
+                    <div><label class="block text-rbi-caption font-black uppercase text-muted mb-1">${_t('quality.sk.contractor_link.from_sk_label', 'Подрядчик из ПК СК')}</label><select id="sk-link-raw-contractor" class="input-base w-full" onchange="sk_fillContractorSuggestion()">${optionsHtml}</select></div>
+                    <div><label class="block text-rbi-caption font-black uppercase text-muted mb-1">${_t('quality.sk.contractor_link.display_name_label', 'Единое название подрядчика')}</label><input id="sk-link-display-name" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.display_name_placeholder', 'Например: ООО &quot;СК Каменный город&quot;')}"></div>
+                    <div><label class="block text-rbi-caption font-black uppercase text-muted mb-1">${_t('quality.sk.contractor_link.canonical_key_label', 'Технический ключ')}</label><input id="sk-link-canonical-key" class="input-base w-full" placeholder="${_t('quality.sk.contractor_link.canonical_key_placeholder', 'Например: sk_kamenny_gorod')}"></div>
                 </div>
                 <div class="p-4 border-t border-[var(--card-border)] flex justify-end gap-2">
-                    <button onclick="sk_closeContractorLinkModal()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${_t('quality.sk.contractor_link.cancel', 'Отмена')}</button>
-                    <button onclick="sk_saveContractorLink()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-indigo-600 text-white shadow active:scale-95">${actionButtonText}</button>
+                    <button onclick="sk_closeContractorLinkModal()" class="px-4 py-2 rounded-xl text-rbi-caption font-black uppercase bg-surface text-muted">${_t('quality.sk.contractor_link.cancel', 'Отмена')}</button>
+                    <button onclick="sk_saveContractorLink()" class="px-4 py-2 rounded-xl text-rbi-caption font-black uppercase bg-brand text-white shadow active:scale-95">${actionButtonText}</button>
                 </div>
             </div>
         </div>`;

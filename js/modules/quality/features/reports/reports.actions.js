@@ -8730,6 +8730,23 @@ function processDataImport(event) {
                     if (typeof saveSessionData === 'function') saveSessionData();
                 }
 
+                // Импорт XP-логов геймификации: раньше экспортировались (см. ниже,
+                // блок сборки бэкапа), но при импорте не читались обратно —
+                // TWI/AI/встречи и т.п. бонусы терялись при восстановлении из бэкапа.
+                // Мерж строго аддитивный, дедуп той же функцией, что и остальные пути
+                // restore (локальный IndexedDB, облако).
+                if (Array.isArray(parsed.data.gameLogs) && parsed.data.gameLogs.length > 0) {
+                    const currentLogs = (typeof window.gameActionLogs !== 'undefined' && Array.isArray(window.gameActionLogs)) ? window.gameActionLogs : [];
+                    const mergedLogs = currentLogs.concat(parsed.data.gameLogs);
+                    if (typeof window.gameNormalizeActionLogs === 'function') {
+                        const norm = window.gameNormalizeActionLogs(mergedLogs);
+                        window.gameActionLogs = norm.logs;
+                    } else {
+                        window.gameActionLogs = mergedLogs;
+                    }
+                    if (typeof window.gameSaveLogs === 'function') window.gameSaveLogs();
+                }
+
                 // ИМПОРТ HR ДАННЫХ И НОВЫХ МОДУЛЕЙ
                 if (parsed.data.hr) {
                     if (parsed.data.hr.weeklyPlanData) _setWeeklyPlan(parsed.data.hr.weeklyPlanData);

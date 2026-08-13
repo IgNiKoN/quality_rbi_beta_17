@@ -141,7 +141,7 @@
       var val = (values && values[f]) || '';
       return '<td contenteditable="true" data-row-field="' + f + '" data-placeholder="' + _escapeHtml(ph) + '">' + _escapeHtml(val) + '</td>';
     }).join('');
-    return '<tr><td class="etv18-rownum center text-[10px] font-bold text-slate-400 px-2 py-2 text-center w-8"></td>' + cells + '</tr>';
+    return '<tr><td class="etv18-rownum center text-rbi-caption font-bold text-muted px-2 py-2 text-center w-8"></td>' + cells + '</tr>';
   }
 
   function _renumberTable(tableId) {
@@ -184,7 +184,7 @@
   function _participantRow(values) {
     var v = values || {};
     return '<tr>' +
-      '<td class="etv18-rownum center text-[10px] font-bold text-slate-400 px-2 py-2 text-center w-8"></td>' +
+      '<td class="etv18-rownum center text-rbi-caption font-bold text-muted px-2 py-2 text-center w-8"></td>' +
       '<td contenteditable="true" data-p-field="organization" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_org', 'например: ООО «Заказчик»')) + '">' + _escapeHtml(v.organization) + '</td>' +
       '<td contenteditable="true" data-p-field="position" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_position', 'например: руководитель проекта')) + '">' + _escapeHtml(v.position) + '</td>' +
       '<td contenteditable="true" data-p-field="name" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.participant_name', 'например: Иванов И.И.')) + '">' + _escapeHtml(v.name) + '</td>' +
@@ -225,10 +225,10 @@
     var group = 'etv18_control_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
     function radio(val, label) {
       var checked = v.compliance === val ? 'checked' : '';
-      return '<label class="inline-flex items-center gap-1 text-[10px]"><input type="radio" name="' + group + '" value="' + val + '" ' + checked + '> ' + label + '</label>';
+      return '<label class="inline-flex items-center gap-1 text-rbi-caption"><input type="radio" name="' + group + '" value="' + val + '" ' + checked + '> ' + label + '</label>';
     }
     return '<tr>' +
-      '<td class="etv18-rownum center text-[10px] font-bold text-slate-400 px-2 py-2 text-center w-8"></td>' +
+      '<td class="etv18-rownum center text-rbi-caption font-bold text-muted px-2 py-2 text-center w-8"></td>' +
       '<td contenteditable="true" data-row-field="criterion" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.criterion', 'например: ширина герметизирующего шва')) + '">' + _escapeHtml(v.criterion) + '</td>' +
       '<td contenteditable="true" data-row-field="basis" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.basis', 'например: ГОСТ, СП, РД, пункт')) + '">' + _escapeHtml(v.basis) + '</td>' +
       '<td contenteditable="true" data-row-field="requirement" data-placeholder="' + _escapeHtml(_t('quality.etalon.v18.ph.requirement', 'например: 15 ± 2 мм')) + '">' + _escapeHtml(v.requirement) + '</td>' +
@@ -273,16 +273,16 @@
   function _renderPhotoCard(idx, photo) {
     var p = photo || {};
     return '' +
-      '<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm relative mb-3" data-photo-idx="' + idx + '">' +
-      '<button onclick="window.rbi_etalonV18RemovePhoto(' + idx + ')" class="absolute top-2 right-2 text-red-400 active:scale-90 font-black text-sm px-2">✕</button>' +
-      '<div class="font-black text-[10px] text-indigo-500 uppercase tracking-widest mb-2">' + _t('quality.etalon.v18.label.photo_card', 'Фото {num}', { num: idx + 1 }) + '</div>' +
+      '<div class="bg-surface border border-surface rounded-xl p-3 shadow-sm relative mb-3" data-photo-idx="' + idx + '">' +
+      '<button onclick="window.rbi_etalonV18RemovePhoto(' + idx + ')" class="absolute top-2 right-2 text-danger active:scale-90 font-black text-sm px-2">✕</button>' +
+      '<div class="font-black text-rbi-caption text-brand uppercase tracking-widest mb-2">' + _t('quality.etalon.v18.label.photo_card', 'Фото {num}', { num: idx + 1 }) + '</div>' +
       '<div class="etv18-photo-preview" data-idx="' + idx + '">' +
       (p._displayUrl
-        ? '<img src="' + p._displayUrl + '" class="w-full h-40 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 cursor-pointer" onclick="openPhotoViewer(\'' + p.photo + '\')">'
-        : '<button onclick="document.getElementById(\'etv18-photo-input-' + idx + '\').click()" class="w-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 py-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 font-bold text-[10px] uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">📸 ' + _t('quality.etalon.btn.attach_photo', 'Прикрепить фото узла') + '</button>') +
+        ? '<img src="' + p._displayUrl + '" class="w-full h-40 object-contain rounded-lg border border-surface bg-surface cursor-pointer" onclick="openPhotoViewer(\'' + p.photo + '\')">'
+        : '<button onclick="document.getElementById(\'etv18-photo-input-' + idx + '\').click()" class="w-full bg-surface text-muted py-3 rounded-lg border border-dashed border-surface font-bold text-rbi-caption uppercase active:scale-95 transition-colors flex items-center justify-center gap-2">📸 ' + _t('quality.etalon.btn.attach_photo', 'Прикрепить фото узла') + '</button>') +
       '</div>' +
       '<input type="file" id="etv18-photo-input-' + idx + '" accept="image/*" class="hidden" onchange="window.rbi_etalonV18UploadPhoto(event, ' + idx + ')">' +
-      '<input type="text" class="input-base text-[11px] mt-2" placeholder="' + _escapeHtml(_t('quality.etalon.v18.placeholder.photo_desc', 'Описание / контролируемый элемент')) + '" value="' + _escapeHtml(p.desc) + '" oninput="window.rbi_etalonV18UpdatePhotoDesc(' + idx + ', this.value)">' +
+      '<input type="text" class="input-base text-rbi-label mt-2" placeholder="' + _escapeHtml(_t('quality.etalon.v18.placeholder.photo_desc', 'Описание / контролируемый элемент')) + '" value="' + _escapeHtml(p.desc) + '" oninput="window.rbi_etalonV18UpdatePhotoDesc(' + idx + ', this.value)">' +
       '</div>';
   }
 

@@ -10,7 +10,8 @@
 
 import {
   PI_GRADES, SKILL_ICONS, COMPETENCIES, gameSaveLogs, gameCalculateAllProfiles,
-  getSmartQuest, getWeekId, getStartOfWeek, gameCalculateManagerMetrics, GameState
+  getSmartQuest, getWeekId, getStartOfWeek, gameCalculateManagerMetrics, GameState,
+  gameNormalizeActionLogs
 } from './game.state.js';
 import {
   gameLogAction, calculateImpactScore, saveWeeklyPlan, gameUpdatePlanProgress, gameToggleAbsence,
@@ -41,6 +42,7 @@ window.PI_GRADES = PI_GRADES;
 window.SKILL_ICONS = SKILL_ICONS;
 window.COMPETENCIES = COMPETENCIES;
 window.gameSaveLogs = gameSaveLogs;
+window.gameNormalizeActionLogs = gameNormalizeActionLogs;
 window.gameCalculateAllProfiles = gameCalculateAllProfiles;
 window.getSmartQuest = getSmartQuest;
 window.getWeekId = getWeekId;

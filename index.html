@@ -36,9 +36,14 @@
                         success: 'var(--success)',
                         warning: 'var(--warning)',
                         surface: 'var(--card-bg)',
-                        'surface-border': 'var(--card-border)',
                         ink: 'var(--text-main)',
                         muted: 'var(--text-muted)',
+                    },
+                    // border-surface должен идти по --card-border, не по --card-bg (colors.surface) —
+                    // borderColor переопределяет colors только для border-*-утилит, bg-surface/text-ink
+                    // не задеты. Без этого border-surface рисовал границу цветом фона (невидимую).
+                    borderColor: {
+                        surface: 'var(--card-border)',
                     },
                     fontSize: {
                         'rbi-caption': ['10px', { lineHeight: '1.3' }],

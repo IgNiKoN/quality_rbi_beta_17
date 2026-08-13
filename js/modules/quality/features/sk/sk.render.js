@@ -183,15 +183,15 @@ async function sk_renderContractorQueueBanner() {
         <div class="mb-4 p-3 rounded-2xl border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800 shadow-sm">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <div class="text-[12px] font-black uppercase text-yellow-800 dark:text-yellow-300">
+                    <div class="text-rbi-body font-black uppercase text-yellow-800 dark:text-yellow-300">
                         ${_t('quality.sk.queue.title', 'Найдены неподтверждённые подрядчики')}
                     </div>
-                    <div class="text-[10px] font-bold text-yellow-700 dark:text-yellow-400 mt-1 leading-snug">
+                    <div class="text-rbi-caption font-bold text-yellow-700 dark:text-yellow-400 mt-1 leading-snug">
                         ${_t('quality.sk.queue.description', 'Система нашла {count} названий подрядчиков из ПК СК, которые нужно связать со справочником. После связи они будут распознаваться автоматически.', { count: queue.length })}
                     </div>
                 </div>
                 <button onclick="sk_openContractorLinkModal()"
-                    class="shrink-0 bg-yellow-500 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase shadow active:scale-95">
+                    class="shrink-0 bg-yellow-500 text-white px-3 py-2 rounded-xl text-rbi-caption font-black uppercase shadow active:scale-95">
                     ${_t('quality.sk.queue.link', 'Связать')}
                 </button>
             </div>
@@ -206,8 +206,8 @@ async function sk_renderMainTab() {
     if ((!window.skRecords || window.skRecords.length === 0) && !document.getElementById('sk-view-dashboard')) {
         container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-20">
-                <svg class="animate-spin h-8 w-8 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${_t('quality.sk.loading', 'Чтение базы Стройконтроля...')}</div>
+                <svg class="animate-spin h-8 w-8 text-brand mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest">${_t('quality.sk.loading', 'Чтение базы Стройконтроля...')}</div>
             </div>`;
         await sk_loadData();
     }
@@ -229,7 +229,7 @@ async function sk_renderMainTab() {
     var canSeeHr = role !== 'guest';
     var canUploadSk = permSvc ? permSvc.canManageSK() : false;
 
-    var hrBtnHtml = canSeeHr ? `<button onclick="sk_switchView('hr')" id="sk-btn-hr" class="shrink-0 px-4 bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 border border-[var(--card-border)] py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> ${_t('quality.sk.tab.hr', 'Инженеры СК')}</button>` : '';
+    var hrBtnHtml = canSeeHr ? `<button onclick="sk_switchView('hr')" id="sk-btn-hr" class="shrink-0 px-4 bg-[var(--card-bg)] text-muted border border-[var(--card-border)] py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> ${_t('quality.sk.tab.hr', 'Инженеры СК')}</button>` : '';
 
     var needsFullRender = !document.getElementById('sk-view-dashboard') || !!window.__rbiSkForceI18nRemount;
     if (window.__rbiSkForceI18nRemount) window.__rbiSkForceI18nRemount = false;
@@ -240,23 +240,23 @@ async function sk_renderMainTab() {
             <div class="bg-[var(--card-bg)] p-4 rounded-2xl border border-[var(--card-border)] shadow-sm mb-4">
                 <div class="flex justify-between items-start mb-3">
                     <div>
-                        <h2 class="text-[13px] font-bold uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <h2 class="text-rbi-body font-bold uppercase tracking-tight text-ink dark:text-white flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             ${_t('quality.sk.title.data', 'Данные ПК Стройконтроль')}
                         </h2>
-                        <p class="text-[10px] text-slate-500 font-bold mt-1">${_t('quality.sk.total_in_db_before', 'Всего в базе:')} <b id="sk-total-count" class="text-indigo-600">${window.skRecords.length}</b> ${_t('quality.sk.total_in_db_after', 'позиций')}</p>
-                        <p id="sk-period-text" class="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-widest">${_t('quality.sk.period.label', 'Период: {period}', { period: periodStr })}</p>
+                        <p class="text-rbi-caption text-muted font-bold mt-1">${_t('quality.sk.total_in_db_before', 'Всего в базе:')} <b id="sk-total-count" class="text-brand">${window.skRecords.length}</b> ${_t('quality.sk.total_in_db_after', 'позиций')}</p>
+                        <p id="sk-period-text" class="text-rbi-caption text-muted font-bold mt-0.5 uppercase tracking-widest">${_t('quality.sk.period.label', 'Период: {period}', { period: periodStr })}</p>
                     </div>
                     <div class="flex gap-2">
                     ${canUploadSk ? `
-                        <button onclick="sk_clearData()" class="w-10 h-10 bg-red-50 text-red-600 border border-red-200 rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform" title="${_t('quality.sk.clear_db.title', 'Очистить базу СК')}">
+                        <button onclick="sk_clearData()" class="w-10 h-10 bg-danger-soft text-danger border border-danger-soft rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform" title="${_t('quality.sk.clear_db.title', 'Очистить базу СК')}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
-                        <button onclick="document.getElementById('sk-excel-input').click()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase shadow-md active:scale-95 flex items-center gap-1.5 h-10">
+                        <button onclick="document.getElementById('sk-excel-input').click()" class="bg-brand text-white px-4 py-2 rounded-xl text-rbi-label font-bold uppercase shadow-md active:scale-95 flex items-center gap-1.5 h-10">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"></path></svg> ${_t('quality.sk.import', 'Импорт')}
                         </button>
                     ` : `
-                        <div class="text-[9px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl border border-[var(--card-border)]">
+                        <div class="text-rbi-caption text-muted font-bold bg-surface px-3 py-2 rounded-xl border border-[var(--card-border)]">
                         ${_t('quality.sk.view_only', 'Только просмотр')}
                         </div>
                     `}
@@ -265,8 +265,8 @@ async function sk_renderMainTab() {
             </div>
 
             <div class="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar pb-1">
-                <button onclick="sk_switchView('dashboard')" id="sk-btn-dashboard" class="shrink-0 px-4 bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg> ${_t('quality.sk.tab.dashboard', 'Дашборд')}</button>
-                <button onclick="sk_switchView('volumes')" id="sk-btn-volumes" class="shrink-0 px-4 bg-[var(--card-bg)] text-slate-600 dark:text-slate-300 border border-[var(--card-border)] py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> ${_t('quality.sk.tab.volumes', 'Объемы')}</button>
+                <button onclick="sk_switchView('dashboard')" id="sk-btn-dashboard" class="shrink-0 px-4 bg-brand-soft text-brand border border-brand-soft py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg> ${_t('quality.sk.tab.dashboard', 'Дашборд')}</button>
+                <button onclick="sk_switchView('volumes')" id="sk-btn-volumes" class="shrink-0 px-4 bg-[var(--card-bg)] text-muted border border-[var(--card-border)] py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 transition-colors shadow-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> ${_t('quality.sk.tab.volumes', 'Объемы')}</button>
                 ${hrBtnHtml}
             </div>
 
@@ -305,24 +305,24 @@ function sk_renderVolumes() {
         var v = window.skVolumes[workType];
         rowsHtml += `
             <div class="flex items-center gap-2 mb-2 bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)]">
-                <div class="flex-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">${workType}</div>
-                <div class="w-16 text-center text-[10px] font-black bg-[var(--card-bg)] border border-[var(--card-border)] py-1 rounded shadow-inner">${v.amount} ${v.unit}</div>
-                <button onclick="sk_deleteVolume('${workType}')" class="text-red-500 bg-red-50 border border-red-200 w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                <div class="flex-1 text-rbi-label font-bold text-ink truncate">${workType}</div>
+                <div class="w-16 text-center text-rbi-caption font-black bg-[var(--card-bg)] border border-[var(--card-border)] py-1 rounded shadow-inner">${v.amount} ${v.unit}</div>
+                <button onclick="sk_deleteVolume('${workType}')" class="text-danger bg-danger-soft border border-danger-soft w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>`;
     }
-    if (!rowsHtml) rowsHtml = `<div class="text-[10px] text-slate-400 text-center py-4 uppercase font-bold">${_t('quality.sk.volumes.empty', 'Справочник пуст. Укажите объемы, чтобы система рассчитывала ИСД.')}</div>`;
+    if (!rowsHtml) rowsHtml = `<div class="text-rbi-caption text-muted text-center py-4 uppercase font-bold">${_t('quality.sk.volumes.empty', 'Справочник пуст. Укажите объемы, чтобы система рассчитывала ИСД.')}</div>`;
     container.innerHTML = `
         <div class="bg-[var(--card-bg)] p-4 rounded-xl border border-[var(--card-border)] shadow-sm">
-            <h3 class="text-[12px] font-black uppercase mb-3 text-slate-800 dark:text-white border-b border-[var(--card-border)] pb-2">${_t('quality.sk.volumes.add_title', 'Добавить объем')}</h3>
+            <h3 class="text-rbi-body font-black uppercase mb-3 text-ink dark:text-white border-b border-[var(--card-border)] pb-2">${_t('quality.sk.volumes.add_title', 'Добавить объем')}</h3>
             <div class="space-y-3 mb-4">
-                <input type="text" id="sk-vol-name" class="input-base text-[11px]" placeholder="${_t('quality.sk.volumes.name_placeholder', 'Вид работ (например: Окна ПВХ)')}">
+                <input type="text" id="sk-vol-name" class="input-base text-rbi-label" placeholder="${_t('quality.sk.volumes.name_placeholder', 'Вид работ (например: Окна ПВХ)')}">
                 <div class="flex gap-2">
-                    <input type="number" id="sk-vol-amount" class="input-base text-[11px] flex-1" placeholder="${_t('quality.sk.volumes.amount_placeholder', 'Кол-во (напр: 280)')}">
-                    <input type="text" id="sk-vol-unit" class="input-base text-[11px] w-20 text-center" placeholder="${_t('quality.sk.volumes.unit_placeholder', 'Ед. (шт)')}">
+                    <input type="number" id="sk-vol-amount" class="input-base text-rbi-label flex-1" placeholder="${_t('quality.sk.volumes.amount_placeholder', 'Кол-во (напр: 280)')}">
+                    <input type="text" id="sk-vol-unit" class="input-base text-rbi-label w-20 text-center" placeholder="${_t('quality.sk.volumes.unit_placeholder', 'Ед. (шт)')}">
                 </div>
-                <button onclick="sk_addVolume()" class="w-full bg-green-50 text-green-700 border border-green-200 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest active:scale-95 shadow-sm transition-transform">${_t('quality.sk.volumes.save', 'Сохранить')}</button>
+                <button onclick="sk_addVolume()" class="w-full bg-green-50 text-green-700 border border-green-200 py-3.5 rounded-xl text-rbi-label font-black uppercase tracking-widest active:scale-95 shadow-sm transition-transform">${_t('quality.sk.volumes.save', 'Сохранить')}</button>
             </div>
-            <h3 class="text-[12px] font-black uppercase mb-3 text-slate-800 dark:text-white border-b border-[var(--card-border)] pb-2 mt-4">${_t('quality.sk.volumes.current_title', 'Текущий справочник')}</h3>
+            <h3 class="text-rbi-body font-black uppercase mb-3 text-ink dark:text-white border-b border-[var(--card-border)] pb-2 mt-4">${_t('quality.sk.volumes.current_title', 'Текущий справочник')}</h3>
             <div>${rowsHtml}</div>
         </div>`;
 }
@@ -361,8 +361,8 @@ function sk_showMappingModal(fileHeaders, sampleRow) {
         });
         return `
             <div class="mb-3 bg-[var(--hover-bg)] p-2 rounded-lg border border-[var(--card-border)] shadow-sm">
-                <div class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-1">${_skFieldLabel(field.id, field.name)}</div>
-                <select class="sk-mapping-select input-base !py-1.5 text-[11px]" data-field="${field.id}">${options}</select>
+                <div class="text-rbi-caption font-black text-brand uppercase mb-1">${_skFieldLabel(field.id, field.name)}</div>
+                <select class="sk-mapping-select input-base !py-1.5 text-rbi-label" data-field="${field.id}">${options}</select>
             </div>`;
     }).join('');
 
@@ -373,17 +373,17 @@ function sk_showMappingModal(fileHeaders, sampleRow) {
         return;
     }
 
-    document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-2xl mx-auto mb-2 border border-indigo-200">🔗</div>`;
+    document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-brand-soft text-brand rounded-xl flex items-center justify-center text-2xl mx-auto mb-2 border border-brand-soft">🔗</div>`;
     document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.sk.mapping.title', 'Связь колонок')}</div>`;
     document.getElementById('modal-body').innerHTML = `
-        <div class="text-center text-[10px] text-slate-500 mb-2 leading-relaxed">${_t('quality.sk.mapping.description', 'Система не смогла автоматически распознать все колонки. Проверьте связь вручную.')}</div>
-        <button onclick="window.RBI.services.ai.sk_aiMapColumns()" id="btn-ai-mapping" class="w-full bg-slate-100 text-indigo-600 border border-indigo-200 py-2 rounded-lg font-bold text-[10px] uppercase mb-4 active:scale-95 transition-colors flex justify-center items-center gap-1.5">
+        <div class="text-center text-rbi-caption text-muted mb-2 leading-relaxed">${_t('quality.sk.mapping.description', 'Система не смогла автоматически распознать все колонки. Проверьте связь вручную.')}</div>
+        <button onclick="window.RBI.services.ai.sk_aiMapColumns()" id="btn-ai-mapping" class="w-full bg-surface text-brand border border-brand-soft py-2 rounded-lg font-bold text-rbi-caption uppercase mb-4 active:scale-95 transition-colors flex justify-center items-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.sk.mapping.ai_guess', 'Угадать через ИИ (DeepSeek)')}
         </button>
         <div class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-1 mb-4">${mappingHtml}</div>
         <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 border">${_t('quality.sk.mapping.cancel', 'Отмена')}</button>
-            <button onclick="sk_executeImport()" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95">${_t('quality.sk.mapping.load', '▶ Загрузить')}</button>
+            <button onclick="closeModal()" class="flex-1 bg-surface text-muted py-3.5 rounded-xl font-bold text-rbi-label uppercase active:scale-95 border">${_t('quality.sk.mapping.cancel', 'Отмена')}</button>
+            <button onclick="sk_executeImport()" class="flex-1 bg-brand text-white py-3.5 rounded-xl font-black text-rbi-label uppercase shadow-md active:scale-95">${_t('quality.sk.mapping.load', '▶ Загрузить')}</button>
         </div>
     `;
     document.body.classList.add('modal-open');
@@ -394,29 +394,29 @@ function sk_showNormalizationModal() {
     var modal = document.getElementById('modal-overlay');
     var pairsHtml = window.skTempPairsToConfirm.map(function (pair, idx) {
         return `
-        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-sm mb-3" id="norm-pair-${idx}">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2 text-center">${_t('quality.sk.norm.similarity', 'Сходство: {score}%', { score: pair.score })}</div>
+        <div class="bg-surface border border-surface p-3 rounded-xl shadow-sm mb-3" id="norm-pair-${idx}">
+            <div class="text-rbi-caption font-bold text-muted uppercase mb-2 text-center">${_t('quality.sk.norm.similarity', 'Сходство: {score}%', { score: pair.score })}</div>
             <div class="flex justify-between items-center gap-2 mb-3">
-                <div class="flex-1 bg-red-50 dark:bg-red-900/10 p-2 rounded border border-red-200 text-center">
-                    <div class="text-[8px] uppercase text-red-500 font-bold mb-0.5">${_t('quality.sk.norm.new_excel', 'Новое из Excel:')}</div>
-                    <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight">${pair.raw}</div>
+                <div class="flex-1 bg-danger-soft p-2 rounded border border-danger-soft text-center">
+                    <div class="text-rbi-caption uppercase text-danger font-bold mb-0.5">${_t('quality.sk.norm.new_excel', 'Новое из Excel:')}</div>
+                    <div class="text-rbi-label font-black text-ink dark:text-white leading-tight">${pair.raw}</div>
                 </div>
-                <div class="text-slate-400">➡️</div>
+                <div class="text-muted">➡️</div>
                 <div class="flex-1 bg-green-50 dark:bg-green-900/10 p-2 rounded border border-green-200 text-center">
-                    <div class="text-[8px] uppercase text-green-600 font-bold mb-0.5">${_t('quality.sk.norm.in_rbi', 'В базе RBI:')}</div>
-                    <div class="text-[11px] font-black text-slate-800 dark:text-white leading-tight">${pair.target}</div>
+                    <div class="text-rbi-caption uppercase text-green-600 font-bold mb-0.5">${_t('quality.sk.norm.in_rbi', 'В базе RBI:')}</div>
+                    <div class="text-rbi-label font-black text-ink dark:text-white leading-tight">${pair.target}</div>
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="sk_resolvePair(${idx}, false)" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 border border-slate-200">${_t('quality.sk.norm.different', 'Разные')}</button>
-                <button onclick="sk_resolvePair(${idx}, true)" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase active:scale-95 shadow-sm">${_t('quality.sk.norm.merge', 'Объединить')}</button>
+                <button onclick="sk_resolvePair(${idx}, false)" class="flex-1 bg-surface text-muted py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 border border-surface">${_t('quality.sk.norm.different', 'Разные')}</button>
+                <button onclick="sk_resolvePair(${idx}, true)" class="flex-1 bg-brand text-white py-2 rounded-lg text-rbi-caption font-bold uppercase active:scale-95 shadow-sm">${_t('quality.sk.norm.merge', 'Объединить')}</button>
             </div>
         </div>`;
     }).join('');
     document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-2xl mx-auto mb-2 border border-orange-200">🤝</div>`;
     document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.sk.norm.title', 'Одинаковые организации?')}</div>`;
     document.getElementById('modal-body').innerHTML = `
-        <div class="text-center text-[10px] text-slate-500 mb-4 leading-relaxed">
+        <div class="text-center text-rbi-caption text-muted mb-4 leading-relaxed">
             ${_t('quality.sk.norm.description', 'Система нашла похожие названия компаний. Подтвердите, чтобы в отчетах они не разваливались на две разные строки.')}
         </div>
         <div class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 mb-4" id="norm-pairs-container">
@@ -432,7 +432,7 @@ function sk_renderDashboard() {
     if (!container) return;
 
     if (window.skRecords.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-slate-300 text-slate-400 text-[11px] font-bold uppercase tracking-widest shadow-sm">${_t('quality.sk.dashboard.no_data', 'Нет данных. Загрузите файл Excel.')}</div>`;
+        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-surface text-muted text-rbi-label font-bold uppercase tracking-widest shadow-sm">${_t('quality.sk.dashboard.no_data', 'Нет данных. Загрузите файл Excel.')}</div>`;
         return;
     }
 
@@ -476,7 +476,7 @@ function sk_renderDashboard() {
     }
 
     if (trendRecords.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-slate-300 text-slate-400 text-[11px] font-bold uppercase tracking-widest shadow-sm">${_t('quality.sk.dashboard.no_filter_match', 'За выбранным фильтрам замечаний нет.')}</div>`;
+        container.innerHTML = `<div class="text-center py-10 bg-[var(--card-bg)] rounded-xl border border-dashed border-surface text-muted text-rbi-label font-bold uppercase tracking-widest shadow-sm">${_t('quality.sk.dashboard.no_filter_match', 'За выбранным фильтрам замечаний нет.')}</div>`;
         return;
     }
 
@@ -592,14 +592,14 @@ function sk_renderDashboard() {
     var matrixRows = '';
     Object.keys(matrixByProject).sort().forEach(function (projName) {
         matrixRows += `
-            <details class="bg-white dark:bg-slate-800 mb-3 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm group/matrix [&_summary::-webkit-details-marker]:hidden">
-                <summary class="p-3 bg-indigo-50 dark:bg-indigo-900/30 cursor-pointer font-black text-[12px] uppercase tracking-widest text-indigo-700 dark:text-indigo-400 flex justify-between items-center select-none group-open/matrix:border-b border-indigo-200 dark:border-indigo-800">
+            <details class="bg-surface mb-3 border border-surface rounded-xl overflow-hidden shadow-sm group/matrix [&_summary::-webkit-details-marker]:hidden">
+                <summary class="p-3 bg-brand-soft cursor-pointer font-black text-rbi-body uppercase tracking-widest text-brand flex justify-between items-center select-none group-open/matrix:border-b border-brand-soft">
                     <span class="flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg> ${_t('quality.sk.dashboard.project_label', 'Объект: {name}', { name: projName })}</span>
-                    <span class="transition-transform duration-300 group-open/matrix:rotate-180 text-indigo-500">▼</span>
+                    <span class="transition-transform duration-300 group-open/matrix:rotate-180 text-brand">▼</span>
                 </summary>
                 <div class="overflow-x-auto custom-scrollbar">
                     <table class="w-full text-left whitespace-nowrap">
-                        <thead class="bg-slate-50 dark:bg-slate-900 text-[9px] text-[var(--text-muted)] uppercase shadow-sm font-bold">
+                        <thead class="bg-surface text-rbi-caption text-[var(--text-muted)] uppercase shadow-sm font-bold">
                             <tr>
                                 <th class="p-2.5 pl-4 border-b border-[var(--card-border)]">${_t('quality.sk.table.contractor_work', 'Подрядчик / Вид работ')}</th>
                                 <th class="p-2.5 text-center border-b border-[var(--card-border)]" title="${_t('quality.sk.table.fact_expected_title', 'Сколько выдали СК / Сколько ожидаем по статистике')}">${_t('quality.sk.table.fact_expected', 'Факт / Ожидание')}</th>
@@ -612,16 +612,16 @@ function sk_renderDashboard() {
 
         var projContractors = matrixByProject[projName];
         Object.keys(projContractors).sort().forEach(function (contrName) {
-            matrixRows += `<tr class="bg-[var(--hover-bg)] border-b border-[var(--card-border)]"><td colspan="5" class="p-2 pl-3 text-[11px] font-black text-slate-800 dark:text-white uppercase">${contrName}</td></tr>`;
+            matrixRows += `<tr class="bg-[var(--hover-bg)] border-b border-[var(--card-border)]"><td colspan="5" class="p-2 pl-3 text-rbi-label font-black text-ink dark:text-white uppercase">${contrName}</td></tr>`;
             var isLinkedContr = rbiContractors.includes(contrName.toLowerCase().trim()) || Object.values(window.skContractorMap).map(function (v) { return v.toLowerCase().trim(); }).includes(contrName.toLowerCase().trim());
             projContractors[contrName].sort(function (a, b) { return b.total - a.total; }).forEach(function (mData) {
-                var isdHtml = '<span class="text-[10px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">' + _t('quality.sk.isd.no_volume', 'Объем не задан') + '</span>';
-                var statusBadge = '<span class="text-slate-400 text-[10px] font-bold">' + _t('quality.sk.isd.insufficient_data', 'Недостаточно данных') + '</span>';
-                var expectedHtml = '<span class="text-slate-400">-</span>';
+                var isdHtml = '<span class="text-rbi-caption text-muted font-bold bg-surface px-2 py-0.5 rounded">' + _t('quality.sk.isd.no_volume', 'Объем не задан') + '</span>';
+                var statusBadge = '<span class="text-muted text-rbi-caption font-bold">' + _t('quality.sk.isd.insufficient_data', 'Недостаточно данных') + '</span>';
+                var expectedHtml = '<span class="text-muted">-</span>';
                 if (mData.category !== 'Без категории') {
                     if (!isLinkedContr) {
-                        isdHtml = '<span class="text-[9px] text-slate-400 font-bold uppercase border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded bg-white dark:bg-slate-800">' + _t('quality.sk.isd.no_rbi_base', 'Нет базы RBI') + '</span>';
-                        statusBadge = '<span class="text-slate-400 text-[10px] font-bold">' + _t('quality.sk.isd.not_linked', 'Не связан') + '</span>';
+                        isdHtml = '<span class="text-rbi-caption text-muted font-bold uppercase border border-surface px-2 py-0.5 rounded bg-surface">' + _t('quality.sk.isd.no_rbi_base', 'Нет базы RBI') + '</span>';
+                        statusBadge = '<span class="text-muted text-rbi-caption font-bold">' + _t('quality.sk.isd.not_linked', 'Не связан') + '</span>';
                     } else if (window.skVolumes) {
                         var volKey = Object.keys(window.skVolumes).find(function (k) { return k.toLowerCase().trim() === mData.category.toLowerCase().trim(); });
                         if (volKey) {
@@ -629,46 +629,46 @@ function sk_renderDashboard() {
                             var rbiRate = getRbiDefectRate(mData.contractor, mData.category);
                             var expected = Math.round(vol * rbiRate);
                             if (expected < 1) expected = 1;
-                            expectedHtml = '<span class="text-slate-700 dark:text-slate-300 font-black">' + expected + '</span>';
+                            expectedHtml = '<span class="text-ink font-black">' + expected + '</span>';
                             var isd = Math.round((mData.total / expected) * 100);
                             var colorClass = 'text-green-600 bg-green-50 border-green-200';
-                            statusBadge = '<span class="text-green-600 font-bold text-[9px] uppercase flex items-center justify-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> ' + _t('quality.sk.isd.transparent', 'Прозрачно') + '</span>';
+                            statusBadge = '<span class="text-green-600 font-bold text-rbi-caption uppercase flex items-center justify-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> ' + _t('quality.sk.isd.transparent', 'Прозрачно') + '</span>';
                             if (isd < 20) {
-                                colorClass = 'text-red-600 bg-red-50 border-red-200';
-                                statusBadge = '<span class="text-red-600 font-bold text-[9px] uppercase flex items-center justify-center gap-1 animate-pulse"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ' + _t('quality.sk.isd.hiding_defects', 'Скрывают брак') + '</span>';
+                                colorClass = 'text-danger bg-danger-soft border-danger-soft';
+                                statusBadge = '<span class="text-danger font-bold text-rbi-caption uppercase flex items-center justify-center gap-1 animate-pulse"><span class="w-1.5 h-1.5 rounded-full bg-danger"></span> ' + _t('quality.sk.isd.hiding_defects', 'Скрывают брак') + '</span>';
                                 skIssues.isd.push(mData.contractor + ' (' + mData.category + ')');
                             } else if (isd < 60) {
                                 colorClass = 'text-orange-500 bg-orange-50 border-orange-200';
-                                statusBadge = '<span class="text-orange-500 font-bold text-[9px] uppercase flex items-center justify-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> ' + _t('quality.sk.isd.suspicious', 'Подозрительно') + '</span>';
+                                statusBadge = '<span class="text-orange-500 font-bold text-rbi-caption uppercase flex items-center justify-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> ' + _t('quality.sk.isd.suspicious', 'Подозрительно') + '</span>';
                             }
-                            isdHtml = isd > 100 ? '<span class="font-black ' + colorClass + ' px-2 py-0.5 rounded border text-[11px]">100% <span class="text-[8px] opacity-70">' + _t('quality.sk.isd.excessive', '(Избыточно)') + '</span></span>' : '<span class="font-black ' + colorClass + ' px-2 py-0.5 rounded border text-[12px]">' + isd + '%</span>';
+                            isdHtml = isd > 100 ? '<span class="font-black ' + colorClass + ' px-2 py-0.5 rounded border text-rbi-label">100% <span class="text-rbi-caption opacity-70">' + _t('quality.sk.isd.excessive', '(Избыточно)') + '</span></span>' : '<span class="font-black ' + colorClass + ' px-2 py-0.5 rounded border text-rbi-body">' + isd + '%</span>';
                         }
                     }
                 }
                 var avgClose = mData.closingDays.length > 0 ? Math.round(mData.closingDays.reduce(function (a, b) { return a + b; }, 0) / mData.closingDays.length) : 0;
-                var overColor = mData.overdue > 0 ? 'text-red-600' : 'text-slate-500';
-                var avgColor = avgClose > 14 ? 'text-orange-500' : 'text-slate-500';
+                var overColor = mData.overdue > 0 ? 'text-danger' : 'text-muted';
+                var avgColor = avgClose > 14 ? 'text-orange-500' : 'text-muted';
                 var groupRecords = activeRecords.filter(function (r) { return r.contractor === mData.contractor && r.category === mData.category && r.predicted_risk; });
                 var aiBadge = '';
                 if (groupRecords.length > 0) {
-                    if (groupRecords.some(function (r) { return r.predicted_risk === 'High'; })) aiBadge = `<span class="bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase shadow-sm ml-1" title="${_t('quality.sk.ai.risk_title', 'ИИ прогнозирует срыв сроков')}">${_t('quality.sk.ai.risk', '🔮 Риск')}</span>`;
-                    else if (groupRecords.some(function (r) { return r.predicted_risk === 'Medium'; })) aiBadge = `<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase shadow-sm ml-1">${_t('quality.sk.ai.attention', '🔮 Внимание')}</span>`;
+                    if (groupRecords.some(function (r) { return r.predicted_risk === 'High'; })) aiBadge = `<span class="bg-danger-soft text-danger border border-danger-soft px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase shadow-sm ml-1" title="${_t('quality.sk.ai.risk_title', 'ИИ прогнозирует срыв сроков')}">${_t('quality.sk.ai.risk', '🔮 Риск')}</span>`;
+                    else if (groupRecords.some(function (r) { return r.predicted_risk === 'Medium'; })) aiBadge = `<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-rbi-caption font-black uppercase shadow-sm ml-1">${_t('quality.sk.ai.attention', '🔮 Внимание')}</span>`;
                 }
                 var displayCategory = _skDisplayCategory(mData.category);
                 matrixRows += `
-                    <tr class="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50">
-                        <td class="p-2.5 pl-4 text-[10px] font-bold ${mData.category === 'Без категории' ? 'text-slate-400 italic' : 'text-slate-600 dark:text-slate-300'} truncate max-w-[150px]" title="${displayCategory}">
+                    <tr class="border-b border-surface bg-surface">
+                        <td class="p-2.5 pl-4 text-rbi-caption font-bold ${mData.category === 'Без категории' ? 'text-muted italic' : 'text-muted'} truncate max-w-[150px]" title="${displayCategory}">
                             <div class="flex items-center gap-1.5">
                                 <span class="truncate">↳ ${displayCategory}</span>
-                                ${!isLinkedContr || mData.category === 'Без категории' ? '' : `<button onclick="sk_openCategoryLinkModal('${mData.category.replace(/'/g, "\\'")}')" class="text-indigo-400 hover:text-indigo-600" title="${_t('quality.sk.link_category', 'Привязать к другому виду работ')}">🔗</button>`}
+                                ${!isLinkedContr || mData.category === 'Без категории' ? '' : `<button onclick="sk_openCategoryLinkModal('${mData.category.replace(/'/g, "\\'")}')" class="text-brand hover:text-brand" title="${_t('quality.sk.link_category', 'Привязать к другому виду работ')}">🔗</button>`}
                                 ${aiBadge}
                             </div>
                         </td>
-                        <td class="p-2.5 text-center text-[10px]"><span class="font-black text-indigo-600">${mData.total}</span> / ${expectedHtml}</td>
+                        <td class="p-2.5 text-center text-rbi-caption"><span class="font-black text-brand">${mData.total}</span> / ${expectedHtml}</td>
                         <td class="p-2.5 text-center align-middle">${isdHtml}</td>
                         <td class="p-2.5 text-center align-middle">${statusBadge}</td>
-                        <td class="p-2.5 text-center text-[10px] font-bold align-middle whitespace-nowrap">
-                            <span class="text-slate-500" title="${titleOpen}">${lblOpen} ${mData.open}</span> | 
+                        <td class="p-2.5 text-center text-rbi-caption font-bold align-middle whitespace-nowrap">
+                            <span class="text-muted" title="${titleOpen}">${lblOpen} ${mData.open}</span> | 
                             <span class="${overColor}" title="${titleOverdue}">${lblOverdue} ${mData.overdue}</span> | 
                             <span class="${avgColor}" title="${titleAvgClose}">${lblAvgClose} ${avgClose}</span>
                         </td>
@@ -684,8 +684,8 @@ function sk_renderDashboard() {
         var data = contrMap[cName];
         var isLinked = rbiContractors.includes(cName.toLowerCase().trim()) || Object.values(window.skContractorMap).includes(cName);
         var linkBadge = isLinked
-            ? `<span class="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-1 w-fit"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg> ${_t('quality.sk.badge.linked', 'Связан с RBI')}</span>`
-            : `<span class="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest flex items-center gap-1 w-fit"><svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ${_t('quality.sk.badge.unlinked', 'Без связи')}</span>`;
+            ? `<span class="bg-brand-soft text-brand border border-brand-soft px-2 py-0.5 rounded text-rbi-caption font-bold uppercase tracking-widest shadow-sm flex items-center gap-1 w-fit"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg> ${_t('quality.sk.badge.linked', 'Связан с RBI')}</span>`
+            : `<span class="bg-surface text-muted border border-surface px-2 py-0.5 rounded text-rbi-caption font-bold uppercase tracking-widest flex items-center gap-1 w-fit"><svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ${_t('quality.sk.badge.unlinked', 'Без связи')}</span>`;
         var overduePerc = data.total > 0 ? Math.round((data.overdueCount / data.total) * 100) : 0;
         var avgOverdueDepth = data.overdueDaysArr.length > 0 ? Math.round(data.overdueDaysArr.reduce(function (a, b) { return a + b; }, 0) / data.overdueDaysArr.length) : 0;
         var onTimePerc = data.closedCount > 0 ? Math.round((data.closedOnTimeCount / data.closedCount) * 100) : 100;
@@ -699,57 +699,57 @@ function sk_renderDashboard() {
             if (data.open > 5) skIssues.open.push(cName);
             if (cmi < 40 && data.total > 5) skIssues.cmi.push(cName);
         }
-        var cmiColor = cmi >= 70 ? 'text-green-600' : (cmi >= 40 ? 'text-orange-500' : 'text-red-600');
-        var overdueColor = overduePerc > 30 ? 'text-red-600' : (overduePerc > 10 ? 'text-orange-500' : 'text-green-600');
+        var cmiColor = cmi >= 70 ? 'text-green-600' : (cmi >= 40 ? 'text-orange-500' : 'text-danger');
+        var overdueColor = overduePerc > 30 ? 'text-danger' : (overduePerc > 10 ? 'text-orange-500' : 'text-green-600');
         var topDefects = Object.keys(data.defects).map(function (text) { return { text: text, count: data.defects[text] }; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 3);
         var topDefectsHtml = topDefects.length > 0 && topDefects[0].count > 1
             ? topDefects.filter(function (d) { return d.count > 1; }).map(function (d) {
                 var recMatch = activeRecords.find(function (r) { return r.contractor === cName && r.text && r.text.toLowerCase().includes(d.text.replace('...', '').toLowerCase()); });
-                var stdBadge = (recMatch && recMatch.standards && recMatch.standards.length > 0) ? '<div class="text-[8px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded w-fit mt-1">' + recMatch.standards.join(', ') + '</div>' : '';
-                return '<div class="flex items-start gap-2 mb-1.5 border-b border-slate-100 dark:border-slate-700 pb-1.5"><span class="bg-orange-100 text-orange-700 px-1.5 rounded text-[9px] font-black shrink-0 mt-0.5">' + _t('quality.sk.defects.count', '{count} раз', { count: d.count }) + '</span><div class="flex-1 min-w-0"><span class="text-[10px] text-slate-700 dark:text-slate-300 leading-snug">' + d.text + '</span>' + stdBadge + '</div></div>';
+                var stdBadge = (recMatch && recMatch.standards && recMatch.standards.length > 0) ? '<div class="text-rbi-caption font-black text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded w-fit mt-1">' + recMatch.standards.join(', ') + '</div>' : '';
+                return '<div class="flex items-start gap-2 mb-1.5 border-b border-surface pb-1.5"><span class="bg-orange-100 text-orange-700 px-1.5 rounded text-rbi-caption font-black shrink-0 mt-0.5">' + _t('quality.sk.defects.count', '{count} раз', { count: d.count }) + '</span><div class="flex-1 min-w-0"><span class="text-rbi-caption text-ink leading-snug">' + d.text + '</span>' + stdBadge + '</div></div>';
             }).join('')
-            : '<div class="text-[10px] text-slate-400 font-bold">' + _t('quality.sk.defects.no_repeats', 'Явно выраженных повторений нет') + '</div>';
+            : '<div class="text-rbi-caption text-muted font-bold">' + _t('quality.sk.defects.no_repeats', 'Явно выраженных повторений нет') + '</div>';
         var safeId = cName.replace(/[^a-zA-Zа-яА-Я0-9]/g, '');
         var safeCName = cName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         var cardHtml = `
-            <details class="bg-white dark:bg-slate-800 border ${isLinked ? 'border-indigo-200 dark:border-indigo-800' : 'border-[var(--card-border)]'} rounded-xl shadow-sm mb-3 group [&_summary::-webkit-details-marker]:hidden">
+            <details class="bg-surface border ${isLinked ? 'border-brand-soft' : 'border-[var(--card-border)]'} rounded-xl shadow-sm mb-3 group [&_summary::-webkit-details-marker]:hidden">
                 <summary class="p-3 cursor-pointer flex justify-between items-center transition-colors select-none">
                     <div class="flex-1 min-w-0 pr-3">
                         <div class="mb-1.5">${linkBadge}</div>
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white truncate mb-1">${cName}</div>
-                        <div class="flex gap-2 text-[9px] font-bold">
-                            <span class="text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">${_t('quality.sk.card.total', 'Всего:')} ${data.total}</span>
-                            <span class="text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800">${_t('quality.sk.card.open', 'Открыто:')} ${data.open}</span>
+                        <div class="text-rbi-body font-black text-ink dark:text-white truncate mb-1">${cName}</div>
+                        <div class="flex gap-2 text-rbi-caption font-bold">
+                            <span class="text-muted bg-surface px-1.5 py-0.5 rounded border border-surface">${_t('quality.sk.card.total', 'Всего:')} ${data.total}</span>
+                            <span class="text-danger bg-danger-soft px-1.5 py-0.5 rounded border border-danger-soft">${_t('quality.sk.card.open', 'Открыто:')} ${data.open}</span>
                         </div>
                     </div>
                     <div class="text-right shrink-0 flex flex-col items-end">
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">${_t('quality.sk.card.overdue_label', 'Просрочка')}</div>
+                        <div class="text-rbi-caption uppercase font-bold text-muted mb-0.5">${_t('quality.sk.card.overdue_label', 'Просрочка')}</div>
                         <div class="text-[16px] font-black ${overdueColor}">${overduePerc}%</div>
                     </div>
                 </summary>
-                <div class="p-3 border-t border-[var(--card-border)] bg-slate-50 dark:bg-slate-900/50">
+                <div class="p-3 border-t border-[var(--card-border)] bg-surface">
                     <div class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
-                            <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-center gap-1 cursor-pointer" onclick="sk_showInfoModal('cmi')">${_t('quality.sk.cmi.index', 'Индекс CMI ❓')}</div>
+                        <div class="bg-surface p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
+                            <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1 flex items-center justify-center gap-1 cursor-pointer" onclick="sk_showInfoModal('cmi')">${_t('quality.sk.cmi.index', 'Индекс CMI ❓')}</div>
                             <div class="text-[16px] font-black ${cmiColor}">${cmi}</div>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
-                            <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1" title="${_t('quality.sk.cmi.on_time_title', '% закрытых вовремя')}">${_t('quality.sk.cmi.on_time', 'В срок')}</div>
-                            <div class="text-[16px] font-black text-slate-700 dark:text-slate-300">${onTimePerc}%</div>
+                        <div class="bg-surface p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
+                            <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1" title="${_t('quality.sk.cmi.on_time_title', '% закрытых вовремя')}">${_t('quality.sk.cmi.on_time', 'В срок')}</div>
+                            <div class="text-[16px] font-black text-ink">${onTimePerc}%</div>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
-                            <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1" title="${_t('quality.sk.cmi.depth_title', 'Средняя задержка в днях')}">${_t('quality.sk.cmi.depth', 'Глубина')}</div>
-                            <div class="text-[16px] font-black ${avgOverdueDepth > 5 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}">${_t('quality.sk.cmi.days', '{n} дн.', { n: avgOverdueDepth })}</div>
+                        <div class="bg-surface p-2 rounded-lg border border-[var(--card-border)] shadow-sm text-center">
+                            <div class="text-rbi-caption font-bold text-muted uppercase tracking-widest mb-1" title="${_t('quality.sk.cmi.depth_title', 'Средняя задержка в днях')}">${_t('quality.sk.cmi.depth', 'Глубина')}</div>
+                            <div class="text-[16px] font-black ${avgOverdueDepth > 5 ? 'text-danger' : 'text-ink'}">${_t('quality.sk.cmi.days', '{n} дн.', { n: avgOverdueDepth })}</div>
                         </div>
                     </div>
                     <div class="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/50 p-2.5 rounded-lg shadow-sm mb-3">
-                        <div class="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-2">${_t('quality.sk.defects.title', '🔄 Типовые дефекты (Из Excel)')}</div>
+                        <div class="text-rbi-caption font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-2">${_t('quality.sk.defects.title', '🔄 Типовые дефекты (Из Excel)')}</div>
                         ${topDefectsHtml}
                     </div>
-                    <button onclick="window.RBI.services.ai.sk_generateContractorAiSummary('${safeCName}', '${safeId}')" id="btn-sk-ai-${safeId}" class="w-full bg-indigo-600 text-white py-3 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-transform shadow-md flex items-center justify-center gap-2">
+                    <button onclick="window.RBI.services.ai.sk_generateContractorAiSummary('${safeCName}', '${safeId}')" id="btn-sk-ai-${safeId}" class="w-full bg-brand text-white py-3 rounded-xl text-rbi-caption font-black uppercase active:scale-95 transition-transform shadow-md flex items-center justify-center gap-2">
                         ${_t('quality.sk.ai.analyze', '🤖 AI-Анализ и Письмо прорабу')}
                     </button>
-                    <div id="sk-ai-res-${safeId}" class="hidden mt-3 p-3 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-xl text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 shadow-inner"></div>
+                    <div id="sk-ai-res-${safeId}" class="hidden mt-3 p-3 bg-surface border border-brand-soft rounded-xl text-rbi-label leading-relaxed text-ink shadow-inner"></div>
                 </div>
             </details>`;
         if (isLinked) linkedHtml += cardHtml; else unlinkedHtml += cardHtml;
@@ -772,12 +772,12 @@ function sk_renderDashboard() {
     var spatialHtml = '';
     Object.keys(spatialMap).forEach(function (objKey) {
         spatialHtml += `
-            <details class="bg-white dark:bg-slate-800 mb-3 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm group/space [&_summary::-webkit-details-marker]:hidden">
-                <summary class="p-3 bg-indigo-50 dark:bg-indigo-900/30 cursor-pointer font-black text-[12px] uppercase tracking-widest text-indigo-700 dark:text-indigo-400 flex justify-between items-center select-none group-open/space:border-b border-indigo-200 dark:border-indigo-800">
+            <details class="bg-surface mb-3 border border-surface rounded-xl overflow-hidden shadow-sm group/space [&_summary::-webkit-details-marker]:hidden">
+                <summary class="p-3 bg-brand-soft cursor-pointer font-black text-rbi-body uppercase tracking-widest text-brand flex justify-between items-center select-none group-open/space:border-b border-brand-soft">
                     <span class="flex items-center gap-2">${_t('quality.sk.spatial.object', '🏢 Объект: {name}', { name: objKey })}</span>
-                    <span class="transition-transform duration-300 group-open/space:rotate-180 text-indigo-500">▼</span>
+                    <span class="transition-transform duration-300 group-open/space:rotate-180 text-brand">▼</span>
                 </summary>
-                <div class="p-3 bg-slate-50 dark:bg-slate-900/50">`;
+                <div class="p-3 bg-surface">`;
         Object.keys(spatialMap[objKey]).sort().forEach(function (blockName) {
             var blockData = spatialMap[objKey][blockName];
             var floors = Object.keys(blockData).sort(function (a, b) { var nA = parseInt(a), nB = parseInt(b); return (!isNaN(nA) && !isNaN(nB)) ? nB - nA : a.localeCompare(b); });
@@ -785,76 +785,76 @@ function sk_renderDashboard() {
             floors.forEach(function (floor) {
                 var cell = blockData[floor];
                 var bgColor = 'bg-green-50 text-green-700';
-                if (cell.total > 15) bgColor = 'bg-red-100 text-red-800 font-black';
+                if (cell.total > 15) bgColor = 'bg-danger-soft text-danger font-black';
                 else if (cell.total > 5) bgColor = 'bg-yellow-50 text-yellow-700 font-bold';
-                tableRows += `<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-[var(--hover-bg)]"><td class="p-2 text-[10px] font-bold text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 text-center w-16">${_t('quality.sk.spatial.floor', 'Эт. {floor}', { floor: floor })}</td><td class="p-2 text-center text-[11px] ${bgColor}">${cell.total}</td><td class="p-2 text-center text-[10px] font-bold text-slate-500">${lblOpen} ${cell.open} | <span class="${cell.overdue > 0 ? 'text-red-500' : 'text-slate-400'}">${lblOverdue} ${cell.overdue}</span></td></tr>`;
+                tableRows += `<tr class="border-b border-surface hover:bg-[var(--hover-bg)]"><td class="p-2 text-rbi-caption font-bold text-muted border-r border-surface text-center w-16">${_t('quality.sk.spatial.floor', 'Эт. {floor}', { floor: floor })}</td><td class="p-2 text-center text-rbi-label ${bgColor}">${cell.total}</td><td class="p-2 text-center text-rbi-caption font-bold text-muted">${lblOpen} ${cell.open} | <span class="${cell.overdue > 0 ? 'text-danger' : 'text-muted'}">${lblOverdue} ${cell.overdue}</span></td></tr>`;
             });
             spatialHtml += `
-                <div class="mb-3 bg-white dark:bg-slate-800 border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden">
-                    <div class="bg-[var(--hover-bg)] p-2 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 border-b border-[var(--card-border)]">${blockName}</div>
-                    <div class="overflow-x-auto"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 dark:bg-slate-900/50 text-[9px] text-slate-400 uppercase"><tr><th class="p-2 text-center border-r border-slate-100 dark:border-slate-800">${_t('quality.sk.spatial.level', 'Уровень')}</th><th class="p-2 text-center">${_t('quality.sk.spatial.total_issues', 'Всего замечаний')}</th><th class="p-2 text-center">${_t('quality.sk.spatial.open_overdue', 'Открыто / Просрочено')}</th></tr></thead><tbody>${tableRows}</tbody></table></div>
+                <div class="mb-3 bg-surface border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden">
+                    <div class="bg-[var(--hover-bg)] p-2 text-rbi-caption font-black uppercase text-brand border-b border-[var(--card-border)]">${blockName}</div>
+                    <div class="overflow-x-auto"><table class="w-full text-left whitespace-nowrap"><thead class="bg-surface text-rbi-caption text-muted uppercase"><tr><th class="p-2 text-center border-r border-surface">${_t('quality.sk.spatial.level', 'Уровень')}</th><th class="p-2 text-center">${_t('quality.sk.spatial.total_issues', 'Всего замечаний')}</th><th class="p-2 text-center">${_t('quality.sk.spatial.open_overdue', 'Открыто / Просрочено')}</th></tr></thead><tbody>${tableRows}</tbody></table></div>
                 </div>`;
         });
         spatialHtml += '</div></details>';
     });
-    if (!spatialHtml) spatialHtml = '<div class="text-center py-4 text-slate-400 text-[10px] font-bold uppercase">' + _t('quality.sk.spatial.no_location', 'Данные о расположении отсутствуют. При импорте убедитесь, что колонка "Элемент структуры" связана корректно.') + '</div>';
+    if (!spatialHtml) spatialHtml = '<div class="text-center py-4 text-muted text-rbi-caption font-bold uppercase">' + _t('quality.sk.spatial.no_location', 'Данные о расположении отсутствуют. При импорте убедитесь, что колонка "Элемент структуры" связана корректно.') + '</div>';
 
     container.innerHTML = `
         <div class="grid grid-cols-2 gap-2 mb-4">
             <div class="bg-[var(--card-bg)] border border-[var(--card-border)] p-3 rounded-xl shadow-sm text-center">
-                <div class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-1">${_t('quality.sk.summary.total', 'Всего замечаний СК')}</div>
-                <div class="text-2xl font-black text-slate-800 dark:text-white">${totalIssues}</div>
+                <div class="text-rbi-caption font-bold uppercase text-muted tracking-widest mb-1">${_t('quality.sk.summary.total', 'Всего замечаний СК')}</div>
+                <div class="text-2xl font-black text-ink dark:text-white">${totalIssues}</div>
             </div>
-            <div class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 p-3 rounded-xl shadow-sm text-center">
-                <div class="text-[9px] font-bold uppercase text-red-600 dark:text-red-400 tracking-widest mb-1">${_t('quality.sk.summary.open_now', 'Открыто сейчас')}</div>
-                <div class="text-2xl font-black text-red-600 dark:text-red-400">${totalOpen}</div>
+            <div class="bg-danger-soft border border-danger-soft p-3 rounded-xl shadow-sm text-center">
+                <div class="text-rbi-caption font-bold uppercase text-danger tracking-widest mb-1">${_t('quality.sk.summary.open_now', 'Открыто сейчас')}</div>
+                <div class="text-2xl font-black text-danger">${totalOpen}</div>
             </div>
         </div>
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 p-4">
-            <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> ${_t('quality.sk.standards.title', 'Самые нарушаемые нормативы')}</h3>
+            <h3 class="text-rbi-label font-black uppercase tracking-widest text-ink mb-3 flex items-center gap-1.5"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> ${_t('quality.sk.standards.title', 'Самые нарушаемые нормативы')}</h3>
             <div class="flex flex-wrap gap-2">
                 ${Object.keys(standardsMap).length > 0
-            ? Object.keys(standardsMap).sort(function (a, b) { return standardsMap[b] - standardsMap[a]; }).slice(0, 8).map(function (std) { return '<div class="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-1 rounded-lg cursor-pointer active:scale-95 transition-transform" onclick="switchTab(\'tab-reference\'); setTimeout(() => { const btns = document.querySelectorAll(\'.sub-tab-btn\'); if (btns[1]) switchReferenceSubTab(\'ref-sub-docs\', btns[1]); const s = document.getElementById(\'doc-search-input\'); if(s) {s.value=\'' + std + '\'; renderDocsList();} }, 300);"><span class="text-[11px] font-black text-blue-700 dark:text-blue-400">' + std + '</span><span class="text-[9px] font-bold bg-white dark:bg-slate-800 text-slate-500 px-1.5 rounded-md shadow-sm border border-blue-100 dark:border-blue-900">' + standardsMap[std] + '</span></div>'; }).join('')
-            : '<div class="text-[10px] font-bold text-slate-400">' + _t('quality.sk.standards.empty', 'В текстах замечаний нет ссылок на ГОСТ/СП.') + '</div>'}
+            ? Object.keys(standardsMap).sort(function (a, b) { return standardsMap[b] - standardsMap[a]; }).slice(0, 8).map(function (std) { return '<div class="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-1 rounded-lg cursor-pointer active:scale-95 transition-transform" onclick="switchTab(\'tab-reference\'); setTimeout(() => { const btns = document.querySelectorAll(\'.sub-tab-btn\'); if (btns[1]) switchReferenceSubTab(\'ref-sub-docs\', btns[1]); const s = document.getElementById(\'doc-search-input\'); if(s) {s.value=\'' + std + '\'; renderDocsList();} }, 300);"><span class="text-rbi-label font-black text-blue-700 dark:text-blue-400">' + std + '</span><span class="text-rbi-caption font-bold bg-surface text-muted px-1.5 rounded-md shadow-sm border border-blue-100 dark:border-blue-900">' + standardsMap[std] + '</span></div>'; }).join('')
+            : '<div class="text-rbi-caption font-bold text-muted">' + _t('quality.sk.standards.empty', 'В текстах замечаний нет ссылок на ГОСТ/СП.') + '</div>'}
             </div>
         </div>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg> ${_t('quality.sk.risk_matrix.title', 'Матрица Рисков (ИСД)')} <button onclick="event.stopPropagation(); sk_showInfoModal('isd')" class="text-indigo-400 hover:text-indigo-600 active:scale-95 transition-transform ml-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button></span>
-                <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
+                <span class="font-bold text-rbi-label uppercase tracking-widest text-ink flex items-center gap-1.5"><svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"></path></svg> ${_t('quality.sk.risk_matrix.title', 'Матрица Рисков (ИСД)')} <button onclick="event.stopPropagation(); sk_showInfoModal('isd')" class="text-brand hover:text-brand active:scale-95 transition-transform ml-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button></span>
+                <span class="text-muted transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
-            <div class="p-3 bg-slate-50 dark:bg-slate-900/50">
-                ${(function () { var p = (SKActions._ctx && SKActions._ctx.permissions) || window.RBI.services.permissions; return p && p.isAdmin(); })() ? `<div class="flex justify-end gap-2 mb-3"><button onclick="window.RBI.services.ai.sk_autoMapCategories(false, true)" class="bg-white text-indigo-600 border border-indigo-200 dark:bg-slate-800 dark:border-slate-700 dark:text-indigo-400 px-3 py-2 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5" title="${_t('quality.sk.risk_matrix.recheck_all_title', 'Перепроверить все дефекты (кроме ручных привязок)')}">${_t('quality.sk.risk_matrix.recheck_all', '🤖 Перепроверить всё')}</button><button onclick="window.RBI.services.ai.sk_autoMapCategories(false, false)" class="bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 px-3 py-2 rounded-lg text-[10px] font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">${_t('quality.sk.risk_matrix.recognize_uncategorized', '🤖 Распознать "Без категории"')}</button></div>` : ''}
-                ${matrixRows || '<div class="text-center p-4 bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] text-slate-400 text-[10px] uppercase font-bold">' + _t('quality.sk.risk_matrix.empty', 'Нет данных для матрицы') + '</div>'}
+            <div class="p-3 bg-surface">
+                ${(function () { var p = (SKActions._ctx && SKActions._ctx.permissions) || window.RBI.services.permissions; return p && p.isAdmin(); })() ? `<div class="flex justify-end gap-2 mb-3"><button onclick="window.RBI.services.ai.sk_autoMapCategories(false, true)" class="bg-surface text-brand border border-brand-soft px-3 py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5" title="${_t('quality.sk.risk_matrix.recheck_all_title', 'Перепроверить все дефекты (кроме ручных привязок)')}">${_t('quality.sk.risk_matrix.recheck_all', '🤖 Перепроверить всё')}</button><button onclick="window.RBI.services.ai.sk_autoMapCategories(false, false)" class="bg-brand-soft text-brand border border-brand-soft px-3 py-2 rounded-lg text-rbi-caption font-black uppercase active:scale-95 shadow-sm transition-transform flex items-center gap-1.5">${_t('quality.sk.risk_matrix.recognize_uncategorized', '🤖 Распознать "Без категории"')}</button></div>` : ''}
+                ${matrixRows || '<div class="text-center p-4 bg-[var(--card-bg)] rounded-xl border border-dashed border-[var(--card-border)] text-muted text-rbi-caption uppercase font-bold">' + _t('quality.sk.risk_matrix.empty', 'Нет данных для матрицы') + '</div>'}
             </div>
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg> ${_t('quality.sk.spatial_analysis.title', 'Пространственный анализ (Этажи)')}</span>
-                <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
+                <span class="font-bold text-rbi-label uppercase tracking-widest text-ink flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg> ${_t('quality.sk.spatial_analysis.title', 'Пространственный анализ (Этажи)')}</span>
+                <span class="text-muted transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
-            <div class="p-3 bg-slate-50 dark:bg-slate-900/50 max-h-[60vh] overflow-y-auto custom-scrollbar">${spatialHtml}</div>
+            <div class="p-3 bg-surface max-h-[60vh] overflow-y-auto custom-scrollbar">${spatialHtml}</div>
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> ${_t('quality.sk.trend.title', 'Тренд открытых замечаний')} <span class="text-[9px] font-bold text-slate-400 normal-case tracking-normal">${_t('quality.sk.trend.all_time', '· за всё время')}</span></span>
-                <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
+                <span class="font-bold text-rbi-label uppercase tracking-widest text-ink flex items-center gap-1.5"><svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> ${_t('quality.sk.trend.title', 'Тренд открытых замечаний')} <span class="text-rbi-caption font-bold text-muted normal-case tracking-normal">${_t('quality.sk.trend.all_time', '· за всё время')}</span></span>
+                <span class="text-muted transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
             <div class="p-3" style="height: 240px; position: relative; width: 100%;"><canvas id="sk-trend-chart"></canvas></div>
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg> ${_t('quality.sk.linked.title', 'Связано с проверками RBI')}</span>
-                <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
+                <span class="font-bold text-rbi-label uppercase tracking-widest text-brand flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg> ${_t('quality.sk.linked.title', 'Связано с проверками RBI')}</span>
+                <span class="text-muted transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
-            <div class="p-3 bg-slate-50 dark:bg-slate-900/50">${linkedHtml || '<div class="text-center py-4 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400 text-[10px] font-bold uppercase tracking-widest">' + _t('quality.sk.linked.empty', 'Связанных подрядчиков не найдено') + '</div>'}</div>
+            <div class="p-3 bg-surface">${linkedHtml || '<div class="text-center py-4 bg-surface rounded-xl border border-dashed border-surface text-muted text-rbi-caption font-bold uppercase tracking-widest">' + _t('quality.sk.linked.empty', 'Связанных подрядчиков не найдено') + '</div>'}</div>
         </details>
         <details class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4 group [&_summary::-webkit-details-marker]:hidden">
             <summary class="p-3.5 bg-[var(--hover-bg)] cursor-pointer flex justify-between items-center transition-colors select-none group-open:border-b border-[var(--card-border)]">
-                <span class="font-bold text-[11px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5"><svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ${_t('quality.sk.isolated.title', 'Изолированный анализ (Без связи)')}</span>
-                <span class="text-slate-400 transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
+                <span class="font-bold text-rbi-label uppercase tracking-widest text-muted flex items-center gap-1.5"><svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ${_t('quality.sk.isolated.title', 'Изолированный анализ (Без связи)')}</span>
+                <span class="text-muted transition-transform duration-300 group-open:rotate-180"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg></span>
             </summary>
-            <div class="p-3 bg-slate-50 dark:bg-slate-900/50">${unlinkedHtml || '<div class="text-center py-4 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400 text-[10px] font-bold uppercase tracking-widest">' + _t('quality.sk.isolated.empty', 'Все подрядчики связаны с RBI') + '</div>'}</div>
+            <div class="p-3 bg-surface">${unlinkedHtml || '<div class="text-center py-4 bg-surface rounded-xl border border-dashed border-surface text-muted text-rbi-caption font-bold uppercase tracking-widest">' + _t('quality.sk.isolated.empty', 'Все подрядчики связаны с RBI') + '</div>'}</div>
         </details>`;
 
     setTimeout(function () {
@@ -939,8 +939,8 @@ function sk_renderHrTab() {
     var permSvc = (SKActions._ctx && SKActions._ctx.permissions) || window.RBI.services.permissions;
     var skSvc = (SKActions._ctx && SKActions._ctx.sk) || window.RBI.services.sk;
     var role = permSvc ? permSvc.getCurrentRole() : 'guest';
-    if (role === 'guest') { container.innerHTML = `<div class="text-center py-6 text-red-500 text-[11px] font-bold uppercase border border-red-200 bg-red-50 rounded-xl">${_t('quality.sk.hr.auth_required', 'Доступно только авторизованным сотрудникам')}</div>`; return; }
-    if (window.skRecords.length === 0) { container.innerHTML = `<div class="text-center py-6 text-slate-400 text-[10px] font-bold uppercase border border-dashed border-[var(--card-border)] rounded-xl">${_t('quality.sk.hr.no_data', 'Нет данных')}</div>`; return; }
+    if (role === 'guest') { container.innerHTML = `<div class="text-center py-6 text-danger text-rbi-label font-bold uppercase border border-danger-soft bg-danger-soft rounded-xl">${_t('quality.sk.hr.auth_required', 'Доступно только авторизованным сотрудникам')}</div>`; return; }
+    if (window.skRecords.length === 0) { container.innerHTML = `<div class="text-center py-6 text-muted text-rbi-caption font-bold uppercase border border-dashed border-[var(--card-border)] rounded-xl">${_t('quality.sk.hr.no_data', 'Нет данных')}</div>`; return; }
 
     skSvc.setBadRemarksSync([]);
     var calculateEngStats = function (recordsArray) {
@@ -1032,56 +1032,56 @@ function sk_renderHrTab() {
     var renderTrend = function (curr, prev, inverse) {
         if (prev === undefined) return '';
         var diff = curr - prev;
-        if (diff === 0) return '<span class="text-[9px] text-slate-300 ml-1 font-black">▬</span>';
+        if (diff === 0) return '<span class="text-rbi-caption text-muted ml-1 font-black">▬</span>';
         var isGood = inverse ? diff < 0 : diff > 0;
-        var color = isGood ? 'text-green-500' : 'text-red-500';
+        var color = isGood ? 'text-green-500' : 'text-danger';
         var sign = diff > 0 ? '▲' : '▼';
-        return '<span class="text-[9px] ' + color + ' ml-1 font-black">' + sign + Math.abs(diff) + '</span>';
+        return '<span class="text-rbi-caption ' + color + ' ml-1 font-black">' + sign + Math.abs(diff) + '</span>';
     };
 
     var rowsHtml = currentStats.map(function (e, idx) {
-        var rankColor = idx === 0 ? 'bg-yellow-400 text-white shadow-sm' : 'bg-slate-100 text-slate-500 dark:bg-slate-800';
-        var accColor = e.accuracyPerc >= 80 ? 'text-green-600' : (e.accuracyPerc >= 50 ? 'text-orange-500' : 'text-red-600');
+        var rankColor = idx === 0 ? 'bg-yellow-400 text-white shadow-sm' : 'bg-surface text-muted';
+        var accColor = e.accuracyPerc >= 80 ? 'text-green-600' : (e.accuracyPerc >= 50 ? 'text-orange-500' : 'text-danger');
         var prevE = prevStats.find(function (p) { return p.name === e.name; });
         var prevKpi = prevE ? prevE.kpi : undefined;
         var prevAcc = prevE ? prevE.accuracyPerc : undefined;
         var prevOver = prevE ? prevE.overduePerc : undefined;
-        return `<tr class="border-b border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><td class="p-2.5 flex items-center gap-2"><div class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black ${rankColor} shrink-0">${idx + 1}</div><div class="font-bold text-[11px] text-slate-800 dark:text-white truncate max-w-[120px]" title="${e.name}">${e.name}</div></td><td class="p-2.5 text-center text-[11px] font-black text-slate-600 dark:text-slate-400">${e.total}</td><td class="p-2.5 text-center text-[12px] font-bold ${e.overduePerc > 20 ? 'text-red-600' : 'text-green-600'}">${e.overduePerc}% ${renderTrend(e.overduePerc, prevOver, true)}</td><td class="p-2.5 text-center text-[12px] font-black ${accColor}">${e.accuracyPerc}% ${renderTrend(e.accuracyPerc, prevAcc, false)}</td><td class="p-2.5 text-center text-[11px] font-bold text-slate-500">${e.avgTime} ${_t('quality.sk.hr.days_short', 'дн.')}</td><td class="p-2.5 text-center text-[13px] font-black ${e.kpi >= 80 ? 'text-green-600' : 'text-red-500'} bg-slate-50 dark:bg-slate-900/50 rounded-r-lg">${e.kpi} ${renderTrend(e.kpi, prevKpi, false)}</td></tr>`;
+        return `<tr class="border-b border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors"><td class="p-2.5 flex items-center gap-2"><div class="w-6 h-6 rounded flex items-center justify-center text-rbi-caption font-black ${rankColor} shrink-0">${idx + 1}</div><div class="font-bold text-rbi-label text-ink dark:text-white truncate max-w-[120px]" title="${e.name}">${e.name}</div></td><td class="p-2.5 text-center text-rbi-label font-black text-muted">${e.total}</td><td class="p-2.5 text-center text-rbi-body font-bold ${e.overduePerc > 20 ? 'text-danger' : 'text-green-600'}">${e.overduePerc}% ${renderTrend(e.overduePerc, prevOver, true)}</td><td class="p-2.5 text-center text-rbi-body font-black ${accColor}">${e.accuracyPerc}% ${renderTrend(e.accuracyPerc, prevAcc, false)}</td><td class="p-2.5 text-center text-rbi-label font-bold text-muted">${e.avgTime} ${_t('quality.sk.hr.days_short', 'дн.')}</td><td class="p-2.5 text-center text-rbi-body font-black ${e.kpi >= 80 ? 'text-green-600' : 'text-danger'} bg-surface rounded-r-lg">${e.kpi} ${renderTrend(e.kpi, prevKpi, false)}</td></tr>`;
     }).join('');
 
     container.innerHTML = `
         <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden mb-4">
             <div class="p-3.5 bg-[var(--hover-bg)] border-b border-[var(--card-border)] flex justify-between items-center">
                 <div>
-                    <div class="font-black text-[12px] uppercase text-slate-800 dark:text-white mb-0.5">${_t('quality.sk.hr.rating_title', 'Рейтинг инженеров СК (KPI)')}</div>
-                    <div class="text-[9px] text-[var(--text-muted)] leading-snug font-medium">${_t('quality.sk.hr.rating_hint', 'KPI = 100 - %Просрочки + Бонусы.<br>Тренд (▲▼) показывает динамику по сравнению с предыдущим периодом.')}</div>
+                    <div class="font-black text-rbi-body uppercase text-ink dark:text-white mb-0.5">${_t('quality.sk.hr.rating_title', 'Рейтинг инженеров СК (KPI)')}</div>
+                    <div class="text-rbi-caption text-[var(--text-muted)] leading-snug font-medium">${_t('quality.sk.hr.rating_hint', 'KPI = 100 - %Просрочки + Бонусы.<br>Тренд (▲▼) показывает динамику по сравнению с предыдущим периодом.')}</div>
                 </div>
             </div>
             <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-left whitespace-nowrap">
-                    <thead class="bg-slate-50 dark:bg-slate-900 text-[9px] text-[var(--text-muted)] uppercase tracking-wider select-none">
+                    <thead class="bg-surface text-rbi-caption text-[var(--text-muted)] uppercase tracking-wider select-none">
                         <tr>
-                            <th class="p-3 cursor-pointer hover:text-indigo-500 transition-colors" title="${_t('quality.sk.hr.col.engineer_title', 'ФИО инженера строительного контроля')}" onclick="window.sk_sortHrTable('name')">${_t('quality.sk.hr.col.engineer', 'Инженер СК')} <span class="text-indigo-500">${window.skHrSortBy === 'name' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
-                            <th class="p-3 text-center cursor-pointer hover:text-indigo-500 transition-colors" title="${_t('quality.sk.hr.col.issued_title', 'Количество предписаний/замечаний, выданных инженером за выбранный период')}" onclick="window.sk_sortHrTable('total')">${_t('quality.sk.hr.col.issued', 'Выдал')} <span class="text-indigo-500">${window.skHrSortBy === 'total' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
-                            <th class="p-3 text-center cursor-pointer hover:text-indigo-500 transition-colors" title="${_t('quality.sk.hr.col.overdue_title', 'Доля замечаний, закрытых с нарушением срока устранения (deadline)')}" onclick="window.sk_sortHrTable('overduePerc')">${_t('quality.sk.hr.col.overdue', 'Просрочка')} <span class="text-indigo-500">${window.skHrSortBy === 'overduePerc' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
-                            <th class="p-3 text-center text-indigo-600 font-black cursor-pointer hover:text-indigo-800 transition-colors" title="${_t('quality.sk.hr.col.accuracy_title', 'Доля предписаний со ссылкой на нормативный документ (СП/ГОСТ/ППР/чертёж) — показатель качества формулировок')}" onclick="window.sk_sortHrTable('accuracyPerc')">${_t('quality.sk.hr.col.accuracy', 'Точность')} <span class="text-indigo-800">${window.skHrSortBy === 'accuracyPerc' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
-                            <th class="p-3 text-center cursor-pointer hover:text-indigo-500 transition-colors" title="${_t('quality.sk.hr.col.avg_time_title', 'Среднее число дней от выдачи предписания до его закрытия')}" onclick="window.sk_sortHrTable('avgTime')">${_t('quality.sk.hr.col.avg_time', 'Ср. Время')} <span class="text-indigo-500">${window.skHrSortBy === 'avgTime' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
-                            <th class="p-3 text-center text-indigo-600 font-black cursor-pointer hover:text-indigo-800 transition-colors" title="${_t('quality.sk.hr.col.kpi_title', 'Итоговый рейтинг: 100 − %Просрочки + бонус за 100% точность формулировок')}" onclick="window.sk_sortHrTable('kpi')">${_t('quality.sk.hr.col.kpi', 'KPI')} <span class="text-indigo-800">${window.skHrSortBy === 'kpi' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.engineer_title', 'ФИО инженера строительного контроля')}" onclick="window.sk_sortHrTable('name')">${_t('quality.sk.hr.col.engineer', 'Инженер СК')} <span class="text-brand">${window.skHrSortBy === 'name' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 text-center cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.issued_title', 'Количество предписаний/замечаний, выданных инженером за выбранный период')}" onclick="window.sk_sortHrTable('total')">${_t('quality.sk.hr.col.issued', 'Выдал')} <span class="text-brand">${window.skHrSortBy === 'total' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 text-center cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.overdue_title', 'Доля замечаний, закрытых с нарушением срока устранения (deadline)')}" onclick="window.sk_sortHrTable('overduePerc')">${_t('quality.sk.hr.col.overdue', 'Просрочка')} <span class="text-brand">${window.skHrSortBy === 'overduePerc' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 text-center text-brand font-black cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.accuracy_title', 'Доля предписаний со ссылкой на нормативный документ (СП/ГОСТ/ППР/чертёж) — показатель качества формулировок')}" onclick="window.sk_sortHrTable('accuracyPerc')">${_t('quality.sk.hr.col.accuracy', 'Точность')} <span class="text-brand">${window.skHrSortBy === 'accuracyPerc' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 text-center cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.avg_time_title', 'Среднее число дней от выдачи предписания до его закрытия')}" onclick="window.sk_sortHrTable('avgTime')">${_t('quality.sk.hr.col.avg_time', 'Ср. Время')} <span class="text-brand">${window.skHrSortBy === 'avgTime' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
+                            <th class="p-3 text-center text-brand font-black cursor-pointer hover:text-brand transition-colors" title="${_t('quality.sk.hr.col.kpi_title', 'Итоговый рейтинг: 100 − %Просрочки + бонус за 100% точность формулировок')}" onclick="window.sk_sortHrTable('kpi')">${_t('quality.sk.hr.col.kpi', 'KPI')} <span class="text-brand">${window.skHrSortBy === 'kpi' ? (window.skHrSortDesc ? '▼' : '▲') : ''}</span></th>
                         </tr>
                     </thead>
-                    <tbody>${rowsHtml || '<tr><td colspan="6" class="text-center p-4 text-slate-400 text-xs">' + _t('quality.sk.hr.no_period_data', 'Нет данных за период') + '</td></tr>'}</tbody>
+                    <tbody>${rowsHtml || '<tr><td colspan="6" class="text-center p-4 text-muted text-xs">' + _t('quality.sk.hr.no_period_data', 'Нет данных за период') + '</td></tr>'}</tbody>
                 </table>
             </div>
         </div>
-        <div class="bg-indigo-50 border border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800 rounded-xl p-4 shadow-sm">
+        <div class="bg-brand-soft border border-brand-soft rounded-xl p-4 shadow-sm">
             <div class="flex justify-between items-start mb-3">
                 <div>
-                    <div class="text-[12px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.sk.hr.ai_coach.title', 'AI-Тренер (Разбор ошибок)')}</div>
-                    <div class="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 leading-snug pr-4 font-medium">${_t('quality.sk.hr.ai_coach.description', 'Нейросеть выберет несколько реальных предписаний без нормативов, объяснит гарантийные риски и покажет, как нужно было написать правильно.')}</div>
+                    <div class="text-rbi-body font-black text-brand uppercase tracking-widest flex items-center gap-1.5 mb-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> ${_t('quality.sk.hr.ai_coach.title', 'AI-Тренер (Разбор ошибок)')}</div>
+                    <div class="text-rbi-caption text-brand/80 leading-snug pr-4 font-medium">${_t('quality.sk.hr.ai_coach.description', 'Нейросеть выберет несколько реальных предписаний без нормативов, объяснит гарантийные риски и покажет, как нужно было написать правильно.')}</div>
                 </div>
-                <button onclick="window.sk_auditTemplatesAi()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase shadow-md active:scale-95 transition-transform shrink-0">${_t('quality.sk.hr.ai_coach.analyze', 'Разобрать')}</button>
+                <button onclick="window.sk_auditTemplatesAi()" class="bg-brand text-white px-3 py-2 rounded-xl text-rbi-caption font-black uppercase shadow-md active:scale-95 transition-transform shrink-0">${_t('quality.sk.hr.ai_coach.analyze', 'Разобрать')}</button>
             </div>
-            <div id="sk-ai-templates-res" class="hidden mt-3 p-3 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-700 rounded-xl text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 shadow-inner font-medium"></div>
+            <div id="sk-ai-templates-res" class="hidden mt-3 p-3 bg-surface border border-brand-soft rounded-xl text-rbi-label leading-relaxed text-ink shadow-inner font-medium"></div>
         </div>`;
 }
 
@@ -1089,18 +1089,18 @@ function sk_showInfoModal(type) {
     var title = '', body = '';
     if (type === 'cmi') {
         title = _t('quality.sk.info.cmi.title', 'Индекс Зрелости (CMI)');
-        body = `<div class="text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 space-y-3"><p>${_t('quality.sk.info.cmi.intro', '<b>CMI (Control Maturity Index)</b> оценивает дисциплину подрядчика при устранении предписаний Стройконтроля.')}</p><div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-center">${_t('quality.sk.info.cmi.formula', 'CMI = (%Вовремя × 0.6) + ((100 - %Просрочки) × 0.4) - Глубина')}</div><div class="bg-indigo-50 dark:bg-indigo-900/20 border-l-2 border-indigo-500 p-2 text-[10px]">${_t('quality.sk.info.cmi.example', '<b>Пример:</b> У подрядчика 10 замечаний. 8 закрыто вовремя, 2 просрочено (в среднем на 5 дней).<br>CMI = (80% × 0.6) + ((100 - 20%) × 0.4) - 5 дней = 48 + 32 - 5 = <b>75 баллов</b>.')}</div><p>${_t('quality.sk.info.cmi.scale', '🟢 <b>≥ 70</b> — Отлично.<br>🟡 <b>40 – 69</b> — Средне.<br>🔴 <b>< 40</b> — Срыв сроков.')}</p></div>`;
+        body = `<div class="text-rbi-body leading-relaxed text-ink space-y-3"><p>${_t('quality.sk.info.cmi.intro', '<b>CMI (Control Maturity Index)</b> оценивает дисциплину подрядчика при устранении предписаний Стройконтроля.')}</p><div class="bg-surface p-3 rounded-lg border border-surface font-mono text-rbi-caption text-center">${_t('quality.sk.info.cmi.formula', 'CMI = (%Вовремя × 0.6) + ((100 - %Просрочки) × 0.4) - Глубина')}</div><div class="bg-brand-soft border-l-2 border-brand p-2 text-rbi-caption">${_t('quality.sk.info.cmi.example', '<b>Пример:</b> У подрядчика 10 замечаний. 8 закрыто вовремя, 2 просрочено (в среднем на 5 дней).<br>CMI = (80% × 0.6) + ((100 - 20%) × 0.4) - 5 дней = 48 + 32 - 5 = <b>75 баллов</b>.')}</div><p>${_t('quality.sk.info.cmi.scale', '🟢 <b>≥ 70</b> — Отлично.<br>🟡 <b>40 – 69</b> — Средне.<br>🔴 <b>< 40</b> — Срыв сроков.')}</p></div>`;
     } else if (type === 'isd') {
         title = _t('quality.sk.info.isd.title', 'Индекс Соответствия (ИСД)');
-        body = `<div class="text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 space-y-3"><p>${_t('quality.sk.info.isd.intro', '<b>ИСД</b> — это детектор сокрытия брака.')}</p><div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-center">${_t('quality.sk.info.isd.formula', 'ИСД = (Факт в ПК СК / Ожидаемый Брак) × 100%')}</div><p>${_t('quality.sk.info.isd.alert', '🔴 <b>ИСД < 20%</b> — Аномалия. Обязательный выезд на объект.')}</p></div>`;
+        body = `<div class="text-rbi-body leading-relaxed text-ink space-y-3"><p>${_t('quality.sk.info.isd.intro', '<b>ИСД</b> — это детектор сокрытия брака.')}</p><div class="bg-surface p-3 rounded-lg border border-surface font-mono text-rbi-caption text-center">${_t('quality.sk.info.isd.formula', 'ИСД = (Факт в ПК СК / Ожидаемый Брак) × 100%')}</div><p>${_t('quality.sk.info.isd.alert', '🔴 <b>ИСД < 20%</b> — Аномалия. Обязательный выезд на объект.')}</p></div>`;
     } else if (type === 'hr') {
         title = _t('quality.sk.info.hr.title', 'KPI Инженеров СК');
-        body = `<div class="text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 space-y-3"><p>${_t('quality.sk.info.hr.intro', '<b>KPI</b> оценивает качество ведения Стройконтроля конкретным инженером.')}</p><div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-center">${_t('quality.sk.info.hr.formula', 'KPI = 100 - %Просрочки + Бонус (10)')}</div></div>`;
+        body = `<div class="text-rbi-body leading-relaxed text-ink space-y-3"><p>${_t('quality.sk.info.hr.intro', '<b>KPI</b> оценивает качество ведения Стройконтроля конкретным инженером.')}</p><div class="bg-surface p-3 rounded-lg border border-surface font-mono text-rbi-caption text-center">${_t('quality.sk.info.hr.formula', 'KPI = 100 - %Просрочки + Бонус (10)')}</div></div>`;
     }
     var modal = document.getElementById('modal-overlay');
     document.getElementById('modal-icon').innerHTML = '';
-    document.getElementById('modal-title').innerHTML = '<div class="text-center font-black uppercase text-lg text-indigo-600 dark:text-indigo-400">' + title + '</div>';
-    document.getElementById('modal-body').innerHTML = body + '<div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700"><button onclick="closeModal()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[12px] uppercase shadow-md active:scale-95 transition-transform">' + _t('quality.sk.info.ok', 'Понятно') + '</button></div>';
+    document.getElementById('modal-title').innerHTML = '<div class="text-center font-black uppercase text-lg text-brand">' + title + '</div>';
+    document.getElementById('modal-body').innerHTML = body + '<div class="mt-5 pt-3 border-t border-surface"><button onclick="closeModal()" class="w-full bg-brand text-white py-3.5 rounded-xl font-black text-rbi-body uppercase shadow-md active:scale-95 transition-transform">' + _t('quality.sk.info.ok', 'Понятно') + '</button></div>';
     document.body.classList.add('modal-open');
     modal.style.display = 'flex';
 }
@@ -1116,16 +1116,16 @@ function sk_openCategoryLinkModal(rawCategory) {
         Object.keys(_ut).forEach(function (k) { optionsHtml += '<option value="' + _ut[k].title + '">' + _ut[k].title + '</option>'; });
     }
     var modal = document.getElementById('modal-overlay');
-    document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-2xl mx-auto mb-2 border border-indigo-200">🔗</div>`;
+    document.getElementById('modal-icon').innerHTML = `<div class="w-12 h-12 bg-brand-soft text-brand rounded-xl flex items-center justify-center text-2xl mx-auto mb-2 border border-brand-soft">🔗</div>`;
     document.getElementById('modal-title').innerHTML = `<div class="text-center font-black uppercase text-lg">${_t('quality.sk.category_link.title', 'Связь видов работ')}</div>`;
     document.getElementById('modal-body').innerHTML = `
-        <div class="text-[11px] text-slate-600 text-center mb-4">${_t('quality.sk.category_link.description', 'Объедините категорию из ПК СК с правильным названием чек-листа в RBI.')}</div>
-        <div class="bg-red-50 text-red-600 p-2 rounded-lg border border-red-200 text-center text-[11px] font-bold mb-3">${_t('quality.sk.category_link.from_sk', 'Из ПК СК: "{category}"', { category: rawCategory })}</div>
-        <div class="text-center text-slate-400 mb-3">${_t('quality.sk.category_link.will_count', '⬇️ будет считаться как ⬇️')}</div>
-        <select id="sk-category-link-select" class="input-base !py-2 text-[11px] font-bold mb-4">${optionsHtml}</select>
+        <div class="text-rbi-label text-muted text-center mb-4">${_t('quality.sk.category_link.description', 'Объедините категорию из ПК СК с правильным названием чек-листа в RBI.')}</div>
+        <div class="bg-danger-soft text-danger p-2 rounded-lg border border-danger-soft text-center text-rbi-label font-bold mb-3">${_t('quality.sk.category_link.from_sk', 'Из ПК СК: "{category}"', { category: rawCategory })}</div>
+        <div class="text-center text-muted mb-3">${_t('quality.sk.category_link.will_count', '⬇️ будет считаться как ⬇️')}</div>
+        <select id="sk-category-link-select" class="input-base !py-2 text-rbi-label font-bold mb-4">${optionsHtml}</select>
         <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold text-[11px] uppercase active:scale-95 border">${_t('quality.sk.category_link.cancel', 'Отмена')}</button>
-            <button onclick="sk_saveCategoryLink('${rawCategory.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-black text-[11px] uppercase shadow-md active:scale-95">${_t('quality.sk.category_link.link', 'Связать')}</button>
+            <button onclick="closeModal()" class="flex-1 bg-surface text-muted py-3.5 rounded-xl font-bold text-rbi-label uppercase active:scale-95 border">${_t('quality.sk.category_link.cancel', 'Отмена')}</button>
+            <button onclick="sk_saveCategoryLink('${rawCategory.replace(/'/g, "\\'")}')" class="flex-1 bg-brand text-white py-3.5 rounded-xl font-black text-rbi-label uppercase shadow-md active:scale-95">${_t('quality.sk.category_link.link', 'Связать')}</button>
         </div>`;
     document.body.classList.add('modal-open');
     modal.style.display = 'flex';

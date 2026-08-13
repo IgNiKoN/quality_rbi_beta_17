@@ -44,7 +44,7 @@
                 <div
                     class="flex gap-1 p-1 bg-[var(--card-border)]/80 backdrop-blur-md rounded-xl overflow-x-auto no-scrollbar whitespace-nowrap text-center shadow-sm border border-[var(--card-border)]">
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-badges" data-tasks-action-arg2-type="element"
-                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
+                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-rbi-caption sm:text-rbi-caption font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
@@ -52,7 +52,7 @@
                         </svg><span data-i18n="quality.sub.engineer.profile">Профиль</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-tasks" data-tasks-action-arg2-type="element"
-                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md bg-white shadow-sm text-indigo-600 flex flex-col items-center gap-1 active">
+                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-rbi-caption sm:text-rbi-caption font-bold uppercase rounded-md bg-white shadow-sm text-brand flex flex-col items-center gap-1 active">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
@@ -60,7 +60,7 @@
                         </svg><span data-i18n="quality.sub.engineer.tasks">Задачи</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-meetings" data-tasks-action-arg2-type="element"
-                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
+                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-rbi-caption sm:text-rbi-caption font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
@@ -68,14 +68,14 @@
                         </svg><span class="sm:hidden" data-i18n="quality.sub.engineer.meetings_short">Совещ.</span><span class="hidden sm:inline" data-i18n="quality.sub.engineer.meetings">Совещания</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-impact" data-tasks-action-arg2-type="element"
-                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
+                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-rbi-caption sm:text-rbi-caption font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                         </svg><span data-i18n="quality.sub.engineer.impact">Impact</span>
                     </button>
                     <button data-tasks-action="rbi_switchEngineerSubTab" data-action-arg="eng-sub-fmea" data-tasks-action-arg2-type="element"
-                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
+                        class="sub-tab-btn flex-1 min-w-[60px] py-2 text-rbi-caption sm:text-rbi-caption font-bold uppercase rounded-md text-[var(--text-muted)] flex flex-col items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
@@ -92,28 +92,28 @@
                 <div
                     class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex justify-between items-center w-full">
                     <div>
-                        <div class="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-1.5"
+                        <div class="text-rbi-body font-black text-ink uppercase tracking-tight flex items-center gap-1.5"
                             id="rbi-week-title">
-                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
                                 </path>
                             </svg> ${_t('quality.engineer.tasks.week', 'НЕДЕЛЯ')} <span id="rbi-week-number">--</span>
                         </div>
-                        <div class="text-[9px] font-bold text-[var(--text-muted)]" id="rbi-week-dates">-- апр — -- мая
+                        <div class="text-rbi-caption font-bold text-[var(--text-muted)]" id="rbi-week-dates">-- апр — -- мая
                             2026</div>
                     </div>
                     <div class="flex flex-col items-end gap-0.5">
-                        <div class="text-[9px] font-black uppercase text-[var(--text-muted)]">${_t('quality.engineer.tasks.progress', 'Прогресс')}: <span
-                                id="rbi-tasks-progress-text" class="text-indigo-600 dark:text-indigo-400">0/0</span>
+                        <div class="text-rbi-caption font-black uppercase text-[var(--text-muted)]">${_t('quality.engineer.tasks.progress', 'Прогресс')}: <span
+                                id="rbi-tasks-progress-text" class="text-brand">0/0</span>
                         </div>
-                        <div class="text-[8px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">
-                            ${_t('quality.engineer.tasks.open_short', 'Откр.')} <span id="rbi-tasks-open" class="text-slate-800 dark:text-white">0</span>
-                            · <span class="text-red-500">${_t('quality.engineer.tasks.overdue_short', 'Проср.')} <span id="rbi-tasks-overdue">0</span></span>
+                        <div class="text-rbi-caption font-bold text-muted tabular-nums">
+                            ${_t('quality.engineer.tasks.open_short', 'Откр.')} <span id="rbi-tasks-open" class="text-ink">0</span>
+                            · <span class="text-danger">${_t('quality.engineer.tasks.overdue_short', 'Проср.')} <span id="rbi-tasks-overdue">0</span></span>
                             · ${_t('quality.engineer.tasks.closed_short', 'Закр.')} <span id="rbi-tasks-closed-week" class="text-emerald-600 dark:text-emerald-400">0</span>
                         </div>
-                        <div class="w-28 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div id="rbi-tasks-progress-bar" class="h-full bg-indigo-500 transition-all"
+                        <div class="w-28 h-1.5 bg-surface rounded-full overflow-hidden">
+                            <div id="rbi-tasks-progress-bar" class="h-full bg-brand transition-all"
                                 style="width: 0%"></div>
                         </div>
                     </div>
@@ -128,7 +128,7 @@
                     class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex justify-between items-center w-full">
                     <div>
                         <h2
-                            class="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
+                            class="text-rbi-title font-black uppercase tracking-tight text-ink flex items-center gap-1.5">
                             <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                 stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -137,10 +137,10 @@
                             </svg>
                             ${_t('quality.engineer.meetings.title', 'Совещания')}
                         </h2>
-                        <p class="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">${_t('quality.engineer.meetings.subtitle', 'Умные протоколы')}</p>
+                        <p class="text-rbi-caption font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">${_t('quality.engineer.meetings.subtitle', 'Умные протоколы')}</p>
                     </div>
                     <button data-meetings-action="rbi_createMeeting"
-                        class="bg-orange-500 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
+                        class="bg-orange-500 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-rbi-caption font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
                         </svg> ${_t('quality.engineer.meetings.new', 'Новое')}
@@ -148,7 +148,7 @@
                 </div>
                 <div id="rbi-meeting-container" class="space-y-3 pb-8">
                     <div
-                        class="text-center py-10 text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">
+                        class="text-center py-10 text-muted text-rbi-label font-bold uppercase tracking-widest bg-surface rounded-xl border border-dashed border-surface shadow-sm">
                         ${_t('quality.engineer.meetings.empty', 'Активных протоколов нет')}</div>
                 </div>
             </div>
@@ -159,7 +159,7 @@
                     class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex justify-between items-center w-full">
                     <div>
                         <h2
-                            class="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
+                            class="text-rbi-title font-black uppercase tracking-tight text-ink flex items-center gap-1.5">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                 stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6">
@@ -167,11 +167,11 @@
                             </svg>
                             ${_t('quality.engineer.impact.title', 'Эффективность')}
                         </h2>
-                        <p class="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">Impact
+                        <p class="text-rbi-caption font-bold text-[var(--text-muted)] mt-0.5 uppercase tracking-widest">Impact
                             Score</p>
                     </div>
                     <button data-interventions-action="rbi_openInterventionModal"
-                        class="bg-green-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
+                        class="bg-green-600 text-white px-3 py-1.5 rounded-lg shadow-md active:scale-95 text-rbi-caption font-black uppercase whitespace-nowrap flex items-center gap-1 transition-transform">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"></path>
                         </svg> ${_t('quality.engineer.impact.action', 'Воздействие')}
@@ -193,8 +193,8 @@
                     class="sticky-top-panel bg-[var(--card-border)]/80 backdrop-blur-md p-3 rounded-xl border border-[var(--card-border)] shadow-sm mb-4 z-40 flex flex-col">
                     <div class="flex justify-between items-center w-full">
                         <div id="profile-title-text"
-                            class="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            class="text-rbi-title font-black uppercase tracking-tight text-ink flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                 stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z">
@@ -203,7 +203,7 @@
                             ${_t('quality.engineer.profile.title', 'Профиль Инженера')}
                         </div>
                         <button data-game-action="gameOpenManagerPanelAuth"
-                            class="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full text-slate-500 active:scale-95 shadow-sm border border-slate-200 dark:border-slate-700">
+                            class="w-8 h-8 flex items-center justify-center bg-surface rounded-full text-muted active:scale-95 shadow-sm border border-surface">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
@@ -214,9 +214,9 @@
                     <!-- Умное поле ввода имени -->
                     <div id="profile-name-edit-container" class="hidden mt-2 w-full">
                         <input type="text" id="profile-name-input"
-                            class="input-base text-[12px] border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30"
+                            class="input-base text-rbi-body border-brand-soft bg-brand-soft"
                             placeholder="${_t('quality.engineer.profile.name_ph', 'Введите вашу Фамилию и И.О...')}" data-game-action="saveEngineerNameForce" data-game-action-val-type="value" data-action-event="change">
-                        <div class="text-[9px] text-[var(--text-muted)] mt-1 pl-1 font-bold">${_t('quality.engineer.profile.name_hint', 'Имя привяжется ко всем актам навсегда.')}</div>
+                        <div class="text-rbi-caption text-[var(--text-muted)] mt-1 pl-1 font-bold">${_t('quality.engineer.profile.name_hint', 'Имя привяжется ко всем актам навсегда.')}</div>
                     </div>
                 </div>
                 <div id="game-dashboard-container"></div>

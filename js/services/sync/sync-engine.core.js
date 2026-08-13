@@ -746,6 +746,38 @@ window.triggerSync = async function (mode = 'silent') {
         }
     }
 
+    // profile_data.gameLogs пушится каждый sync (см. ниже, "8. PUSH: рейтинг
+    // инженера" / профиль), но раньше никогда не читался обратно — при
+    // первом заходе с нового устройства/после очистки локальных данных
+    // лог-бонусы (TWI/AI/встречи и т.п.) не восстанавливались. Мерж —
+    // строго аддитивный (concat + дедуп той же функцией, что и локальный
+    // restore), не меняет остальную логику pull/push.
+    async function pullOwnGameLogsFromCloud() {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('rbi_engineer_profiles')
+                .select('profile_data')
+                .eq('inspector_id', stableInspectorId)
+                .limit(1);
+            if (error) throw error;
+            const cloudLogs = data && data[0] && data[0].profile_data && Array.isArray(data[0].profile_data.gameLogs)
+                ? data[0].profile_data.gameLogs
+                : [];
+            if (cloudLogs.length === 0) return;
+            const current = (typeof window.gameActionLogs !== 'undefined' && Array.isArray(window.gameActionLogs)) ? window.gameActionLogs : [];
+            const merged = current.concat(cloudLogs);
+            if (typeof gameNormalizeActionLogs === 'function') {
+                const norm = gameNormalizeActionLogs(merged);
+                window.gameActionLogs = norm.logs;
+            } else {
+                window.gameActionLogs = merged;
+            }
+            if (typeof gameSaveLogs === 'function') gameSaveLogs();
+        } catch (e) {
+            console.warn('[Sync] XP-логи из облака не подтянуты:', e.message);
+        }
+    }
+
     try {
         if (showSyncProgress) {
             if (_syncProg()) _syncProg().setStep(1);
@@ -757,6 +789,7 @@ window.triggerSync = async function (mode = 'silent') {
         // 1. ВСЕГДА ТЯНЕМ РЕЙТИНГ ИНЖЕНЕРОВ
         // =====================================================
         await pullEngineerRatingAlways();
+        await pullOwnGameLogsFromCloud();
         // =====================================================
         // 1.5. PULL: КОРПОРАТИВНЫЙ СТИЛЬ (Логотип и Цвет)
         // =====================================================
